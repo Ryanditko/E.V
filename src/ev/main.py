@@ -1,7 +1,22 @@
+from pathlib import Path
+
 from rich.console import Console
 from rich.markdown import Markdown
 
 from ev.llm import OllamaClient
+
+
+def load_system_prompt() -> str:
+    """Load system prompt from config file."""
+    current_file = Path(__file__).resolve()
+    project_root = current_file.parent.parent.parent
+    prompt_file = project_root / "config" / "prompts" / "system.md"
+    
+    if prompt_file.exists():
+        return prompt_file.read_text(encoding="utf-8")
+
+    return "You are E.V., a helpful personal AI assistant."
+
 
 def main(): 
     console = Console()
@@ -11,7 +26,7 @@ def main():
 
     system_prompt = {
         "role": "system", 
-        "content": "You are E.V., a helpful personal AI assistant."
+        "content": load_system_prompt()
     }
     messages.append(system_prompt)
 
