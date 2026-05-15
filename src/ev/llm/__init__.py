@@ -1,4 +1,3 @@
-from .ollama import OllamaClient
+from .ollama import OllamaClient, ChatResponse
 
-__all__ = ["OllamaClient"]
-
+__all__ = ["OllamaClient", "ChatResponse"]
