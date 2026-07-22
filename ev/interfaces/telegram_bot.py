@@ -232,9 +232,9 @@ class TelegramInterface:
         )
         await update.message.reply_text(result)
 
-    async def cmd_agenda(self, update: Update, _c: ContextTypes.DEFAULT_TYPE) -> None:
+    async def cmd_agenda(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
         if self._authorized(update):
-            await self._cmd_out(update, self._commands.agenda())
+            await self._cmd_out(update, self._commands.agenda(self._args(c)))
 
     async def cmd_evento(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
         if self._authorized(update):

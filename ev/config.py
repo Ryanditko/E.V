@@ -55,8 +55,19 @@ class Config:
     # Tools
     websearch_enabled: bool
     google_oauth_client: str
-    google_token_path: Path
+    google_accounts: tuple[str, ...]  # e.g. ("pessoal", "faculdade")
     db_path: Path
+
+    @property
+    def default_account(self) -> str:
+        return self.google_accounts[0] if self.google_accounts else ""
+
+    def token_path_for(self, account: str) -> Path:
+        """Per-account OAuth token file (one Google project, many accounts)."""
+        return self.db_path.parent / f"google_token_{account}.json"
+
+    def google_ready(self) -> bool:
+        return bool(self.google_oauth_client and self.google_accounts)
 
     # Telegram token is only required for the Telegram interface. The terminal
     # interface can run without it (passes require_telegram=False).
@@ -79,7 +90,10 @@ class Config:
         owner_raw = os.getenv("EV_OWNER_ID", "").strip()
         owner_id = int(owner_raw) if owner_raw.isdigit() else None
 
-        token_path = os.getenv("GOOGLE_TOKEN_PATH", "google_token.json").strip()
+        accounts_raw = os.getenv("EV_GOOGLE_ACCOUNTS", "pessoal")
+        google_accounts = tuple(
+            a.strip() for a in accounts_raw.split(",") if a.strip()
+        )
 
         try:
             briefing_hour = int(os.getenv("EV_BRIEFING_HOUR", "8").strip() or "-1")
@@ -119,6 +133,6 @@ class Config:
             briefing_hour=briefing_hour,
             websearch_enabled=_get_bool("EV_WEBSEARCH_ENABLED", True),
             google_oauth_client=os.getenv("GOOGLE_OAUTH_CLIENT", "").strip(),
-            google_token_path=(_PROJECT_ROOT / token_path),
+            google_accounts=google_accounts,
             db_path=_PROJECT_ROOT / "ev_memory.db",
         )

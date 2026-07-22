@@ -10,6 +10,7 @@ def _commands(tmp_path):
     config = SimpleNamespace(
         timezone="America/Sao_Paulo",
         google_oauth_client="",
+        google_accounts=(),
         gemini_api_key="x",
         embed_backend="gemini",
         embed_model="m",
@@ -49,6 +50,20 @@ def test_bad_input(tmp_path):
     c = _commands(tmp_path)
     assert "Uso:" in c.tarefa("u", "")
     assert "horário" in c.lembrete("u", "sem tempo aqui")
+
+
+def test_resolve_account(tmp_path):
+    cfg = SimpleNamespace(
+        timezone="America/Sao_Paulo",
+        google_oauth_client="x",
+        google_accounts=("pessoal", "faculdade"),
+        gemini_api_key="x",
+        embed_backend="gemini",
+        embed_model="m",
+    )
+    c = Commands(cfg, Memory(tmp_path / "t.db"))
+    assert c._resolve_account("faculdade oi tudo bem") == ("faculdade", "oi tudo bem")
+    assert c._resolve_account("oi tudo bem") == ("pessoal", "oi tudo bem")
 
 
 def test_cancel_reminder(tmp_path):

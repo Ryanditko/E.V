@@ -41,9 +41,9 @@ COMMAND_LIST = [
     ("kb", "Base de conhecimento (envie um PDF para adicionar)"),
     ("kbweb", "Indexar uma página web: /kbweb https://..."),
     ("kbrm", "Remover documento da base: /kbrm nome.pdf"),
-    ("agenda", "Ver próximos eventos do Google Agenda"),
-    ("evento", "Criar evento: /evento amanhã 15:00 Dentista"),
-    ("email", "Enviar e-mail: /email fulano@x.com | Assunto | Corpo"),
+    ("agenda", "Agenda do Google: /agenda [conta]"),
+    ("evento", "Criar evento: /evento [conta] amanhã 15:00 Dentista"),
+    ("email", "E-mail: /email [conta] fulano@x.com | Assunto | Corpo"),
 ]
 
 
@@ -62,7 +62,21 @@ class Commands:
             return datetime.now()
 
     def _google_ready(self) -> bool:
-        return bool(self._config.google_oauth_client)
+        return bool(
+            getattr(self._config, "google_oauth_client", "")
+            and getattr(self._config, "google_accounts", ())
+        )
+
+    def _resolve_account(self, argstr: str) -> tuple[str, str]:
+        """If the text starts with a known account name, use it; else the default.
+        Returns (account, remaining_text)."""
+        argstr = argstr.strip()
+        tokens = argstr.split()
+        accounts = getattr(self._config, "google_accounts", ())
+        if tokens and tokens[0] in accounts:
+            return tokens[0], argstr[len(tokens[0]):].strip()
+        default = accounts[0] if accounts else ""
+        return default, argstr
 
     # --- help ---------------------------------------------------------------
 
@@ -207,7 +221,11 @@ class Commands:
 
         if self._google_ready():
             parts.append("\nAgenda:")
-            parts.append(tools_mod.calendar_upcoming(self._config, max_results=5))
+            parts.append(
+                tools_mod.calendar_upcoming(
+                    self._config, self._config.default_account, max_results=5
+                )
+            )
 
         if len(parts) == 1:
             parts.append("Nada na lista. Dia livre — aproveita!")
@@ -301,27 +319,31 @@ class Commands:
 
     # --- Google (Calendar + email) -----------------------------------------
 
-    def agenda(self) -> str:
+    def agenda(self, argstr: str = "") -> str:
         if not self._google_ready():
             return "Agenda do Google ainda não configurada. Conecte sua conta primeiro."
-        return tools_mod.calendar_upcoming(self._config)
+        account, _ = self._resolve_account(argstr)
+        header = f"[{account}]\n" if len(self._config.google_accounts) > 1 else ""
+        return header + tools_mod.calendar_upcoming(self._config, account)
 
     def evento(self, argstr: str) -> str:
         if not self._google_ready():
             return "Agenda do Google ainda não configurada. Conecte sua conta primeiro."
-        when, title = parse_when(argstr.strip(), self._now())
+        account, rest = self._resolve_account(argstr)
+        when, title = parse_when(rest.strip(), self._now())
         if when is None or not title.strip():
-            return "Uso: /evento <tempo> <título>. Ex: /evento amanhã 15:00 Dentista"
+            return "Uso: /evento [conta] <tempo> <título>. Ex: /evento pessoal amanhã 15:00 Dentista"
         end = when + timedelta(hours=1)
         return tools_mod.calendar_create(
-            self._config, title.strip(), when.isoformat(), end.isoformat()
+            self._config, account, title.strip(), when.isoformat(), end.isoformat()
         )
 
     def email(self, argstr: str) -> str:
         if not self._google_ready():
             return "E-mail do Google ainda não configurado. Conecte sua conta primeiro."
-        parts = [p.strip() for p in argstr.split("|")]
+        account, rest = self._resolve_account(argstr)
+        parts = [p.strip() for p in rest.split("|")]
         if len(parts) != 3 or not all(parts):
-            return "Uso: /email destinatário | assunto | corpo"
+            return "Uso: /email [conta] destinatário | assunto | corpo"
         to, subject, body = parts
-        return tools_mod.send_email(self._config, to, subject, body)
+        return tools_mod.send_email(self._config, account, to, subject, body)

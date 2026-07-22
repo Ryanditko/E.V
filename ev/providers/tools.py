@@ -51,8 +51,10 @@ def web_search(query: str, max_results: int = 5) -> str:
 
 # --- Google (Calendar + Gmail) ---------------------------------------------
 
-def _google_service(config, api: str, version: str):
-    """Build an authorized Google API client. Requires GOOGLE_OAUTH_CLIENT.
+def _google_service(config, account: str, api: str, version: str):
+    """Build an authorized Google API client for `account`. Requires
+    GOOGLE_OAUTH_CLIENT. One OAuth client serves many accounts; each account has
+    its own cached token (google_token_<account>.json).
 
     On first use, opens a browser to authorize and caches the token. On a
     headless server, run it once locally to generate the token file, then copy
@@ -63,7 +65,7 @@ def _google_service(config, api: str, version: str):
     from google.auth.transport.requests import Request
     from googleapiclient.discovery import build
 
-    token_path = config.google_token_path
+    token_path = config.token_path_for(account)
     creds = None
     if token_path.exists():
         creds = Credentials.from_authorized_user_file(str(token_path), _GOOGLE_SCOPES)
@@ -81,12 +83,12 @@ def _google_service(config, api: str, version: str):
     return build(api, version, credentials=creds, cache_discovery=False)
 
 
-def calendar_upcoming(config, max_results: int = 5) -> str:
+def calendar_upcoming(config, account: str, max_results: int = 5) -> str:
     """List the user's upcoming Google Calendar events."""
     from datetime import datetime, timezone
 
     try:
-        service = _google_service(config, "calendar", "v3")
+        service = _google_service(config, account, "calendar", "v3")
         now = datetime.now(timezone.utc).isoformat()
         events = (
             service.events()
@@ -113,10 +115,12 @@ def calendar_upcoming(config, max_results: int = 5) -> str:
     return "\n".join(lines)
 
 
-def calendar_create(config, summary: str, start_iso: str, end_iso: str) -> str:
+def calendar_create(
+    config, account: str, summary: str, start_iso: str, end_iso: str
+) -> str:
     """Create a Google Calendar event."""
     try:
-        service = _google_service(config, "calendar", "v3")
+        service = _google_service(config, account, "calendar", "v3")
         event = {
             "summary": summary,
             "start": {"dateTime": start_iso},
@@ -131,13 +135,13 @@ def calendar_create(config, summary: str, start_iso: str, end_iso: str) -> str:
         return f"não consegui criar o evento ({exc})"
 
 
-def send_email(config, to: str, subject: str, body: str) -> str:
+def send_email(config, account: str, to: str, subject: str, body: str) -> str:
     """Send an email through the user's Gmail account."""
     import base64
     from email.message import EmailMessage
 
     try:
-        service = _google_service(config, "gmail", "v1")
+        service = _google_service(config, account, "gmail", "v1")
         msg = EmailMessage()
         msg["To"] = to
         msg["Subject"] = subject
