@@ -13,7 +13,7 @@ from __future__ import annotations
 import asyncio
 import io
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 
 try:
     from zoneinfo import ZoneInfo
@@ -57,6 +57,9 @@ class TelegramInterface:
         # user_id -> pending input action (e.g. "task", "rem", "link", ...)
         self._pending: dict[str, str] = {}
         self._last_briefing: str | None = None  # date of the last daily briefing
+        # Keep references to background tasks so they aren't garbage-collected
+        # (a GC'd task would silently kill the scheduler).
+        self._bg_tasks: list = []
 
     # --- access control -----------------------------------------------------
 
@@ -139,72 +142,82 @@ class TelegramInterface:
 
     async def cmd_ajuda(self, update: Update, _c: ContextTypes.DEFAULT_TYPE) -> None:
         if self._authorized(update):
-            await update.message.reply_text(self._commands.help())
+            await self._cmd_out(update, self._commands.help())
 
     async def cmd_lembrete(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
         if self._authorized(update):
             uid = str(update.effective_user.id)
-            await update.message.reply_text(self._commands.lembrete(uid, self._args(c)))
+            await self._cmd_out(update, self._commands.lembrete(uid, self._args(c)))
 
     async def cmd_lembretes(self, update: Update, _c: ContextTypes.DEFAULT_TYPE) -> None:
         if self._authorized(update):
             uid = str(update.effective_user.id)
-            await update.message.reply_text(self._commands.lembretes(uid))
+            await self._cmd_out(update, self._commands.lembretes(uid))
+
+    async def cmd_rotina(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
+        if self._authorized(update):
+            uid = str(update.effective_user.id)
+            await self._cmd_out(update, self._commands.rotina(uid, self._args(c)))
+
+    async def cmd_cancelar(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
+        if self._authorized(update):
+            uid = str(update.effective_user.id)
+            await self._cmd_out(update, self._commands.cancelar(uid, self._args(c)))
 
     async def cmd_tarefa(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
         if self._authorized(update):
             uid = str(update.effective_user.id)
-            await update.message.reply_text(self._commands.tarefa(uid, self._args(c)))
+            await self._cmd_out(update, self._commands.tarefa(uid, self._args(c)))
 
     async def cmd_tarefas(self, update: Update, _c: ContextTypes.DEFAULT_TYPE) -> None:
         if self._authorized(update):
             uid = str(update.effective_user.id)
-            await update.message.reply_text(self._commands.tarefas(uid))
+            await self._cmd_out(update, self._commands.tarefas(uid))
 
     async def cmd_concluir(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
         if self._authorized(update):
             uid = str(update.effective_user.id)
-            await update.message.reply_text(self._commands.concluir(uid, self._args(c)))
+            await self._cmd_out(update, self._commands.concluir(uid, self._args(c)))
 
     async def cmd_lembrar(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
         if self._authorized(update):
             uid = str(update.effective_user.id)
-            await update.message.reply_text(self._commands.lembrar(uid, self._args(c)))
+            await self._cmd_out(update, self._commands.lembrar(uid, self._args(c)))
 
     async def cmd_memorias(self, update: Update, _c: ContextTypes.DEFAULT_TYPE) -> None:
         if self._authorized(update):
             uid = str(update.effective_user.id)
-            await update.message.reply_text(self._commands.memorias(uid))
+            await self._cmd_out(update, self._commands.memorias(uid))
 
     async def cmd_link(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
         if self._authorized(update):
             uid = str(update.effective_user.id)
-            await update.message.reply_text(self._commands.link(uid, self._args(c)))
+            await self._cmd_out(update, self._commands.link(uid, self._args(c)))
 
     async def cmd_links(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
         if self._authorized(update):
             uid = str(update.effective_user.id)
-            await update.message.reply_text(self._commands.links(uid, self._args(c)))
+            await self._cmd_out(update, self._commands.links(uid, self._args(c)))
 
     async def cmd_linkrm(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
         if self._authorized(update):
             uid = str(update.effective_user.id)
-            await update.message.reply_text(self._commands.linkrm(uid, self._args(c)))
+            await self._cmd_out(update, self._commands.linkrm(uid, self._args(c)))
 
     async def cmd_kb(self, update: Update, _c: ContextTypes.DEFAULT_TYPE) -> None:
         if self._authorized(update):
             uid = str(update.effective_user.id)
-            await update.message.reply_text(self._commands.kb(uid))
+            await self._cmd_out(update, self._commands.kb(uid))
 
     async def cmd_kbrm(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
         if self._authorized(update):
             uid = str(update.effective_user.id)
-            await update.message.reply_text(self._commands.kbrm(uid, self._args(c)))
+            await self._cmd_out(update, self._commands.kbrm(uid, self._args(c)))
 
     async def cmd_kbweb(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
         if self._authorized(update):
             uid = str(update.effective_user.id)
-            await update.message.reply_text(self._commands.kbweb(uid, self._args(c)))
+            await self._cmd_out(update, self._commands.kbweb(uid, self._args(c)))
 
     async def on_document(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         if not self._authorized(update):
@@ -221,15 +234,15 @@ class TelegramInterface:
 
     async def cmd_agenda(self, update: Update, _c: ContextTypes.DEFAULT_TYPE) -> None:
         if self._authorized(update):
-            await update.message.reply_text(self._commands.agenda())
+            await self._cmd_out(update, self._commands.agenda())
 
     async def cmd_evento(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
         if self._authorized(update):
-            await update.message.reply_text(self._commands.evento(self._args(c)))
+            await self._cmd_out(update, self._commands.evento(self._args(c)))
 
     async def cmd_email(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
         if self._authorized(update):
-            await update.message.reply_text(self._commands.email(self._args(c)))
+            await self._cmd_out(update, self._commands.email(self._args(c)))
 
     # --- interactive menu (buttons) ----------------------------------------
 
@@ -402,8 +415,32 @@ class TelegramInterface:
 
     # --- reply --------------------------------------------------------------
 
+    @staticmethod
+    def _split(text: str, limit: int = 4000) -> list[str]:
+        """Split text into <= limit-char parts (Telegram caps messages at 4096)."""
+        text = text or "…"
+        parts, current = [], ""
+        for line in text.split("\n"):
+            while len(line) > limit:  # a single very long line
+                parts.append(line[:limit])
+                line = line[limit:]
+            if len(current) + len(line) + 1 > limit:
+                parts.append(current)
+                current = line
+            else:
+                current = f"{current}\n{line}" if current else line
+        if current:
+            parts.append(current)
+        return parts
+
+    async def _cmd_out(self, update: Update, text: str) -> None:
+        """Send a command result, split into chunks if long."""
+        for part in self._split(text):
+            await update.message.reply_text(part)
+
     async def _reply(self, update: Update, answer: str) -> None:
-        await update.message.reply_text(answer)
+        for part in self._split(answer):
+            await update.message.reply_text(part)
         if not self._config.voice_reply:
             return
         try:
@@ -426,13 +463,34 @@ class TelegramInterface:
         await app.bot.set_my_commands(
             [BotCommand(name, desc) for name, desc in COMMAND_LIST]
         )
-        asyncio.create_task(self._reminder_loop(app))
-        asyncio.create_task(self._briefing_loop(app))
+        self._bg_tasks = [
+            asyncio.create_task(self._reminder_loop(app)),
+            asyncio.create_task(self._briefing_loop(app)),
+            asyncio.create_task(self._backup_loop()),
+        ]
         log.info(
-            "Schedulers started (reminders every %ss; daily briefing at %sh).",
+            "Schedulers started (reminders every %ss; daily briefing at %sh; daily backup).",
             self._config.reminder_poll_seconds,
             self._config.briefing_hour,
         )
+
+    async def _backup_loop(self) -> None:
+        while True:
+            try:
+                await asyncio.to_thread(self._do_backup)
+            except Exception:
+                log.exception("Backup failed")
+            await asyncio.sleep(24 * 3600)
+
+    def _do_backup(self, keep: int = 7) -> None:
+        bdir = self._config.db_path.parent / "backups"
+        bdir.mkdir(exist_ok=True)
+        dest = bdir / f"ev_memory.{datetime.now().strftime('%Y%m%d')}.db"
+        self._memory.backup(dest)
+        old = sorted(bdir.glob("ev_memory.*.db"))[:-keep]
+        for f in old:
+            f.unlink()
+        log.info("DB backup saved to %s", dest.name)
 
     async def _briefing_loop(self, app: Application) -> None:
         while True:
@@ -487,10 +545,36 @@ class TelegramInterface:
                     await app.bot.send_message(
                         chat_id=int(r["user_id"]), text=f"Lembrete: {r['text']}"
                     )
-                    self._memory.mark_reminder_done(r["id"])
+                    self._advance_reminder(r, due, now)
                     log.info("Delivered reminder #%s", r["id"])
                 except Exception:
                     log.exception("Failed to deliver reminder #%s", r["id"])
+
+    def _advance_reminder(self, r: dict, due: datetime, now: datetime) -> None:
+        """Recurring -> schedule the next future occurrence; one-off -> mark done."""
+        delta = {"daily": timedelta(days=1), "weekly": timedelta(days=7)}.get(
+            r.get("recur") or ""
+        )
+        if not delta:
+            self._memory.mark_reminder_done(r["id"])
+            return
+        nxt = due
+        while nxt <= now:  # catch up past missed occurrences to the future
+            nxt += delta
+        self._memory.reschedule_reminder(r["id"], nxt.isoformat())
+
+    # --- error handling -----------------------------------------------------
+
+    async def _on_error(self, update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+        log.exception("Unhandled handler error", exc_info=context.error)
+        if self._config.owner_id is not None:
+            try:
+                await context.bot.send_message(
+                    chat_id=self._config.owner_id,
+                    text="Ops, tive um erro interno processando isso. Já registrei nos logs.",
+                )
+            except Exception:
+                pass
 
     # --- runner -------------------------------------------------------------
 
@@ -509,6 +593,8 @@ class TelegramInterface:
         app.add_handler(CommandHandler("ajuda", self.cmd_ajuda))
         app.add_handler(CommandHandler("help", self.cmd_ajuda))
         app.add_handler(CommandHandler("lembrete", self.cmd_lembrete))
+        app.add_handler(CommandHandler("rotina", self.cmd_rotina))
+        app.add_handler(CommandHandler("cancelar", self.cmd_cancelar))
         app.add_handler(CommandHandler("lembretes", self.cmd_lembretes))
         app.add_handler(CommandHandler("tarefa", self.cmd_tarefa))
         app.add_handler(CommandHandler("tarefas", self.cmd_tarefas))
@@ -531,6 +617,7 @@ class TelegramInterface:
         # Voice + free text (must be last)
         app.add_handler(MessageHandler(filters.VOICE, self.on_voice))
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.on_text))
+        app.add_error_handler(self._on_error)
         log.info("E.V. starting (polling)...")
         app.run_polling()
 

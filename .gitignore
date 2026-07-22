@@ -1,10 +1,11 @@
 # Segredos — NUNCA commitar
 .env
 
-# Banco de memória local
+# Banco de memória local + backups
 *.db
 *.sqlite
 *.sqlite3
+backups/
 
 # Python
 __pycache__/

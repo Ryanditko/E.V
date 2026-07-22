@@ -162,7 +162,8 @@ run instantly, without spending tokens:
 | Command | Example |
 |---------|---------|
 | `/lembrete <time> <text>` | `/lembrete 10m tomar água`, `/lembrete amanhã 09:00 reunião` |
-| `/lembretes` | list reminders |
+| `/rotina <diario\|semanal> <HH:MM> <text>` | recurring reminder |
+| `/lembretes` · `/cancelar <id>` | list / cancel reminders |
 | `/tarefa <text>` · `/tarefas` · `/concluir <id>` | to-do list |
 | `/lembrar <fact>` · `/memorias` | save/list long-term memory |
 | `/link <cat> \| <name> \| <url>` · `/links [cat]` · `/linkrm <id>` | named links by category |
@@ -221,6 +222,9 @@ See **[deploy/README.md](deploy/README.md)** — runs on an Always Free VM as a
 - [x] Vision (photo understanding)
 - [x] Web-page indexing into the knowledge base
 - [x] Automated tests
+- [x] Recurring reminders (`/rotina`) and cancel (`/cancelar`)
+- [x] Automatic daily DB backups
+- [x] Long-message splitting + global error handler
 - [ ] Google Calendar & email (needs Google OAuth setup)
 - [ ] Web / app interface
 

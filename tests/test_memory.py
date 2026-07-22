@@ -42,3 +42,23 @@ def test_knowledge_search(tmp_path):
     m.add_chunk("u", "doc", "gatos dormem muito", [0.0, 1.0])
     hits = m.search_knowledge("u", [1.0, 0.0], k=1)
     assert hits and "café" in hits[0]["chunk"]
+
+
+def test_cancel_and_reschedule(tmp_path):
+    m = Memory(tmp_path / "t.db")
+    rid = m.add_reminder("u", "beber", "2020-01-01T00:00:00", recur="daily")
+    assert m.open_reminders("u")[0]["recur"] == "daily"
+    m.reschedule_reminder(rid, "2030-01-01T00:00:00")
+    assert m.open_reminders("u")[0]["when_iso"] == "2030-01-01T00:00:00"
+    assert m.cancel_reminder("u", rid) is True
+    assert m.open_reminders("u") == []
+
+
+def test_backup(tmp_path):
+    m = Memory(tmp_path / "t.db")
+    m.add_fact("u", "algo importante")
+    dest = tmp_path / "backup.db"
+    m.backup(dest)
+    assert dest.exists()
+    restored = Memory(dest)
+    assert restored.all_facts("u") == ["algo importante"]

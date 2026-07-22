@@ -27,7 +27,9 @@ COMMAND_LIST = [
     ("menu", "Abre o menu interativo com botões"),
     ("ajuda", "Lista os comandos disponíveis"),
     ("lembrete", "Criar lembrete: /lembrete 10m tomar água"),
+    ("rotina", "Lembrete recorrente: /rotina diario 08:00 remédio"),
     ("lembretes", "Listar seus lembretes"),
+    ("cancelar", "Cancelar lembrete: /cancelar 3"),
     ("tarefa", "Adicionar tarefa: /tarefa comprar pão"),
     ("tarefas", "Listar suas tarefas"),
     ("concluir", "Concluir tarefa: /concluir 3"),
@@ -89,10 +91,43 @@ class Commands:
         rid = self._memory.add_reminder(user_id, text.strip(), when.isoformat())
         return f"Lembrete #{rid} criado para {when.strftime('%d/%m %H:%M')}: {text.strip()}"
 
+    def rotina(self, user_id: str, argstr: str) -> str:
+        tokens = argstr.strip().split()
+        if len(tokens) < 3:
+            return "Uso: /rotina <diario|semanal> <HH:MM> <texto>\nEx: /rotina diario 08:00 tomar remédio"
+        kw = tokens[0].lower()
+        if kw in ("diario", "diária", "diaria", "diariamente"):
+            recur, label, step = "daily", "todo dia", timedelta(days=1)
+        elif kw in ("semanal", "semana", "semanalmente"):
+            recur, label, step = "weekly", "toda semana", timedelta(days=7)
+        else:
+            return "Recorrência inválida. Use 'diario' ou 'semanal'."
+        try:
+            hm = datetime.strptime(tokens[1], "%H:%M")
+        except ValueError:
+            return "Horário inválido. Use HH:MM. Ex: 08:00"
+        text = " ".join(tokens[2:]).strip()
+        if not text:
+            return "Faltou o texto da rotina."
+        now = self._now()
+        first = now.replace(hour=hm.hour, minute=hm.minute, second=0, microsecond=0)
+        if first <= now:
+            first += step
+        rid = self._memory.add_reminder(user_id, text, first.isoformat(), recur)
+        return f"Rotina #{rid} criada ({label} às {tokens[1]}): {text}"
+
+    def cancelar(self, user_id: str, argstr: str) -> str:
+        arg = argstr.strip()
+        if not arg.isdigit():
+            return "Uso: /cancelar <id>. Veja os ids em /lembretes."
+        ok = self._memory.cancel_reminder(user_id, int(arg))
+        return f"Lembrete #{arg} cancelado." if ok else f"Não achei o lembrete #{arg} em aberto."
+
     def lembretes(self, user_id: str) -> str:
         items = self._memory.open_reminders(user_id)
         if not items:
             return "Você não tem lembretes em aberto."
+        marks = {"daily": " [todo dia]", "weekly": " [toda semana]"}
         lines = ["Seus lembretes:"]
         for r in items:
             when = ""
@@ -101,7 +136,9 @@ class Commands:
                     when = " (" + datetime.fromisoformat(r["when_iso"]).strftime("%d/%m %H:%M") + ")"
                 except Exception:
                     when = ""
-            lines.append(f"#{r['id']} {r['text']}{when}")
+            recur = marks.get(r.get("recur") or "", "")
+            lines.append(f"#{r['id']} {r['text']}{when}{recur}")
+        lines.append("\nCancelar: /cancelar <id>")
         return "\n".join(lines)
 
     # --- tasks --------------------------------------------------------------

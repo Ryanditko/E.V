@@ -60,6 +60,7 @@ class Memory:
                 user_id  TEXT NOT NULL,
                 text     TEXT NOT NULL,
                 when_iso TEXT,            -- ISO 8601, optional
+                recur    TEXT,            -- 'daily' | 'weekly' | NULL (one-off)
                 done     INTEGER NOT NULL DEFAULT 0,
                 created  TEXT NOT NULL
             );
@@ -91,10 +92,13 @@ class Memory:
             );
             """
         )
-        # Migration: add `embedding` to older DBs that predate semantic memory.
-        cols = {r["name"] for r in self._conn.execute("PRAGMA table_info(facts)")}
-        if "embedding" not in cols:
+        # Migrations for older DBs.
+        fact_cols = {r["name"] for r in self._conn.execute("PRAGMA table_info(facts)")}
+        if "embedding" not in fact_cols:
             self._conn.execute("ALTER TABLE facts ADD COLUMN embedding TEXT")
+        rem_cols = {r["name"] for r in self._conn.execute("PRAGMA table_info(reminders)")}
+        if "recur" not in rem_cols:
+            self._conn.execute("ALTER TABLE reminders ADD COLUMN recur TEXT")
         self._conn.commit()
 
     @staticmethod
@@ -179,18 +183,20 @@ class Memory:
 
     # --- reminders ----------------------------------------------------------
 
-    def add_reminder(self, user_id: str, text: str, when_iso: str | None) -> int:
+    def add_reminder(
+        self, user_id: str, text: str, when_iso: str | None, recur: str | None = None
+    ) -> int:
         cur = self._conn.execute(
-            "INSERT INTO reminders (user_id, text, when_iso, created) "
-            "VALUES (?, ?, ?, ?)",
-            (user_id, text, when_iso, self._now()),
+            "INSERT INTO reminders (user_id, text, when_iso, recur, created) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (user_id, text, when_iso, recur, self._now()),
         )
         self._conn.commit()
         return int(cur.lastrowid)
 
     def open_reminders(self, user_id: str) -> list[dict]:
         rows = self._conn.execute(
-            "SELECT id, text, when_iso FROM reminders "
+            "SELECT id, text, when_iso, recur FROM reminders "
             "WHERE user_id = ? AND done = 0 ORDER BY id",
             (user_id,),
         ).fetchall()
@@ -203,7 +209,7 @@ class Memory:
         different timezone offsets, unlike a lexical string comparison.
         """
         rows = self._conn.execute(
-            "SELECT id, user_id, text, when_iso FROM reminders "
+            "SELECT id, user_id, text, when_iso, recur FROM reminders "
             "WHERE done = 0 AND when_iso IS NOT NULL ORDER BY when_iso"
         ).fetchall()
         return [dict(r) for r in rows]
@@ -213,6 +219,22 @@ class Memory:
             "UPDATE reminders SET done = 1 WHERE id = ?", (reminder_id,)
         )
         self._conn.commit()
+
+    def reschedule_reminder(self, reminder_id: int, new_when_iso: str) -> None:
+        """Move a (recurring) reminder to its next occurrence, keeping it open."""
+        self._conn.execute(
+            "UPDATE reminders SET when_iso = ? WHERE id = ?",
+            (new_when_iso, reminder_id),
+        )
+        self._conn.commit()
+
+    def cancel_reminder(self, user_id: str, reminder_id: int) -> bool:
+        cur = self._conn.execute(
+            "UPDATE reminders SET done = 1 WHERE id = ? AND user_id = ? AND done = 0",
+            (reminder_id, user_id),
+        )
+        self._conn.commit()
+        return cur.rowcount > 0
 
     # --- tasks (to-do list) -------------------------------------------------
 
@@ -324,3 +346,13 @@ class Memory:
         )
         self._conn.commit()
         return cur.rowcount
+
+    # --- backup -------------------------------------------------------------
+
+    def backup(self, dest_path: Path) -> None:
+        """Consistent online backup of the whole DB to `dest_path` (SQLite API)."""
+        dest = sqlite3.connect(dest_path)
+        try:
+            self._conn.backup(dest)
+        finally:
+            dest.close()

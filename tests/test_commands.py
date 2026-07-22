@@ -49,3 +49,18 @@ def test_bad_input(tmp_path):
     c = _commands(tmp_path)
     assert "Uso:" in c.tarefa("u", "")
     assert "horário" in c.lembrete("u", "sem tempo aqui")
+
+
+def test_cancel_reminder(tmp_path):
+    c = _commands(tmp_path)
+    c.lembrete("u", "10m tomar água")
+    assert "cancelado" in c.cancelar("u", "1")
+    assert "não achei" in c.cancelar("u", "1").lower()
+
+
+def test_rotina(tmp_path):
+    c = _commands(tmp_path)
+    out = c.rotina("u", "diario 08:00 tomar remédio")
+    assert "Rotina" in out and "todo dia" in out
+    assert "[todo dia]" in c.lembretes("u")
+    assert "inválida" in c.rotina("u", "mensal 08:00 x").lower()
