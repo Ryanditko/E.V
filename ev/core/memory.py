@@ -91,6 +91,35 @@ class Memory:
                 embedding TEXT,            -- JSON float array
                 created   TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS expenses (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id     TEXT NOT NULL,
+                amount      REAL NOT NULL,
+                description TEXT NOT NULL,
+                category    TEXT NOT NULL DEFAULT 'geral',
+                created     TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS habits (
+                id      INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT NOT NULL,
+                name    TEXT NOT NULL,
+                created TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS habit_logs (
+                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                habit_id INTEGER NOT NULL,
+                day      TEXT NOT NULL       -- YYYY-MM-DD
+            );
+
+            CREATE TABLE IF NOT EXISTS journal (
+                id      INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT NOT NULL,
+                text    TEXT NOT NULL,
+                created TEXT NOT NULL
+            );
             """
         )
         # Migrations for older DBs.
@@ -360,6 +389,87 @@ class Memory:
         )
         self._conn.commit()
         return cur.rowcount
+
+    # --- expenses -----------------------------------------------------------
+
+    def add_expense(
+        self, user_id: str, amount: float, description: str, category: str = "geral"
+    ) -> int:
+        cur = self._conn.execute(
+            "INSERT INTO expenses (user_id, amount, description, category, created) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (user_id, amount, description, category, self._now()),
+        )
+        self._conn.commit()
+        return int(cur.lastrowid)
+
+    def expenses_since(self, user_id: str, since_iso: str) -> list[dict]:
+        rows = self._conn.execute(
+            "SELECT amount, description, category FROM expenses "
+            "WHERE user_id = ? AND created >= ? ORDER BY id",
+            (user_id, since_iso),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    # --- habits -------------------------------------------------------------
+
+    def add_habit(self, user_id: str, name: str) -> int:
+        cur = self._conn.execute(
+            "INSERT INTO habits (user_id, name, created) VALUES (?, ?, ?)",
+            (user_id, name, self._now()),
+        )
+        self._conn.commit()
+        return int(cur.lastrowid)
+
+    def list_habits(self, user_id: str) -> list[dict]:
+        rows = self._conn.execute(
+            "SELECT id, name FROM habits WHERE user_id = ? ORDER BY id", (user_id,)
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def find_habit(self, user_id: str, name: str) -> dict | None:
+        row = self._conn.execute(
+            "SELECT id, name FROM habits WHERE user_id = ? AND LOWER(name) = LOWER(?)",
+            (user_id, name),
+        ).fetchone()
+        return dict(row) if row else None
+
+    def log_habit(self, habit_id: int, day: str) -> bool:
+        """Mark a habit done on `day` (YYYY-MM-DD). Returns False if already logged."""
+        exists = self._conn.execute(
+            "SELECT 1 FROM habit_logs WHERE habit_id = ? AND day = ?", (habit_id, day)
+        ).fetchone()
+        if exists:
+            return False
+        self._conn.execute(
+            "INSERT INTO habit_logs (habit_id, day) VALUES (?, ?)", (habit_id, day)
+        )
+        self._conn.commit()
+        return True
+
+    def habit_days(self, habit_id: int) -> set[str]:
+        rows = self._conn.execute(
+            "SELECT day FROM habit_logs WHERE habit_id = ?", (habit_id,)
+        ).fetchall()
+        return {r["day"] for r in rows}
+
+    # --- journal ------------------------------------------------------------
+
+    def add_journal(self, user_id: str, text: str) -> int:
+        cur = self._conn.execute(
+            "INSERT INTO journal (user_id, text, created) VALUES (?, ?, ?)",
+            (user_id, text, self._now()),
+        )
+        self._conn.commit()
+        return int(cur.lastrowid)
+
+    def recent_journal(self, user_id: str, limit: int = 5) -> list[dict]:
+        rows = self._conn.execute(
+            "SELECT text, created FROM journal WHERE user_id = ? "
+            "ORDER BY id DESC LIMIT ?",
+            (user_id, limit),
+        ).fetchall()
+        return [dict(r) for r in reversed(rows)]
 
     # --- backup -------------------------------------------------------------
 

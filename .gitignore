@@ -24,3 +24,4 @@ tmp/
 
 # OS
 .DS_Store
+*.key

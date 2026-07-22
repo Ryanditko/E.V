@@ -52,6 +52,9 @@ class Config:
     timezone: str
     reminder_poll_seconds: int
     briefing_hour: int  # local hour for the daily briefing; <0 disables
+    checkin_hour: int   # local hour for a proactive check-in; <0 disables
+    city: str           # for weather in the briefing (empty disables)
+    news_topic: str     # topic for news in the briefing (empty disables)
     # Tools
     websearch_enabled: bool
     google_oauth_client: str
@@ -99,6 +102,10 @@ class Config:
             briefing_hour = int(os.getenv("EV_BRIEFING_HOUR", "8").strip() or "-1")
         except ValueError:
             briefing_hour = 8
+        try:
+            checkin_hour = int(os.getenv("EV_CHECKIN_HOUR", "").strip() or "-1")
+        except ValueError:
+            checkin_hour = -1
 
         return cls(
             telegram_token=telegram_token,
@@ -125,12 +132,15 @@ class Config:
             owner_id=owner_id,
             voice_reply=_get_bool("EV_VOICE_REPLY", True),
             voice=os.getenv("EV_VOICE", "pt-BR-FranciscaNeural").strip(),
-            voice_rate=os.getenv("EV_VOICE_RATE", "-3%").strip(),
-            voice_pitch=os.getenv("EV_VOICE_PITCH", "+12Hz").strip(),
+            voice_rate=os.getenv("EV_VOICE_RATE", "+0%").strip(),
+            voice_pitch=os.getenv("EV_VOICE_PITCH", "+0Hz").strip(),
             embed_model=os.getenv("EV_EMBED_MODEL", "gemini-embedding-001").strip(),
             timezone=os.getenv("EV_TIMEZONE", "America/Sao_Paulo").strip(),
             reminder_poll_seconds=_get_int("EV_REMINDER_POLL_SECONDS", 30),
             briefing_hour=briefing_hour,
+            checkin_hour=checkin_hour,
+            city=os.getenv("EV_CITY", "").strip(),
+            news_topic=os.getenv("EV_NEWS_TOPIC", "").strip(),
             websearch_enabled=_get_bool("EV_WEBSEARCH_ENABLED", True),
             google_oauth_client=os.getenv("GOOGLE_OAUTH_CLIENT", "").strip(),
             google_accounts=google_accounts,

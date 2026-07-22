@@ -57,6 +57,7 @@ class TelegramInterface:
         # user_id -> pending input action (e.g. "task", "rem", "link", ...)
         self._pending: dict[str, str] = {}
         self._last_briefing: str | None = None  # date of the last daily briefing
+        self._last_checkin: str | None = None    # date of the last proactive check-in
         # Keep references to background tasks so they aren't garbage-collected
         # (a GC'd task would silently kill the scheduler).
         self._bg_tasks: list = []
@@ -177,6 +178,36 @@ class TelegramInterface:
     async def cmd_buscar(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
         if self._authorized(update):
             await self._cmd_out(update, self._commands.buscar(self._args(c)))
+
+    async def cmd_gasto(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
+        if self._authorized(update):
+            uid = str(update.effective_user.id)
+            await self._cmd_out(update, self._commands.gasto(uid, self._args(c)))
+
+    async def cmd_gastos(self, update: Update, _c: ContextTypes.DEFAULT_TYPE) -> None:
+        if self._authorized(update):
+            uid = str(update.effective_user.id)
+            await self._cmd_out(update, self._commands.gastos(uid))
+
+    async def cmd_habito(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
+        if self._authorized(update):
+            uid = str(update.effective_user.id)
+            await self._cmd_out(update, self._commands.habito(uid, self._args(c)))
+
+    async def cmd_feito(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
+        if self._authorized(update):
+            uid = str(update.effective_user.id)
+            await self._cmd_out(update, self._commands.feito(uid, self._args(c)))
+
+    async def cmd_habitos(self, update: Update, _c: ContextTypes.DEFAULT_TYPE) -> None:
+        if self._authorized(update):
+            uid = str(update.effective_user.id)
+            await self._cmd_out(update, self._commands.habitos(uid))
+
+    async def cmd_diario(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
+        if self._authorized(update):
+            uid = str(update.effective_user.id)
+            await self._cmd_out(update, self._commands.diario(uid, self._args(c)))
 
     async def cmd_concluir(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
         if self._authorized(update):
@@ -535,9 +566,25 @@ class TelegramInterface:
         while True:
             try:
                 await self._maybe_send_briefing(app)
+                await self._maybe_send_checkin(app)
             except Exception:
                 log.exception("Briefing loop error")
             await asyncio.sleep(60)
+
+    async def _maybe_send_checkin(self, app: Application) -> None:
+        cfg = self._config
+        if cfg.checkin_hour < 0 or cfg.owner_id is None:
+            return
+        now = datetime.now(self._tz())
+        today = now.date().isoformat()
+        if now.hour == cfg.checkin_hour and self._last_checkin != today:
+            self._last_checkin = today
+            msg = (
+                "Oi! Como foi seu dia? Se quiser, registra no diário com "
+                "/diario <texto>. E não esquece dos seus hábitos — /habitos."
+            )
+            await self._bot_send(app.bot, cfg.owner_id, msg, self._quick_kb())
+            log.info("Sent daily check-in.")
 
     async def _maybe_send_briefing(self, app: Application) -> None:
         cfg = self._config
@@ -640,6 +687,12 @@ class TelegramInterface:
         app.add_handler(CommandHandler("tarefas", self.cmd_tarefas))
         app.add_handler(CommandHandler("concluir", self.cmd_concluir))
         app.add_handler(CommandHandler("buscar", self.cmd_buscar))
+        app.add_handler(CommandHandler("gasto", self.cmd_gasto))
+        app.add_handler(CommandHandler("gastos", self.cmd_gastos))
+        app.add_handler(CommandHandler("habito", self.cmd_habito))
+        app.add_handler(CommandHandler("feito", self.cmd_feito))
+        app.add_handler(CommandHandler("habitos", self.cmd_habitos))
+        app.add_handler(CommandHandler("diario", self.cmd_diario))
         app.add_handler(CommandHandler("lembrar", self.cmd_lembrar))
         app.add_handler(CommandHandler("memorias", self.cmd_memorias))
         app.add_handler(CommandHandler("link", self.cmd_link))

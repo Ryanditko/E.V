@@ -9,7 +9,7 @@ E.V.'s replies here are short PT-BR strings (the assistant speaks Portuguese).
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 try:
     from zoneinfo import ZoneInfo
@@ -34,6 +34,12 @@ COMMAND_LIST = [
     ("tarefas", "Listar tarefas: /tarefas [categoria]"),
     ("concluir", "Concluir tarefa: /concluir 3"),
     ("buscar", "Pesquisar na web: /buscar notícias de hoje"),
+    ("gasto", "Registrar gasto: /gasto 50 mercado #casa"),
+    ("gastos", "Resumo de gastos do mês"),
+    ("habito", "Criar hábito: /habito treino"),
+    ("feito", "Marcar hábito feito hoje: /feito treino"),
+    ("habitos", "Ver hábitos e sequências"),
+    ("diario", "Escrever/ver diário: /diario hoje foi bom"),
     ("lembrar", "Salvar na memória: /lembrar meu carro é um Civic"),
     ("memorias", "Listar o que a E.V. sabe sobre você"),
     ("link", "Guardar link: /link faculdade | tarefas | http://..."),
@@ -200,6 +206,110 @@ class Commands:
             return "Uso: /buscar <termo>. Ex: /buscar notícias de tecnologia hoje"
         return "Resultados da web:\n" + tools_mod.web_search(query)
 
+    # --- expenses -----------------------------------------------------------
+
+    def gasto(self, user_id: str, argstr: str) -> str:
+        tokens = argstr.strip().split()
+        if not tokens:
+            return "Uso: /gasto <valor> <descrição> [#categoria]\nEx: /gasto 50 mercado #casa"
+        try:
+            amount = float(tokens[0].replace(",", "."))
+        except ValueError:
+            return "Valor inválido. Ex: /gasto 50 mercado"
+        rest = tokens[1:]
+        category = "geral"
+        tags = [t for t in rest if t.startswith("#") and len(t) > 1]
+        if tags:
+            category = tags[0][1:].lower()
+            rest = [t for t in rest if not (t.startswith("#") and len(t) > 1)]
+        desc = " ".join(rest).strip() or "(sem descrição)"
+        self._memory.add_expense(user_id, amount, desc, category)
+        return f"Gasto registrado: R$ {amount:.2f} em {desc} ({category})"
+
+    def gastos(self, user_id: str, argstr: str = "") -> str:
+        since = datetime.now(timezone.utc).replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0
+        )
+        items = self._memory.expenses_since(user_id, since.isoformat())
+        if not items:
+            return "Nenhum gasto registrado neste mês."
+        total = sum(i["amount"] for i in items)
+        by: dict[str, float] = {}
+        for i in items:
+            by[i["category"]] = by.get(i["category"], 0) + i["amount"]
+        lines = [f"Gastos do mês: R$ {total:.2f} ({len(items)} lançamentos)"]
+        for cat, v in sorted(by.items(), key=lambda x: -x[1]):
+            lines.append(f"- {cat}: R$ {v:.2f}")
+        return "\n".join(lines)
+
+    # --- habits -------------------------------------------------------------
+
+    def _streak(self, habit_id: int, today) -> int:
+        days = self._memory.habit_days(habit_id)
+        streak, d = 0, today
+        if d.strftime("%Y-%m-%d") not in days:
+            d = d - timedelta(days=1)  # today not done yet: count up to yesterday
+        while d.strftime("%Y-%m-%d") in days:
+            streak += 1
+            d = d - timedelta(days=1)
+        return streak
+
+    def habito(self, user_id: str, argstr: str) -> str:
+        name = argstr.strip()
+        if not name:
+            return "Uso: /habito <nome>. Ex: /habito treino"
+        if self._memory.find_habit(user_id, name):
+            return f"O hábito '{name}' já existe."
+        self._memory.add_habit(user_id, name)
+        return f"Hábito '{name}' criado. Marque como feito com /feito {name}"
+
+    def feito(self, user_id: str, argstr: str) -> str:
+        name = argstr.strip()
+        if not name:
+            return "Uso: /feito <nome do hábito>. Ex: /feito treino"
+        h = self._memory.find_habit(user_id, name)
+        if not h:
+            return f"Não achei o hábito '{name}'. Crie com /habito {name}"
+        today = self._now().date()
+        ok = self._memory.log_habit(h["id"], today.strftime("%Y-%m-%d"))
+        streak = self._streak(h["id"], today)
+        if not ok:
+            return f"'{h['name']}' já estava marcado hoje. Sequência: {streak} dia(s)."
+        return f"Boa! '{h['name']}' feito hoje. Sequência: {streak} dia(s)."
+
+    def habitos(self, user_id: str) -> str:
+        habits = self._memory.list_habits(user_id)
+        if not habits:
+            return "Você não tem hábitos. Crie com /habito <nome>."
+        today = self._now().date()
+        today_s = today.strftime("%Y-%m-%d")
+        lines = ["Seus hábitos (hoje):"]
+        for h in habits:
+            done = "[x]" if today_s in self._memory.habit_days(h["id"]) else "[ ]"
+            lines.append(f"{done} {h['name']} — sequência: {self._streak(h['id'], today)} dia(s)")
+        lines.append("\nMarcar: /feito <nome>")
+        return "\n".join(lines)
+
+    # --- journal ------------------------------------------------------------
+
+    def diario(self, user_id: str, argstr: str) -> str:
+        text = argstr.strip()
+        if not text:
+            entries = self._memory.recent_journal(user_id, 5)
+            if not entries:
+                return "Diário vazio. Escreva com /diario <texto>."
+            lines = ["Últimas entradas do diário:"]
+            for e in entries:
+                day = ""
+                try:
+                    day = datetime.fromisoformat(e["created"]).strftime("%d/%m")
+                except Exception:
+                    pass
+                lines.append(f"[{day}] {e['text']}")
+            return "\n".join(lines)
+        self._memory.add_journal(user_id, text)
+        return "Anotado no diário."
+
     def concluir(self, user_id: str, argstr: str) -> str:
         arg = argstr.strip()
         if not arg.isdigit():
@@ -255,6 +365,13 @@ class Commands:
 
         if len(parts) == 1:
             parts.append("Nada na lista. Dia livre — aproveita!")
+
+        if self._config.city:
+            parts.append("\nClima:")
+            parts.append(tools_mod.weather(self._config.city))
+        if self._config.news_topic:
+            parts.append("\nNotícias:")
+            parts.append(tools_mod.news(self._config.news_topic))
         return "\n".join(parts)
 
     # --- links (named, categorized) ----------------------------------------

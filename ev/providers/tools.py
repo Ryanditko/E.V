@@ -23,6 +23,66 @@ _GOOGLE_SCOPES = [
 
 # --- web search ------------------------------------------------------------
 
+_WEATHER_CODES = {
+    0: "céu limpo", 1: "predominância de sol", 2: "parcialmente nublado",
+    3: "nublado", 45: "névoa", 48: "névoa gelada", 51: "garoa fraca",
+    53: "garoa", 55: "garoa forte", 61: "chuva fraca", 63: "chuva",
+    65: "chuva forte", 71: "neve fraca", 73: "neve", 75: "neve forte",
+    80: "pancadas de chuva", 81: "pancadas de chuva", 82: "temporal",
+    95: "tempestade", 96: "tempestade com granizo", 99: "tempestade com granizo",
+}
+
+
+def weather(city: str) -> str:
+    """Current weather for `city` via open-meteo (no API key)."""
+    import httpx
+
+    try:
+        geo = httpx.get(
+            "https://geocoding-api.open-meteo.com/v1/search",
+            params={"name": city, "count": 1, "language": "pt", "format": "json"},
+            timeout=15,
+        ).json()
+        if not geo.get("results"):
+            return f"não achei a cidade '{city}' pro clima."
+        loc = geo["results"][0]
+        cur = httpx.get(
+            "https://api.open-meteo.com/v1/forecast",
+            params={
+                "latitude": loc["latitude"], "longitude": loc["longitude"],
+                "current": "temperature_2m,weather_code",
+                "daily": "temperature_2m_max,temperature_2m_min",
+                "timezone": "auto", "forecast_days": 1,
+            },
+            timeout=15,
+        ).json()
+        temp = cur["current"]["temperature_2m"]
+        desc = _WEATHER_CODES.get(cur["current"]["weather_code"], "")
+        tmax = cur["daily"]["temperature_2m_max"][0]
+        tmin = cur["daily"]["temperature_2m_min"][0]
+        return f"{loc['name']}: {temp}°C, {desc} (min {tmin}° / máx {tmax}°)"
+    except Exception as exc:
+        log.warning("weather failed (%s)", exc)
+        return f"não consegui o clima agora ({exc})"
+
+
+def news(topic: str, max_results: int = 4) -> str:
+    """Recent news headlines about `topic` (DuckDuckGo, no key)."""
+    try:
+        try:
+            from ddgs import DDGS
+        except ImportError:
+            from duckduckgo_search import DDGS
+        with DDGS() as ddgs:
+            items = list(ddgs.news(topic, region="br-pt", max_results=max_results))
+    except Exception as exc:
+        log.warning("news failed (%s)", exc)
+        return f"não consegui as notícias agora ({exc})"
+    if not items:
+        return "sem notícias relevantes agora."
+    return "\n".join(f"- {i.get('title', '')}" for i in items)
+
+
 def web_search(query: str, max_results: int = 5) -> str:
     """Search the web (DuckDuckGo) and return a concise, readable summary."""
     try:

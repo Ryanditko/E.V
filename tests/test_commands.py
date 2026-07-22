@@ -41,6 +41,30 @@ def test_buscar_usage(tmp_path):
     assert "Uso:" in c.buscar("")
 
 
+def test_expenses(tmp_path):
+    c = _commands(tmp_path)
+    assert "50.00" in c.gasto("u", "50 mercado #casa")
+    c.gasto("u", "20,50 uber")
+    out = c.gastos("u")
+    assert "70.50" in out and "casa" in out
+
+
+def test_habits(tmp_path):
+    c = _commands(tmp_path)
+    assert "criado" in c.habito("u", "treino")
+    assert "já existe" in c.habito("u", "treino")
+    assert "feito hoje" in c.feito("u", "treino")
+    assert "Sequência: 1" in c.feito("u", "treino")  # already marked today
+    assert "[x] treino" in c.habitos("u")
+
+
+def test_journal(tmp_path):
+    c = _commands(tmp_path)
+    assert "vazio" in c.diario("u", "")
+    assert "Anotado" in c.diario("u", "hoje foi um bom dia")
+    assert "bom dia" in c.diario("u", "")
+
+
 def test_reminder_command(tmp_path):
     c = _commands(tmp_path)
     out = c.lembrete("u", "10m tomar água")
