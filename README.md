@@ -176,6 +176,9 @@ Send a **PDF** to add it to the knowledge base, or a **photo** for E.V. to read 
 
 ## Run locally
 
+> New machine or full walkthrough (every key, Google auth, deploy)? See
+> **[docs/SETUP.md](docs/SETUP.md)**.
+
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
