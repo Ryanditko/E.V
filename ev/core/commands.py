@@ -24,6 +24,7 @@ from .timeparse import parse_when
 
 # (command, description) — also used to populate Telegram's command menu.
 COMMAND_LIST = [
+    ("menu", "Abre o menu interativo com botões"),
     ("ajuda", "Lista os comandos disponíveis"),
     ("lembrete", "Criar lembrete: /lembrete 10m tomar água"),
     ("lembretes", "Listar seus lembretes"),

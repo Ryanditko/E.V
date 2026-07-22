@@ -20,6 +20,8 @@ own hands — loyal, warm, playful, and always on your side.
 ## Features
 
 - **Voice & text chat** — send an audio note, get audio back (natural female voice).
+- **Interactive menu** — `/menu` opens a button-driven UI (tap through Tasks,
+  Reminders, Links, Knowledge base, Memory, Google) — no need to memorize commands.
 - **Slash commands (no LLM)** — fast, deterministic commands for reminders, tasks,
   links, knowledge base, calendar and email. No tokens spent.
 - **Real long-term memory** — remembers you across conversations, with semantic
@@ -149,9 +151,10 @@ E.V/
 | Transcription | **Groq Whisper** | `whisper-large-v3-turbo` | Audio -> text when Gemini is rate-limited |
 | Embeddings | **Gemini / Ollama** | `gemini-embedding-001` / `nomic-embed-text` | Semantic memory + knowledge base |
 
-## Slash commands (no LLM)
+## Interactive menu & slash commands (no LLM)
 
-Type `/` in Telegram to see the menu. These run instantly, without spending tokens:
+Send `/menu` for a button-driven interface, or type `/` to see all commands. Both
+run instantly, without spending tokens:
 
 | Command | Example |
 |---------|---------|
