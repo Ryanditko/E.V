@@ -1,0 +1,17 @@
+# Cérebro (LLM) — SDK novo do Google Gemini (provedor principal)
+google-genai>=0.3.0
+
+# Provedores de fallback (Groq, OpenRouter) — API compatível com OpenAI
+openai>=1.30.0
+
+# Interface — bot do Telegram (async)
+python-telegram-bot>=21.0
+
+# Voz (texto -> fala), grátis
+edge-tts>=6.1.0
+
+# Carregar variáveis do .env
+python-dotenv>=1.0.0
+
+# Usar o trust store do SO (resolve TLS atrás de proxy corporativo)
+truststore>=0.9.0

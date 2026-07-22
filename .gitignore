@@ -1,0 +1,23 @@
+# Segredos — NUNCA commitar
+.env
+
+# Banco de memória local
+*.db
+*.sqlite
+*.sqlite3
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Áudios temporários
+tmp/
+*.ogg
+*.mp3
+*.wav
+
+# OS
+.DS_Store
