@@ -209,6 +209,26 @@ class TelegramInterface:
             uid = str(update.effective_user.id)
             await self._cmd_out(update, self._commands.diario(uid, self._args(c)))
 
+    async def cmd_esquecer(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
+        if self._authorized(update):
+            uid = str(update.effective_user.id)
+            await self._cmd_out(update, self._commands.esquecer(uid, self._args(c)))
+
+    async def cmd_gastorm(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
+        if self._authorized(update):
+            uid = str(update.effective_user.id)
+            await self._cmd_out(update, self._commands.gastorm(uid, self._args(c)))
+
+    async def cmd_habitorm(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
+        if self._authorized(update):
+            uid = str(update.effective_user.id)
+            await self._cmd_out(update, self._commands.habitorm(uid, self._args(c)))
+
+    async def cmd_diariorm(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
+        if self._authorized(update):
+            uid = str(update.effective_user.id)
+            await self._cmd_out(update, self._commands.diariorm(uid, self._args(c)))
+
     async def cmd_concluir(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
         if self._authorized(update):
             uid = str(update.effective_user.id)
@@ -693,6 +713,10 @@ class TelegramInterface:
         app.add_handler(CommandHandler("feito", self.cmd_feito))
         app.add_handler(CommandHandler("habitos", self.cmd_habitos))
         app.add_handler(CommandHandler("diario", self.cmd_diario))
+        app.add_handler(CommandHandler("esquecer", self.cmd_esquecer))
+        app.add_handler(CommandHandler("gastorm", self.cmd_gastorm))
+        app.add_handler(CommandHandler("habitorm", self.cmd_habitorm))
+        app.add_handler(CommandHandler("diariorm", self.cmd_diariorm))
         app.add_handler(CommandHandler("lembrar", self.cmd_lembrar))
         app.add_handler(CommandHandler("memorias", self.cmd_memorias))
         app.add_handler(CommandHandler("link", self.cmd_link))

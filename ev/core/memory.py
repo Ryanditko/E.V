@@ -183,6 +183,20 @@ class Memory:
         ).fetchall()
         return [r["fact"] for r in rows]
 
+    def list_facts(self, user_id: str) -> list[dict]:
+        rows = self._conn.execute(
+            "SELECT id, fact FROM facts WHERE user_id = ? ORDER BY id",
+            (user_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def delete_fact(self, user_id: str, fact_id: int) -> bool:
+        cur = self._conn.execute(
+            "DELETE FROM facts WHERE id = ? AND user_id = ?", (fact_id, user_id)
+        )
+        self._conn.commit()
+        return cur.rowcount > 0
+
     def relevant_facts(
         self, user_id: str, query_embedding: list[float] | None, k: int = 8
     ) -> list[str]:
@@ -405,11 +419,18 @@ class Memory:
 
     def expenses_since(self, user_id: str, since_iso: str) -> list[dict]:
         rows = self._conn.execute(
-            "SELECT amount, description, category FROM expenses "
+            "SELECT id, amount, description, category FROM expenses "
             "WHERE user_id = ? AND created >= ? ORDER BY id",
             (user_id, since_iso),
         ).fetchall()
         return [dict(r) for r in rows]
+
+    def delete_expense(self, user_id: str, expense_id: int) -> bool:
+        cur = self._conn.execute(
+            "DELETE FROM expenses WHERE id = ? AND user_id = ?", (expense_id, user_id)
+        )
+        self._conn.commit()
+        return cur.rowcount > 0
 
     # --- habits -------------------------------------------------------------
 
@@ -447,6 +468,14 @@ class Memory:
         self._conn.commit()
         return True
 
+    def delete_habit(self, user_id: str, habit_id: int) -> bool:
+        cur = self._conn.execute(
+            "DELETE FROM habits WHERE id = ? AND user_id = ?", (habit_id, user_id)
+        )
+        self._conn.execute("DELETE FROM habit_logs WHERE habit_id = ?", (habit_id,))
+        self._conn.commit()
+        return cur.rowcount > 0
+
     def habit_days(self, habit_id: int) -> set[str]:
         rows = self._conn.execute(
             "SELECT day FROM habit_logs WHERE habit_id = ?", (habit_id,)
@@ -465,11 +494,18 @@ class Memory:
 
     def recent_journal(self, user_id: str, limit: int = 5) -> list[dict]:
         rows = self._conn.execute(
-            "SELECT text, created FROM journal WHERE user_id = ? "
+            "SELECT id, text, created FROM journal WHERE user_id = ? "
             "ORDER BY id DESC LIMIT ?",
             (user_id, limit),
         ).fetchall()
         return [dict(r) for r in reversed(rows)]
+
+    def delete_journal(self, user_id: str, entry_id: int) -> bool:
+        cur = self._conn.execute(
+            "DELETE FROM journal WHERE id = ? AND user_id = ?", (entry_id, user_id)
+        )
+        self._conn.commit()
+        return cur.rowcount > 0
 
     # --- backup -------------------------------------------------------------
 

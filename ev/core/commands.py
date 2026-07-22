@@ -36,12 +36,16 @@ COMMAND_LIST = [
     ("buscar", "Pesquisar na web: /buscar notícias de hoje"),
     ("gasto", "Registrar gasto: /gasto 50 mercado #casa"),
     ("gastos", "Resumo de gastos do mês"),
+    ("gastorm", "Apagar gasto: /gastorm 3"),
     ("habito", "Criar hábito: /habito treino"),
     ("feito", "Marcar hábito feito hoje: /feito treino"),
     ("habitos", "Ver hábitos e sequências"),
+    ("habitorm", "Apagar hábito: /habitorm treino"),
     ("diario", "Escrever/ver diário: /diario hoje foi bom"),
+    ("diariorm", "Apagar entrada do diário: /diariorm 3"),
     ("lembrar", "Salvar na memória: /lembrar meu carro é um Civic"),
     ("memorias", "Listar o que a E.V. sabe sobre você"),
+    ("esquecer", "Apagar uma memória: /esquecer 3"),
     ("link", "Guardar link: /link faculdade | tarefas | http://..."),
     ("links", "Listar links: /links [categoria]"),
     ("linkrm", "Remover link: /linkrm 3"),
@@ -240,7 +244,18 @@ class Commands:
         lines = [f"Gastos do mês: R$ {total:.2f} ({len(items)} lançamentos)"]
         for cat, v in sorted(by.items(), key=lambda x: -x[1]):
             lines.append(f"- {cat}: R$ {v:.2f}")
+        lines.append("\nLançamentos recentes:")
+        for i in items[-10:]:
+            lines.append(f"#{i['id']} R$ {i['amount']:.2f} {i['description']} ({i['category']})")
+        lines.append("\nApagar: /gastorm <id>")
         return "\n".join(lines)
+
+    def gastorm(self, user_id: str, argstr: str) -> str:
+        arg = argstr.strip()
+        if not arg.isdigit():
+            return "Uso: /gastorm <id>. Veja os ids em /gastos."
+        ok = self._memory.delete_expense(user_id, int(arg))
+        return f"Gasto #{arg} apagado." if ok else f"Não achei o gasto #{arg}."
 
     # --- habits -------------------------------------------------------------
 
@@ -287,8 +302,18 @@ class Commands:
         for h in habits:
             done = "[x]" if today_s in self._memory.habit_days(h["id"]) else "[ ]"
             lines.append(f"{done} {h['name']} — sequência: {self._streak(h['id'], today)} dia(s)")
-        lines.append("\nMarcar: /feito <nome>")
+        lines.append("\nMarcar: /feito <nome> · Apagar: /habitorm <nome>")
         return "\n".join(lines)
+
+    def habitorm(self, user_id: str, argstr: str) -> str:
+        name = argstr.strip()
+        if not name:
+            return "Uso: /habitorm <nome>. Ex: /habitorm treino"
+        h = self._memory.find_habit(user_id, name)
+        if not h:
+            return f"Não achei o hábito '{name}'."
+        self._memory.delete_habit(user_id, h["id"])
+        return f"Hábito '{h['name']}' removido."
 
     # --- journal ------------------------------------------------------------
 
@@ -305,10 +330,18 @@ class Commands:
                     day = datetime.fromisoformat(e["created"]).strftime("%d/%m")
                 except Exception:
                     pass
-                lines.append(f"[{day}] {e['text']}")
+                lines.append(f"#{e['id']} [{day}] {e['text']}")
+            lines.append("\nApagar: /diariorm <id>")
             return "\n".join(lines)
         self._memory.add_journal(user_id, text)
         return "Anotado no diário."
+
+    def diariorm(self, user_id: str, argstr: str) -> str:
+        arg = argstr.strip()
+        if not arg.isdigit():
+            return "Uso: /diariorm <id>. Veja os ids em /diario."
+        ok = self._memory.delete_journal(user_id, int(arg))
+        return f"Entrada #{arg} apagada." if ok else f"Não achei a entrada #{arg}."
 
     def concluir(self, user_id: str, argstr: str) -> str:
         arg = argstr.strip()
@@ -328,10 +361,20 @@ class Commands:
         return f"Anotado na memória: {fact}"
 
     def memorias(self, user_id: str) -> str:
-        facts = self._memory.all_facts(user_id)
+        facts = self._memory.list_facts(user_id)
         if not facts:
             return "Ainda não sei nada sobre você. Use /lembrar pra me contar algo."
-        return "O que eu sei sobre você:\n" + "\n".join(f"- {f}" for f in facts)
+        lines = ["O que eu sei sobre você:"]
+        lines += [f"#{f['id']} {f['fact']}" for f in facts]
+        lines.append("\nApagar: /esquecer <id>")
+        return "\n".join(lines)
+
+    def esquecer(self, user_id: str, argstr: str) -> str:
+        arg = argstr.strip()
+        if not arg.isdigit():
+            return "Uso: /esquecer <id>. Veja os ids em /memorias."
+        ok = self._memory.delete_fact(user_id, int(arg))
+        return f"Esqueci a memória #{arg}." if ok else f"Não achei a memória #{arg}."
 
     # --- daily briefing -----------------------------------------------------
 

@@ -65,6 +65,23 @@ def test_journal(tmp_path):
     assert "bom dia" in c.diario("u", "")
 
 
+def test_delete_operations(tmp_path):
+    c = _commands(tmp_path)
+    c._memory.add_fact("u", "gosto de café")
+    assert "#1" in c.memorias("u")
+    assert "Esqueci" in c.esquecer("u", "1")
+    assert "não achei" in c.esquecer("u", "1").lower()
+
+    c.gasto("u", "10 pão")
+    assert "apagado" in c.gastorm("u", "1")
+
+    c.habito("u", "treino")
+    assert "removido" in c.habitorm("u", "treino")
+
+    c.diario("u", "entrada teste")
+    assert "apagada" in c.diariorm("u", "1")
+
+
 def test_reminder_command(tmp_path):
     c = _commands(tmp_path)
     out = c.lembrete("u", "10m tomar água")
