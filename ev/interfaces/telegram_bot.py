@@ -1,16 +1,26 @@
-"""Interface de Telegram do E.V.
+"""E.V.'s Telegram interface.
 
-Recebe mensagens de texto e de voz, passa pro cérebro e responde. Se
-EV_VOICE_REPLY estiver ligado, responde também com áudio (edge-tts).
+Receives text and voice messages, routes them to the brain, and replies. When
+EV_VOICE_REPLY is on, it also replies with audio (edge-tts).
 
-Trava o acesso ao dono (EV_OWNER_ID) quando configurado — importante, porque
-qualquer pessoa que ache o bot poderia conversar com ele.
+It locks access to the owner (EV_OWNER_ID) when configured — important, because
+anyone who finds the bot could otherwise talk to it.
+
+It also runs the reminder scheduler as a background task: it polls for due
+reminders and delivers them to the user's chat.
 """
 
 from __future__ import annotations
 
+import asyncio
 import io
 import logging
+from datetime import datetime
+
+try:
+    from zoneinfo import ZoneInfo
+except Exception:  # pragma: no cover
+    ZoneInfo = None  # type: ignore
 
 from telegram import Update
 from telegram.ext import (
@@ -21,8 +31,8 @@ from telegram.ext import (
     filters,
 )
 
-from ..core.brain import Brain
 from ..config import Config
+from ..core.brain import Brain
 from ..core.memory import Memory
 from ..providers import voice as voice_mod
 
@@ -39,11 +49,11 @@ class TelegramInterface:
         self._memory = Memory(config.db_path)
         self._brain = Brain(config, self._memory)
 
-    # --- controle de acesso -------------------------------------------------
+    # --- access control -----------------------------------------------------
 
     def _authorized(self, update: Update) -> bool:
         if self._config.owner_id is None:
-            return True  # sem dono configurado: responde a todos
+            return True  # no owner configured: answer everyone
         user = update.effective_user
         return user is not None and user.id == self._config.owner_id
 
@@ -52,7 +62,7 @@ class TelegramInterface:
     async def on_start(self, update: Update, _ctx: ContextTypes.DEFAULT_TYPE) -> None:
         user = update.effective_user
         uid = user.id if user else "?"
-        log.info("Comando /start de user_id=%s", uid)
+        log.info("/start from user_id=%s", uid)
         if not self._authorized(update):
             await update.message.reply_text(
                 f"Não te reconheço. Seu ID é {uid}. "
@@ -60,17 +70,16 @@ class TelegramInterface:
             )
             return
         await update.message.reply_text(
-            "E.V. online. Manda texto ou áudio que eu te respondo. "
-            f"(seu ID: {uid})"
+            f"E.V. online. Manda texto ou áudio que eu te respondo. (seu ID: {uid})"
         )
 
     async def on_text(self, update: Update, _ctx: ContextTypes.DEFAULT_TYPE) -> None:
         if not self._authorized(update):
             return
         user_id = str(update.effective_user.id)
-        await self._reply(update, await self._brain.respond(
-            user_id, text=update.message.text
-        ))
+        await self._reply(
+            update, await self._brain.respond(user_id, text=update.message.text)
+        )
 
     async def on_voice(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         if not self._authorized(update):
@@ -79,39 +88,88 @@ class TelegramInterface:
         voice = update.message.voice
         tg_file = await ctx.bot.get_file(voice.file_id)
         audio_bytes = bytes(await tg_file.download_as_bytearray())
-        await self._reply(update, await self._brain.respond(
-            user_id, audio=audio_bytes, audio_mime=voice.mime_type or "audio/ogg"
-        ))
+        await self._reply(
+            update,
+            await self._brain.respond(
+                user_id, audio=audio_bytes, audio_mime=voice.mime_type or "audio/ogg"
+            ),
+        )
 
-    # --- resposta -----------------------------------------------------------
+    # --- reply --------------------------------------------------------------
 
     async def _reply(self, update: Update, answer: str) -> None:
         await update.message.reply_text(answer)
+        await self._maybe_voice(update.message.reply_audio, answer)
+
+    async def _maybe_voice(self, send_audio, text: str) -> None:
         if not self._config.voice_reply:
             return
         try:
             mp3 = await voice_mod.synthesize(
-                answer,
+                text,
                 self._config.voice,
                 rate=self._config.voice_rate,
                 pitch=self._config.voice_pitch,
             )
             buf = io.BytesIO(mp3)
             buf.name = "ev.mp3"
-            await update.message.reply_audio(audio=buf, title="E.V.")
-        except Exception:  # voz é um extra — nunca deixa quebrar a resposta
-            log.exception("Falha ao gerar áudio (respondi só em texto)")
+            await send_audio(audio=buf, title="E.V.")
+        except Exception:  # voice is a bonus — never let it break the reply
+            log.exception("Voice synthesis failed (replied with text only)")
+
+    # --- reminder scheduler -------------------------------------------------
+
+    async def _post_init(self, app: Application) -> None:
+        asyncio.create_task(self._reminder_loop(app))
+        log.info("Reminder scheduler started (every %ss).", self._config.reminder_poll_seconds)
+
+    async def _reminder_loop(self, app: Application) -> None:
+        while True:
+            try:
+                await self._deliver_due_reminders(app)
+            except Exception:
+                log.exception("Reminder loop error")
+            await asyncio.sleep(self._config.reminder_poll_seconds)
+
+    def _tz(self):
+        try:
+            return ZoneInfo(self._config.timezone) if ZoneInfo else None
+        except Exception:
+            return None
+
+    async def _deliver_due_reminders(self, app: Application) -> None:
+        tz = self._tz()
+        now = datetime.now(tz)
+        for r in self._memory.pending_reminders():
+            try:
+                due = datetime.fromisoformat(r["when_iso"])
+                if due.tzinfo is None and tz is not None:
+                    due = due.replace(tzinfo=tz)
+            except Exception:
+                continue  # unparseable time — skip (leave it pending)
+            if due <= now:
+                try:
+                    await app.bot.send_message(
+                        chat_id=int(r["user_id"]), text=f"Lembrete: {r['text']}"
+                    )
+                    self._memory.mark_reminder_done(r["id"])
+                    log.info("Delivered reminder #%s", r["id"])
+                except Exception:
+                    log.exception("Failed to deliver reminder #%s", r["id"])
 
     # --- runner -------------------------------------------------------------
 
     def run(self) -> None:
-        app = Application.builder().token(self._config.telegram_token).build()
+        app = (
+            Application.builder()
+            .token(self._config.telegram_token)
+            .post_init(self._post_init)
+            .build()
+        )
         app.add_handler(CommandHandler("start", self.on_start))
         app.add_handler(MessageHandler(filters.VOICE, self.on_voice))
-        app.add_handler(
-            MessageHandler(filters.TEXT & ~filters.COMMAND, self.on_text)
-        )
-        log.info("E.V. iniciando (polling)...")
+        app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.on_text))
+        log.info("E.V. starting (polling)...")
         app.run_polling()
 
 

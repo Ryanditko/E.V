@@ -1,11 +1,15 @@
 <div align="center">
 
-# 🕷️ E.V.
+# E.V.
 
-**Assistente pessoal de IA — voz + celular, com personalidade, memória e resiliência.**
+**A personal AI assistant — voice + mobile, with personality, memory and resilience.**
 
-Inspirada na E.V. do Homem-Aranha (*Brand New Day*): a IA que o herói construiu
-com as próprias mãos — leal, meiga, brincalhona e sempre do seu lado.
+Inspired by Spider-Man's E.V. (*Brand New Day*): the AI the hero built with his
+own hands — loyal, warm, playful, and always on your side.
+
+> **Language note:** this documentation is in English. E.V. **talks to you in
+> Brazilian Portuguese** (chat and voice) — that is intentional and configured in
+> `ev/personality.py`.
 
 `Python` · `Telegram` · `Gemini + Groq + OpenRouter` · `edge-tts` · `SQLite`
 
@@ -13,53 +17,59 @@ com as próprias mãos — leal, meiga, brincalhona e sempre do seu lado.
 
 ---
 
-## ✨ O que ela faz
+## Features
 
-- 🗣️ **Conversa por voz e texto** — manda áudio, recebe áudio (voz feminina natural).
-- 🧠 **Memória de verdade** — lembra de você entre conversas (nome, gostos, rotinas).
-- 😄 **Personalidade** — carinhosa e com piadas no estilo Homem-Aranha.
-- 🛡️ **Nunca fica muda** — se um provedor de IA bate no limite, cai automaticamente no próximo.
-- 📱 **No celular hoje** (Telegram), com o cérebro pronto pra terminal/web amanhã.
+- **Voice & text chat** — send an audio note, get audio back (natural female voice).
+- **Real long-term memory** — remembers you across conversations, with semantic
+  (vector) recall of relevant facts.
+- **Reminders** — set them in natural language; E.V. fires them at the right time.
+- **Real tools** — web search, and (with setup) Google Calendar & email.
+- **Personality** — warm and witty, Spider-Man style.
+- **Never goes silent** — if one AI provider hits its limit, it falls back to the next.
+- **Multiple interfaces** — Telegram (voice + mobile) and a Terminal REPL, sharing
+  the exact same brain.
 
-## 🏗️ Arquitetura
+## Architecture
 
-O projeto separa **o que a E.V. é** (o cérebro, reutilizável) de **como você fala com ela**
-(as interfaces, trocáveis). Isso permite evoluir pra terminal/web sem reescrever a lógica.
+E.V. separates **what she is** (the brain, reusable) from **how you talk to her**
+(the interfaces, swappable). New interfaces (terminal, web) reuse the brain unchanged.
 
 ```mermaid
 flowchart TB
-    subgraph I["🔌 Interfaces — ev/interfaces (trocaveis)"]
-        TG["Telegram Bot ✅"]
-        TERM["Terminal (futuro)"]
-        WEB["Web / App (futuro)"]
+    subgraph I["Interfaces - ev/interfaces (swappable)"]
+        TG["Telegram Bot"]
+        TERM["Terminal REPL"]
+        WEB["Web / App (future)"]
     end
-    subgraph C["🧠 Nucleo — ev/core (reutilizavel)"]
-        BRAIN["Brain (orquestracao)"]
-        MEM[("Memory - SQLite")]
+    subgraph C["Core - ev/core (reusable)"]
+        BRAIN["Brain (orchestration)"]
+        MEM[("Memory - SQLite + vectors")]
     end
-    subgraph P["☁️ Provedores — ev/providers"]
+    subgraph P["Providers - ev/providers"]
         LLM["llm - Gemini/Groq/OpenRouter"]
         VOICE["voice - edge-tts"]
+        TOOLS["tools - web/calendar/email"]
     end
     PERS["personality.py"]
     CFG["config.py (.env)"]
 
     TG --> BRAIN
-    TERM -.-> BRAIN
+    TERM --> BRAIN
     WEB -.-> BRAIN
     BRAIN --> MEM
     BRAIN --> LLM
+    BRAIN --> TOOLS
     TG --> VOICE
-    BRAIN -. usa .-> PERS
-    BRAIN -. usa .-> CFG
+    BRAIN -. uses .-> PERS
+    BRAIN -. uses .-> CFG
 ```
 
-### Fluxo de uma mensagem (com fallback automático)
+### Message flow (with automatic fallback)
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant U as Voce (Telegram)
+    participant U as You (Telegram)
     participant T as TelegramInterface
     participant B as Brain
     participant G as Gemini
@@ -67,103 +77,112 @@ sequenceDiagram
     participant O as OpenRouter
     participant V as edge-tts
 
-    U->>T: mensagem (texto ou audio)
+    U->>T: message (text or audio)
     T->>B: respond()
-    B->>G: gera (audio nativo + memoria)
-    alt Gemini disponivel
-        G-->>B: resposta
-    else Gemini no limite (429)
-        B->>Q: chat + ferramentas (memoria)
+    B->>G: generate (native audio + memory)
+    alt Gemini available
+        G-->>B: answer
+    else Gemini rate-limited (429)
+        B->>Q: chat + tools (memory)
         alt Groq OK
-            Q-->>B: resposta
-        else Groq falha
-            B->>O: chat (texto)
-            O-->>B: resposta
+            Q-->>B: answer
+        else Groq fails
+            B->>O: chat (text)
+            O-->>B: answer
         end
     end
-    B-->>T: texto da resposta
-    T->>V: sintetiza voz
+    B-->>T: answer text
+    T->>V: synthesize voice
     V-->>T: audio (mp3)
-    T-->>U: texto + audio
+    T-->>U: text + audio
 ```
 
-> Detalhes completos (decisões de projeto, camadas, memória, TLS corporativo) em
-> **[docs/architecture.md](docs/architecture.md)**.
+> Full design details in **[docs/architecture.md](docs/architecture.md)**.
 
-## 📁 Estrutura do projeto
+## Project structure
 
 ```
 E.V/
-├── run_telegram.py          # ponto de entrada (sobe o bot)
+├── run_telegram.py          # entry point (Telegram bot)
+├── run_terminal.py          # entry point (Terminal REPL)
 ├── requirements.txt
-├── .env.example             # modelo de configuração (copie p/ .env)
+├── .env.example             # config template (copy to .env)
 ├── docs/
-│   └── architecture.md      # arquitetura detalhada + diagramas
+│   └── architecture.md      # detailed architecture + diagrams
 ├── deploy/
-│   ├── README.md            # passo a passo Oracle Cloud (24/7)
-│   └── setup_vm.sh          # instala a E.V. como serviço na VM
+│   ├── README.md            # Oracle Cloud step-by-step (24/7)
+│   └── setup_vm.sh          # installs E.V. as a systemd service
 └── ev/
-    ├── __init__.py          # injeta trust store do SO (TLS)
-    ├── config.py            # configuração (lê o .env)
-    ├── personality.py       # o system prompt — quem a E.V. é
+    ├── __init__.py          # injects OS trust store (TLS)
+    ├── config.py            # configuration (reads .env)
+    ├── personality.py       # the system prompt — who E.V. is (PT-BR)
     ├── core/
-    │   ├── brain.py         # orquestra LLM + memória + fallback
-    │   └── memory.py        # persistência SQLite (conversa/fatos/lembretes)
+    │   ├── brain.py         # orchestrates LLM + memory + tools + fallback
+    │   └── memory.py        # SQLite persistence + vector recall
     ├── providers/
     │   ├── llm.py           # Gemini/Groq/OpenRouter + Whisper
-    │   └── voice.py         # texto → voz (edge-tts)
+    │   ├── embeddings.py    # text embeddings (semantic memory)
+    │   ├── voice.py         # text -> speech (edge-tts)
+    │   └── tools.py         # web search, calendar, email
     └── interfaces/
-        └── telegram_bot.py  # a "casca" do Telegram
+        ├── telegram_bot.py  # Telegram adapter (+ reminder scheduler)
+        └── terminal.py      # Terminal REPL adapter
 ```
 
-## 🧩 Provedores de IA (todos grátis)
+## AI providers (all free)
 
-| Papel | Provedor | Modelo | Por quê |
-|-------|----------|--------|---------|
-| Principal | **Gemini** | `gemini-flash-latest` | Esperto, ouve áudio nativo, salva memória |
-| Fallback 1 | **Groq** | `llama-3.3-70b-versatile` | Rápido (30/min), salva memória, sempre disponível |
-| Fallback 2 | **OpenRouter** | `nvidia/nemotron-3-ultra-550b-a55b:free` | Backstop "genião" (1M contexto) |
-| Transcrição | **Groq Whisper** | `whisper-large-v3-turbo` | Áudio → texto quando o Gemini está no limite |
+| Role | Provider | Model | Why |
+|------|----------|-------|-----|
+| Primary | **Gemini** | `gemini-flash-latest` | Smart, native audio, saves memory |
+| Fallback 1 | **Groq** | `openai/gpt-oss-120b` | Fast, reliable tool calling, saves memory |
+| Fallback 2 | **OpenRouter** | `nvidia/nemotron-3-ultra-550b-a55b:free` | "Genius" backstop (1M context) |
+| Transcription | **Groq Whisper** | `whisper-large-v3-turbo` | Audio -> text when Gemini is rate-limited |
+| Embeddings | **Gemini** | `gemini-embedding-001` | Semantic memory recall |
 
-## 🚀 Rodar localmente
+## Run locally
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env      # preencha as chaves (veja abaixo)
-python run_telegram.py
+cp .env.example .env      # fill in the keys (see below)
+
+python run_telegram.py    # Telegram bot (voice + mobile)
+# or
+python run_terminal.py    # Terminal REPL (text)
 ```
 
-### Chaves necessárias (todas grátis)
+### Required keys (all free)
 
-| Variável | Onde pegar |
-|----------|------------|
-| `TELEGRAM_TOKEN` | [@BotFather](https://t.me/BotFather) no Telegram |
+| Variable | Where to get it |
+|----------|-----------------|
+| `TELEGRAM_TOKEN` | [@BotFather](https://t.me/BotFather) on Telegram |
 | `GEMINI_API_KEY` | https://aistudio.google.com/apikey |
 | `GROQ_API_KEY` | https://console.groq.com/keys |
 | `OPENROUTER_API_KEY` | https://openrouter.ai/keys |
 
-> Dica: rode uma vez, mande `/start`, pegue seu ID nos logs e ponha em `EV_OWNER_ID`
-> pra travar o bot só pra você.
+> Tip: run once, send `/start`, grab your ID from the logs and set `EV_OWNER_ID`
+> to lock the bot to yourself.
 
-## ☁️ Rodar 24/7 (Oracle Cloud)
+## Run 24/7 (Oracle Cloud)
 
-Veja **[deploy/README.md](deploy/README.md)** — sobe numa VM Always Free como serviço
-`systemd` (liga no boot, reinicia sozinha).
+See **[deploy/README.md](deploy/README.md)** — runs on an Always Free VM as a
+`systemd` service (starts on boot, restarts on crash).
 
-## 🗺️ Roadmap
+## Roadmap
 
-- [x] Conversa por voz e texto (Telegram)
-- [x] Memória de longo prazo (confiável via Groq)
-- [x] Fallback multi-provedor
-- [x] Personalidade meiga + humor
-- [ ] Disparo de lembretes na hora certa (agendador)
-- [ ] Ferramentas reais: agenda, e-mail, busca na web
-- [ ] Interface de terminal (reusa o cérebro)
-- [ ] Memória com busca vetorial (embeddings)
+- [x] Voice & text chat (Telegram)
+- [x] Reliable long-term memory (via Groq)
+- [x] Multi-provider fallback
+- [x] Warm personality + humor
+- [x] Reminder scheduler
+- [x] Semantic (vector) memory recall
+- [x] Web search tool
+- [x] Terminal interface
+- [ ] Google Calendar & email (needs Google OAuth setup)
+- [ ] Web / app interface
 
 ---
 
 <div align="center">
-Feito com 🕸️ e café.
+Built with care.
 </div>

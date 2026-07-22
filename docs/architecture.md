@@ -1,80 +1,91 @@
-# Arquitetura da E.V.
+# E.V. — Architecture
 
-Este documento detalha as decisões de projeto. Para a visão geral, veja o
+This document details the design decisions. For the overview, see the
 [README](../README.md).
 
-## Princípio central: cérebro desacoplado da interface
+> Language: docs are in English; E.V. converses in Brazilian Portuguese
+> (see `ev/personality.py`).
 
-A E.V. é dividida em **camadas** com uma regra de dependência: as camadas de
-fora conhecem as de dentro, nunca o contrário.
+## Core principle: brain decoupled from interface
+
+E.V. is split into **layers** with a strict dependency rule: outer layers know
+about inner ones, never the reverse.
 
 ```mermaid
 flowchart LR
-    subgraph OUT["Interfaces (adaptadores de I/O)"]
+    subgraph OUT["Interfaces (I/O adapters)"]
         TG["telegram_bot.py"]
+        TE["terminal.py"]
     end
-    subgraph CORE["Núcleo (lógica reutilizável)"]
+    subgraph CORE["Core (reusable logic)"]
         B["brain.py"]
         M["memory.py"]
     end
-    subgraph PROV["Provedores (serviços externos)"]
+    subgraph PROV["Providers (external services)"]
         L["llm.py"]
+        E["embeddings.py"]
         V["voice.py"]
+        T["tools.py"]
     end
     TG --> B
+    TE --> B
     B --> M
     B --> L
+    B --> T
+    M --> E
     TG --> V
 ```
 
-- **Interfaces** (`ev/interfaces`): recebem entrada e entregam saída (Telegram
-  hoje; terminal/web amanhã). Só sabem chamar `Brain.respond()`.
-- **Núcleo** (`ev/core`): `Brain` orquestra; `Memory` guarda estado. Não sabem
-  nada de Telegram nem de HTTP.
-- **Provedores** (`ev/providers`): falam com serviços externos (LLMs, TTS).
-- **Transversais**: `config.py` (lê o `.env`) e `personality.py` (o system prompt).
+- **Interfaces** (`ev/interfaces`): receive input and deliver output (Telegram and
+  Terminal today; web later). They only call `Brain.respond()`.
+- **Core** (`ev/core`): `Brain` orchestrates; `Memory` holds state. They know
+  nothing about Telegram or HTTP.
+- **Providers** (`ev/providers`): talk to external services (LLMs, embeddings,
+  TTS, tools).
+- **Cross-cutting**: `config.py` (reads `.env`) and `personality.py` (the system
+  prompt).
 
-Trocar de interface (ex.: adicionar um terminal) = escrever um novo adaptador
-que chama `Brain.respond()`. Zero mudança no núcleo.
+Adding an interface = writing a new adapter that calls `Brain.respond()`. Zero
+changes to the core.
 
-## Estratégia multi-provedor (resiliência)
+## Multi-provider strategy (resilience)
 
-O free tier de cada provedor é limitado. Em vez de depender de um só, a E.V.
-encadeia provedores e **cai no próximo** quando um falha (rate limit, erro).
+Each provider's free tier is limited. Instead of relying on one, E.V. chains
+providers and **falls through to the next** when one fails (rate limit, error).
 
 ```mermaid
 flowchart TD
-    START["respond(texto/áudio)"] --> GEM{"Gemini\ndisponível?"}
-    GEM -- sim --> GEMOK["Resposta + memória\n(function calling nativo)"]
-    GEM -- "não (429/erro)" --> AUD{"entrada é\náudio?"}
-    AUD -- sim --> WHIS["Transcreve via\nGroq Whisper"]
-    AUD -- não --> GROQ
-    WHIS --> GROQ{"Groq\ndisponível?"}
-    GROQ -- sim --> GROQOK["Resposta + memória\n(tools OpenAI)"]
-    GROQ -- não --> OR{"OpenRouter\ndisponível?"}
-    OR -- sim --> OROK["Resposta (texto,\nsem memória)"]
-    OR -- não --> DOWN["Mensagem amigável\n'tente em uns segundos'"]
+    START["respond(text/audio)"] --> GEM{"Gemini available?"}
+    GEM -- yes --> GEMOK["Answer + memory (native function calling)"]
+    GEM -- "no (429/error)" --> AUD{"input is audio?"}
+    AUD -- yes --> WHIS["Transcribe via Groq Whisper"]
+    AUD -- no --> GROQ
+    WHIS --> GROQ{"Groq available?"}
+    GROQ -- yes --> GROQOK["Answer + memory (OpenAI tools)"]
+    GROQ -- no --> OR{"OpenRouter available?"}
+    OR -- yes --> OROK["Answer (text, no memory)"]
+    OR -- no --> DOWN["Friendly 'try again shortly' message"]
 ```
 
-### Por que o Gemini é o principal
-Ele é multimodal (**ouve áudio nativo**, sem passo de transcrição) e tem bom
-português. Quando disponível, é o melhor caminho.
+### Why Gemini is primary
+It is multimodal (**hears audio natively**, no transcription step) and strong in
+Portuguese. When available, it's the best path.
 
-### Por que a memória vive também no Groq
-Na prática, o free tier do Gemini pode estar quase esgotado (cotas diárias
-minúsculas). Como salvar memória exige *function calling*, e o Groq também
-suporta isso (API compatível com OpenAI), replicamos as ferramentas lá. Assim
-a memória é **confiável** mesmo sem o Gemini. O OpenRouter é backstop de texto
-puro (sem memória) — a última linha antes de pedir "tente de novo".
+### Why memory also lives in Groq
+In practice, Gemini's free tier can be nearly exhausted (tiny daily quotas).
+Saving memory needs *function calling*, and Groq supports it too (OpenAI-compatible
+API), so we replicate the tools there. Memory is therefore **reliable** even
+without Gemini. OpenRouter is a plain-text backstop (no memory) — the last line
+before asking the user to retry.
 
-### Resiliência de tool-calling
-Modelos abertos (Llama) às vezes formatam a chamada de ferramenta de forma
-inválida (`tool_use_failed`). Nesse caso, o Groq **responde sem ferramentas**
-em vez de quebrar o turno — a E.V. sempre responde algo.
+### Tool-calling resilience
+Open models (Llama) sometimes format a tool call invalidly (`tool_use_failed`).
+In that case Groq **answers without tools** instead of failing the turn — E.V.
+always replies something.
 
-## Memória (SQLite)
+## Memory (SQLite + vectors)
 
-Um único arquivo `ev_memory.db`, três tabelas:
+A single `ev_memory.db` file, plus in-process vector search over facts.
 
 ```mermaid
 erDiagram
@@ -89,6 +100,7 @@ erDiagram
         int id PK
         string user_id
         string fact
+        blob embedding "float32 vector"
         string created
     }
     REMINDERS {
@@ -101,23 +113,48 @@ erDiagram
     }
 ```
 
-- **messages**: histórico recente da conversa (contexto do turno).
-- **facts**: memória de longo prazo (o que a E.V. sabe sobre você). Injetados
-  no system prompt a cada resposta.
-- **reminders**: lembretes (criação/listagem hoje; disparo agendado no roadmap).
+- **messages**: recent conversation history (turn context).
+- **facts**: long-term memory. Each fact stores an **embedding**; on each turn,
+  E.V. retrieves the top-K facts most semantically similar to the current message
+  (cosine similarity, computed in Python) and injects them into the system prompt.
+  Falls back to "all facts" if embeddings are unavailable.
+- **reminders**: reminders. A background scheduler polls for due ones and delivers
+  them.
 
-Design simples de propósito — dá pra evoluir pra busca vetorial (embeddings)
-sem mudar as interfaces.
+Brute-force cosine over a personal-scale fact set is more than fast enough; no
+external vector DB needed.
 
-## Nota: TLS atrás de proxy corporativo
+## Reminder scheduler
 
-Em redes com inspeção TLS (proxy que reassina certificados com uma CA interna),
-o `certifi` do Python falha (`CERTIFICATE_VERIFY_FAILED`) para alguns hosts.
-A E.V. injeta o **trust store do SO** via `truststore` no `ev/__init__.py`,
-antes de qualquer cliente HTTP — assim confia na CA corporativa (que já está no
-sistema) e funciona em qualquer rede. Fora de proxy corporativo, é inofensivo.
+```mermaid
+flowchart LR
+    LLM["Brain: criar_lembrete(text, when_iso)"] --> DB[("reminders")]
+    SCHED["Scheduler loop (every ~30s)"] --> DB
+    SCHED -->|"when_iso <= now, not done"| SEND["Send message to user"]
+    SEND --> MARK["mark reminder done"]
+```
 
-## Configuração
+The current date/time is injected into the system prompt so the model can turn
+"tomorrow at 9am" into an absolute ISO 8601 timestamp. The Telegram interface runs
+the scheduler as a background task and delivers due reminders to the user's chat.
 
-Tudo vem do `.env` (via `config.py`). Chaves de fallback são **opcionais**: sem
-elas, aquele provedor é simplesmente ignorado. Veja `.env.example`.
+## Tools
+
+Exposed to the model via function calling (`ev/providers/tools.py`):
+
+- **web search** — DuckDuckGo, no API key.
+- **calendar / email** — Google APIs; require one-time OAuth setup by the user
+  (see `.env.example`). Disabled gracefully when not configured.
+
+## Note: TLS behind a corporate proxy
+
+On networks with TLS inspection (a proxy that re-signs certificates with an
+internal CA), Python's `certifi` fails (`CERTIFICATE_VERIFY_FAILED`) for some
+hosts. E.V. injects the **OS trust store** via `truststore` in `ev/__init__.py`,
+before any HTTP client — so it trusts the corporate CA (already in the system)
+and works on any network. Outside a corporate proxy, it's harmless.
+
+## Configuration
+
+Everything comes from `.env` (via `config.py`). Fallback and tool keys are
+**optional**: without them, that provider/tool is simply skipped. See `.env.example`.

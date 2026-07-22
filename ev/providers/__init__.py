@@ -1,5 +1,5 @@
-"""Provedores externos da E.V. — LLMs (Gemini/Groq/OpenRouter) e voz (TTS)."""
+"""E.V. external providers — LLMs (Gemini/Groq/OpenRouter), embeddings, voice, tools."""
 
-from . import llm, voice
+from . import embeddings, llm, tools, voice
 
-__all__ = ["llm", "voice"]
+__all__ = ["embeddings", "llm", "tools", "voice"]
