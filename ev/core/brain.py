@@ -9,9 +9,11 @@ Multi-provider strategy (maximize free requests, never go silent):
   2. GROQ (fallback) — Llama 3.3 70B, fast, 30 req/min. When Gemini fails
      (rate limit, etc.), E.V. keeps talking here, WITH memory (OpenAI-style
      function calling). Audio is transcribed first via Groq Whisper.
-  3. OPENROUTER (final fallback) — plain text, no memory.
+  3. OPENROUTER (fallback) — plain text, no memory.
+  4. OLLAMA (final safety net) — local model, never rate-limited ("never runs out").
 
-Providers without a configured key are skipped.
+Providers without a configured key are skipped. The brain also does RAG: it
+injects the user's most relevant knowledge-base chunks into the system prompt.
 """
 
 from __future__ import annotations
@@ -119,6 +121,16 @@ class Brain:
         if facts:
             system += "\n\n## O que você já sabe sobre o usuário\n"
             system += "\n".join(f"- {f}" for f in facts)
+
+        # Knowledge base (RAG): inject the most relevant document chunks.
+        chunks = self._memory.search_knowledge(user_id, query_vec, k=4)
+        if chunks:
+            system += (
+                "\n\n## Trechos relevantes dos documentos do usuário\n"
+                "Use isto para embasar a resposta quando fizer sentido.\n"
+            )
+            for c in chunks:
+                system += f"\n[{c['source']}]\n{c['chunk']}\n"
         return system
 
     def _now_str(self) -> str:
@@ -134,9 +146,7 @@ class Brain:
             return "Ao criar lembretes ou eventos, use ISO 8601."
 
     def _embed(self, text: str) -> list[float] | None:
-        return embeddings.embed(
-            text, api_key=self._config.gemini_api_key, model=self._config.embed_model
-        )
+        return embeddings.embed(text, self._config)
 
     # --- tools (shared by Gemini and Groq) ---------------------------------
 
@@ -402,6 +412,22 @@ class Brain:
                     return answer
             except Exception as exc:
                 log.warning("OpenRouter fallback failed (%s).", exc)
+
+        # 3) Ollama — local model, never rate-limited (final safety net).
+        if cfg.ollama_enabled:
+            try:
+                answer = providers.chat_openai_compat(
+                    base_url=cfg.ollama_base_url,
+                    api_key="ollama",  # Ollama ignores the key
+                    model=cfg.ollama_model,
+                    system=system,
+                    messages=messages,
+                )
+                if answer:
+                    log.info("Answered via Ollama (%s, local).", cfg.ollama_model)
+                    return answer
+            except Exception as exc:
+                log.warning("Ollama fallback failed (%s).", exc)
 
         return None
 

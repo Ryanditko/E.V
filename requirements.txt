@@ -25,3 +25,6 @@ ddgs>=6.0.0
 # Google Calendar & Gmail tools (optional — used only if GOOGLE_OAUTH_CLIENT set)
 google-api-python-client>=2.100.0
 google-auth-oauthlib>=1.2.0
+
+# PDF text extraction for the knowledge base
+pypdf>=4.0.0

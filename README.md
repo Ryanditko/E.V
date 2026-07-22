@@ -20,12 +20,18 @@ own hands — loyal, warm, playful, and always on your side.
 ## Features
 
 - **Voice & text chat** — send an audio note, get audio back (natural female voice).
+- **Slash commands (no LLM)** — fast, deterministic commands for reminders, tasks,
+  links, knowledge base, calendar and email. No tokens spent.
 - **Real long-term memory** — remembers you across conversations, with semantic
   (vector) recall of relevant facts.
+- **Named links** — save links by category (e.g. `faculdade`, `trabalho`).
+- **Knowledge base (PDF)** — upload PDFs; E.V. indexes them and answers grounded
+  in your documents (RAG).
 - **Reminders** — set them in natural language; E.V. fires them at the right time.
 - **Real tools** — web search, and (with setup) Google Calendar & email.
 - **Personality** — warm and witty, Spider-Man style.
-- **Never goes silent** — if one AI provider hits its limit, it falls back to the next.
+- **Never goes silent** — cloud providers fall back to each other, and finally to a
+  **local Ollama model** that never runs out of quota.
 - **Multiple interfaces** — Telegram (voice + mobile) and a Terminal REPL, sharing
   the exact same brain.
 
@@ -117,15 +123,18 @@ E.V/
     ├── config.py            # configuration (reads .env)
     ├── personality.py       # the system prompt — who E.V. is (PT-BR)
     ├── core/
-    │   ├── brain.py         # orchestrates LLM + memory + tools + fallback
-    │   └── memory.py        # SQLite persistence + vector recall
+    │   ├── brain.py         # orchestrates LLM + memory + tools + RAG + fallback
+    │   ├── memory.py        # SQLite: messages, facts, reminders, tasks, links, KB
+    │   ├── commands.py      # deterministic slash commands (no LLM)
+    │   ├── timeparse.py     # natural-time parser for commands
+    │   └── knowledge.py     # PDF ingestion + chunking (knowledge base)
     ├── providers/
-    │   ├── llm.py           # Gemini/Groq/OpenRouter + Whisper
-    │   ├── embeddings.py    # text embeddings (semantic memory)
+    │   ├── llm.py           # Gemini/Groq/OpenRouter/Ollama + Whisper
+    │   ├── embeddings.py    # text embeddings (Gemini or Ollama)
     │   ├── voice.py         # text -> speech (edge-tts)
     │   └── tools.py         # web search, calendar, email
     └── interfaces/
-        ├── telegram_bot.py  # Telegram adapter (+ reminder scheduler)
+        ├── telegram_bot.py  # Telegram adapter (+ commands, scheduler, PDF upload)
         └── terminal.py      # Terminal REPL adapter
 ```
 
@@ -136,8 +145,27 @@ E.V/
 | Primary | **Gemini** | `gemini-flash-latest` | Smart, native audio, saves memory |
 | Fallback 1 | **Groq** | `openai/gpt-oss-120b` | Fast, reliable tool calling, saves memory |
 | Fallback 2 | **OpenRouter** | `nvidia/nemotron-3-ultra-550b-a55b:free` | "Genius" backstop (1M context) |
+| Fallback 3 | **Ollama (local)** | `llama3.1` | Never runs out of quota (runs on your machine) |
 | Transcription | **Groq Whisper** | `whisper-large-v3-turbo` | Audio -> text when Gemini is rate-limited |
-| Embeddings | **Gemini** | `gemini-embedding-001` | Semantic memory recall |
+| Embeddings | **Gemini / Ollama** | `gemini-embedding-001` / `nomic-embed-text` | Semantic memory + knowledge base |
+
+## Slash commands (no LLM)
+
+Type `/` in Telegram to see the menu. These run instantly, without spending tokens:
+
+| Command | Example |
+|---------|---------|
+| `/lembrete <time> <text>` | `/lembrete 10m tomar água`, `/lembrete amanhã 09:00 reunião` |
+| `/lembretes` | list reminders |
+| `/tarefa <text>` · `/tarefas` · `/concluir <id>` | to-do list |
+| `/lembrar <fact>` · `/memorias` | save/list long-term memory |
+| `/link <cat> \| <name> \| <url>` · `/links [cat]` · `/linkrm <id>` | named links by category |
+| `/kb` · `/kbrm <name>` | knowledge base (send a PDF to add) |
+| `/agenda` · `/evento <time> <title>` · `/email <to> \| <subj> \| <body>` | Google (after setup) |
+| `/ajuda` | list everything |
+
+Accepted time formats: `10m`, `2h`, `1d`, `hoje 18:00`, `amanhã 09:00`, `25/12 14:30`.
+Send a **PDF** in the chat to add it to the knowledge base.
 
 ## Run locally
 
@@ -178,6 +206,10 @@ See **[deploy/README.md](deploy/README.md)** — runs on an Always Free VM as a
 - [x] Semantic (vector) memory recall
 - [x] Web search tool
 - [x] Terminal interface
+- [x] Deterministic slash commands (no LLM)
+- [x] Named links by category
+- [x] Knowledge base (PDF upload + RAG)
+- [x] Local model fallback (Ollama, never runs out)
 - [ ] Google Calendar & email (needs Google OAuth setup)
 - [ ] Web / app interface
 

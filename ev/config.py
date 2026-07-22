@@ -41,7 +41,13 @@ class Config:
     voice: str
     voice_rate: str
     voice_pitch: str
+    # Local model (Ollama) — never-runs-out safety net
+    ollama_enabled: bool
+    ollama_base_url: str
+    ollama_model: str
+    ollama_embed_model: str
     # Memory & reminders
+    embed_backend: str  # "gemini" or "ollama"
     embed_model: str
     timezone: str
     reminder_poll_seconds: int
@@ -87,6 +93,15 @@ class Config:
             openrouter_model=os.getenv(
                 "OPENROUTER_MODEL", "nvidia/nemotron-3-ultra-550b-a55b:free"
             ).strip(),
+            ollama_enabled=_get_bool("OLLAMA_ENABLED", True),
+            ollama_base_url=os.getenv(
+                "OLLAMA_BASE_URL", "http://localhost:11434/v1"
+            ).strip(),
+            ollama_model=os.getenv("OLLAMA_MODEL", "llama3.1").strip(),
+            ollama_embed_model=os.getenv(
+                "OLLAMA_EMBED_MODEL", "nomic-embed-text"
+            ).strip(),
+            embed_backend=os.getenv("EV_EMBED_BACKEND", "gemini").strip().lower(),
             owner_id=owner_id,
             voice_reply=_get_bool("EV_VOICE_REPLY", True),
             voice=os.getenv("EV_VOICE", "pt-BR-FranciscaNeural").strip(),

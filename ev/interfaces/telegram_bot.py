@@ -141,6 +141,44 @@ class TelegramInterface:
             uid = str(update.effective_user.id)
             await update.message.reply_text(self._commands.memorias(uid))
 
+    async def cmd_link(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
+        if self._authorized(update):
+            uid = str(update.effective_user.id)
+            await update.message.reply_text(self._commands.link(uid, self._args(c)))
+
+    async def cmd_links(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
+        if self._authorized(update):
+            uid = str(update.effective_user.id)
+            await update.message.reply_text(self._commands.links(uid, self._args(c)))
+
+    async def cmd_linkrm(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
+        if self._authorized(update):
+            uid = str(update.effective_user.id)
+            await update.message.reply_text(self._commands.linkrm(uid, self._args(c)))
+
+    async def cmd_kb(self, update: Update, _c: ContextTypes.DEFAULT_TYPE) -> None:
+        if self._authorized(update):
+            uid = str(update.effective_user.id)
+            await update.message.reply_text(self._commands.kb(uid))
+
+    async def cmd_kbrm(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
+        if self._authorized(update):
+            uid = str(update.effective_user.id)
+            await update.message.reply_text(self._commands.kbrm(uid, self._args(c)))
+
+    async def on_document(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+        if not self._authorized(update):
+            return
+        uid = str(update.effective_user.id)
+        doc = update.message.document
+        await update.message.reply_text("Recebi o documento, estou indexando...")
+        tg_file = await ctx.bot.get_file(doc.file_id)
+        data = bytes(await tg_file.download_as_bytearray())
+        result = await asyncio.to_thread(
+            self._commands.ingest_document, uid, data, doc.file_name or "documento.pdf"
+        )
+        await update.message.reply_text(result)
+
     async def cmd_agenda(self, update: Update, _c: ContextTypes.DEFAULT_TYPE) -> None:
         if self._authorized(update):
             await update.message.reply_text(self._commands.agenda())
@@ -244,9 +282,16 @@ class TelegramInterface:
         app.add_handler(CommandHandler("concluir", self.cmd_concluir))
         app.add_handler(CommandHandler("lembrar", self.cmd_lembrar))
         app.add_handler(CommandHandler("memorias", self.cmd_memorias))
+        app.add_handler(CommandHandler("link", self.cmd_link))
+        app.add_handler(CommandHandler("links", self.cmd_links))
+        app.add_handler(CommandHandler("linkrm", self.cmd_linkrm))
+        app.add_handler(CommandHandler("kb", self.cmd_kb))
+        app.add_handler(CommandHandler("kbrm", self.cmd_kbrm))
         app.add_handler(CommandHandler("agenda", self.cmd_agenda))
         app.add_handler(CommandHandler("evento", self.cmd_evento))
         app.add_handler(CommandHandler("email", self.cmd_email))
+        # Document upload (PDF) -> knowledge base
+        app.add_handler(MessageHandler(filters.Document.ALL, self.on_document))
         # Voice + free text (must be last)
         app.add_handler(MessageHandler(filters.VOICE, self.on_voice))
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.on_text))

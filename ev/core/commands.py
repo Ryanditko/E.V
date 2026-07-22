@@ -18,6 +18,7 @@ except Exception:  # pragma: no cover
 
 from ..config import Config
 from ..providers import embeddings, tools as tools_mod
+from . import knowledge
 from .memory import Memory
 from .timeparse import parse_when
 
@@ -31,6 +32,11 @@ COMMAND_LIST = [
     ("concluir", "Concluir tarefa: /concluir 3"),
     ("lembrar", "Salvar na memória: /lembrar meu carro é um Civic"),
     ("memorias", "Listar o que a E.V. sabe sobre você"),
+    ("link", "Guardar link: /link faculdade | tarefas | http://..."),
+    ("links", "Listar links: /links [categoria]"),
+    ("linkrm", "Remover link: /linkrm 3"),
+    ("kb", "Base de conhecimento (envie um PDF para adicionar)"),
+    ("kbrm", "Remover documento da base: /kbrm nome.pdf"),
     ("agenda", "Ver próximos eventos do Google Agenda"),
     ("evento", "Criar evento: /evento amanhã 15:00 Dentista"),
     ("email", "Enviar e-mail: /email fulano@x.com | Assunto | Corpo"),
@@ -128,9 +134,7 @@ class Commands:
         fact = argstr.strip()
         if not fact:
             return "Uso: /lembrar <fato>. Ex: /lembrar meu carro é um Civic preto"
-        vec = embeddings.embed(
-            fact, api_key=self._config.gemini_api_key, model=self._config.embed_model
-        )
+        vec = embeddings.embed(fact, self._config)
         self._memory.add_fact(user_id, fact, embedding=vec)
         return f"Anotado na memória: {fact}"
 
@@ -139,6 +143,77 @@ class Commands:
         if not facts:
             return "Ainda não sei nada sobre você. Use /lembrar pra me contar algo."
         return "O que eu sei sobre você:\n" + "\n".join(f"- {f}" for f in facts)
+
+    # --- links (named, categorized) ----------------------------------------
+
+    def link(self, user_id: str, argstr: str) -> str:
+        parts = [p.strip() for p in argstr.split("|")]
+        if len(parts) != 3 or not all(parts):
+            return "Uso: /link <categoria> | <nome> | <url>\nEx: /link faculdade | lista de tarefas | https://..."
+        category, name, url = parts
+        lid = self._memory.add_link(user_id, category, name, url)
+        return f"Link #{lid} salvo em '{category}': {name}"
+
+    def links(self, user_id: str, argstr: str) -> str:
+        category = argstr.strip() or None
+        items = self._memory.list_links(user_id, category)
+        if not items:
+            return (
+                f"Nenhum link em '{category}'." if category
+                else "Você ainda não guardou links. Use /link."
+            )
+        lines = [f"Links{' em ' + category if category else ''}:"]
+        current = None
+        for it in items:
+            if not category and it["category"] != current:
+                current = it["category"]
+                lines.append(f"[{current}]")
+            lines.append(f"#{it['id']} {it['name']} — {it['url']}")
+        return "\n".join(lines)
+
+    def linkrm(self, user_id: str, argstr: str) -> str:
+        arg = argstr.strip()
+        if not arg.isdigit():
+            return "Uso: /linkrm <id>. Veja os ids em /links."
+        ok = self._memory.delete_link(user_id, int(arg))
+        return f"Link #{arg} removido." if ok else f"Não achei o link #{arg}."
+
+    # --- knowledge base -----------------------------------------------------
+
+    def kb(self, user_id: str) -> str:
+        sources = self._memory.list_sources(user_id)
+        if not sources:
+            return (
+                "Base de conhecimento vazia. Envie um PDF aqui no chat que eu "
+                "indexo e passo a responder com base nele."
+            )
+        lines = ["Documentos na base de conhecimento:"]
+        for s in sources:
+            lines.append(f"- {s['source']} ({s['chunks']} trechos)")
+        lines.append("\nEnvie um PDF para adicionar. Remover: /kbrm <nome>")
+        return "\n".join(lines)
+
+    def kbrm(self, user_id: str, argstr: str) -> str:
+        source = argstr.strip()
+        if not source:
+            return "Uso: /kbrm <nome do documento>. Veja os nomes em /kb."
+        n = self._memory.delete_source(user_id, source)
+        return f"Removi '{source}' ({n} trechos)." if n else f"Não achei '{source}' na base."
+
+    def ingest_document(self, user_id: str, data: bytes, filename: str) -> str:
+        """Ingest an uploaded document (PDF) into the knowledge base."""
+        if not filename.lower().endswith(".pdf"):
+            return "Por enquanto eu só indexo PDFs. Manda um .pdf que eu guardo."
+        try:
+            stored, truncated = knowledge.ingest_pdf(
+                data, filename, self._config, self._memory, user_id
+            )
+        except Exception as exc:
+            return f"Não consegui ler esse PDF ({exc})."
+        if stored == 0:
+            return "Esse PDF parece não ter texto extraível (talvez seja escaneado)."
+        extra = " (documento grande — indexei o começo)" if truncated else ""
+        return f"Documento '{filename}' indexado: {stored} trechos{extra}. Pode me perguntar sobre ele!"
 
     # --- Google (Calendar + email) -----------------------------------------
 

@@ -63,9 +63,15 @@ flowchart TD
     WHIS --> GROQ{"Groq available?"}
     GROQ -- yes --> GROQOK["Answer + memory (OpenAI tools)"]
     GROQ -- no --> OR{"OpenRouter available?"}
-    OR -- yes --> OROK["Answer (text, no memory)"]
-    OR -- no --> DOWN["Friendly 'try again shortly' message"]
+    OR -- yes --> OROK["Answer (text)"]
+    OR -- no --> OLL{"Ollama enabled?"}
+    OLL -- yes --> OLLOK["Answer (local, never runs out)"]
+    OLL -- no --> DOWN["Friendly 'try again shortly' message"]
 ```
+
+The final fallback is a **local Ollama model** — no quota, so E.V. keeps working
+even if every cloud provider is exhausted. It needs Ollama installed with a model
+pulled; on a headless deploy, use a VM with enough RAM (e.g. Oracle's free ARM).
 
 ### Why Gemini is primary
 It is multimodal (**hears audio natively**, no transcription step) and strong in
@@ -109,7 +115,26 @@ erDiagram
         string text
         string when_iso
         int done
-        string created
+    }
+    TASKS {
+        int id PK
+        string user_id
+        string text
+        int done
+    }
+    LINKS {
+        int id PK
+        string user_id
+        string category
+        string name
+        string url
+    }
+    KNOWLEDGE {
+        int id PK
+        string user_id
+        string source
+        string chunk
+        blob embedding
     }
 ```
 
@@ -145,6 +170,22 @@ Exposed to the model via function calling (`ev/providers/tools.py`):
 - **web search** — DuckDuckGo, no API key.
 - **calendar / email** — Google APIs; require one-time OAuth setup by the user
   (see `.env.example`). Disabled gracefully when not configured.
+
+## Slash commands (no LLM)
+
+`ev/core/commands.py` implements deterministic commands that never touch the LLM:
+reminders, tasks, memory, links (named/categorized), and the knowledge base. The
+Telegram interface maps each `/command` to a method; the logic is interface-agnostic
+so a terminal/web interface can reuse it. Times are parsed by `ev/core/timeparse.py`
+(no model), and the commands are registered in Telegram's native `/` menu.
+
+## Knowledge base (RAG)
+
+Send a PDF in the chat and `ev/core/knowledge.py` extracts the text, splits it into
+~1200-char chunks, embeds each (capped per document to protect quota) and stores
+them in the `knowledge` table. On every message the brain embeds the query, pulls
+the top matching chunks (`memory.search_knowledge`) and injects them into the
+system prompt, so answers are grounded in the user's documents.
 
 ## Note: TLS behind a corporate proxy
 

@@ -1,25 +1,47 @@
-"""Text embeddings for semantic memory recall (via Gemini).
+"""Text embeddings for semantic recall (facts + knowledge base).
 
-Produces float vectors for facts and queries so E.V. can retrieve the memories
-most relevant to the current message (cosine similarity), instead of dumping all
-facts into the prompt. Degrades gracefully: on any failure the caller falls back
-to keyword/all-facts recall.
+Two backends, chosen by config.embed_backend:
+  - "gemini": Gemini embeddings API (good quality, uses quota).
+  - "ollama": local Ollama embeddings (no quota, never runs out).
+
+Everything degrades gracefully: on any failure `embed` returns None and callers
+fall back to non-semantic recall. Vectors of different dimensions simply score 0
+in cosine (so switching backends never crashes, it just ignores old vectors).
 """
 
 from __future__ import annotations
 
 import math
 
-from google import genai
+
+def embed(text: str, config) -> list[float] | None:
+    """Return an embedding vector for `text`, or None on failure."""
+    backend = getattr(config, "embed_backend", "gemini")
+    if backend == "ollama":
+        return _embed_ollama(text, config)
+    return _embed_gemini(text, config)
 
 
-def embed(text: str, *, api_key: str, model: str) -> list[float] | None:
-    """Return the embedding vector for `text`, or None on failure."""
+def _embed_gemini(text: str, config) -> list[float] | None:
     try:
-        client = genai.Client(api_key=api_key)
-        resp = client.models.embed_content(model=model, contents=text)
-        values = resp.embeddings[0].values
-        return [float(v) for v in values]
+        from google import genai
+
+        client = genai.Client(api_key=config.gemini_api_key)
+        resp = client.models.embed_content(model=config.embed_model, contents=text)
+        return [float(v) for v in resp.embeddings[0].values]
+    except Exception:
+        return None
+
+
+def _embed_ollama(text: str, config) -> list[float] | None:
+    try:
+        from openai import OpenAI
+
+        client = OpenAI(base_url=config.ollama_base_url, api_key="ollama")
+        resp = client.embeddings.create(
+            model=config.ollama_embed_model, input=text
+        )
+        return [float(v) for v in resp.data[0].embedding]
     except Exception:
         return None
 
@@ -31,6 +53,4 @@ def cosine(a: list[float], b: list[float]) -> float:
     dot = sum(x * y for x, y in zip(a, b))
     na = math.sqrt(sum(x * x for x in a))
     nb = math.sqrt(sum(y * y for y in b))
-    if na == 0 or nb == 0:
-        return 0.0
-    return dot / (na * nb)
+    return dot / (na * nb) if na and nb else 0.0
