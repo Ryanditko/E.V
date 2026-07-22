@@ -169,10 +169,14 @@ class TelegramInterface:
             uid = str(update.effective_user.id)
             await self._cmd_out(update, self._commands.tarefa(uid, self._args(c)))
 
-    async def cmd_tarefas(self, update: Update, _c: ContextTypes.DEFAULT_TYPE) -> None:
+    async def cmd_tarefas(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
         if self._authorized(update):
             uid = str(update.effective_user.id)
-            await self._cmd_out(update, self._commands.tarefas(uid))
+            await self._cmd_out(update, self._commands.tarefas(uid, self._args(c)))
+
+    async def cmd_buscar(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
+        if self._authorized(update):
+            await self._cmd_out(update, self._commands.buscar(self._args(c)))
 
     async def cmd_concluir(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
         if self._authorized(update):
@@ -248,7 +252,7 @@ class TelegramInterface:
 
     # Sections with a simple "list / add" shape.
     _SECTIONS = {
-        "task": {"title": "📋 Tarefas", "prompt": "Escreva a tarefa:"},
+        "task": {"title": "📋 Tarefas", "prompt": "Escreva a tarefa (use #categoria pra classificar).\nEx: estudar cálculo #faculdade"},
         "rem": {"title": "⏰ Lembretes", "prompt": "Formato: <tempo> <texto>\nEx: 10m tomar água"},
         "link": {"title": "🔗 Links", "prompt": "Formato: categoria | nome | url\nEx: faculdade | tarefas | https://..."},
         "mem": {"title": "🧠 Memória", "prompt": "O que você quer que eu guarde?"},
@@ -261,6 +265,7 @@ class TelegramInterface:
                 [b("📋 Tarefas", callback_data="task:menu"), b("⏰ Lembretes", callback_data="rem:menu")],
                 [b("🔗 Links", callback_data="link:menu"), b("📄 Conhecimento", callback_data="kb:menu")],
                 [b("🧠 Memória", callback_data="mem:menu"), b("📅 Google", callback_data="goog:menu")],
+                [b("🔎 Buscar web", callback_data="search:add")],
                 [b("❓ Ajuda", callback_data="misc:ajuda")],
             ]
         )
@@ -393,6 +398,8 @@ class TelegramInterface:
             return "🗓️ Formato: <tempo> <título>\nEx: amanhã 15:00 Dentista"
         if section == "goog" and action == "email":
             return "✉️ Formato: destinatário | assunto | corpo"
+        if section == "search" and action == "add":
+            return "🔎 O que você quer pesquisar na web?"
         return None
 
     def _handle_pending(self, uid: str, pending: str, text: str) -> str:
@@ -411,6 +418,8 @@ class TelegramInterface:
             return self._commands.email(text)
         if section == "kb" and action == "web":
             return self._commands.kbweb(uid, text)
+        if section == "search" and action == "add":
+            return self._commands.buscar(text)
         return "Ok."
 
     # --- reply --------------------------------------------------------------
@@ -630,6 +639,7 @@ class TelegramInterface:
         app.add_handler(CommandHandler("tarefa", self.cmd_tarefa))
         app.add_handler(CommandHandler("tarefas", self.cmd_tarefas))
         app.add_handler(CommandHandler("concluir", self.cmd_concluir))
+        app.add_handler(CommandHandler("buscar", self.cmd_buscar))
         app.add_handler(CommandHandler("lembrar", self.cmd_lembrar))
         app.add_handler(CommandHandler("memorias", self.cmd_memorias))
         app.add_handler(CommandHandler("link", self.cmd_link))

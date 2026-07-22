@@ -30,9 +30,10 @@ COMMAND_LIST = [
     ("rotina", "Lembrete recorrente: /rotina diario 08:00 remédio"),
     ("lembretes", "Listar seus lembretes"),
     ("cancelar", "Cancelar lembrete: /cancelar 3"),
-    ("tarefa", "Adicionar tarefa: /tarefa comprar pão"),
-    ("tarefas", "Listar suas tarefas"),
+    ("tarefa", "Adicionar tarefa: /tarefa estudar #faculdade"),
+    ("tarefas", "Listar tarefas: /tarefas [categoria]"),
     ("concluir", "Concluir tarefa: /concluir 3"),
+    ("buscar", "Pesquisar na web: /buscar notícias de hoje"),
     ("lembrar", "Salvar na memória: /lembrar meu carro é um Civic"),
     ("memorias", "Listar o que a E.V. sabe sobre você"),
     ("link", "Guardar link: /link faculdade | tarefas | http://..."),
@@ -160,19 +161,44 @@ class Commands:
     def tarefa(self, user_id: str, argstr: str) -> str:
         text = argstr.strip()
         if not text:
-            return "Uso: /tarefa <texto>. Ex: /tarefa comprar pão"
-        tid = self._memory.add_task(user_id, text)
-        return f"Tarefa #{tid} adicionada: {text}"
+            return "Uso: /tarefa <texto> [#categoria]\nEx: /tarefa estudar cálculo #faculdade"
+        # Extract a #category tag (default 'geral').
+        category = "geral"
+        tokens = text.split()
+        tags = [t for t in tokens if t.startswith("#") and len(t) > 1]
+        if tags:
+            category = tags[0][1:].lower()
+            text = " ".join(
+                t for t in tokens if not (t.startswith("#") and len(t) > 1)
+            ).strip()
+        if not text:
+            return "Faltou o texto da tarefa."
+        tid = self._memory.add_task(user_id, text, category)
+        return f"Tarefa #{tid} adicionada em '{category}': {text}"
 
-    def tarefas(self, user_id: str) -> str:
-        items = self._memory.open_tasks(user_id)
+    def tarefas(self, user_id: str, argstr: str = "") -> str:
+        category = argstr.strip().lstrip("#").lower() or None
+        items = self._memory.open_tasks(user_id, category)
         if not items:
-            return "Sua lista de tarefas está vazia."
-        lines = ["Suas tarefas:"]
+            return (
+                f"Nenhuma tarefa em '{category}'." if category
+                else "Sua lista de tarefas está vazia."
+            )
+        lines = [f"Suas tarefas{' em ' + category if category else ''}:"]
+        current = None
         for t in items:
+            if not category and t["category"] != current:
+                current = t["category"]
+                lines.append(f"[{current}]")
             lines.append(f"#{t['id']} {t['text']}")
         lines.append("\nConcluir: /concluir <id>")
         return "\n".join(lines)
+
+    def buscar(self, argstr: str) -> str:
+        query = argstr.strip()
+        if not query:
+            return "Uso: /buscar <termo>. Ex: /buscar notícias de tecnologia hoje"
+        return "Resultados da web:\n" + tools_mod.web_search(query)
 
     def concluir(self, user_id: str, argstr: str) -> str:
         arg = argstr.strip()

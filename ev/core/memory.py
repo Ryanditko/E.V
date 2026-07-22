@@ -69,6 +69,7 @@ class Memory:
                 id       INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id  TEXT NOT NULL,
                 text     TEXT NOT NULL,
+                category TEXT NOT NULL DEFAULT 'geral',
                 done     INTEGER NOT NULL DEFAULT 0,
                 created  TEXT NOT NULL
             );
@@ -99,6 +100,11 @@ class Memory:
         rem_cols = {r["name"] for r in self._conn.execute("PRAGMA table_info(reminders)")}
         if "recur" not in rem_cols:
             self._conn.execute("ALTER TABLE reminders ADD COLUMN recur TEXT")
+        task_cols = {r["name"] for r in self._conn.execute("PRAGMA table_info(tasks)")}
+        if "category" not in task_cols:
+            self._conn.execute(
+                "ALTER TABLE tasks ADD COLUMN category TEXT NOT NULL DEFAULT 'geral'"
+            )
         self._conn.commit()
 
     @staticmethod
@@ -238,19 +244,27 @@ class Memory:
 
     # --- tasks (to-do list) -------------------------------------------------
 
-    def add_task(self, user_id: str, text: str) -> int:
+    def add_task(self, user_id: str, text: str, category: str = "geral") -> int:
         cur = self._conn.execute(
-            "INSERT INTO tasks (user_id, text, created) VALUES (?, ?, ?)",
-            (user_id, text, self._now()),
+            "INSERT INTO tasks (user_id, text, category, created) VALUES (?, ?, ?, ?)",
+            (user_id, text, category, self._now()),
         )
         self._conn.commit()
         return int(cur.lastrowid)
 
-    def open_tasks(self, user_id: str) -> list[dict]:
-        rows = self._conn.execute(
-            "SELECT id, text FROM tasks WHERE user_id = ? AND done = 0 ORDER BY id",
-            (user_id,),
-        ).fetchall()
+    def open_tasks(self, user_id: str, category: str | None = None) -> list[dict]:
+        if category:
+            rows = self._conn.execute(
+                "SELECT id, text, category FROM tasks "
+                "WHERE user_id = ? AND done = 0 AND category = ? ORDER BY id",
+                (user_id, category),
+            ).fetchall()
+        else:
+            rows = self._conn.execute(
+                "SELECT id, text, category FROM tasks "
+                "WHERE user_id = ? AND done = 0 ORDER BY category, id",
+                (user_id,),
+            ).fetchall()
         return [dict(r) for r in rows]
 
     def complete_task(self, user_id: str, task_id: int) -> bool:

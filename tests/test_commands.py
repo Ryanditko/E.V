@@ -26,6 +26,21 @@ def test_task_flow(tmp_path):
     assert "vazia" in c.tarefas("u")
 
 
+def test_task_category(tmp_path):
+    c = _commands(tmp_path)
+    out = c.tarefa("u", "estudar cálculo #faculdade")
+    assert "faculdade" in out
+    listing = c.tarefas("u", "faculdade")
+    assert "estudar cálculo" in listing
+    assert "#faculdade" not in listing  # tag stripped from the stored text
+    assert "Nenhuma" in c.tarefas("u", "trabalho")
+
+
+def test_buscar_usage(tmp_path):
+    c = _commands(tmp_path)
+    assert "Uso:" in c.buscar("")
+
+
 def test_reminder_command(tmp_path):
     c = _commands(tmp_path)
     out = c.lembrete("u", "10m tomar água")
