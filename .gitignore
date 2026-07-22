@@ -1,5 +1,7 @@
 # Segredos — NUNCA commitar
 .env
+client_secret*.json
+google_token.json
 
 # Banco de memória local + backups
 *.db
