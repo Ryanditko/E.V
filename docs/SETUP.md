@@ -72,6 +72,9 @@ First run: send `/start` to your bot, copy your ID from the logs into
 
 ## 6. Google (Calendar + email) — optional
 
+Full step-by-step (including the exact authorization commands to run on your
+personal computer) is in **[GOOGLE.md](GOOGLE.md)**. Summary below.
+
 One Google Cloud project/OAuth client serves all your accounts.
 
 1. **Project:** https://console.cloud.google.com -> create a project.
