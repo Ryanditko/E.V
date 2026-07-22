@@ -21,10 +21,10 @@ from telegram.ext import (
     filters,
 )
 
-from ..brain import Brain
+from ..core.brain import Brain
 from ..config import Config
-from ..memory import Memory
-from .. import voice as voice_mod
+from ..core.memory import Memory
+from ..providers import voice as voice_mod
 
 logging.basicConfig(
     level=logging.INFO,

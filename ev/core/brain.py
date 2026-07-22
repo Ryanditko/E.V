@@ -24,10 +24,10 @@ import logging
 from google import genai
 from google.genai import types
 
-from . import providers
-from .config import Config
+from ..providers import llm as providers
+from ..config import Config
 from .memory import Memory
-from .personality import SYSTEM_PROMPT
+from ..personality import SYSTEM_PROMPT
 
 log = logging.getLogger("ev.brain")
 
