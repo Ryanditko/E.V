@@ -63,6 +63,14 @@ class Memory:
                 done     INTEGER NOT NULL DEFAULT 0,
                 created  TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS tasks (
+                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id  TEXT NOT NULL,
+                text     TEXT NOT NULL,
+                done     INTEGER NOT NULL DEFAULT 0,
+                created  TEXT NOT NULL
+            );
             """
         )
         # Migration: add `embedding` to older DBs that predate semantic memory.
@@ -187,3 +195,28 @@ class Memory:
             "UPDATE reminders SET done = 1 WHERE id = ?", (reminder_id,)
         )
         self._conn.commit()
+
+    # --- tasks (to-do list) -------------------------------------------------
+
+    def add_task(self, user_id: str, text: str) -> int:
+        cur = self._conn.execute(
+            "INSERT INTO tasks (user_id, text, created) VALUES (?, ?, ?)",
+            (user_id, text, self._now()),
+        )
+        self._conn.commit()
+        return int(cur.lastrowid)
+
+    def open_tasks(self, user_id: str) -> list[dict]:
+        rows = self._conn.execute(
+            "SELECT id, text FROM tasks WHERE user_id = ? AND done = 0 ORDER BY id",
+            (user_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def complete_task(self, user_id: str, task_id: int) -> bool:
+        cur = self._conn.execute(
+            "UPDATE tasks SET done = 1 WHERE id = ? AND user_id = ? AND done = 0",
+            (task_id, user_id),
+        )
+        self._conn.commit()
+        return cur.rowcount > 0

@@ -16,6 +16,9 @@ python-dotenv>=1.0.0
 # Use the OS trust store (fixes TLS behind a corporate proxy)
 truststore>=0.9.0
 
+# Timezone database (so ZoneInfo works on minimal systems, e.g. the VM)
+tzdata>=2024.1
+
 # Web search tool (DuckDuckGo, no API key)
 ddgs>=6.0.0
 
