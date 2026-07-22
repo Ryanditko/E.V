@@ -37,6 +37,7 @@ COMMAND_LIST = [
     ("links", "Listar links: /links [categoria]"),
     ("linkrm", "Remover link: /linkrm 3"),
     ("kb", "Base de conhecimento (envie um PDF para adicionar)"),
+    ("kbweb", "Indexar uma página web: /kbweb https://..."),
     ("kbrm", "Remover documento da base: /kbrm nome.pdf"),
     ("agenda", "Ver próximos eventos do Google Agenda"),
     ("evento", "Criar evento: /evento amanhã 15:00 Dentista"),
@@ -145,6 +146,36 @@ class Commands:
             return "Ainda não sei nada sobre você. Use /lembrar pra me contar algo."
         return "O que eu sei sobre você:\n" + "\n".join(f"- {f}" for f in facts)
 
+    # --- daily briefing -----------------------------------------------------
+
+    def daily_briefing(self, user_id: str) -> str:
+        parts = ["Bom dia! Aqui vai seu resumo de hoje:"]
+
+        tasks = self._memory.open_tasks(user_id)
+        if tasks:
+            parts.append("\nTarefas em aberto:")
+            parts += [f"- {t['text']}" for t in tasks]
+
+        reminders = self._memory.open_reminders(user_id)
+        if reminders:
+            parts.append("\nLembretes:")
+            for r in reminders:
+                when = ""
+                if r["when_iso"]:
+                    try:
+                        when = " (" + datetime.fromisoformat(r["when_iso"]).strftime("%d/%m %H:%M") + ")"
+                    except Exception:
+                        pass
+                parts.append(f"- {r['text']}{when}")
+
+        if self._google_ready():
+            parts.append("\nAgenda:")
+            parts.append(tools_mod.calendar_upcoming(self._config, max_results=5))
+
+        if len(parts) == 1:
+            parts.append("Nada na lista. Dia livre — aproveita!")
+        return "\n".join(parts)
+
     # --- links (named, categorized) ----------------------------------------
 
     def link(self, user_id: str, argstr: str) -> str:
@@ -200,6 +231,21 @@ class Commands:
             return "Uso: /kbrm <nome do documento>. Veja os nomes em /kb."
         n = self._memory.delete_source(user_id, source)
         return f"Removi '{source}' ({n} trechos)." if n else f"Não achei '{source}' na base."
+
+    def kbweb(self, user_id: str, argstr: str) -> str:
+        url = argstr.strip()
+        if not url.lower().startswith("http"):
+            return "Uso: /kbweb <url>. Ex: /kbweb https://pt.wikipedia.org/..."
+        try:
+            stored, truncated = knowledge.ingest_url(
+                url, self._config, self._memory, user_id
+            )
+        except Exception as exc:
+            return f"Não consegui ler essa página ({exc})."
+        if stored == 0:
+            return "Não achei texto útil nessa página."
+        extra = " (página grande — indexei o começo)" if truncated else ""
+        return f"Página indexada: {stored} trechos{extra}. Pode me perguntar sobre ela!"
 
     def ingest_document(self, user_id: str, data: bytes, filename: str) -> str:
         """Ingest an uploaded document (PDF) into the knowledge base."""

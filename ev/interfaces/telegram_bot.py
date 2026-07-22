@@ -56,6 +56,7 @@ class TelegramInterface:
         self._commands = Commands(config, self._memory)
         # user_id -> pending input action (e.g. "task", "rem", "link", ...)
         self._pending: dict[str, str] = {}
+        self._last_briefing: str | None = None  # date of the last daily briefing
 
     # --- access control -----------------------------------------------------
 
@@ -114,6 +115,23 @@ class TelegramInterface:
             update,
             await self._brain.respond(
                 user_id, audio=audio_bytes, audio_mime=voice.mime_type or "audio/ogg"
+            ),
+        )
+
+    async def on_photo(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+        if not self._authorized(update):
+            return
+        user_id = str(update.effective_user.id)
+        photo = update.message.photo[-1]  # largest resolution
+        tg_file = await ctx.bot.get_file(photo.file_id)
+        img = bytes(await tg_file.download_as_bytearray())
+        await self._reply(
+            update,
+            await self._brain.respond(
+                user_id,
+                text=update.message.caption,
+                image=img,
+                image_mime="image/jpeg",
             ),
         )
 
@@ -183,6 +201,11 @@ class TelegramInterface:
             uid = str(update.effective_user.id)
             await update.message.reply_text(self._commands.kbrm(uid, self._args(c)))
 
+    async def cmd_kbweb(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
+        if self._authorized(update):
+            uid = str(update.effective_user.id)
+            await update.message.reply_text(self._commands.kbweb(uid, self._args(c)))
+
     async def on_document(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         if not self._authorized(update):
             return
@@ -244,6 +267,7 @@ class TelegramInterface:
             [
                 [b("📄 Ver documentos", callback_data="kb:list")],
                 [b("➕ Adicionar (enviar PDF)", callback_data="kb:add")],
+                [b("🌐 Indexar página web", callback_data="kb:web")],
                 [b("⬅️ Voltar", callback_data="nav:main")],
             ]
         )
@@ -318,7 +342,8 @@ class TelegramInterface:
         # Actions that need input -> prompt (and, except KB upload, wait for text)
         prompt = self._menu_prompt(section, action)
         if prompt is not None:
-            if section != "kb":  # KB add is a PDF upload, not a text answer
+            # KB "add" is a PDF upload (no text). Everything else waits for text.
+            if not (section == "kb" and action == "add"):
                 self._pending[uid] = f"{section}:{action}"
             await q.edit_message_text(
                 prompt,
@@ -349,6 +374,8 @@ class TelegramInterface:
             return "➕ " + self._SECTIONS[section]["prompt"]
         if section == "kb" and action == "add":
             return "📄 Envie um arquivo PDF aqui no chat que eu indexo na base."
+        if section == "kb" and action == "web":
+            return "🌐 Manda a URL da página que eu indexo. Ex: https://..."
         if section == "goog" and action == "evento":
             return "🗓️ Formato: <tempo> <título>\nEx: amanhã 15:00 Dentista"
         if section == "goog" and action == "email":
@@ -369,6 +396,8 @@ class TelegramInterface:
             return self._commands.evento(text)
         if section == "goog" and action == "email":
             return self._commands.email(text)
+        if section == "kb" and action == "web":
+            return self._commands.kbweb(uid, text)
         return "Ok."
 
     # --- reply --------------------------------------------------------------
@@ -398,10 +427,32 @@ class TelegramInterface:
             [BotCommand(name, desc) for name, desc in COMMAND_LIST]
         )
         asyncio.create_task(self._reminder_loop(app))
+        asyncio.create_task(self._briefing_loop(app))
         log.info(
-            "Reminder scheduler started (every %ss).",
+            "Schedulers started (reminders every %ss; daily briefing at %sh).",
             self._config.reminder_poll_seconds,
+            self._config.briefing_hour,
         )
+
+    async def _briefing_loop(self, app: Application) -> None:
+        while True:
+            try:
+                await self._maybe_send_briefing(app)
+            except Exception:
+                log.exception("Briefing loop error")
+            await asyncio.sleep(60)
+
+    async def _maybe_send_briefing(self, app: Application) -> None:
+        cfg = self._config
+        if cfg.briefing_hour < 0 or cfg.owner_id is None:
+            return
+        now = datetime.now(self._tz())
+        today = now.date().isoformat()
+        if now.hour == cfg.briefing_hour and self._last_briefing != today:
+            self._last_briefing = today
+            text = self._commands.daily_briefing(str(cfg.owner_id))
+            await app.bot.send_message(chat_id=cfg.owner_id, text=text)
+            log.info("Sent daily briefing to owner.")
 
     async def _reminder_loop(self, app: Application) -> None:
         while True:
@@ -468,12 +519,15 @@ class TelegramInterface:
         app.add_handler(CommandHandler("links", self.cmd_links))
         app.add_handler(CommandHandler("linkrm", self.cmd_linkrm))
         app.add_handler(CommandHandler("kb", self.cmd_kb))
+        app.add_handler(CommandHandler("kbweb", self.cmd_kbweb))
         app.add_handler(CommandHandler("kbrm", self.cmd_kbrm))
         app.add_handler(CommandHandler("agenda", self.cmd_agenda))
         app.add_handler(CommandHandler("evento", self.cmd_evento))
         app.add_handler(CommandHandler("email", self.cmd_email))
         # Document upload (PDF) -> knowledge base
         app.add_handler(MessageHandler(filters.Document.ALL, self.on_document))
+        # Photo -> multimodal (Gemini vision)
+        app.add_handler(MessageHandler(filters.PHOTO, self.on_photo))
         # Voice + free text (must be last)
         app.add_handler(MessageHandler(filters.VOICE, self.on_voice))
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.on_text))

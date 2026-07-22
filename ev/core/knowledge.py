@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import io
 import logging
+import re
 
 from ..providers import embeddings
 from .memory import Memory
@@ -65,3 +66,27 @@ def ingest_pdf(
     if not text.strip():
         return 0, False
     return ingest_text(text, source, config, memory, user_id)
+
+
+def _html_to_text(html: str) -> str:
+    html = re.sub(r"(?is)<(script|style|noscript)[^>]*>.*?</\1>", " ", html)
+    text = re.sub(r"(?s)<[^>]+>", " ", html)
+    text = re.sub(r"&[a-zA-Z]+;", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def ingest_url(
+    url: str, config, memory: Memory, user_id: str
+) -> tuple[int, bool]:
+    """Fetch a web page, extract its text and ingest it. Returns (stored, truncated)."""
+    import httpx
+
+    resp = httpx.get(
+        url, timeout=20, follow_redirects=True,
+        headers={"User-Agent": "Mozilla/5.0 (E.V. assistant)"},
+    )
+    resp.raise_for_status()
+    text = _html_to_text(resp.text)
+    if not text:
+        return 0, False
+    return ingest_text(text, url, config, memory, user_id)

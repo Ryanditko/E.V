@@ -30,7 +30,10 @@ own hands — loyal, warm, playful, and always on your side.
 - **Knowledge base (PDF)** — upload PDFs; E.V. indexes them and answers grounded
   in your documents (RAG).
 - **Reminders** — set them in natural language; E.V. fires them at the right time.
-- **Real tools** — web search, and (with setup) Google Calendar & email.
+- **Daily briefing** — every morning she sends a summary (tasks, reminders, agenda).
+- **Vision** — send a photo (a document, a screenshot, a bill) and E.V. reads it.
+- **Real tools** — web search, web-page indexing, and (with setup) Google Calendar & email.
+- **Owner lock** — set `EV_OWNER_ID` so only you can use the bot.
 - **Personality** — warm and witty, Spider-Man style.
 - **Never goes silent** — cloud providers fall back to each other, and finally to a
   **local Ollama model** that never runs out of quota.
@@ -163,12 +166,12 @@ run instantly, without spending tokens:
 | `/tarefa <text>` · `/tarefas` · `/concluir <id>` | to-do list |
 | `/lembrar <fact>` · `/memorias` | save/list long-term memory |
 | `/link <cat> \| <name> \| <url>` · `/links [cat]` · `/linkrm <id>` | named links by category |
-| `/kb` · `/kbrm <name>` | knowledge base (send a PDF to add) |
+| `/kb` · `/kbweb <url>` · `/kbrm <name>` | knowledge base (send a PDF, or index a web page) |
 | `/agenda` · `/evento <time> <title>` · `/email <to> \| <subj> \| <body>` | Google (after setup) |
 | `/ajuda` | list everything |
 
 Accepted time formats: `10m`, `2h`, `1d`, `hoje 18:00`, `amanhã 09:00`, `25/12 14:30`.
-Send a **PDF** in the chat to add it to the knowledge base.
+Send a **PDF** to add it to the knowledge base, or a **photo** for E.V. to read it.
 
 ## Run locally
 
@@ -213,6 +216,11 @@ See **[deploy/README.md](deploy/README.md)** — runs on an Always Free VM as a
 - [x] Named links by category
 - [x] Knowledge base (PDF upload + RAG)
 - [x] Local model fallback (Ollama, never runs out)
+- [x] Interactive button menu
+- [x] Daily briefing
+- [x] Vision (photo understanding)
+- [x] Web-page indexing into the knowledge base
+- [x] Automated tests
 - [ ] Google Calendar & email (needs Google OAuth setup)
 - [ ] Web / app interface
 

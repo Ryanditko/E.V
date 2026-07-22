@@ -58,13 +58,15 @@ class Brain:
         text: str | None = None,
         audio: bytes | None = None,
         audio_mime: str | None = None,
+        image: bytes | None = None,
+        image_mime: str | None = None,
     ) -> str:
-        """Produce E.V.'s answer to a message (text OR audio).
+        """Produce E.V.'s answer to a message (text, audio, and/or image).
 
         Runs the blocking SDK calls in a thread so the async event loop is free.
         """
         return await asyncio.to_thread(
-            self._respond_sync, user_id, text, audio, audio_mime
+            self._respond_sync, user_id, text, audio, audio_mime, image, image_mime
         )
 
     # -----------------------------------------------------------------------
@@ -75,26 +77,36 @@ class Brain:
         text: str | None,
         audio: bytes | None,
         audio_mime: str | None,
+        image: bytes | None = None,
+        image_mime: str | None = None,
     ) -> str:
-        # Semantic recall uses the text query; audio-through-Gemini has none yet.
+        # Semantic recall uses the text query; audio/image-through-Gemini has none yet.
         system_instruction = self._system_instruction(user_id, text)
-        user_repr = text if text is not None else "[mensagem de voz]"
+        if text is not None:
+            user_repr = text
+        elif image is not None:
+            user_repr = "[imagem]"
+        else:
+            user_repr = "[mensagem de voz]"
         answer: str | None = None
 
-        # 1) Gemini — primary (native audio + memory).
+        # 1) Gemini — primary (native audio + image + memory).
         try:
-            answer = self._gemini(user_id, text, audio, audio_mime, system_instruction)
+            answer = self._gemini(
+                user_id, text, audio, audio_mime, image, image_mime, system_instruction
+            )
         except Exception as exc:
             log.warning("Gemini failed (%s). Trying fallbacks...", exc)
 
-            # Fallbacks handle text only: audio must be transcribed first.
+            # Fallbacks handle text only. Audio -> transcribe; image can't be seen.
             fb_text = text
             if audio is not None:
                 fb_text = self._transcribe(audio, audio_mime)
                 if fb_text:
                     user_repr = fb_text
-                    # Rebuild the prompt with semantic recall on the transcript.
                     system_instruction = self._system_instruction(user_id, fb_text)
+            if image is not None and not fb_text:
+                return "Consegui receber a imagem, mas meu cérebro de visão está no limite agora. Tenta de novo em uns segundos?"
 
             if fb_text:
                 answer = self._fallbacks(user_id, fb_text, system_instruction)
@@ -314,12 +326,16 @@ class Brain:
         text: str | None,
         audio: bytes | None,
         audio_mime: str | None,
+        image: bytes | None,
+        image_mime: str | None,
         system_instruction: str,
     ) -> str:
         """Call Gemini with memory (function calling). Raises on failure (rate
         limit, etc.) so the caller falls through to the fallbacks."""
         tools = list(self._tool_callables(user_id).values())
-        contents = self._build_contents(user_id, text, audio, audio_mime)
+        contents = self._build_contents(
+            user_id, text, audio, audio_mime, image, image_mime
+        )
 
         response = self._client.models.generate_content(
             model=self._model,
@@ -338,6 +354,8 @@ class Brain:
         text: str | None,
         audio: bytes | None,
         audio_mime: str | None,
+        image: bytes | None = None,
+        image_mime: str | None = None,
     ) -> list[types.Content]:
         contents: list[types.Content] = []
 
@@ -359,6 +377,16 @@ class Brain:
                     text="(mensagem de voz do usuário — responda ao conteúdo dela)"
                 )
             )
+        if image is not None:
+            new_parts.append(
+                types.Part.from_bytes(data=image, mime_type=image_mime or "image/jpeg")
+            )
+            if text is None:
+                new_parts.append(
+                    types.Part.from_text(
+                        text="(imagem enviada pelo usuário — descreva/analise e ajude)"
+                    )
+                )
         if text is not None:
             new_parts.append(types.Part.from_text(text=text))
 

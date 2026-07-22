@@ -51,6 +51,7 @@ class Config:
     embed_model: str
     timezone: str
     reminder_poll_seconds: int
+    briefing_hour: int  # local hour for the daily briefing; <0 disables
     # Tools
     websearch_enabled: bool
     google_oauth_client: str
@@ -79,6 +80,11 @@ class Config:
         owner_id = int(owner_raw) if owner_raw.isdigit() else None
 
         token_path = os.getenv("GOOGLE_TOKEN_PATH", "google_token.json").strip()
+
+        try:
+            briefing_hour = int(os.getenv("EV_BRIEFING_HOUR", "8").strip() or "-1")
+        except ValueError:
+            briefing_hour = 8
 
         return cls(
             telegram_token=telegram_token,
@@ -110,6 +116,7 @@ class Config:
             embed_model=os.getenv("EV_EMBED_MODEL", "gemini-embedding-001").strip(),
             timezone=os.getenv("EV_TIMEZONE", "America/Sao_Paulo").strip(),
             reminder_poll_seconds=_get_int("EV_REMINDER_POLL_SECONDS", 30),
+            briefing_hour=briefing_hour,
             websearch_enabled=_get_bool("EV_WEBSEARCH_ENABLED", True),
             google_oauth_client=os.getenv("GOOGLE_OAUTH_CLIENT", "").strip(),
             google_token_path=(_PROJECT_ROOT / token_path),
