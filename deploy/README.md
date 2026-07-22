@@ -1,5 +1,9 @@
 # Deploy E.V. — Oracle Cloud (24/7)
 
+> For the complete walkthrough — including creating the Oracle account and
+> installing Ollama — see **[../docs/DEPLOY.md](../docs/DEPLOY.md)**. This file is
+> the short technical reference.
+
 Run E.V. on an Oracle Always Free VM, as a service that starts on its own.
 
 ## 1. Create the VM (Oracle console)

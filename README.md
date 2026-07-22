@@ -203,8 +203,9 @@ python run_terminal.py    # Terminal REPL (text)
 
 ## Run 24/7 (Oracle Cloud)
 
-See **[deploy/README.md](deploy/README.md)** — runs on an Always Free VM as a
-`systemd` service (starts on boot, restarts on crash).
+Full walkthrough (create the account, the VM, deploy, and Ollama) in
+**[docs/DEPLOY.md](docs/DEPLOY.md)**. Runs on an Always Free VM as a `systemd`
+service (starts on boot, restarts on crash).
 
 ## Roadmap
 
