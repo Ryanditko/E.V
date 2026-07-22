@@ -36,7 +36,7 @@ def main() -> None:
         print(f"Warning: '{account}' is not in EV_GOOGLE_ACCOUNTS {config.google_accounts}.")
 
     print(f"Authorizing Google account '{account}' — opening the browser...")
-    tools._google_service(config, account, "calendar", "v3")
+    tools._google_service(config, account, "calendar", "v3", allow_interactive=True)
     print("\nAuthorized! Your next events on this account:\n")
     print(tools.calendar_upcoming(config, account, max_results=3))
     print(f"\nToken saved to: {config.token_path_for(account)}")

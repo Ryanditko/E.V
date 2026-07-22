@@ -72,6 +72,13 @@ class Config:
     def google_ready(self) -> bool:
         return bool(self.google_oauth_client and self.google_accounts)
 
+    def google_authorized(self, account: str | None = None) -> bool:
+        """True only if an OAuth token already exists for the account (i.e. the
+        one-time browser authorization was done). Prevents headless servers from
+        trying to open a browser on every call."""
+        acc = account or self.default_account
+        return bool(acc) and self.token_path_for(acc).exists()
+
     # Telegram token is only required for the Telegram interface. The terminal
     # interface can run without it (passes require_telegram=False).
     @classmethod

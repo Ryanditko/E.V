@@ -111,14 +111,14 @@ def web_search(query: str, max_results: int = 5) -> str:
 
 # --- Google (Calendar + Gmail) ---------------------------------------------
 
-def _google_service(config, account: str, api: str, version: str):
+def _google_service(config, account: str, api: str, version: str, allow_interactive: bool = False):
     """Build an authorized Google API client for `account`. Requires
     GOOGLE_OAUTH_CLIENT. One OAuth client serves many accounts; each account has
     its own cached token (google_token_<account>.json).
 
-    On first use, opens a browser to authorize and caches the token. On a
-    headless server, run it once locally to generate the token file, then copy
-    the token over.
+    `allow_interactive` opens a browser to authorize (only authorize_google.py
+    uses this). The bot itself never does — on a headless server it raises a
+    clear error instead of trying to open a browser.
     """
     from google.oauth2.credentials import Credentials
     from google_auth_oauthlib.flow import InstalledAppFlow
@@ -133,11 +133,16 @@ def _google_service(config, account: str, api: str, version: str):
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
-        else:
+        elif allow_interactive:
             flow = InstalledAppFlow.from_client_secrets_file(
                 config.google_oauth_client, _GOOGLE_SCOPES
             )
             creds = flow.run_local_server(port=0)
+        else:
+            raise RuntimeError(
+                f"conta '{account}' ainda não autorizada — rode "
+                f"authorize_google.py {account} num PC com navegador."
+            )
         token_path.write_text(creds.to_json())
 
     return build(api, version, credentials=creds, cache_discovery=False)

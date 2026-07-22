@@ -398,7 +398,7 @@ class Commands:
                         pass
                 parts.append(f"- {r['text']}{when}")
 
-        if self._google_ready():
+        if self._config.google_authorized():
             parts.append("\nAgenda:")
             parts.append(
                 tools_mod.calendar_upcoming(
