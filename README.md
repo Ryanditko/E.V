@@ -201,11 +201,15 @@ python run_terminal.py    # Terminal REPL (text)
 > Tip: run once, send `/start`, grab your ID from the logs and set `EV_OWNER_ID`
 > to lock the bot to yourself.
 
-## Run 24/7 (Oracle Cloud)
+## Keep it online 24/7
 
-Full walkthrough (create the account, the VM, deploy, and Ollama) in
-**[docs/DEPLOY.md](docs/DEPLOY.md)**. Runs on an Always Free VM as a `systemd`
-service (starts on boot, restarts on crash).
+Pick a host — the bot needs some machine left running:
+
+- **No credit card — your own hardware:**
+  - Android phone via Termux: **[docs/TERMUX.md](docs/TERMUX.md)**
+  - Your PC as a background service (macOS/Linux/Windows): **[docs/SELF_HOST.md](docs/SELF_HOST.md)**
+- **Cloud, always on (needs a card for signup):** Oracle Always Free —
+  **[docs/DEPLOY.md](docs/DEPLOY.md)** (also runs Ollama for the never-runs-out fallback).
 
 ## Roadmap
 
