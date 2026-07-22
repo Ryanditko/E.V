@@ -230,7 +230,7 @@ class TelegramInterface:
         result = await asyncio.to_thread(
             self._commands.ingest_document, uid, data, doc.file_name or "documento.pdf"
         )
-        await update.message.reply_text(result)
+        await self._cmd_out(update, result)
 
     async def cmd_agenda(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
         if self._authorized(update):
@@ -433,14 +433,44 @@ class TelegramInterface:
             parts.append(current)
         return parts
 
+    def _quick_kb(self) -> InlineKeyboardMarkup:
+        """Compact action bar attached to (almost) every message, so the user can
+        always act/navigate with a tap."""
+        b = InlineKeyboardButton
+        return InlineKeyboardMarkup(
+            [
+                [
+                    b("🏠 Menu", callback_data="nav:main"),
+                    b("➕ Tarefa", callback_data="task:add"),
+                    b("⏰ Lembrete", callback_data="rem:add"),
+                ],
+            ]
+        )
+
+    async def _send(self, message, text: str, kb: InlineKeyboardMarkup | None) -> None:
+        """Send text (chunked if long); the keyboard rides on the last chunk."""
+        parts = self._split(text)
+        for i, part in enumerate(parts):
+            await message.reply_text(
+                part, reply_markup=kb if i == len(parts) - 1 else None
+            )
+
+    async def _bot_send(self, bot, chat_id: int, text: str, kb) -> None:
+        """Bot-initiated send (reminders, briefing): chunked, with action bar."""
+        parts = self._split(text)
+        for i, part in enumerate(parts):
+            await bot.send_message(
+                chat_id=chat_id,
+                text=part,
+                reply_markup=kb if i == len(parts) - 1 else None,
+            )
+
     async def _cmd_out(self, update: Update, text: str) -> None:
-        """Send a command result, split into chunks if long."""
-        for part in self._split(text):
-            await update.message.reply_text(part)
+        """Send a command result with the quick-action bar."""
+        await self._send(update.message, text, self._quick_kb())
 
     async def _reply(self, update: Update, answer: str) -> None:
-        for part in self._split(answer):
-            await update.message.reply_text(part)
+        await self._send(update.message, answer, self._quick_kb())
         if not self._config.voice_reply:
             return
         try:
@@ -509,7 +539,7 @@ class TelegramInterface:
         if now.hour == cfg.briefing_hour and self._last_briefing != today:
             self._last_briefing = today
             text = self._commands.daily_briefing(str(cfg.owner_id))
-            await app.bot.send_message(chat_id=cfg.owner_id, text=text)
+            await self._bot_send(app.bot, cfg.owner_id, text, self._kb_main())
             log.info("Sent daily briefing to owner.")
 
     async def _reminder_loop(self, app: Application) -> None:
@@ -542,8 +572,9 @@ class TelegramInterface:
                 continue  # unparseable time — skip (leave it pending)
             if due <= now:
                 try:
-                    await app.bot.send_message(
-                        chat_id=int(r["user_id"]), text=f"Lembrete: {r['text']}"
+                    await self._bot_send(
+                        app.bot, int(r["user_id"]),
+                        f"Lembrete: {r['text']}", self._quick_kb(),
                     )
                     self._advance_reminder(r, due, now)
                     log.info("Delivered reminder #%s", r["id"])
