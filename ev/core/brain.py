@@ -267,7 +267,9 @@ class Brain:
                 Args:
                     consulta: o que pesquisar.
                 """
-                return tools_mod.web_search(consulta)
+                return tools_mod.web_search(
+                    consulta, brave_key=self._config.brave_api_key
+                )
 
             callables["buscar_web"] = buscar_web
 

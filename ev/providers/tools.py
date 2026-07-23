@@ -187,8 +187,34 @@ def news(topic: str, max_results: int = 4) -> str:
     return "\n".join(f"- {i.get('title', '')}" for i in items)
 
 
-def web_search(query: str, max_results: int = 5) -> str:
-    """Search the web (DuckDuckGo) and return a concise, readable summary."""
+def brave_search(query: str, api_key: str, max_results: int = 5) -> str:
+    """Search via the Brave Search API (better relevance; needs a key)."""
+    import httpx
+
+    resp = httpx.get(
+        "https://api.search.brave.com/res/v1/web/search",
+        params={"q": query, "count": max_results, "country": "br"},
+        headers={"X-Subscription-Token": api_key, "Accept": "application/json"},
+        timeout=15,
+    )
+    resp.raise_for_status()
+    results = resp.json().get("web", {}).get("results", [])
+    if not results:
+        return "não achei nada relevante na web."
+    lines = []
+    for r in results[:max_results]:
+        lines.append(f"- {r.get('title', '')}: {r.get('description', '')} ({r.get('url', '')})")
+    return "\n".join(lines)
+
+
+def web_search(query: str, max_results: int = 5, brave_key: str = "") -> str:
+    """Search the web and return a concise summary. Prefers Brave (better) when a
+    key is set; otherwise DuckDuckGo (free, no key)."""
+    if brave_key:
+        try:
+            return brave_search(query, brave_key, max_results)
+        except Exception as exc:
+            log.warning("brave_search failed (%s); falling back to DuckDuckGo", exc)
     try:
         try:
             from ddgs import DDGS
