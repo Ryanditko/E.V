@@ -56,6 +56,10 @@ class Config:
     checkin_hour: int   # local hour for a proactive check-in; <0 disables
     city: str           # for weather in the briefing (empty disables)
     news_topic: str     # topic for news in the briefing (empty disables)
+    weekly_day: int     # weekday (0=Mon..6=Sun) for the weekly review; <0 disables
+    weekly_hour: int    # local hour for the weekly review
+    rain_hour: int      # local hour to check tomorrow's rain; <0 disables
+    watch_poll_minutes: int  # how often to check web monitors
     # Tools
     websearch_enabled: bool
     google_oauth_client: str
@@ -114,6 +118,14 @@ class Config:
             checkin_hour = int(os.getenv("EV_CHECKIN_HOUR", "").strip() or "-1")
         except ValueError:
             checkin_hour = -1
+        try:
+            rain_hour = int(os.getenv("EV_RAIN_HOUR", "21").strip() or "-1")
+        except ValueError:
+            rain_hour = -1
+        try:
+            weekly_day = int(os.getenv("EV_WEEKLY_DAY", "6").strip() or "-1")
+        except ValueError:
+            weekly_day = 6
 
         return cls(
             telegram_token=telegram_token,
@@ -154,6 +166,10 @@ class Config:
             checkin_hour=checkin_hour,
             city=os.getenv("EV_CITY", "").strip(),
             news_topic=os.getenv("EV_NEWS_TOPIC", "").strip(),
+            weekly_day=weekly_day,
+            weekly_hour=_get_int("EV_WEEKLY_HOUR", 20),
+            rain_hour=rain_hour,
+            watch_poll_minutes=_get_int("EV_WATCH_POLL_MINUTES", 30),
             websearch_enabled=_get_bool("EV_WEBSEARCH_ENABLED", True),
             google_oauth_client=os.getenv("GOOGLE_OAUTH_CLIENT", "").strip(),
             google_accounts=google_accounts,

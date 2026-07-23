@@ -43,6 +43,13 @@ COMMAND_LIST = [
     ("habitorm", "Apagar hábito: /habitorm treino"),
     ("diario", "Escrever/ver diário: /diario hoje foi bom"),
     ("diariorm", "Apagar entrada do diário: /diariorm 3"),
+    ("semana", "Revisão da sua semana (também chega automática)"),
+    ("vigiar", "Monitorar página: /vigiar https://... | palavra"),
+    ("vigias", "Ver monitores web"),
+    ("vigiarm", "Apagar monitor: /vigiarm 3"),
+    ("assinatura", "Gasto recorrente: /assinatura 39,90 Netflix 15"),
+    ("assinaturas", "Ver assinaturas recorrentes"),
+    ("assinaturarm", "Apagar assinatura: /assinaturarm 3"),
     ("lembrar", "Salvar na memória: /lembrar meu carro é um Civic"),
     ("memorias", "Listar o que a E.V. sabe sobre você"),
     ("esquecer", "Apagar uma memória: /esquecer 3"),
@@ -360,6 +367,103 @@ class Commands:
             return "Uso: /diariorm <id>. Veja os ids em /diario."
         ok = self._memory.delete_journal(user_id, int(arg))
         return f"Entrada #{arg} apagada." if ok else f"Não achei a entrada #{arg}."
+
+    # --- weekly review ------------------------------------------------------
+
+    def semana(self, user_id: str) -> str:
+        since = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+        done = self._memory.tasks_completed_since(user_id, since)
+        exp = self._memory.expenses_since(user_id, since)
+        total = sum(e["amount"] for e in exp)
+        parts = [
+            "📊 Sua semana:",
+            f"✅ Tarefas concluídas: {done}",
+            f"📋 Tarefas em aberto: {len(self._memory.open_tasks(user_id))}",
+            f"💰 Gastos (7 dias): R$ {total:.2f} ({len(exp)} lançamentos)",
+        ]
+        habits = self._memory.list_habits(user_id)
+        if habits:
+            today = self._now().date()
+            parts.append("🔥 Hábitos (sequência):")
+            for h in habits:
+                parts.append(f"  • {h['name']}: {self._streak(h['id'], today)} dia(s)")
+        return "\n".join(parts)
+
+    # --- web watches --------------------------------------------------------
+
+    def vigiar(self, user_id: str, argstr: str) -> str:
+        parts = [p.strip() for p in argstr.split("|")]
+        url = parts[0].strip()
+        keyword = parts[1] if len(parts) > 1 and parts[1] else None
+        if not url.lower().startswith("http"):
+            return "Uso: /vigiar <url> [| palavra-chave]\nEx: /vigiar https://... | inscrições abertas"
+        wid = self._memory.add_watch(user_id, url, keyword)
+        extra = (
+            f" (te aviso quando aparecer '{keyword}')" if keyword
+            else " (te aviso quando a página mudar)"
+        )
+        return f"👁️ Monitor #{wid} criado{extra}."
+
+    def vigias(self, user_id: str) -> str:
+        items = self._memory.list_watches(user_id)
+        if not items:
+            return "Você não tem monitores. Crie com /vigiar <url> [| palavra]."
+        lines = ["👁️ Monitores web:"]
+        for w in items:
+            k = f" [{w['keyword']}]" if w["keyword"] else ""
+            lines.append(f"#{w['id']} {w['url']}{k}")
+        lines.append("\nApagar: /vigiarm <id>")
+        return "\n".join(lines)
+
+    def vigiarm(self, user_id: str, argstr: str) -> str:
+        arg = argstr.strip()
+        if not arg.isdigit():
+            return "Uso: /vigiarm <id>. Veja em /vigias."
+        ok = self._memory.delete_watch(user_id, int(arg))
+        return f"Monitor #{arg} removido." if ok else f"Não achei o monitor #{arg}."
+
+    # --- recurring expenses (subscriptions) --------------------------------
+
+    def assinatura(self, user_id: str, argstr: str) -> str:
+        tokens = argstr.strip().split()
+        if len(tokens) < 2:
+            return "Uso: /assinatura <valor> <descrição> [dia] [#categoria]\nEx: /assinatura 39,90 Netflix 15"
+        try:
+            amount = float(tokens[0].replace(",", "."))
+        except ValueError:
+            return "Valor inválido. Ex: /assinatura 39,90 Netflix 15"
+        rest = tokens[1:]
+        category = "assinatura"
+        tags = [t for t in rest if t.startswith("#") and len(t) > 1]
+        if tags:
+            category = tags[0][1:].lower()
+            rest = [t for t in rest if not (t.startswith("#") and len(t) > 1)]
+        day = self._now().day
+        if rest and rest[-1].isdigit() and 1 <= int(rest[-1]) <= 28:
+            day = int(rest[-1])
+            rest = rest[:-1]
+        desc = " ".join(rest).strip() or "(assinatura)"
+        rid = self._memory.add_recurring(user_id, amount, desc, category, day)
+        return f"🔁 Assinatura #{rid}: R$ {amount:.2f} em {desc} — lanço todo dia {day}."
+
+    def assinaturas(self, user_id: str) -> str:
+        items = self._memory.list_recurring(user_id)
+        if not items:
+            return "Nenhuma assinatura recorrente. Crie com /assinatura."
+        lines = ["🔁 Assinaturas (lançadas sozinhas todo mês):"]
+        for r in items:
+            lines.append(
+                f"#{r['id']} R$ {r['amount']:.2f} {r['description']} — dia {r['day']} ({r['category']})"
+            )
+        lines.append("\nApagar: /assinaturarm <id>")
+        return "\n".join(lines)
+
+    def assinaturarm(self, user_id: str, argstr: str) -> str:
+        arg = argstr.strip()
+        if not arg.isdigit():
+            return "Uso: /assinaturarm <id>. Veja em /assinaturas."
+        ok = self._memory.delete_recurring(user_id, int(arg))
+        return f"Assinatura #{arg} removida." if ok else f"Não achei a assinatura #{arg}."
 
     def concluir(self, user_id: str, argstr: str) -> str:
         arg = argstr.strip()

@@ -65,6 +65,31 @@ def test_journal(tmp_path):
     assert "bom dia" in c.diario("u", "")
 
 
+def test_weekly_review(tmp_path):
+    c = _commands(tmp_path)
+    c.tarefa("u", "estudar")
+    c.concluir("u", "1")
+    c.gasto("u", "30 mercado")
+    out = c.semana("u")
+    assert "Sua semana" in out
+    assert "concluídas: 1" in out
+
+
+def test_watches(tmp_path):
+    c = _commands(tmp_path)
+    assert "criado" in c.vigiar("u", "https://exemplo.com | vaga aberta")
+    assert "exemplo.com" in c.vigias("u")
+    assert "removido" in c.vigiarm("u", "1")
+
+
+def test_recurring_expense(tmp_path):
+    c = _commands(tmp_path)
+    out = c.assinatura("u", "39,90 Netflix 15")
+    assert "Netflix" in out and "dia 15" in out
+    assert "Netflix" in c.assinaturas("u")
+    assert "removida" in c.assinaturarm("u", "1")
+
+
 def test_delete_operations(tmp_path):
     c = _commands(tmp_path)
     c._memory.add_fact("u", "gosto de café")

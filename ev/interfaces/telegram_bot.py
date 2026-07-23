@@ -58,6 +58,9 @@ class TelegramInterface:
         self._pending: dict[str, str] = {}
         self._last_briefing: str | None = None  # date of the last daily briefing
         self._last_checkin: str | None = None    # date of the last proactive check-in
+        self._last_weekly: str | None = None     # date of the last weekly review
+        self._last_rain: str | None = None       # date of the last rain check
+        self._last_recurring: str | None = None  # date recurring expenses were run
         # Keep references to background tasks so they aren't garbage-collected
         # (a GC'd task would silently kill the scheduler).
         self._bg_tasks: list = []
@@ -228,6 +231,41 @@ class TelegramInterface:
         if self._authorized(update):
             uid = str(update.effective_user.id)
             await self._cmd_out(update, self._commands.diariorm(uid, self._args(c)))
+
+    async def cmd_semana(self, update: Update, _c: ContextTypes.DEFAULT_TYPE) -> None:
+        if self._authorized(update):
+            uid = str(update.effective_user.id)
+            await self._cmd_out(update, self._commands.semana(uid))
+
+    async def cmd_vigiar(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
+        if self._authorized(update):
+            uid = str(update.effective_user.id)
+            await self._cmd_out(update, self._commands.vigiar(uid, self._args(c)))
+
+    async def cmd_vigias(self, update: Update, _c: ContextTypes.DEFAULT_TYPE) -> None:
+        if self._authorized(update):
+            uid = str(update.effective_user.id)
+            await self._cmd_out(update, self._commands.vigias(uid))
+
+    async def cmd_vigiarm(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
+        if self._authorized(update):
+            uid = str(update.effective_user.id)
+            await self._cmd_out(update, self._commands.vigiarm(uid, self._args(c)))
+
+    async def cmd_assinatura(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
+        if self._authorized(update):
+            uid = str(update.effective_user.id)
+            await self._cmd_out(update, self._commands.assinatura(uid, self._args(c)))
+
+    async def cmd_assinaturas(self, update: Update, _c: ContextTypes.DEFAULT_TYPE) -> None:
+        if self._authorized(update):
+            uid = str(update.effective_user.id)
+            await self._cmd_out(update, self._commands.assinaturas(uid))
+
+    async def cmd_assinaturarm(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
+        if self._authorized(update):
+            uid = str(update.effective_user.id)
+            await self._cmd_out(update, self._commands.assinaturarm(uid, self._args(c)))
 
     async def cmd_concluir(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
         if self._authorized(update):
@@ -571,6 +609,7 @@ class TelegramInterface:
             asyncio.create_task(self._reminder_loop(app)),
             asyncio.create_task(self._briefing_loop(app)),
             asyncio.create_task(self._backup_loop()),
+            asyncio.create_task(self._watch_loop(app)),
         ]
         log.info(
             "Schedulers started (reminders every %ss; daily briefing at %sh; daily backup).",
@@ -601,9 +640,98 @@ class TelegramInterface:
             try:
                 await self._maybe_send_briefing(app)
                 await self._maybe_send_checkin(app)
+                await self._maybe_send_weekly(app)
+                await self._maybe_send_rain(app)
+                await self._maybe_run_recurring(app)
             except Exception:
                 log.exception("Briefing loop error")
             await asyncio.sleep(60)
+
+    async def _maybe_send_weekly(self, app: Application) -> None:
+        cfg = self._config
+        if cfg.weekly_day < 0 or cfg.owner_id is None:
+            return
+        now = datetime.now(self._tz())
+        today = now.date().isoformat()
+        if (
+            now.weekday() == cfg.weekly_day
+            and now.hour == cfg.weekly_hour
+            and self._last_weekly != today
+        ):
+            self._last_weekly = today
+            text = self._commands.semana(str(cfg.owner_id))
+            await self._bot_send(app.bot, cfg.owner_id, text, self._quick_kb())
+            log.info("Sent weekly review.")
+
+    async def _maybe_send_rain(self, app: Application) -> None:
+        cfg = self._config
+        if cfg.rain_hour < 0 or cfg.owner_id is None or not cfg.city:
+            return
+        now = datetime.now(self._tz())
+        today = now.date().isoformat()
+        if now.hour == cfg.rain_hour and self._last_rain != today:
+            self._last_rain = today
+            from ..providers import tools
+            msg = await asyncio.to_thread(tools.rain_tomorrow, cfg.city)
+            if msg:
+                await self._bot_send(app.bot, cfg.owner_id, msg, self._quick_kb())
+                log.info("Sent rain alert.")
+
+    async def _maybe_run_recurring(self, app: Application) -> None:
+        cfg = self._config
+        now = datetime.now(self._tz())
+        today = now.date().isoformat()
+        if self._last_recurring == today:
+            return
+        self._last_recurring = today
+        month = now.strftime("%Y-%m")
+        for r in self._memory.due_recurring(now.day, month):
+            self._memory.add_expense(
+                r["user_id"], r["amount"], r["description"], r["category"]
+            )
+            self._memory.mark_recurring_logged(r["id"], month)
+            if str(r["user_id"]).isdigit():
+                await self._bot_send(
+                    app.bot, int(r["user_id"]),
+                    f"🔁 Lancei sua assinatura: R$ {r['amount']:.2f} em {r['description']}.",
+                    self._quick_kb(),
+                )
+            log.info("Logged recurring expense #%s", r["id"])
+
+    async def _watch_loop(self, app: Application) -> None:
+        import hashlib
+        from ..providers import tools
+
+        while True:
+            try:
+                for w in self._memory.all_watches():
+                    if not str(w["user_id"]).isdigit():
+                        continue
+                    try:
+                        text = await asyncio.to_thread(tools.fetch_text, w["url"])
+                    except Exception:
+                        continue
+                    if w["keyword"]:
+                        present = w["keyword"].lower() in text.lower()
+                        if present and w["state"] != "found":
+                            await self._bot_send(
+                                app.bot, int(w["user_id"]),
+                                f"👁️ '{w['keyword']}' apareceu em {w['url']}",
+                                self._quick_kb(),
+                            )
+                        self._memory.set_watch_state(w["id"], "found" if present else "absent")
+                    else:
+                        digest = hashlib.sha256(text.encode("utf-8", "ignore")).hexdigest()
+                        if w["state"] and w["state"] != digest:
+                            await self._bot_send(
+                                app.bot, int(w["user_id"]),
+                                f"👁️ A página mudou: {w['url']}",
+                                self._quick_kb(),
+                            )
+                        self._memory.set_watch_state(w["id"], digest)
+            except Exception:
+                log.exception("Watch loop error")
+            await asyncio.sleep(max(60, self._config.watch_poll_minutes * 60))
 
     async def _maybe_send_checkin(self, app: Application) -> None:
         cfg = self._config
@@ -731,6 +859,13 @@ class TelegramInterface:
         app.add_handler(CommandHandler("gastorm", self.cmd_gastorm))
         app.add_handler(CommandHandler("habitorm", self.cmd_habitorm))
         app.add_handler(CommandHandler("diariorm", self.cmd_diariorm))
+        app.add_handler(CommandHandler("semana", self.cmd_semana))
+        app.add_handler(CommandHandler("vigiar", self.cmd_vigiar))
+        app.add_handler(CommandHandler("vigias", self.cmd_vigias))
+        app.add_handler(CommandHandler("vigiarm", self.cmd_vigiarm))
+        app.add_handler(CommandHandler("assinatura", self.cmd_assinatura))
+        app.add_handler(CommandHandler("assinaturas", self.cmd_assinaturas))
+        app.add_handler(CommandHandler("assinaturarm", self.cmd_assinaturarm))
         app.add_handler(CommandHandler("lembrar", self.cmd_lembrar))
         app.add_handler(CommandHandler("memorias", self.cmd_memorias))
         app.add_handler(CommandHandler("link", self.cmd_link))

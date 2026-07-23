@@ -120,6 +120,26 @@ class Memory:
                 text    TEXT NOT NULL,
                 created TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS watches (
+                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id  TEXT NOT NULL,
+                url      TEXT NOT NULL,
+                keyword  TEXT,               -- optional: alert when this appears
+                state    TEXT,               -- last seen hash / keyword-present flag
+                created  TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS recurring_expenses (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id     TEXT NOT NULL,
+                amount      REAL NOT NULL,
+                description TEXT NOT NULL,
+                category    TEXT NOT NULL DEFAULT 'assinatura',
+                day         INTEGER NOT NULL,   -- day of month to log
+                last_month  TEXT,               -- 'YYYY-MM' already logged
+                created     TEXT NOT NULL
+            );
             """
         )
         # Migrations for older DBs.
@@ -134,6 +154,8 @@ class Memory:
             self._conn.execute(
                 "ALTER TABLE tasks ADD COLUMN category TEXT NOT NULL DEFAULT 'geral'"
             )
+        if "done_at" not in task_cols:
+            self._conn.execute("ALTER TABLE tasks ADD COLUMN done_at TEXT")
         self._conn.commit()
 
     @staticmethod
@@ -312,11 +334,19 @@ class Memory:
 
     def complete_task(self, user_id: str, task_id: int) -> bool:
         cur = self._conn.execute(
-            "UPDATE tasks SET done = 1 WHERE id = ? AND user_id = ? AND done = 0",
-            (task_id, user_id),
+            "UPDATE tasks SET done = 1, done_at = ? WHERE id = ? AND user_id = ? AND done = 0",
+            (self._now(), task_id, user_id),
         )
         self._conn.commit()
         return cur.rowcount > 0
+
+    def tasks_completed_since(self, user_id: str, since_iso: str) -> int:
+        row = self._conn.execute(
+            "SELECT COUNT(*) AS n FROM tasks "
+            "WHERE user_id = ? AND done = 1 AND done_at >= ?",
+            (user_id, since_iso),
+        ).fetchone()
+        return int(row["n"])
 
     # --- links (named, categorized) ----------------------------------------
 
@@ -506,6 +536,88 @@ class Memory:
         )
         self._conn.commit()
         return cur.rowcount > 0
+
+    # --- web watches --------------------------------------------------------
+
+    def add_watch(self, user_id: str, url: str, keyword: str | None = None) -> int:
+        cur = self._conn.execute(
+            "INSERT INTO watches (user_id, url, keyword, created) VALUES (?, ?, ?, ?)",
+            (user_id, url, keyword, self._now()),
+        )
+        self._conn.commit()
+        return int(cur.lastrowid)
+
+    def list_watches(self, user_id: str) -> list[dict]:
+        rows = self._conn.execute(
+            "SELECT id, url, keyword FROM watches WHERE user_id = ? ORDER BY id",
+            (user_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def delete_watch(self, user_id: str, watch_id: int) -> bool:
+        cur = self._conn.execute(
+            "DELETE FROM watches WHERE id = ? AND user_id = ?", (watch_id, user_id)
+        )
+        self._conn.commit()
+        return cur.rowcount > 0
+
+    def all_watches(self) -> list[dict]:
+        rows = self._conn.execute(
+            "SELECT id, user_id, url, keyword, state FROM watches ORDER BY id"
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def set_watch_state(self, watch_id: int, state: str) -> None:
+        self._conn.execute(
+            "UPDATE watches SET state = ? WHERE id = ?", (state, watch_id)
+        )
+        self._conn.commit()
+
+    # --- recurring expenses (subscriptions) --------------------------------
+
+    def add_recurring(
+        self, user_id: str, amount: float, description: str, category: str, day: int
+    ) -> int:
+        cur = self._conn.execute(
+            "INSERT INTO recurring_expenses "
+            "(user_id, amount, description, category, day, created) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (user_id, amount, description, category, day, self._now()),
+        )
+        self._conn.commit()
+        return int(cur.lastrowid)
+
+    def list_recurring(self, user_id: str) -> list[dict]:
+        rows = self._conn.execute(
+            "SELECT id, amount, description, category, day FROM recurring_expenses "
+            "WHERE user_id = ? ORDER BY day, id",
+            (user_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def delete_recurring(self, user_id: str, rec_id: int) -> bool:
+        cur = self._conn.execute(
+            "DELETE FROM recurring_expenses WHERE id = ? AND user_id = ?",
+            (rec_id, user_id),
+        )
+        self._conn.commit()
+        return cur.rowcount > 0
+
+    def due_recurring(self, day: int, month_str: str) -> list[dict]:
+        """Recurring expenses whose day is today and not yet logged this month."""
+        rows = self._conn.execute(
+            "SELECT id, user_id, amount, description, category FROM recurring_expenses "
+            "WHERE day = ? AND (last_month IS NULL OR last_month != ?)",
+            (day, month_str),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def mark_recurring_logged(self, rec_id: int, month_str: str) -> None:
+        self._conn.execute(
+            "UPDATE recurring_expenses SET last_month = ? WHERE id = ?",
+            (month_str, rec_id),
+        )
+        self._conn.commit()
 
     # --- backup -------------------------------------------------------------
 

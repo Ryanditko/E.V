@@ -66,6 +66,110 @@ def weather(city: str) -> str:
         return f"não consegui o clima agora ({exc})"
 
 
+_RAIN_CODES = {51, 53, 55, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99}
+
+
+def rain_tomorrow(city: str) -> str | None:
+    """Return an alert string if rain is likely tomorrow in `city`, else None."""
+    import httpx
+
+    try:
+        geo = httpx.get(
+            "https://geocoding-api.open-meteo.com/v1/search",
+            params={"name": city, "count": 1, "language": "pt", "format": "json"},
+            timeout=15,
+        ).json()
+        if not geo.get("results"):
+            return None
+        loc = geo["results"][0]
+        daily = httpx.get(
+            "https://api.open-meteo.com/v1/forecast",
+            params={
+                "latitude": loc["latitude"], "longitude": loc["longitude"],
+                "daily": "precipitation_probability_max,weather_code",
+                "timezone": "auto", "forecast_days": 2,
+            },
+            timeout=15,
+        ).json()["daily"]
+        prob = daily["precipitation_probability_max"][1]
+        code = daily["weather_code"][1]
+        if (prob is not None and prob >= 50) or code in _RAIN_CODES:
+            p = f" ({prob}% de chance)" if prob is not None else ""
+            return f"Amanhã deve chover em {loc['name']}{p}. Leva guarda-chuva!"
+        return None
+    except Exception as exc:
+        log.warning("rain_tomorrow failed (%s)", exc)
+        return None
+
+
+def fetch_text(url: str) -> str:
+    """Fetch a page and return its visible text (for change monitoring)."""
+    import re
+
+    import httpx
+
+    r = httpx.get(
+        url, timeout=20, follow_redirects=True,
+        headers={"User-Agent": "Mozilla/5.0 (E.V. assistant)"},
+    )
+    r.raise_for_status()
+    html = re.sub(r"(?is)<(script|style|noscript)[^>]*>.*?</\1>", " ", r.text)
+    text = re.sub(r"(?s)<[^>]+>", " ", html)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def rain_tomorrow(city: str) -> str | None:
+    """If rain is likely tomorrow in `city`, return a warning message; else None."""
+    import httpx
+
+    try:
+        geo = httpx.get(
+            "https://geocoding-api.open-meteo.com/v1/search",
+            params={"name": city, "count": 1, "language": "pt", "format": "json"},
+            timeout=15,
+        ).json()
+        if not geo.get("results"):
+            return None
+        loc = geo["results"][0]
+        fc = httpx.get(
+            "https://api.open-meteo.com/v1/forecast",
+            params={
+                "latitude": loc["latitude"], "longitude": loc["longitude"],
+                "daily": "precipitation_probability_max,weather_code",
+                "timezone": "auto", "forecast_days": 2,
+            },
+            timeout=15,
+        ).json()["daily"]
+        prob = fc["precipitation_probability_max"][1]
+        code = fc["weather_code"][1]
+        rainy_codes = {51, 53, 55, 61, 63, 65, 80, 81, 82, 95, 96, 99}
+        if (prob is not None and prob >= 50) or code in rainy_codes:
+            desc = _WEATHER_CODES.get(code, "chuva")
+            return (
+                f"Alerta: amanhã tem chance de chuva em {loc['name']} "
+                f"({desc}, {prob}% de probabilidade). Leva guarda-chuva!"
+            )
+        return None
+    except Exception as exc:
+        log.warning("rain_tomorrow failed (%s)", exc)
+        return None
+
+
+def fetch_text(url: str) -> str:
+    """Fetch a page and return its visible text (for change monitoring)."""
+    import re
+    import httpx
+
+    resp = httpx.get(
+        url, timeout=20, follow_redirects=True,
+        headers={"User-Agent": "Mozilla/5.0 (E.V. assistant)"},
+    )
+    resp.raise_for_status()
+    html = re.sub(r"(?is)<(script|style|noscript)[^>]*>.*?</\1>", " ", resp.text)
+    text = re.sub(r"(?s)<[^>]+>", " ", html)
+    return re.sub(r"\s+", " ", text).strip()
+
+
 def news(topic: str, max_results: int = 4) -> str:
     """Recent news headlines about `topic` (DuckDuckGo, no key)."""
     try:
