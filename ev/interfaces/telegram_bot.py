@@ -974,7 +974,11 @@ class TelegramInterface:
                             )
                         self._memory.set_watch_state(w["id"], "found" if present else "absent")
                     else:
-                        digest = hashlib.sha256(text.encode("utf-8", "ignore")).hexdigest()
+                        # Normalize away numeric noise (timestamps, view counts,
+                        # ad rotations) so only real content changes trigger.
+                        norm = re.sub(r"\d+", "", text)
+                        norm = re.sub(r"\s+", " ", norm).lower()
+                        digest = hashlib.sha256(norm.encode("utf-8", "ignore")).hexdigest()
                         if w["state"] and w["state"] != digest:
                             await self._bot_send(
                                 app.bot, int(w["user_id"]),
