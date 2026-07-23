@@ -107,8 +107,10 @@ class Commands:
 
     def help(self) -> str:
         return (
-            "🕷️ E.V. — comandos rápidos\n"
+            "🕷️ E.V. — todos os comandos\n"
             "━━━━━━━━━━━━━━━━━━\n"
+            "🏠 Geral\n"
+            "   /menu · /ajuda · /modelo\n\n"
             "📋 Tarefas\n"
             "   /tarefa · /tarefas · /concluir\n\n"
             "⏰ Lembretes\n"
@@ -117,18 +119,24 @@ class Commands:
             "   /lembrar · /memorias · /esquecer\n\n"
             "🔗 Links\n"
             "   /link · /links · /linkrm\n\n"
-            "📄 Conhecimento\n"
-            "   envie um PDF · /kb · /kbweb · /kbrm\n\n"
-            "💰 Gastos\n"
-            "   /gasto · /gastos · /gastorm\n\n"
+            "📄 Conhecimento & Estudo\n"
+            "   envie um PDF · /kb · /kbweb · /kbrm · /quiz\n\n"
+            "💰 Finanças\n"
+            "   /gasto · /gastos · /gastorm\n"
+            "   /orcamento · /orcamentos · /orcamentorm\n"
+            "   /assinatura · /assinaturas · /assinaturarm\n\n"
             "✅ Hábitos\n"
             "   /habito · /feito · /habitos · /habitorm\n\n"
             "📔 Diário\n"
             "   /diario · /diariorm\n\n"
-            "🔎 Web · 📅 Google\n"
-            "   /buscar · /agenda · /evento · /email\n"
+            "📊 Resumos & Automação\n"
+            "   /semana · /insights · /vigiar · /vigias · /vigiarm\n\n"
+            "🔎 Web & Clima\n"
+            "   /buscar · /clima\n\n"
+            "📅 Google\n"
+            "   /agenda · /evento · /email\n"
             "━━━━━━━━━━━━━━━━━━\n"
-            "💬 Ou toque em /menu pra usar por botões. Também entendo mensagem e áudio!"
+            "💬 Ou toque em /menu pra usar por botões. Também entendo mensagem, áudio, foto e PDF!"
         )
 
     # --- reminders ----------------------------------------------------------

@@ -191,7 +191,10 @@ python run_telegram.py    # Telegram bot (voice + mobile)
 python run_terminal.py    # Terminal REPL (text)
 ```
 
-### Required keys (all free)
+### Keys
+
+Every service, link, `.env` variable and cost is listed in **[docs/KEYS.md](docs/KEYS.md)**.
+The essentials (all free):
 
 | Variable | Where to get it |
 |----------|-----------------|
@@ -199,6 +202,7 @@ python run_terminal.py    # Terminal REPL (text)
 | `GEMINI_API_KEY` | https://aistudio.google.com/apikey |
 | `GROQ_API_KEY` | https://console.groq.com/keys |
 | `OPENROUTER_API_KEY` | https://openrouter.ai/keys |
+| `TAVILY_API_KEY` | https://app.tavily.com (better web search) |
 
 > Tip: run once, send `/start`, grab your ID from the logs and set `EV_OWNER_ID`
 > to lock the bot to yourself.
