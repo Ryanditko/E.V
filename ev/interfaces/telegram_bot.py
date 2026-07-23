@@ -86,10 +86,10 @@ class TelegramInterface:
                 "Se você é o dono, coloque-o em EV_OWNER_ID no .env."
             )
             return
+        await update.message.reply_text(f"E.V. online, chefe. (seu ID: {uid})")
         await update.message.reply_text(
-            f"E.V. online, chefe. (seu ID: {uid})", reply_markup=self._kb_main()
+            self._MAIN_TEXT, reply_markup=self._kb_main(), parse_mode="HTML"
         )
-        await update.message.reply_text(self._MAIN_TEXT, reply_markup=self._kb_main())
 
     async def on_text(self, update: Update, _ctx: ContextTypes.DEFAULT_TYPE) -> None:
         if not self._authorized(update):
@@ -358,13 +358,18 @@ class TelegramInterface:
         )
 
     _MAIN_TEXT = (
-        "🕷️ E.V. — o que você quer fazer?\n\n"
-        "Use os botões abaixo, ou é só me mandar uma mensagem/áudio pra conversar."
+        "🕷️ <b>E.V.</b>\n"
+        "<i>sua assistente pessoal</i>\n"
+        "━━━━━━━━━━━━━━━\n"
+        "O que vamos fazer? Toque em uma opção abaixo — ou é só me mandar "
+        "uma <b>mensagem</b> ou <b>áudio</b> que a gente conversa. 💬"
     )
 
     async def cmd_menu(self, update: Update, _c: ContextTypes.DEFAULT_TYPE) -> None:
         if self._authorized(update):
-            await update.message.reply_text(self._MAIN_TEXT, reply_markup=self._kb_main())
+            await update.message.reply_text(
+                self._MAIN_TEXT, reply_markup=self._kb_main(), parse_mode="HTML"
+            )
 
     async def on_callback(self, update: Update, _c: ContextTypes.DEFAULT_TYPE) -> None:
         q = update.callback_query
@@ -378,7 +383,9 @@ class TelegramInterface:
 
         if section == "nav" or (section == "misc" and action == "menu"):
             self._pending.pop(uid, None)
-            await q.edit_message_text(self._MAIN_TEXT, reply_markup=self._kb_main())
+            await q.edit_message_text(
+                self._MAIN_TEXT, reply_markup=self._kb_main(), parse_mode="HTML"
+            )
             return
         if section == "misc" and action == "ajuda":
             await q.edit_message_text(
@@ -391,13 +398,19 @@ class TelegramInterface:
 
         if action == "menu":
             titles = {
-                "task": "📋 Tarefas", "rem": "⏰ Lembretes", "link": "🔗 Links",
-                "mem": "🧠 Memória", "kb": "📄 Base de conhecimento", "goog": "📅 Google",
+                "task": "📋 <b>Tarefas</b>\n<i>criar, ver e concluir</i>",
+                "rem": "⏰ <b>Lembretes</b>\n<i>pontuais e recorrentes</i>",
+                "link": "🔗 <b>Links</b>\n<i>salvos por categoria</i>",
+                "mem": "🧠 <b>Memória</b>\n<i>o que eu sei sobre você</i>",
+                "kb": "📄 <b>Base de conhecimento</b>\n<i>seus PDFs e páginas</i>",
+                "goog": "📅 <b>Google</b>\n<i>agenda e e-mail</i>",
             }
             kb = {
                 "kb": self._kb_kb(), "goog": self._kb_goog(),
             }.get(section) or self._kb_section(section)
-            await q.edit_message_text(titles.get(section, "Menu"), reply_markup=kb)
+            await q.edit_message_text(
+                titles.get(section, "Menu"), reply_markup=kb, parse_mode="HTML"
+            )
             return
 
         # Actions that produce text (lists / reads)

@@ -92,12 +92,30 @@ class Commands:
     # --- help ---------------------------------------------------------------
 
     def help(self) -> str:
-        lines = ["Comandos disponíveis (não usam IA):"]
-        for name, desc in COMMAND_LIST:
-            lines.append(f"/{name} — {desc}")
-        lines.append("")
-        lines.append("Pra conversar de verdade, é só mandar mensagem normal ou áudio.")
-        return "\n".join(lines)
+        return (
+            "🕷️ E.V. — comandos rápidos (sem IA)\n"
+            "━━━━━━━━━━━━━━━━━━\n"
+            "📋 Tarefas\n"
+            "   /tarefa · /tarefas · /concluir\n\n"
+            "⏰ Lembretes\n"
+            "   /lembrete · /rotina · /lembretes · /cancelar\n\n"
+            "🧠 Memória\n"
+            "   /lembrar · /memorias · /esquecer\n\n"
+            "🔗 Links\n"
+            "   /link · /links · /linkrm\n\n"
+            "📄 Conhecimento\n"
+            "   envie um PDF · /kb · /kbweb · /kbrm\n\n"
+            "💰 Gastos\n"
+            "   /gasto · /gastos · /gastorm\n\n"
+            "✅ Hábitos\n"
+            "   /habito · /feito · /habitos · /habitorm\n\n"
+            "📔 Diário\n"
+            "   /diario · /diariorm\n\n"
+            "🔎 Web · 📅 Google\n"
+            "   /buscar · /agenda · /evento · /email\n"
+            "━━━━━━━━━━━━━━━━━━\n"
+            "💬 Ou toque em /menu pra usar por botões. Também entendo mensagem e áudio!"
+        )
 
     # --- reminders ----------------------------------------------------------
 
@@ -153,7 +171,7 @@ class Commands:
         if not items:
             return "Você não tem lembretes em aberto."
         marks = {"daily": " [todo dia]", "weekly": " [toda semana]"}
-        lines = ["Seus lembretes:"]
+        lines = ["⏰ Seus lembretes:"]
         for r in items:
             when = ""
             if r["when_iso"]:
@@ -194,7 +212,7 @@ class Commands:
                 f"Nenhuma tarefa em '{category}'." if category
                 else "Sua lista de tarefas está vazia."
             )
-        lines = [f"Suas tarefas{' em ' + category if category else ''}:"]
+        lines = [f"📋 Suas tarefas{' em ' + category if category else ''}:"]
         current = None
         for t in items:
             if not category and t["category"] != current:
@@ -241,7 +259,7 @@ class Commands:
         by: dict[str, float] = {}
         for i in items:
             by[i["category"]] = by.get(i["category"], 0) + i["amount"]
-        lines = [f"Gastos do mês: R$ {total:.2f} ({len(items)} lançamentos)"]
+        lines = [f"💰 Gastos do mês: R$ {total:.2f} ({len(items)} lançamentos)"]
         for cat, v in sorted(by.items(), key=lambda x: -x[1]):
             lines.append(f"- {cat}: R$ {v:.2f}")
         lines.append("\nLançamentos recentes:")
@@ -298,7 +316,7 @@ class Commands:
             return "Você não tem hábitos. Crie com /habito <nome>."
         today = self._now().date()
         today_s = today.strftime("%Y-%m-%d")
-        lines = ["Seus hábitos (hoje):"]
+        lines = ["✅ Seus hábitos (hoje):"]
         for h in habits:
             done = "[x]" if today_s in self._memory.habit_days(h["id"]) else "[ ]"
             lines.append(f"{done} {h['name']} — sequência: {self._streak(h['id'], today)} dia(s)")
@@ -323,7 +341,7 @@ class Commands:
             entries = self._memory.recent_journal(user_id, 5)
             if not entries:
                 return "Diário vazio. Escreva com /diario <texto>."
-            lines = ["Últimas entradas do diário:"]
+            lines = ["📔 Últimas entradas do diário:"]
             for e in entries:
                 day = ""
                 try:
@@ -364,7 +382,7 @@ class Commands:
         facts = self._memory.list_facts(user_id)
         if not facts:
             return "Ainda não sei nada sobre você. Use /lembrar pra me contar algo."
-        lines = ["O que eu sei sobre você:"]
+        lines = ["🧠 O que eu sei sobre você:"]
         lines += [f"#{f['id']} {f['fact']}" for f in facts]
         lines.append("\nApagar: /esquecer <id>")
         return "\n".join(lines)
@@ -435,7 +453,7 @@ class Commands:
                 f"Nenhum link em '{category}'." if category
                 else "Você ainda não guardou links. Use /link."
             )
-        lines = [f"Links{' em ' + category if category else ''}:"]
+        lines = [f"🔗 Links{' em ' + category if category else ''}:"]
         current = None
         for it in items:
             if not category and it["category"] != current:
@@ -460,7 +478,7 @@ class Commands:
                 "Base de conhecimento vazia. Envie um PDF aqui no chat que eu "
                 "indexo e passo a responder com base nele."
             )
-        lines = ["Documentos na base de conhecimento:"]
+        lines = ["📄 Documentos na base de conhecimento:"]
         for s in sources:
             lines.append(f"- {s['source']} ({s['chunks']} trechos)")
         lines.append("\nEnvie um PDF para adicionar. Remover: /kbrm <nome>")
