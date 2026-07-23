@@ -408,6 +408,22 @@ class TelegramInterface:
             return
         arg = self._args(c).strip()
         if arg:
+            low = arg.lower()
+            if low in ("reset", "padrão", "padrao", "default"):
+                self._memory.set_setting("model", "")
+                await update.message.reply_text(
+                    "Modelo principal voltou ao padrão (gemini-flash-latest)."
+                )
+                return
+            if not low.startswith("gemini"):
+                await update.message.reply_text(
+                    "O /modelo troca só o modelo PRINCIPAL, que é do Gemini — "
+                    "use um nome que comece com 'gemini' (ex: gemini-flash-latest, "
+                    "gemini-2.5-flash).\n\nGroq e OpenRouter já são fallbacks "
+                    "automáticos — não dá pra defini-los como principal aqui.\n"
+                    "Pra voltar ao padrão: /modelo reset"
+                )
+                return
             self._memory.set_setting("model", arg)
             await update.message.reply_text(
                 f"Modelo principal (Gemini) alterado para: {arg}\n"
