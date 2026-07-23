@@ -36,6 +36,7 @@ COMMAND_LIST = [
     ("tarefas", "Listar tarefas: /tarefas [categoria]"),
     ("concluir", "Concluir tarefa: /concluir 3"),
     ("buscar", "Pesquisar na web: /buscar notícias de hoje"),
+    ("procurar", "Procurar nos SEUS dados: /procurar cálculo"),
     ("clima", "Previsão do tempo: /clima São Paulo"),
     ("gasto", "Registrar gasto: /gasto 50 mercado #casa"),
     ("gastos", "Resumo de gastos do mês"),
@@ -134,8 +135,8 @@ class Commands:
             "   /diario · /diariorm\n\n"
             "📊 Resumos & Automação\n"
             "   /semana · /insights · /vigiar · /vigias · /vigiarm\n\n"
-            "🔎 Web, Notícias & Clima\n"
-            "   /buscar · /noticias · /clima\n\n"
+            "🔎 Busca, Notícias & Clima\n"
+            "   /buscar (web) · /procurar (seus dados) · /noticias · /clima\n\n"
             "📅 Google\n"
             "   /agenda · /evento · /email\n"
             "━━━━━━━━━━━━━━━━━━\n"
@@ -287,6 +288,35 @@ class Commands:
             brave_key=getattr(self._config, "brave_api_key", ""),
             tavily_key=getattr(self._config, "tavily_api_key", ""),
         )
+
+    def procurar(self, user_id: str, argstr: str) -> str:
+        """Unified search across everything the user stored (not the web)."""
+        term = argstr.strip()
+        if not term:
+            return "Uso: /procurar <termo>. Procuro em tudo que você guardou (memória, tarefas, lembretes, links, diário, documentos)."
+        r = self._memory.search_all(user_id, term)
+        labels = [
+            ("facts", "🧠 Memórias"), ("tasks", "📋 Tarefas"),
+            ("reminders", "⏰ Lembretes"), ("links", "🔗 Links"),
+            ("journal", "📔 Diário"), ("knowledge", "📄 Conhecimento"),
+        ]
+        lines = [f"🔎 Resultados para '{term}':"]
+        found = False
+        for key, label in labels:
+            items = r.get(key) or []
+            if not items:
+                continue
+            found = True
+            lines.append(f"\n{label}:")
+            for it in items[:5]:
+                if key == "knowledge":
+                    src, chunk = it
+                    lines.append(f"- [{src}] {chunk[:120]}…")
+                else:
+                    lines.append(f"- {it}")
+        if not found:
+            return f"Nada encontrado pra '{term}' nos seus dados."
+        return "\n".join(lines)
 
     def noticias(self, argstr: str = "") -> str:
         topic = argstr.strip() or getattr(self._config, "news_topic", "") or "Brasil"

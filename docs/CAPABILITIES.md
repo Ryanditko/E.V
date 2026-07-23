@@ -1,0 +1,199 @@
+# E.V. — Everything she does (complete capabilities reference)
+
+The full, literal list of what E.V. can do. She talks to you in Brazilian
+Portuguese; this reference is in English (docs convention). Commands are shown
+as you type them in Telegram.
+
+---
+
+## 1. How you interact with her
+
+Via the **Telegram bot** (24/7 in the cloud). Three modes, all mixable:
+
+- **Natural chat (uses the AI):** send **text**, a **voice note** (she transcribes
+  and answers in text + voice), or a **photo** (she reads/analyzes it). She keeps
+  context, remembers you, and calls real tools when needed.
+- **Slash commands (instant, no AI):** deterministic actions like `/tarefa`,
+  `/gasto`, `/lembrete`. Full list below.
+- **Interactive menu:** `/menu` opens a button-driven UI; every reply also carries
+  a quick-action bar (🏠 Menu · ➕ Tarefa · ⏰ Lembrete).
+- **Send a PDF** → it's indexed into her knowledge base. **Send a photo** → she
+  interprets it.
+
+She is **locked to you** (owner-only) and replies with a natural female voice.
+
+## 2. What she does in conversation (AI)
+
+- **Chat & advice:** answers, decisions, brainstorming, venting — with a warm,
+  witty personality (you configured it in `personality.py`).
+- **Long-term memory:** remembers durable facts about you and recalls the relevant
+  ones (semantic search) at the right moment.
+- **Commitment detection:** if you mention a deadline/appointment in chat
+  ("tenho prova sexta"), she offers to create a reminder.
+- **Real-world tools she calls automatically when useful:**
+  - `buscar_web` — current facts, prices, events (Tavily → Brave → DuckDuckGo).
+  - `consultar_noticias` — recent news (with sources).
+  - `consultar_clima` — real weather forecast (open-meteo).
+  - `salvar_memoria`, `criar_lembrete`, `listar_lembretes`.
+  - `ver_agenda`, `criar_evento`, `enviar_email` — once Google is connected.
+- **Honesty:** if unsure, she says so and offers to search instead of inventing;
+  cites sources when she used the web.
+
+## 3. Full command reference
+
+### General
+| Command | Does |
+|---------|------|
+| `/menu` | Open the interactive button menu |
+| `/ajuda` | List all commands |
+| `/modelo` | Show AI models + today's usage; `/modelo <nome>` switches the primary model |
+
+### Tasks
+| Command | Does |
+|---------|------|
+| `/tarefa <texto> [#categoria]` | Add a task (e.g. `/tarefa estudar #faculdade`) |
+| `/tarefas [categoria]` | List tasks (grouped, or filtered) |
+| `/concluir <id>` | Complete a task |
+
+### Reminders & calendar
+| Command | Does |
+|---------|------|
+| `/lembrete <tempo> <texto>` | One-off reminder (`10m`, `2h`, `amanhã 09:00`, `25/12 14:30`) |
+| `/rotina <diario\|semanal> <HH:MM> <texto>` | Recurring reminder |
+| `/lembretes` | List reminders |
+| `/cancelar <id>` | Cancel a reminder |
+| `/calendario` | Agenda view by day (+ Google Calendar if connected) |
+
+### Memory
+| Command | Does |
+|---------|------|
+| `/lembrar <fato>` | Save something to long-term memory |
+| `/memorias` | List what she knows about you |
+| `/esquecer <id>` | Delete a memory |
+
+### Knowledge base & study
+| Action | Does |
+|--------|------|
+| Send a **PDF** | Index the document (RAG) |
+| `/kb` | List documents |
+| `/kbweb <url>` | Index a web page |
+| `/kbrm <nome>` | Remove a document |
+| `/quiz [documento]` | Generate a study question from your PDFs (answer hidden as spoiler) |
+
+### Finances
+| Command | Does |
+|---------|------|
+| `/gasto <valor> <desc> [#cat]` | Log an expense (warns if over budget) |
+| `/gastos` | Month summary by category + recent entries |
+| `/gastorm <id>` | Delete an expense |
+| `/relatorio` | Last month's financial report + AI comment |
+| `/orcamento <cat> <valor>` | Set a monthly budget for a category |
+| `/orcamentos` | Budgets vs spending (with % and 🟢🟡🔴) |
+| `/orcamentorm <cat>` | Remove a budget |
+| `/assinatura <valor> <desc> [dia] [#cat]` | Recurring expense (auto-logged monthly) |
+| `/assinaturas` · `/assinaturarm <id>` | List / remove subscriptions |
+
+### Habits
+| Command | Does |
+|---------|------|
+| `/habito <nome>` | Create a habit |
+| `/feito <nome>` | Mark it done today |
+| `/habitos` | List habits with streaks |
+| `/habitorm <nome>` | Remove a habit |
+
+### Journal
+| Command | Does |
+|---------|------|
+| `/diario <texto>` | Write a journal entry |
+| `/diario` | Show recent entries |
+| `/diariorm <id>` | Delete an entry |
+
+### Links
+| Command | Does |
+|---------|------|
+| `/link <categoria> \| <nome> \| <url>` | Save a link by category |
+| `/links [categoria]` | List links |
+| `/linkrm <id>` | Remove a link |
+
+### Search, news & weather
+| Command | Does |
+|---------|------|
+| `/buscar <termo>` | Web search (with sources) |
+| `/procurar <termo>` | Search across YOUR data (memory, tasks, links, journal, KB...) |
+| `/noticias [assunto]` | Latest news with sources + TabNews (tech) |
+| `/clima [cidade]` | Real weather forecast (today + next days) |
+
+### Reviews & monitoring
+| Command | Does |
+|---------|------|
+| `/semana` | Weekly review (tasks done, expenses, habit streaks) |
+| `/insights` | AI reflection over your week's data |
+| `/vigiar <url> [\| palavra]` | Monitor a page; alert on change / when a keyword appears |
+| `/vigias` · `/vigiarm <id>` | List / remove monitors |
+
+### Google (after one-time OAuth — see GOOGLE.md)
+| Command | Does |
+|---------|------|
+| `/agenda [conta]` | Upcoming Google Calendar events |
+| `/evento [conta] <tempo> <título>` | Create a calendar event |
+| `/email [conta] <para> \| <assunto> \| <corpo>` | Send an email |
+
+## 4. Automations (she acts on her own)
+
+| When | What |
+|------|------|
+| Every day 08:00 | **Morning briefing**: tasks, reminders, agenda, weather, news + TabNews |
+| Every day 20:00 | **Habit nudge**: reminds about habits not marked yet |
+| Every day 21:00 | **Check-in** ("how was your day?") + **rain alert** for tomorrow |
+| Sundays 20:00 | **Weekly review** + AI insights |
+| Day 1, 09:00 | **Monthly financial report** + AI comment |
+| At each reminder's time | Delivers the reminder (recurring ones reschedule themselves) |
+| On each subscription's day | Auto-logs the recurring expense |
+| Every ~30 min | Checks web monitors (`/vigiar`) and alerts on real changes |
+| Weekly + on restart | Sends a **DB backup** to your Telegram (off-VM copy) |
+
+All hours/days are configurable in `.env`.
+
+## 5. What she stores (your data, local SQLite)
+
+Conversation history (auto-pruned to the last N), long-term **facts** (with
+embeddings), **reminders** (one-off + recurring), **tasks** (with categories),
+**links** (by category), **expenses** + **budgets** + **subscriptions**,
+**habits** (+ daily logs & streaks), **journal** entries, **knowledge base**
+(document/web chunks + embeddings), **web monitors**, and usage stats/settings.
+Everything is add / list / delete — you can undo anything.
+
+## 6. AI models & resilience
+
+- **Primary:** Gemini (`gemini-flash-latest`) — native audio + image + memory tools.
+- **Fallbacks (auto):** Groq (`openai/gpt-oss-120b`, reliable tools) → OpenRouter
+  (Nemotron) → **Ollama** (local, never rate-limited — if enabled on a capable host).
+- **Audio transcription:** Groq Whisper. **Embeddings:** Gemini `gemini-embedding-001`.
+- If a provider hits its limit, she falls through automatically — she rarely goes
+  silent. `/modelo` shows what's active and today's usage.
+
+## 7. Reliability & safety
+
+- **Owner lock:** only you can use the bot.
+- **Backups:** daily local + weekly to your Telegram (restore anytime).
+- **History pruning:** keeps the DB small; facts/tasks/etc. are never pruned.
+- **Honesty:** admits uncertainty, cites web sources, prefers real tools over guessing.
+- **Runs 24/7** on an Oracle Always Free VM as a `systemd` service (auto-restart, boot start).
+
+## 8. Configuration & keys
+
+All behavior (voice, city, news topic, automation hours, models, accounts) is set
+in `.env` — see [`.env.example`](../.env.example). Every service/link/key is in
+[KEYS.md](KEYS.md). To add new features: [EXTENDING.md](EXTENDING.md).
+
+## 9. Honest limits (what she can't do — yet)
+
+- **No hands-free/always-listening voice** — Telegram can't stream your mic; voice
+  is tap-to-record. A wake-word ("E.V., ...") would need a separate app on a device.
+- **No sub-second real-time voice** (movie-JARVIS style) without a paid realtime API.
+- **No physical-world control** (home automation, devices) — not integrated.
+- **Google email/calendar** need a one-time OAuth on a personal computer.
+- **Web/news quality** depends on the search provider; forecasts have normal
+  meteorological uncertainty.
+- **The AI can still occasionally be wrong** on un-tooled facts — verify important
+  things (she'll flag uncertainty when she can).

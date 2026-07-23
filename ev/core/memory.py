@@ -730,6 +730,52 @@ class Memory:
         )
         self._conn.commit()
 
+    # --- unified search (across the user's own data) -----------------------
+
+    def search_all(self, user_id: str, term: str) -> dict:
+        """Keyword search across facts, tasks, reminders, links, journal and KB."""
+        like = f"%{term}%"
+        c = self._conn
+        return {
+            "facts": [
+                r["fact"] for r in c.execute(
+                    "SELECT fact FROM facts WHERE user_id=? AND fact LIKE ?",
+                    (user_id, like),
+                )
+            ],
+            "tasks": [
+                r["text"] for r in c.execute(
+                    "SELECT text FROM tasks WHERE user_id=? AND done=0 AND text LIKE ?",
+                    (user_id, like),
+                )
+            ],
+            "reminders": [
+                r["text"] for r in c.execute(
+                    "SELECT text FROM reminders WHERE user_id=? AND done=0 AND text LIKE ?",
+                    (user_id, like),
+                )
+            ],
+            "links": [
+                f"{r['name']} — {r['url']}" for r in c.execute(
+                    "SELECT name, url FROM links WHERE user_id=? AND "
+                    "(name LIKE ? OR url LIKE ? OR category LIKE ?)",
+                    (user_id, like, like, like),
+                )
+            ],
+            "journal": [
+                r["text"] for r in c.execute(
+                    "SELECT text FROM journal WHERE user_id=? AND text LIKE ?",
+                    (user_id, like),
+                )
+            ],
+            "knowledge": [
+                (r["source"], r["chunk"]) for r in c.execute(
+                    "SELECT source, chunk FROM knowledge WHERE user_id=? AND chunk LIKE ? LIMIT 5",
+                    (user_id, like),
+                )
+            ],
+        }
+
     # --- usage tracking & settings -----------------------------------------
 
     def bump_usage(self, provider: str, day: str) -> None:

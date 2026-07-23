@@ -41,6 +41,16 @@ def test_buscar_usage(tmp_path):
     assert "Uso:" in c.buscar("")
 
 
+def test_unified_search(tmp_path):
+    c = _commands(tmp_path)
+    c.tarefa("u", "estudar cálculo #faculdade")
+    c.link("u", "faculdade | grade | http://x")
+    assert "Uso:" in c.procurar("u", "")
+    out = c.procurar("u", "cálculo")
+    assert "estudar cálculo" in out
+    assert "nada encontrado" in c.procurar("u", "zzzznada").lower()
+
+
 def test_expenses(tmp_path):
     c = _commands(tmp_path)
     assert "50.00" in c.gasto("u", "50 mercado #casa")
