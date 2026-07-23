@@ -25,6 +25,7 @@ SSH="ssh -i $KEY -o StrictHostKeyChecking=accept-new"
 [ -f .env ]  || { echo "ERRO: .env não encontrado (preencha as chaves — veja docs/KEYS.md)."; exit 1; }
 
 echo ">> 1/4 Empacotando o código (sem segredos)..."
+export COPYFILE_DISABLE=1  # macOS: don't add ._ xattr headers to the tar
 tar czf /tmp/ev-deploy.tgz \
   --exclude=.venv --exclude=.git --exclude=backups --exclude=__pycache__ \
   --exclude='*.pyc' --exclude='*.log' --exclude="$KEY" \

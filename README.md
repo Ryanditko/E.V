@@ -207,6 +207,11 @@ The essentials (all free):
 > Tip: run once, send `/start`, grab your ID from the logs and set `EV_OWNER_ID`
 > to lock the bot to yourself.
 
+## One-command scripts
+
+- **`bash start.sh`** — run E.V. locally (sets up venv, deps, checks `.env`, starts).
+- **`bash deploy.sh`** — ship code + your keys to the VM and (re)start it, in one command.
+
 ## Keep it online 24/7
 
 Pick a host — the bot needs some machine left running:
