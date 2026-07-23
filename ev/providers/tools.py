@@ -187,6 +187,27 @@ def news(topic: str, max_results: int = 4) -> str:
     return "\n".join(f"- {i.get('title', '')}" for i in items)
 
 
+def tavily_search(query: str, api_key: str, max_results: int = 5) -> str:
+    """Search via Tavily (AI-focused search; clean relevant results)."""
+    import httpx
+
+    resp = httpx.post(
+        "https://api.tavily.com/search",
+        json={"query": query, "max_results": max_results, "search_depth": "basic"},
+        headers={"Authorization": f"Bearer {api_key}"},
+        timeout=20,
+    )
+    resp.raise_for_status()
+    results = resp.json().get("results", [])
+    if not results:
+        return "não achei nada relevante na web."
+    lines = []
+    for r in results[:max_results]:
+        body = (r.get("content", "") or "")[:200]
+        lines.append(f"- {r.get('title', '')}: {body} ({r.get('url', '')})")
+    return "\n".join(lines)
+
+
 def brave_search(query: str, api_key: str, max_results: int = 5) -> str:
     """Search via the Brave Search API (better relevance; needs a key)."""
     import httpx
@@ -207,9 +228,16 @@ def brave_search(query: str, api_key: str, max_results: int = 5) -> str:
     return "\n".join(lines)
 
 
-def web_search(query: str, max_results: int = 5, brave_key: str = "") -> str:
-    """Search the web and return a concise summary. Prefers Brave (better) when a
-    key is set; otherwise DuckDuckGo (free, no key)."""
+def web_search(
+    query: str, max_results: int = 5, brave_key: str = "", tavily_key: str = ""
+) -> str:
+    """Search the web and return a concise summary. Order of preference:
+    Tavily -> Brave -> DuckDuckGo (whichever is configured; free/no-key fallback)."""
+    if tavily_key:
+        try:
+            return tavily_search(query, tavily_key, max_results)
+        except Exception as exc:
+            log.warning("tavily_search failed (%s); trying next", exc)
     if brave_key:
         try:
             return brave_search(query, brave_key, max_results)

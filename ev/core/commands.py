@@ -240,7 +240,9 @@ class Commands:
         if not query:
             return "Uso: /buscar <termo>. Ex: /buscar notícias de tecnologia hoje"
         return "Resultados da web:\n" + tools_mod.web_search(
-            query, brave_key=getattr(self._config, "brave_api_key", "")
+            query,
+            brave_key=getattr(self._config, "brave_api_key", ""),
+            tavily_key=getattr(self._config, "tavily_api_key", ""),
         )
 
     # --- expenses -----------------------------------------------------------

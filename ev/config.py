@@ -64,7 +64,8 @@ class Config:
     message_history_keep: int  # keep only the newest N chat messages per user
     # Tools
     websearch_enabled: bool
-    brave_api_key: str  # optional: better web search than DuckDuckGo
+    brave_api_key: str   # optional: better web search than DuckDuckGo
+    tavily_api_key: str  # optional: AI-focused web search (preferred if set)
     google_oauth_client: str
     google_accounts: tuple[str, ...]  # e.g. ("pessoal", "faculdade")
     db_path: Path
@@ -177,6 +178,7 @@ class Config:
             message_history_keep=_get_int("EV_MESSAGE_HISTORY_KEEP", 500),
             websearch_enabled=_get_bool("EV_WEBSEARCH_ENABLED", True),
             brave_api_key=os.getenv("BRAVE_API_KEY", "").strip(),
+            tavily_api_key=os.getenv("TAVILY_API_KEY", "").strip(),
             google_oauth_client=os.getenv("GOOGLE_OAUTH_CLIENT", "").strip(),
             google_accounts=google_accounts,
             db_path=_PROJECT_ROOT / "ev_memory.db",
