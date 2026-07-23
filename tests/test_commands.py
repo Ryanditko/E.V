@@ -82,6 +82,15 @@ def test_watches(tmp_path):
     assert "removido" in c.vigiarm("u", "1")
 
 
+def test_budget_alert(tmp_path):
+    c = _commands(tmp_path)
+    assert "definido" in c.orcamento("u", "comida 100")
+    warn = c.gasto("u", "85 mercado #comida")  # 85% of the limit
+    assert "orçamento" in warn.lower()
+    assert "comida" in c.orcamentos("u")
+    assert "removido" in c.orcamentorm("u", "comida")
+
+
 def test_recurring_expense(tmp_path):
     c = _commands(tmp_path)
     out = c.assinatura("u", "39,90 Netflix 15")

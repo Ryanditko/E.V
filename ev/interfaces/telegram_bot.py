@@ -11,9 +11,11 @@ scheduler as a background task that delivers due reminders to the user's chat.
 from __future__ import annotations
 
 import asyncio
+import html
 import io
 import logging
-from datetime import datetime, timedelta
+import re
+from datetime import datetime, timedelta, timezone
 
 try:
     from zoneinfo import ZoneInfo
@@ -267,6 +269,146 @@ class TelegramInterface:
         if self._authorized(update):
             uid = str(update.effective_user.id)
             await self._cmd_out(update, self._commands.assinaturarm(uid, self._args(c)))
+
+    async def cmd_orcamento(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
+        if self._authorized(update):
+            uid = str(update.effective_user.id)
+            await self._cmd_out(update, self._commands.orcamento(uid, self._args(c)))
+
+    async def cmd_orcamentos(self, update: Update, _c: ContextTypes.DEFAULT_TYPE) -> None:
+        if self._authorized(update):
+            uid = str(update.effective_user.id)
+            await self._cmd_out(update, self._commands.orcamentos(uid))
+
+    async def cmd_orcamentorm(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
+        if self._authorized(update):
+            uid = str(update.effective_user.id)
+            await self._cmd_out(update, self._commands.orcamentorm(uid, self._args(c)))
+
+    # --- AI-powered: quiz + weekly insights --------------------------------
+
+    @staticmethod
+    def _parse_qa(text: str) -> tuple[str, str]:
+        m = re.search(r"PERGUNTA:\s*(.+?)\s*RESPOSTA:\s*(.+)", text, re.S | re.I)
+        if m:
+            return m.group(1).strip(), m.group(2).strip()
+        return text.strip(), "(confira no material)"
+
+    async def cmd_quiz(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
+        if not self._authorized(update):
+            return
+        uid = str(update.effective_user.id)
+        chunk = self._memory.random_chunk(uid, self._args(c).strip() or None)
+        if not chunk:
+            await update.message.reply_text(
+                "Sua base de conhecimento está vazia. Envie um PDF ou use /kbweb."
+            )
+            return
+        await update.message.reply_text("📚 Preparando uma pergunta...")
+        out = await self._brain.ask(
+            "Você é um tutor. Com base no trecho, crie UMA pergunta de estudo objetiva "
+            "e a resposta correta. Responda EXATAMENTE assim:\n"
+            "PERGUNTA: <pergunta>\nRESPOSTA: <resposta curta>",
+            f"Trecho de [{chunk['source']}]:\n{chunk['chunk']}",
+        )
+        if not out:
+            await update.message.reply_text("Não consegui gerar agora, tenta de novo.")
+            return
+        q, a = self._parse_qa(out)
+        text = (
+            f"📚 <b>Quiz</b> — <i>{html.escape(chunk['source'])}</i>\n\n"
+            f"{html.escape(q)}\n\n"
+            f"Resposta: <tg-spoiler>{html.escape(a)}</tg-spoiler>"
+        )
+        await update.message.reply_text(
+            text, parse_mode="HTML", reply_markup=self._quick_kb()
+        )
+
+    def _week_data_blob(self, uid: str) -> str:
+        m = self._memory
+        since = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+        parts = []
+        exp = m.expenses_since(uid, since)
+        if exp:
+            by: dict[str, float] = {}
+            for e in exp:
+                by[e["category"]] = by.get(e["category"], 0) + e["amount"]
+            parts.append("Gastos (7d): " + ", ".join(f"{k} R${v:.0f}" for k, v in by.items()))
+        parts.append(f"Tarefas concluídas (7d): {m.tasks_completed_since(uid, since)}")
+        habits = m.list_habits(uid)
+        if habits:
+            today = datetime.now(self._tz()).date()
+            parts.append(
+                "Hábitos: "
+                + ", ".join(f"{h['name']} ({self._commands._streak(h['id'], today)}d)" for h in habits)
+            )
+        journ = m.recent_journal(uid, 7)
+        if journ:
+            parts.append("Diário: " + " | ".join(e["text"][:120] for e in journ))
+        return "Dados da semana do usuário:\n" + "\n".join(parts)
+
+    async def cmd_insights(self, update: Update, _c: ContextTypes.DEFAULT_TYPE) -> None:
+        if not self._authorized(update):
+            return
+        uid = str(update.effective_user.id)
+        await update.message.reply_text("🧠 Analisando sua semana...")
+        out = await self._brain.ask(
+            "Você é a E.V., assistente pessoal carinhosa. Com base nos dados da semana "
+            "do usuário, dê de 2 a 4 insights curtos, úteis e humanos (padrões, elogios, "
+            "alertas gentis). Concreta e breve, em português. Sem repetir os números crus.",
+            self._week_data_blob(uid),
+        )
+        await self._cmd_out(
+            update, out or "Ainda sem dados suficientes. Usa a E.V. mais uns dias!"
+        )
+
+    # --- model status / selection ------------------------------------------
+
+    _PROVIDER_LABELS = {
+        "gemini": "Gemini", "groq": "Groq", "openrouter": "OpenRouter",
+        "ollama": "Ollama (local)", "?": "desconhecido",
+    }
+    # Approximate free daily caps (the real free tier varies — shown as estimates).
+    _APPROX_CAPS = {"gemini": 20, "groq": 1000, "openrouter": 1000}
+
+    async def cmd_modelo(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
+        if not self._authorized(update):
+            return
+        arg = self._args(c).strip()
+        if arg:
+            self._memory.set_setting("model", arg)
+            await update.message.reply_text(
+                f"Modelo principal (Gemini) alterado para: {arg}\n"
+                "Vale já. Se for inválido, a E.V. cai nos fallbacks automaticamente."
+            )
+            return
+        cfg = self._config
+        usage = self._memory.usage_for_day(datetime.now(timezone.utc).date().isoformat())
+        lines = ["🧠 <b>Modelos da E.V.</b>", ""]
+        lines.append(f"• Principal: <b>{html.escape(self._brain.current_model())}</b> · Gemini")
+        if cfg.groq_api_key:
+            lines.append(f"• Fallback 1: {html.escape(cfg.groq_model)} · Groq")
+        if cfg.openrouter_api_key:
+            lines.append(f"• Fallback 2: {html.escape(cfg.openrouter_model)} · OpenRouter")
+        if cfg.ollama_enabled:
+            lines.append(f"• Rede local: {html.escape(cfg.ollama_model)} · Ollama")
+        last = self._brain._last_provider
+        if last:
+            lines.append(f"\nÚltima resposta veio de: <b>{self._PROVIDER_LABELS.get(last, last)}</b>")
+        lines.append("\n📊 <b>Uso hoje</b> (zera à meia-noite UTC):")
+        for prov in ("gemini", "groq", "openrouter", "ollama"):
+            used = usage.get(prov, 0)
+            cap = self._APPROX_CAPS.get(prov)
+            if cap:
+                lines.append(
+                    f"• {self._PROVIDER_LABELS[prov]}: {used} usados · ~{max(0, cap - used)} restantes (de ~{cap})"
+                )
+            elif prov == "ollama" and cfg.ollama_enabled:
+                lines.append(f"• {self._PROVIDER_LABELS[prov]}: {used} usados · ilimitado")
+        lines.append("\n<i>Limites são estimados (o free tier varia). Trocar principal: /modelo &lt;nome&gt;</i>")
+        await update.message.reply_text(
+            "\n".join(lines), parse_mode="HTML", reply_markup=self._quick_kb()
+        )
 
     async def cmd_concluir(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
         if self._authorized(update):
@@ -691,6 +833,13 @@ class TelegramInterface:
         ):
             self._last_weekly = today
             text = self._commands.semana(str(cfg.owner_id))
+            insights = await self._brain.ask(
+                "Você é a E.V. Dê 2-3 insights curtos e humanos sobre a semana do "
+                "usuário (padrões, elogios, alertas gentis). Breve, em português.",
+                self._week_data_blob(str(cfg.owner_id)),
+            )
+            if insights:
+                text += "\n\n🧠 Insights:\n" + insights
             await self._bot_send(app.bot, cfg.owner_id, text, self._quick_kb())
             log.info("Sent weekly review.")
 
@@ -897,6 +1046,12 @@ class TelegramInterface:
         app.add_handler(CommandHandler("assinatura", self.cmd_assinatura))
         app.add_handler(CommandHandler("assinaturas", self.cmd_assinaturas))
         app.add_handler(CommandHandler("assinaturarm", self.cmd_assinaturarm))
+        app.add_handler(CommandHandler("orcamento", self.cmd_orcamento))
+        app.add_handler(CommandHandler("orcamentos", self.cmd_orcamentos))
+        app.add_handler(CommandHandler("orcamentorm", self.cmd_orcamentorm))
+        app.add_handler(CommandHandler("quiz", self.cmd_quiz))
+        app.add_handler(CommandHandler("insights", self.cmd_insights))
+        app.add_handler(CommandHandler("modelo", self.cmd_modelo))
         app.add_handler(CommandHandler("lembrar", self.cmd_lembrar))
         app.add_handler(CommandHandler("memorias", self.cmd_memorias))
         app.add_handler(CommandHandler("link", self.cmd_link))

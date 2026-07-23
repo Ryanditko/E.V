@@ -54,6 +54,28 @@ def test_cancel_and_reschedule(tmp_path):
     assert m.open_reminders("u") == []
 
 
+def test_usage_and_settings(tmp_path):
+    m = Memory(tmp_path / "t.db")
+    m.bump_usage("groq", "2026-01-01")
+    m.bump_usage("groq", "2026-01-01")
+    m.bump_usage("gemini", "2026-01-01")
+    u = m.usage_for_day("2026-01-01")
+    assert u["groq"] == 2 and u["gemini"] == 1
+    m.set_setting("model", "x")
+    assert m.get_setting("model") == "x"
+    m.set_setting("model", "y")  # upsert
+    assert m.get_setting("model") == "y"
+
+
+def test_budget_storage(tmp_path):
+    m = Memory(tmp_path / "t.db")
+    m.set_budget("u", "comida", 800.0)
+    assert m.get_budget("u", "comida") == 800.0
+    m.set_budget("u", "comida", 500.0)  # upsert replaces
+    assert m.get_budget("u", "comida") == 500.0
+    assert m.delete_budget("u", "comida") is True
+
+
 def test_backup(tmp_path):
     m = Memory(tmp_path / "t.db")
     m.add_fact("u", "algo importante")

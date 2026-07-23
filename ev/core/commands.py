@@ -37,6 +37,12 @@ COMMAND_LIST = [
     ("gasto", "Registrar gasto: /gasto 50 mercado #casa"),
     ("gastos", "Resumo de gastos do mês"),
     ("gastorm", "Apagar gasto: /gastorm 3"),
+    ("orcamento", "Definir orçamento: /orcamento comida 800"),
+    ("orcamentos", "Ver orçamentos e quanto já gastou"),
+    ("orcamentorm", "Apagar orçamento: /orcamentorm comida"),
+    ("quiz", "Estudar: pergunta sobre seus PDFs (/quiz [documento])"),
+    ("insights", "Insights da sua semana (IA)"),
+    ("modelo", "Ver/trocar o modelo de IA e uso do dia"),
     ("habito", "Criar hábito: /habito treino"),
     ("feito", "Marcar hábito feito hoje: /feito treino"),
     ("habitos", "Ver hábitos e sequências"),
@@ -253,7 +259,20 @@ class Commands:
             rest = [t for t in rest if not (t.startswith("#") and len(t) > 1)]
         desc = " ".join(rest).strip() or "(sem descrição)"
         self._memory.add_expense(user_id, amount, desc, category)
-        return f"Gasto registrado: R$ {amount:.2f} em {desc} ({category})"
+        msg = f"Gasto registrado: R$ {amount:.2f} em {desc} ({category})"
+        # Budget alert (if a limit is set for this category).
+        budget = self._memory.get_budget(user_id, category)
+        if budget:
+            since = datetime.now(timezone.utc).replace(
+                day=1, hour=0, minute=0, second=0, microsecond=0
+            ).isoformat()
+            spent = self._memory.category_total_since(user_id, category, since)
+            pct = spent / budget * 100 if budget else 0
+            if pct >= 100:
+                msg += f"\n🔴 Estourou o orçamento de {category}: R$ {spent:.2f} / R$ {budget:.2f}."
+            elif pct >= 80:
+                msg += f"\n🟡 Atenção: {pct:.0f}% do orçamento de {category} (R$ {spent:.2f} / R$ {budget:.2f})."
+        return msg
 
     def gastos(self, user_id: str, argstr: str = "") -> str:
         since = datetime.now(timezone.utc).replace(
@@ -281,6 +300,45 @@ class Commands:
             return "Uso: /gastorm <id>. Veja os ids em /gastos."
         ok = self._memory.delete_expense(user_id, int(arg))
         return f"Gasto #{arg} apagado." if ok else f"Não achei o gasto #{arg}."
+
+    # --- budgets ------------------------------------------------------------
+
+    def orcamento(self, user_id: str, argstr: str) -> str:
+        tokens = argstr.strip().split()
+        if len(tokens) < 2:
+            return "Uso: /orcamento <categoria> <valor>\nEx: /orcamento comida 800"
+        category = tokens[0].lstrip("#").lower()
+        try:
+            amount = float(tokens[1].replace(",", "."))
+        except ValueError:
+            return "Valor inválido. Ex: /orcamento comida 800"
+        self._memory.set_budget(user_id, category, amount)
+        return f"💰 Orçamento de '{category}' definido: R$ {amount:.2f}/mês."
+
+    def orcamentos(self, user_id: str) -> str:
+        budgets = self._memory.list_budgets(user_id)
+        if not budgets:
+            return "Nenhum orçamento. Crie com /orcamento <categoria> <valor>."
+        since = datetime.now(timezone.utc).replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0
+        ).isoformat()
+        lines = ["💰 Orçamentos do mês:"]
+        for b in budgets:
+            spent = self._memory.category_total_since(user_id, b["category"], since)
+            pct = spent / b["amount"] * 100 if b["amount"] else 0
+            dot = "🔴" if pct >= 100 else "🟡" if pct >= 80 else "🟢"
+            lines.append(
+                f"{dot} {b['category']}: R$ {spent:.2f} / R$ {b['amount']:.2f} ({pct:.0f}%)"
+            )
+        lines.append("\nApagar: /orcamentorm <categoria>")
+        return "\n".join(lines)
+
+    def orcamentorm(self, user_id: str, argstr: str) -> str:
+        cat = argstr.strip().lstrip("#").lower()
+        if not cat:
+            return "Uso: /orcamentorm <categoria>."
+        ok = self._memory.delete_budget(user_id, cat)
+        return f"Orçamento de '{cat}' removido." if ok else f"Não achei orçamento pra '{cat}'."
 
     # --- habits -------------------------------------------------------------
 

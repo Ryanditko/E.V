@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 try:
     from zoneinfo import ZoneInfo
@@ -50,6 +50,11 @@ class Brain:
         self._client = genai.Client(api_key=config.gemini_api_key)
         self._model = config.model
         self._memory = memory
+        self._last_provider: str | None = None  # which provider answered last
+
+    def current_model(self) -> str:
+        """Primary Gemini model — a runtime override (via /modelo) wins over .env."""
+        return self._memory.get_setting("model") or self._model
 
     async def respond(
         self,
@@ -68,6 +73,48 @@ class Brain:
         return await asyncio.to_thread(
             self._respond_sync, user_id, text, audio, audio_mime, image, image_mime
         )
+
+    async def ask(self, system: str, prompt: str) -> str | None:
+        """One-off LLM call (no memory/tools) through the provider chain.
+        Used by features like quizzes and weekly insights."""
+        return await asyncio.to_thread(self._ask_sync, system, prompt)
+
+    def _ask_sync(self, system: str, prompt: str) -> str | None:
+        try:
+            resp = self._client.models.generate_content(
+                model=self.current_model(),
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=system, temperature=0.5
+                ),
+            )
+            if (resp.text or "").strip():
+                return resp.text.strip()
+        except Exception as exc:
+            log.warning("ask_once Gemini failed (%s)", exc)
+
+        cfg = self._config
+        messages = [{"role": "user", "content": prompt}]
+        chain = []
+        if cfg.groq_api_key:
+            chain.append((providers.GROQ_BASE_URL, cfg.groq_api_key, cfg.groq_model))
+        if cfg.openrouter_api_key:
+            chain.append(
+                (providers.OPENROUTER_BASE_URL, cfg.openrouter_api_key, cfg.openrouter_model)
+            )
+        if cfg.ollama_enabled:
+            chain.append((cfg.ollama_base_url, "ollama", cfg.ollama_model))
+        for base, key, model in chain:
+            try:
+                ans = providers.chat_openai_compat(
+                    base_url=base, api_key=key, model=model,
+                    system=system, messages=messages,
+                )
+                if ans:
+                    return ans
+            except Exception as exc:
+                log.warning("ask_once fallback failed (%s)", exc)
+        return None
 
     # -----------------------------------------------------------------------
 
@@ -113,6 +160,15 @@ class Brain:
 
         if not answer:
             return _ALL_DOWN_MSG
+
+        # Track which provider answered (for /modelo usage stats).
+        try:
+            self._memory.bump_usage(
+                self._last_provider or "?",
+                datetime.now(timezone.utc).date().isoformat(),
+            )
+        except Exception:
+            pass
 
         # Persist the turn in conversation memory.
         self._memory.add_message(user_id, "user", user_repr)
@@ -338,7 +394,7 @@ class Brain:
         )
 
         response = self._client.models.generate_content(
-            model=self._model,
+            model=self.current_model(),
             contents=contents,
             config=types.GenerateContentConfig(
                 system_instruction=system_instruction,
@@ -346,6 +402,7 @@ class Brain:
                 temperature=0.4,
             ),
         )
+        self._last_provider = "gemini"
         return (response.text or "").strip() or "…"
 
     def _build_contents(
@@ -421,6 +478,7 @@ class Brain:
                 )
                 if answer:
                     log.info("Answered via Groq (%s) with tools.", cfg.groq_model)
+                    self._last_provider = "groq"
                     return answer
             except Exception as exc:
                 log.warning("Groq fallback failed (%s).", exc)
@@ -437,6 +495,7 @@ class Brain:
                 )
                 if answer:
                     log.info("Answered via OpenRouter (%s).", cfg.openrouter_model)
+                    self._last_provider = "openrouter"
                     return answer
             except Exception as exc:
                 log.warning("OpenRouter fallback failed (%s).", exc)
@@ -453,6 +512,7 @@ class Brain:
                 )
                 if answer:
                     log.info("Answered via Ollama (%s, local).", cfg.ollama_model)
+                    self._last_provider = "ollama"
                     return answer
             except Exception as exc:
                 log.warning("Ollama fallback failed (%s).", exc)

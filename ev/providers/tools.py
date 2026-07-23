@@ -196,7 +196,11 @@ def web_search(query: str, max_results: int = 5) -> str:
             from duckduckgo_search import DDGS
 
         with DDGS() as ddgs:
-            results = list(ddgs.text(query, max_results=max_results))
+            results = list(
+                ddgs.text(
+                    query, region="br-pt", safesearch="off", max_results=max_results
+                )
+            )
     except Exception as exc:
         log.warning("web_search failed (%s)", exc)
         return f"não consegui buscar na web agora ({exc})"

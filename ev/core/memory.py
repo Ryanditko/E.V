@@ -140,6 +140,35 @@ class Memory:
                 last_month  TEXT,               -- 'YYYY-MM' already logged
                 created     TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS budgets (
+                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id  TEXT NOT NULL,
+                category TEXT NOT NULL,
+                amount   REAL NOT NULL,          -- monthly limit
+                created  TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS flashcards (
+                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id  TEXT NOT NULL,
+                source   TEXT NOT NULL,
+                question TEXT NOT NULL,
+                answer   TEXT NOT NULL,
+                created  TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS usage_log (
+                day      TEXT NOT NULL,
+                provider TEXT NOT NULL,
+                n        INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (day, provider)
+            );
+
+            CREATE TABLE IF NOT EXISTS settings (
+                key   TEXT PRIMARY KEY,
+                value TEXT
+            );
             """
         )
         # Migrations for older DBs.
@@ -480,6 +509,62 @@ class Memory:
         self._conn.commit()
         return cur.rowcount > 0
 
+    def category_total_since(self, user_id: str, category: str, since_iso: str) -> float:
+        row = self._conn.execute(
+            "SELECT COALESCE(SUM(amount), 0) AS t FROM expenses "
+            "WHERE user_id = ? AND category = ? AND created >= ?",
+            (user_id, category, since_iso),
+        ).fetchone()
+        return float(row["t"])
+
+    # --- budgets ------------------------------------------------------------
+
+    def set_budget(self, user_id: str, category: str, amount: float) -> None:
+        self._conn.execute(
+            "DELETE FROM budgets WHERE user_id = ? AND category = ?", (user_id, category)
+        )
+        self._conn.execute(
+            "INSERT INTO budgets (user_id, category, amount, created) VALUES (?, ?, ?, ?)",
+            (user_id, category, amount, self._now()),
+        )
+        self._conn.commit()
+
+    def get_budget(self, user_id: str, category: str) -> float | None:
+        row = self._conn.execute(
+            "SELECT amount FROM budgets WHERE user_id = ? AND category = ?",
+            (user_id, category),
+        ).fetchone()
+        return float(row["amount"]) if row else None
+
+    def list_budgets(self, user_id: str) -> list[dict]:
+        rows = self._conn.execute(
+            "SELECT category, amount FROM budgets WHERE user_id = ? ORDER BY category",
+            (user_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def delete_budget(self, user_id: str, category: str) -> bool:
+        cur = self._conn.execute(
+            "DELETE FROM budgets WHERE user_id = ? AND category = ?", (user_id, category)
+        )
+        self._conn.commit()
+        return cur.rowcount > 0
+
+    def random_chunk(self, user_id: str, source: str | None = None) -> dict | None:
+        if source:
+            row = self._conn.execute(
+                "SELECT source, chunk FROM knowledge WHERE user_id = ? AND source = ? "
+                "ORDER BY RANDOM() LIMIT 1",
+                (user_id, source),
+            ).fetchone()
+        else:
+            row = self._conn.execute(
+                "SELECT source, chunk FROM knowledge WHERE user_id = ? "
+                "ORDER BY RANDOM() LIMIT 1",
+                (user_id,),
+            ).fetchone()
+        return dict(row) if row else None
+
     # --- habits -------------------------------------------------------------
 
     def add_habit(self, user_id: str, name: str) -> int:
@@ -634,6 +719,36 @@ class Memory:
         self._conn.execute(
             "UPDATE recurring_expenses SET last_month = ? WHERE id = ?",
             (month_str, rec_id),
+        )
+        self._conn.commit()
+
+    # --- usage tracking & settings -----------------------------------------
+
+    def bump_usage(self, provider: str, day: str) -> None:
+        self._conn.execute(
+            "INSERT INTO usage_log (day, provider, n) VALUES (?, ?, 1) "
+            "ON CONFLICT(day, provider) DO UPDATE SET n = n + 1",
+            (day, provider),
+        )
+        self._conn.commit()
+
+    def usage_for_day(self, day: str) -> dict:
+        rows = self._conn.execute(
+            "SELECT provider, n FROM usage_log WHERE day = ?", (day,)
+        ).fetchall()
+        return {r["provider"]: r["n"] for r in rows}
+
+    def get_setting(self, key: str) -> str | None:
+        row = self._conn.execute(
+            "SELECT value FROM settings WHERE key = ?", (key,)
+        ).fetchone()
+        return row["value"] if row else None
+
+    def set_setting(self, key: str, value: str) -> None:
+        self._conn.execute(
+            "INSERT INTO settings (key, value) VALUES (?, ?) "
+            "ON CONFLICT(key) DO UPDATE SET value = ?",
+            (key, value, value),
         )
         self._conn.commit()
 
