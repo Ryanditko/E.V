@@ -539,6 +539,7 @@ class TelegramInterface:
                 self._config.voice,
                 rate=self._config.voice_rate,
                 pitch=self._config.voice_pitch,
+                fixes=self._config.voice_fixes,
             )
             buf = io.BytesIO(mp3)
             buf.name = "ev.mp3"

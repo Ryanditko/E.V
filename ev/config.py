@@ -41,6 +41,7 @@ class Config:
     voice: str
     voice_rate: str
     voice_pitch: str
+    voice_fixes: tuple[tuple[str, str], ...]  # TTS-only pronunciation fixes
     # Local model (Ollama) — never-runs-out safety net
     ollama_enabled: bool
     ollama_base_url: str
@@ -141,6 +142,11 @@ class Config:
             voice=os.getenv("EV_VOICE", "pt-BR-FranciscaNeural").strip(),
             voice_rate=os.getenv("EV_VOICE_RATE", "+0%").strip(),
             voice_pitch=os.getenv("EV_VOICE_PITCH", "+0Hz").strip(),
+            voice_fixes=tuple(
+                tuple(p.split("=", 1))  # type: ignore[misc]
+                for p in os.getenv("EV_VOICE_FIXES", "").split(";")
+                if "=" in p
+            ),
             embed_model=os.getenv("EV_EMBED_MODEL", "gemini-embedding-001").strip(),
             timezone=os.getenv("EV_TIMEZONE", "America/Sao_Paulo").strip(),
             reminder_poll_seconds=_get_int("EV_REMINDER_POLL_SECONDS", 30),

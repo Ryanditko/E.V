@@ -1,17 +1,27 @@
-"""Voz da E.V. — converte texto em áudio usando edge-tts (grátis).
+"""E.V.'s voice — turns text into speech via edge-tts (free).
 
-Gera um MP3 em memória. A interface do Telegram envia esse MP3 como áudio.
-(Não usamos ffmpeg no v1: o Telegram aceita MP3 via send_audio.)
+Produces an MP3 in memory. The Telegram interface sends it as audio.
+(No ffmpeg in v1: Telegram accepts MP3 via send_audio.)
 
-`rate` e `pitch` deixam a voz mais "meiga"/feminina:
-  - pitch  "+12Hz"  -> tom um pouco mais agudo e suave
-  - rate   "-3%"    -> fala levemente mais devagar, mais carinhosa
-Ajuste no .env (EV_VOICE_PITCH / EV_VOICE_RATE) até ficar do seu gosto.
+`rate`/`pitch` fine-tune the delivery — keep pitch at "+0Hz" for the most
+natural voice (shifting pitch sounds robotic).
+
+`fixes` are TTS-only spelling substitutions so the PT-BR voice pronounces names
+correctly (e.g. "Ryan" -> "Rian"). They affect ONLY the audio, never the text
+the user reads. Configure via EV_VOICE_FIXES, e.g. "Ryan=Rian;Nome=Fonetico".
 """
 
 from __future__ import annotations
 
+import re
+
 import edge_tts
+
+
+def _apply_fixes(text: str, fixes) -> str:
+    for frm, to in fixes or ():
+        text = re.sub(rf"\b{re.escape(frm)}\b", to, text, flags=re.IGNORECASE)
+    return text
 
 
 async def synthesize(
@@ -19,9 +29,11 @@ async def synthesize(
     voice: str,
     rate: str = "+0%",
     pitch: str = "+0Hz",
+    fixes=(),
 ) -> bytes:
-    """Retorna os bytes de um MP3 falando `text` com a voz/tom escolhidos."""
-    communicate = edge_tts.Communicate(text, voice, rate=rate, pitch=pitch)
+    """Return MP3 bytes speaking `text` with the chosen voice/tuning."""
+    spoken = _apply_fixes(text, fixes)
+    communicate = edge_tts.Communicate(spoken, voice, rate=rate, pitch=pitch)
     audio = bytearray()
     async for chunk in communicate.stream():
         if chunk["type"] == "audio":
