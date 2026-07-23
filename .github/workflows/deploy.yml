@@ -1,0 +1,41 @@
+name: Deploy E.V. to the VM
+
+# Every push to main updates the running bot on the Oracle VM and restarts it.
+# Secrets in the repo (Settings -> Secrets and variables -> Actions):
+#   SSH_PRIVATE_KEY  the VM's private key (contents of oracle_ev.key)
+#   VM_IP            e.g. 129.158.194.108
+#   VM_USER          e.g. ubuntu
+# The .env and other secret files stay on the VM — this only updates the code.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up SSH key
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_key
+          chmod 600 ~/.ssh/id_key
+
+      - name: Ship code and restart
+        env:
+          VM: ${{ secrets.VM_USER }}@${{ secrets.VM_IP }}
+        run: |
+          tar czf /tmp/ev.tgz ev run_telegram.py run_terminal.py \
+            requirements.txt deploy docs tests authorize_google.py README.md
+          scp -i ~/.ssh/id_key -o StrictHostKeyChecking=accept-new \
+            /tmp/ev.tgz "$VM:~/ev.tgz"
+          ssh -i ~/.ssh/id_key -o StrictHostKeyChecking=accept-new "$VM" '
+            cd ~/ev &&
+            tar xzf ~/ev.tgz &&
+            ./.venv/bin/pip install -q -r requirements.txt &&
+            sudo systemctl restart ev &&
+            sleep 5 &&
+            systemctl is-active ev'
