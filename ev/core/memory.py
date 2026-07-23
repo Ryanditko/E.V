@@ -181,6 +181,24 @@ class Memory:
         ).fetchall()
         return [dict(r) for r in reversed(rows)]
 
+    def prune_messages(self, keep_per_user: int = 500) -> int:
+        """Keep only the newest `keep_per_user` chat messages per user.
+
+        Only trims raw conversation history (the brain uses just the last ~20);
+        facts, tasks, reminders, etc. are never touched. Returns rows deleted.
+        """
+        cur = self._conn.execute(
+            "DELETE FROM messages WHERE id IN ("
+            "  SELECT id FROM messages m WHERE ("
+            "    SELECT COUNT(*) FROM messages m2"
+            "    WHERE m2.user_id = m.user_id AND m2.id > m.id"
+            "  ) >= ?"
+            ")",
+            (keep_per_user,),
+        )
+        self._conn.commit()
+        return cur.rowcount
+
     # --- facts (long-term memory) ------------------------------------------
 
     def add_fact(

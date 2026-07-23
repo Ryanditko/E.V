@@ -61,6 +61,7 @@ class TelegramInterface:
         self._last_weekly: str | None = None     # date of the last weekly review
         self._last_rain: str | None = None       # date of the last rain check
         self._last_recurring: str | None = None  # date recurring expenses were run
+        self._last_tg_backup: str | None = None  # date backup was sent to Telegram
         # Keep references to background tasks so they aren't garbage-collected
         # (a GC'd task would silently kill the scheduler).
         self._bg_tasks: list = []
@@ -608,7 +609,7 @@ class TelegramInterface:
         self._bg_tasks = [
             asyncio.create_task(self._reminder_loop(app)),
             asyncio.create_task(self._briefing_loop(app)),
-            asyncio.create_task(self._backup_loop()),
+            asyncio.create_task(self._backup_loop(app)),
             asyncio.create_task(self._watch_loop(app)),
         ]
         log.info(
@@ -617,23 +618,53 @@ class TelegramInterface:
             self._config.briefing_hour,
         )
 
-    async def _backup_loop(self) -> None:
+    async def _backup_loop(self, app: Application) -> None:
         while True:
             try:
-                await asyncio.to_thread(self._do_backup)
+                path = await asyncio.to_thread(self._do_backup)
+                await self._maybe_send_backup_telegram(app, path)
             except Exception:
                 log.exception("Backup failed")
             await asyncio.sleep(24 * 3600)
 
-    def _do_backup(self, keep: int = 7) -> None:
+    def _do_backup(self, keep: int = 7):
+        # Prune old chat history first (bounds the DB size over time).
+        try:
+            self._memory.prune_messages(self._config.message_history_keep)
+        except Exception:
+            log.exception("Prune failed")
         bdir = self._config.db_path.parent / "backups"
         bdir.mkdir(exist_ok=True)
         dest = bdir / f"ev_memory.{datetime.now().strftime('%Y%m%d')}.db"
         self._memory.backup(dest)
-        old = sorted(bdir.glob("ev_memory.*.db"))[:-keep]
-        for f in old:
+        for f in sorted(bdir.glob("ev_memory.*.db"))[:-keep]:
             f.unlink()
         log.info("DB backup saved to %s", dest.name)
+        return dest
+
+    async def _maybe_send_backup_telegram(self, app: Application, path) -> None:
+        """Send the backup off the VM, into the owner's Telegram chat. Weekly
+        (Sundays), plus once right after startup so there's always a fresh copy."""
+        cfg = self._config
+        if not cfg.telegram_backup or cfg.owner_id is None or path is None:
+            return
+        now = datetime.now(self._tz())
+        today = now.date().isoformat()
+        first_time = self._last_tg_backup is None
+        if not first_time and (now.weekday() != 6 or self._last_tg_backup == today):
+            return
+        self._last_tg_backup = today
+        try:
+            with open(path, "rb") as f:
+                await app.bot.send_document(
+                    chat_id=cfg.owner_id,
+                    document=f,
+                    filename=path.name,
+                    caption="🗄️ Backup do banco da E.V. Guarde este arquivo — dá pra restaurar tudo com ele.",
+                )
+            log.info("Backup sent to Telegram (%s).", path.name)
+        except Exception:
+            log.exception("Failed to send backup to Telegram")
 
     async def _briefing_loop(self, app: Application) -> None:
         while True:

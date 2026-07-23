@@ -60,6 +60,8 @@ class Config:
     weekly_hour: int    # local hour for the weekly review
     rain_hour: int      # local hour to check tomorrow's rain; <0 disables
     watch_poll_minutes: int  # how often to check web monitors
+    telegram_backup: bool    # send DB backup to the owner via Telegram
+    message_history_keep: int  # keep only the newest N chat messages per user
     # Tools
     websearch_enabled: bool
     google_oauth_client: str
@@ -170,6 +172,8 @@ class Config:
             weekly_hour=_get_int("EV_WEEKLY_HOUR", 20),
             rain_hour=rain_hour,
             watch_poll_minutes=_get_int("EV_WATCH_POLL_MINUTES", 30),
+            telegram_backup=_get_bool("EV_TELEGRAM_BACKUP", True),
+            message_history_keep=_get_int("EV_MESSAGE_HISTORY_KEEP", 500),
             websearch_enabled=_get_bool("EV_WEBSEARCH_ENABLED", True),
             google_oauth_client=os.getenv("GOOGLE_OAUTH_CLIENT", "").strip(),
             google_accounts=google_accounts,

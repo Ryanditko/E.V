@@ -109,6 +109,8 @@ sequenceDiagram
 ```
 
 > Full design details in **[docs/architecture.md](docs/architecture.md)**.
+> Want to add features (yourself or with any AI assistant)? See
+> **[docs/EXTENDING.md](docs/EXTENDING.md)**.
 
 ## Project structure
 
