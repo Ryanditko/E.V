@@ -185,6 +185,10 @@ class TelegramInterface:
         if self._authorized(update):
             await self._cmd_out(update, self._commands.buscar(self._args(c)))
 
+    async def cmd_clima(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
+        if self._authorized(update):
+            await self._cmd_out(update, self._commands.clima(self._args(c)))
+
     async def cmd_gasto(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
         if self._authorized(update):
             uid = str(update.effective_user.id)
@@ -1029,6 +1033,7 @@ class TelegramInterface:
         app.add_handler(CommandHandler("tarefas", self.cmd_tarefas))
         app.add_handler(CommandHandler("concluir", self.cmd_concluir))
         app.add_handler(CommandHandler("buscar", self.cmd_buscar))
+        app.add_handler(CommandHandler("clima", self.cmd_clima))
         app.add_handler(CommandHandler("gasto", self.cmd_gasto))
         app.add_handler(CommandHandler("gastos", self.cmd_gastos))
         app.add_handler(CommandHandler("habito", self.cmd_habito))

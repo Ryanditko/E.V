@@ -34,6 +34,7 @@ COMMAND_LIST = [
     ("tarefas", "Listar tarefas: /tarefas [categoria]"),
     ("concluir", "Concluir tarefa: /concluir 3"),
     ("buscar", "Pesquisar na web: /buscar notícias de hoje"),
+    ("clima", "Previsão do tempo: /clima São Paulo"),
     ("gasto", "Registrar gasto: /gasto 50 mercado #casa"),
     ("gastos", "Resumo de gastos do mês"),
     ("gastorm", "Apagar gasto: /gastorm 3"),
@@ -244,6 +245,12 @@ class Commands:
             brave_key=getattr(self._config, "brave_api_key", ""),
             tavily_key=getattr(self._config, "tavily_api_key", ""),
         )
+
+    def clima(self, argstr: str) -> str:
+        city = argstr.strip() or getattr(self._config, "city", "")
+        if not city:
+            return "Uso: /clima <cidade>. Ex: /clima São Paulo"
+        return tools_mod.weather_forecast(city)
 
     # --- expenses -----------------------------------------------------------
 

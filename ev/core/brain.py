@@ -254,10 +254,19 @@ class Brain:
                 for r in items
             )
 
+        def consultar_clima(cidade: str) -> str:
+            """Consulta a previsão do tempo real (hoje e próximos dias) de uma cidade.
+
+            Args:
+                cidade: nome da cidade (ex: São Paulo).
+            """
+            return tools_mod.weather_forecast(cidade or cfg.city or "São Paulo")
+
         callables: dict = {
             "salvar_memoria": salvar_memoria,
             "criar_lembrete": criar_lembrete,
             "listar_lembretes": listar_lembretes,
+            "consultar_clima": consultar_clima,
         }
 
         if cfg.websearch_enabled:
@@ -342,6 +351,12 @@ class Brain:
                 ["texto"],
             ),
             fn("listar_lembretes", "Lista os lembretes em aberto do usuário."),
+            fn(
+                "consultar_clima",
+                "Consulta a previsão do tempo real (hoje/próximos dias) de uma cidade.",
+                {"cidade": {"type": s, "description": "nome da cidade"}},
+                ["cidade"],
+            ),
         ]
         if cfg.websearch_enabled:
             schemas.append(

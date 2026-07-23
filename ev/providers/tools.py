@@ -118,6 +118,43 @@ def fetch_text(url: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
+def weather_forecast(city: str, days: int = 3) -> str:
+    """Accurate multi-day forecast (today + next days) via open-meteo (no key)."""
+    import httpx
+
+    try:
+        geo = httpx.get(
+            "https://geocoding-api.open-meteo.com/v1/search",
+            params={"name": city, "count": 1, "language": "pt", "format": "json"},
+            timeout=15,
+        ).json()
+        if not geo.get("results"):
+            return f"não achei a cidade '{city}'."
+        loc = geo["results"][0]
+        d = httpx.get(
+            "https://api.open-meteo.com/v1/forecast",
+            params={
+                "latitude": loc["latitude"], "longitude": loc["longitude"],
+                "daily": "temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max",
+                "timezone": "auto", "forecast_days": days,
+            },
+            timeout=15,
+        ).json()["daily"]
+    except Exception as exc:
+        log.warning("weather_forecast failed (%s)", exc)
+        return f"não consegui a previsão agora ({exc})"
+
+    labels = {0: "Hoje", 1: "Amanhã"}
+    lines = [f"Previsão para {loc['name']}:"]
+    for i in range(min(days, len(d["time"]))):
+        label = labels.get(i, d["time"][i])
+        desc = _WEATHER_CODES.get(d["weather_code"][i], "")
+        prob = d["precipitation_probability_max"][i]
+        tmin, tmax = d["temperature_2m_min"][i], d["temperature_2m_max"][i]
+        lines.append(f"{label}: {tmin:.0f}°–{tmax:.0f}°C, {desc}, chuva {prob}%")
+    return "\n".join(lines)
+
+
 def rain_tomorrow(city: str) -> str | None:
     """If rain is likely tomorrow in `city`, return a warning message; else None."""
     import httpx
