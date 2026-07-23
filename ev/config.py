@@ -62,6 +62,9 @@ class Config:
     watch_poll_minutes: int  # how often to check web monitors
     telegram_backup: bool    # send DB backup to the owner via Telegram
     message_history_keep: int  # keep only the newest N chat messages per user
+    habit_nudge_hour: int    # local hour to nudge about unmarked habits; <0 disables
+    monthly_report_day: int  # day of month for the financial report; <0 disables
+    monthly_report_hour: int
     # Tools
     websearch_enabled: bool
     brave_api_key: str   # optional: better web search than DuckDuckGo
@@ -130,6 +133,14 @@ class Config:
             weekly_day = int(os.getenv("EV_WEEKLY_DAY", "6").strip() or "-1")
         except ValueError:
             weekly_day = 6
+        try:
+            habit_nudge_hour = int(os.getenv("EV_HABIT_NUDGE_HOUR", "20").strip() or "-1")
+        except ValueError:
+            habit_nudge_hour = 20
+        try:
+            monthly_report_day = int(os.getenv("EV_MONTHLY_REPORT_DAY", "1").strip() or "-1")
+        except ValueError:
+            monthly_report_day = 1
 
         return cls(
             telegram_token=telegram_token,
@@ -176,6 +187,9 @@ class Config:
             watch_poll_minutes=_get_int("EV_WATCH_POLL_MINUTES", 30),
             telegram_backup=_get_bool("EV_TELEGRAM_BACKUP", True),
             message_history_keep=_get_int("EV_MESSAGE_HISTORY_KEEP", 500),
+            habit_nudge_hour=habit_nudge_hour,
+            monthly_report_day=monthly_report_day,
+            monthly_report_hour=_get_int("EV_MONTHLY_REPORT_HOUR", 9),
             websearch_enabled=_get_bool("EV_WEBSEARCH_ENABLED", True),
             brave_api_key=os.getenv("BRAVE_API_KEY", "").strip(),
             tavily_api_key=os.getenv("TAVILY_API_KEY", "").strip(),

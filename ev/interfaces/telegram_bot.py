@@ -64,6 +64,8 @@ class TelegramInterface:
         self._last_rain: str | None = None       # date of the last rain check
         self._last_recurring: str | None = None  # date recurring expenses were run
         self._last_tg_backup: str | None = None  # date backup was sent to Telegram
+        self._last_habit_nudge: str | None = None  # date of the last habit nudge
+        self._last_monthly: str | None = None      # month of the last financial report
         # Keep references to background tasks so they aren't garbage-collected
         # (a GC'd task would silently kill the scheduler).
         self._bg_tasks: list = []
@@ -288,6 +290,18 @@ class TelegramInterface:
         if self._authorized(update):
             uid = str(update.effective_user.id)
             await self._cmd_out(update, self._commands.orcamentorm(uid, self._args(c)))
+
+    async def cmd_relatorio(self, update: Update, _c: ContextTypes.DEFAULT_TYPE) -> None:
+        if not self._authorized(update):
+            return
+        uid = str(update.effective_user.id)
+        report = self._commands.relatorio(uid)
+        insight = await self._brain.ask(
+            "Você é a E.V. Comente em 1-2 frases este relatório financeiro "
+            "(padrões, dicas gentis). Breve, em português.",
+            report,
+        )
+        await self._cmd_out(update, report + (("\n\n🧠 " + insight) if insight else ""))
 
     # --- AI-powered: quiz + weekly insights --------------------------------
 
@@ -820,6 +834,8 @@ class TelegramInterface:
                 await self._maybe_send_weekly(app)
                 await self._maybe_send_rain(app)
                 await self._maybe_run_recurring(app)
+                await self._maybe_habit_nudge(app)
+                await self._maybe_monthly_report(app)
             except Exception:
                 log.exception("Briefing loop error")
             await asyncio.sleep(60)
@@ -881,6 +897,50 @@ class TelegramInterface:
                     self._quick_kb(),
                 )
             log.info("Logged recurring expense #%s", r["id"])
+
+    async def _maybe_habit_nudge(self, app: Application) -> None:
+        cfg = self._config
+        if cfg.habit_nudge_hour < 0 or cfg.owner_id is None:
+            return
+        now = datetime.now(self._tz())
+        today = now.date().isoformat()
+        if now.hour != cfg.habit_nudge_hour or self._last_habit_nudge == today:
+            return
+        self._last_habit_nudge = today
+        uid = str(cfg.owner_id)
+        today_s = now.date().strftime("%Y-%m-%d")
+        pend = [
+            h["name"] for h in self._memory.list_habits(uid)
+            if today_s not in self._memory.habit_days(h["id"])
+        ]
+        if pend:
+            msg = "👀 Ainda falta hoje: " + ", ".join(pend) + ".\nMarque com /feito <nome>."
+            await self._bot_send(app.bot, cfg.owner_id, msg, self._quick_kb())
+            log.info("Sent habit nudge.")
+
+    async def _maybe_monthly_report(self, app: Application) -> None:
+        cfg = self._config
+        if cfg.monthly_report_day < 0 or cfg.owner_id is None:
+            return
+        now = datetime.now(self._tz())
+        month = now.strftime("%Y-%m")
+        if (
+            now.day != cfg.monthly_report_day
+            or now.hour != cfg.monthly_report_hour
+            or self._last_monthly == month
+        ):
+            return
+        self._last_monthly = month
+        uid = str(cfg.owner_id)
+        report = self._commands.relatorio(uid)
+        insight = await self._brain.ask(
+            "Você é a E.V. Comente em 1-2 frases este relatório do mês (padrões, "
+            "dicas gentis). Breve e humano, em português.",
+            report,
+        )
+        text = report + (("\n\n🧠 " + insight) if insight else "")
+        await self._bot_send(app.bot, cfg.owner_id, text, self._quick_kb())
+        log.info("Sent monthly report.")
 
     async def _watch_loop(self, app: Application) -> None:
         import hashlib
@@ -1054,6 +1114,7 @@ class TelegramInterface:
         app.add_handler(CommandHandler("orcamento", self.cmd_orcamento))
         app.add_handler(CommandHandler("orcamentos", self.cmd_orcamentos))
         app.add_handler(CommandHandler("orcamentorm", self.cmd_orcamentorm))
+        app.add_handler(CommandHandler("relatorio", self.cmd_relatorio))
         app.add_handler(CommandHandler("quiz", self.cmd_quiz))
         app.add_handler(CommandHandler("insights", self.cmd_insights))
         app.add_handler(CommandHandler("modelo", self.cmd_modelo))

@@ -502,6 +502,14 @@ class Memory:
         ).fetchall()
         return [dict(r) for r in rows]
 
+    def expenses_between(self, user_id: str, start_iso: str, end_iso: str) -> list[dict]:
+        rows = self._conn.execute(
+            "SELECT amount, description, category FROM expenses "
+            "WHERE user_id = ? AND created >= ? AND created < ? ORDER BY id",
+            (user_id, start_iso, end_iso),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
     def delete_expense(self, user_id: str, expense_id: int) -> bool:
         cur = self._conn.execute(
             "DELETE FROM expenses WHERE id = ? AND user_id = ?", (expense_id, user_id)

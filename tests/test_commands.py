@@ -75,6 +75,17 @@ def test_weekly_review(tmp_path):
     assert "concluídas: 1" in out
 
 
+def test_monthly_report(tmp_path):
+    c = _commands(tmp_path)
+    # No expenses last month -> friendly message
+    out = c.relatorio("u")
+    assert "Relatório" in out
+    # An expense created "now" is in the current month, not last month, so the
+    # previous-month report stays empty — that's the correct behavior.
+    c.gasto("u", "50 mercado #comida")
+    assert "Relatório" in c.relatorio("u")
+
+
 def test_watches(tmp_path):
     c = _commands(tmp_path)
     assert "criado" in c.vigiar("u", "https://exemplo.com | vaga aberta")

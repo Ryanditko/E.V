@@ -41,6 +41,7 @@ COMMAND_LIST = [
     ("orcamento", "Definir orçamento: /orcamento comida 800"),
     ("orcamentos", "Ver orçamentos e quanto já gastou"),
     ("orcamentorm", "Apagar orçamento: /orcamentorm comida"),
+    ("relatorio", "Relatório financeiro do mês passado"),
     ("quiz", "Estudar: pergunta sobre seus PDFs (/quiz [documento])"),
     ("insights", "Insights da sua semana (IA)"),
     ("modelo", "Ver/trocar o modelo de IA e uso do dia"),
@@ -319,6 +320,30 @@ class Commands:
             return "Uso: /gastorm <id>. Veja os ids em /gastos."
         ok = self._memory.delete_expense(user_id, int(arg))
         return f"Gasto #{arg} apagado." if ok else f"Não achei o gasto #{arg}."
+
+    def relatorio(self, user_id: str) -> str:
+        """Financial report for the PREVIOUS month, by category vs budget."""
+        now = datetime.now(timezone.utc)
+        first_this = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        first_prev = (first_this - timedelta(seconds=1)).replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0
+        )
+        label = first_prev.strftime("%m/%Y")
+        items = self._memory.expenses_between(
+            user_id, first_prev.isoformat(), first_this.isoformat()
+        )
+        if not items:
+            return f"📈 Relatório de {label}: nenhum gasto registrado."
+        total = sum(i["amount"] for i in items)
+        by: dict[str, float] = {}
+        for i in items:
+            by[i["category"]] = by.get(i["category"], 0) + i["amount"]
+        lines = [f"📈 Relatório de {label}", f"Total: R$ {total:.2f} ({len(items)} lançamentos)", ""]
+        for cat, v in sorted(by.items(), key=lambda x: -x[1]):
+            budget = self._memory.get_budget(user_id, cat)
+            vs = f" · orçamento R$ {budget:.0f} ({v / budget * 100:.0f}%)" if budget else ""
+            lines.append(f"- {cat}: R$ {v:.2f}{vs}")
+        return "\n".join(lines)
 
     # --- budgets ------------------------------------------------------------
 
