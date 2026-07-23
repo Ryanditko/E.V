@@ -207,6 +207,11 @@ The essentials (all free):
 > Tip: run once, send `/start`, grab your ID from the logs and set `EV_OWNER_ID`
 > to lock the bot to yourself.
 
+## If something breaks
+
+Runbook: **[docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)**. Golden rule:
+**restart → read logs → redeploy → ask an AI with the logs.**
+
 ## One-command scripts
 
 - **`bash start.sh`** — run E.V. locally (sets up venv, deps, checks `.env`, starts).
