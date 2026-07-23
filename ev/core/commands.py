@@ -30,6 +30,8 @@ COMMAND_LIST = [
     ("rotina", "Lembrete recorrente: /rotina diario 08:00 remédio"),
     ("lembretes", "Listar seus lembretes"),
     ("cancelar", "Cancelar lembrete: /cancelar 3"),
+    ("calendario", "Ver sua agenda por dia (lembretes + Google)"),
+    ("noticias", "Últimas notícias com fontes: /noticias tecnologia"),
     ("tarefa", "Adicionar tarefa: /tarefa estudar #faculdade"),
     ("tarefas", "Listar tarefas: /tarefas [categoria]"),
     ("concluir", "Concluir tarefa: /concluir 3"),
@@ -114,8 +116,8 @@ class Commands:
             "   /menu · /ajuda · /modelo\n\n"
             "📋 Tarefas\n"
             "   /tarefa · /tarefas · /concluir\n\n"
-            "⏰ Lembretes\n"
-            "   /lembrete · /rotina · /lembretes · /cancelar\n\n"
+            "⏰ Lembretes & Agenda\n"
+            "   /lembrete · /rotina · /lembretes · /cancelar · /calendario\n\n"
             "🧠 Memória\n"
             "   /lembrar · /memorias · /esquecer\n\n"
             "🔗 Links\n"
@@ -123,7 +125,7 @@ class Commands:
             "📄 Conhecimento & Estudo\n"
             "   envie um PDF · /kb · /kbweb · /kbrm · /quiz\n\n"
             "💰 Finanças\n"
-            "   /gasto · /gastos · /gastorm\n"
+            "   /gasto · /gastos · /gastorm · /relatorio\n"
             "   /orcamento · /orcamentos · /orcamentorm\n"
             "   /assinatura · /assinaturas · /assinaturarm\n\n"
             "✅ Hábitos\n"
@@ -132,8 +134,8 @@ class Commands:
             "   /diario · /diariorm\n\n"
             "📊 Resumos & Automação\n"
             "   /semana · /insights · /vigiar · /vigias · /vigiarm\n\n"
-            "🔎 Web & Clima\n"
-            "   /buscar · /clima\n\n"
+            "🔎 Web, Notícias & Clima\n"
+            "   /buscar · /noticias · /clima\n\n"
             "📅 Google\n"
             "   /agenda · /evento · /email\n"
             "━━━━━━━━━━━━━━━━━━\n"
@@ -181,6 +183,37 @@ class Commands:
             first += step
         rid = self._memory.add_reminder(user_id, text, first.isoformat(), recur)
         return f"Rotina #{rid} criada ({label} às {tokens[1]}): {text}"
+
+    _WEEKDAYS_PT = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"]
+
+    def calendario(self, user_id: str) -> str:
+        """Agenda view: reminders grouped by day (+ Google Calendar if connected)."""
+        dated = []
+        for r in self._memory.open_reminders(user_id):
+            if r["when_iso"]:
+                try:
+                    dated.append((datetime.fromisoformat(r["when_iso"]), r))
+                except Exception:
+                    pass
+        dated.sort(key=lambda x: x[0])
+        lines = ["📅 Sua agenda"]
+        if not dated:
+            lines.append("Nada agendado. Crie com /lembrete ou /rotina.")
+        else:
+            current = None
+            for dt, r in dated:
+                day = f"{dt.strftime('%d/%m')} ({self._WEEKDAYS_PT[dt.weekday()]})"
+                if day != current:
+                    current = day
+                    lines.append(f"\n📌 {day}")
+                recur = " 🔁" if (r.get("recur")) else ""
+                lines.append(f"  {dt.strftime('%H:%M')} — {r['text']}{recur}")
+        if self._config.google_authorized():
+            lines.append("\n📆 Google Agenda:")
+            lines.append(
+                tools_mod.calendar_upcoming(self._config, self._config.default_account, 5)
+            )
+        return "\n".join(lines)
 
     def cancelar(self, user_id: str, argstr: str) -> str:
         arg = argstr.strip()
@@ -254,6 +287,18 @@ class Commands:
             brave_key=getattr(self._config, "brave_api_key", ""),
             tavily_key=getattr(self._config, "tavily_api_key", ""),
         )
+
+    def noticias(self, argstr: str = "") -> str:
+        topic = argstr.strip() or getattr(self._config, "news_topic", "") or "Brasil"
+        out = tools_mod.news(
+            topic, tavily_key=getattr(self._config, "tavily_api_key", "")
+        )
+        parts = [f"📰 Notícias — {topic}:", out]
+        tab = tools_mod.tabnews(5)
+        if tab:
+            parts.append("\n💻 TabNews (tech):")
+            parts.append(tab)
+        return "\n".join(parts)
 
     def clima(self, argstr: str) -> str:
         city = argstr.strip() or getattr(self._config, "city", "")
@@ -638,7 +683,17 @@ class Commands:
             parts.append(tools_mod.weather(self._config.city))
         if self._config.news_topic:
             parts.append("\nNotícias:")
-            parts.append(tools_mod.news(self._config.news_topic))
+            parts.append(
+                tools_mod.news(
+                    self._config.news_topic,
+                    max_results=3,
+                    tavily_key=getattr(self._config, "tavily_api_key", ""),
+                )
+            )
+            tab = tools_mod.tabnews(3)
+            if tab:
+                parts.append("\nTabNews (tech):")
+                parts.append(tab)
         return "\n".join(parts)
 
     # --- links (named, categorized) ----------------------------------------

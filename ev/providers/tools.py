@@ -207,8 +207,55 @@ def fetch_text(url: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
-def news(topic: str, max_results: int = 4) -> str:
-    """Recent news headlines about `topic` (DuckDuckGo, no key)."""
+def tabnews(max_results: int = 5) -> str:
+    """Top posts from TabNews (Brazilian tech/dev community), with links."""
+    import httpx
+
+    try:
+        resp = httpx.get(
+            "https://www.tabnews.com.br/api/v1/contents",
+            params={"strategy": "relevant", "per_page": max_results},
+            headers={"User-Agent": "E.V. assistant"},
+            timeout=15,
+        )
+        resp.raise_for_status()
+        items = resp.json()
+    except Exception as exc:
+        log.warning("tabnews failed (%s)", exc)
+        return ""
+    lines = []
+    for it in items[:max_results]:
+        title, owner, slug = it.get("title"), it.get("owner_username"), it.get("slug")
+        if title and owner and slug:
+            lines.append(f"- {title}\n  https://www.tabnews.com.br/{owner}/{slug}")
+    return "\n".join(lines)
+
+
+def news(topic: str, max_results: int = 4, tavily_key: str = "") -> str:
+    """Recent news headlines about `topic`, WITH source links. Prefers Tavily
+    (fresh, last few days) when a key is set; otherwise DuckDuckGo news."""
+    if tavily_key:
+        try:
+            import httpx
+
+            resp = httpx.post(
+                "https://api.tavily.com/search",
+                json={
+                    "query": f"últimas notícias sobre {topic}",
+                    "topic": "news", "days": 3, "max_results": max_results,
+                },
+                headers={"Authorization": f"Bearer {tavily_key}"},
+                timeout=20,
+            )
+            resp.raise_for_status()
+            results = resp.json().get("results", [])
+            if results:
+                return "\n".join(
+                    f"- {r.get('title', '')}\n  {r.get('url', '')}"
+                    for r in results[:max_results]
+                )
+        except Exception as exc:
+            log.warning("tavily news failed (%s); trying DuckDuckGo", exc)
     try:
         try:
             from ddgs import DDGS
@@ -221,7 +268,9 @@ def news(topic: str, max_results: int = 4) -> str:
         return f"não consegui as notícias agora ({exc})"
     if not items:
         return "sem notícias relevantes agora."
-    return "\n".join(f"- {i.get('title', '')}" for i in items)
+    return "\n".join(
+        f"- {i.get('title', '')}\n  {i.get('url', '')}" for i in items
+    )
 
 
 def tavily_search(query: str, api_key: str, max_results: int = 5) -> str:

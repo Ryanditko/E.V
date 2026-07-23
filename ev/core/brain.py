@@ -262,11 +262,21 @@ class Brain:
             """
             return tools_mod.weather_forecast(cidade or cfg.city or "São Paulo")
 
+        def consultar_noticias(assunto: str) -> str:
+            """Busca as notícias mais recentes (últimos dias) sobre um assunto.
+            Use isto sempre que perguntarem sobre notícias/atualidades.
+
+            Args:
+                assunto: tema das notícias (ex: tecnologia, Brasil, futebol).
+            """
+            return tools_mod.news(assunto or cfg.news_topic or "Brasil", tavily_key=cfg.tavily_api_key)
+
         callables: dict = {
             "salvar_memoria": salvar_memoria,
             "criar_lembrete": criar_lembrete,
             "listar_lembretes": listar_lembretes,
             "consultar_clima": consultar_clima,
+            "consultar_noticias": consultar_noticias,
         }
 
         if cfg.websearch_enabled:
@@ -356,6 +366,12 @@ class Brain:
                 "Consulta a previsão do tempo real (hoje/próximos dias) de uma cidade.",
                 {"cidade": {"type": s, "description": "nome da cidade"}},
                 ["cidade"],
+            ),
+            fn(
+                "consultar_noticias",
+                "Busca notícias recentes (últimos dias) sobre um assunto.",
+                {"assunto": {"type": s, "description": "tema das notícias"}},
+                ["assunto"],
             ),
         ]
         if cfg.websearch_enabled:

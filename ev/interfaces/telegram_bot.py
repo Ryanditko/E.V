@@ -191,6 +191,15 @@ class TelegramInterface:
         if self._authorized(update):
             await self._cmd_out(update, self._commands.clima(self._args(c)))
 
+    async def cmd_noticias(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
+        if self._authorized(update):
+            await self._cmd_out(update, self._commands.noticias(self._args(c)))
+
+    async def cmd_calendario(self, update: Update, _c: ContextTypes.DEFAULT_TYPE) -> None:
+        if self._authorized(update):
+            uid = str(update.effective_user.id)
+            await self._cmd_out(update, self._commands.calendario(uid))
+
     async def cmd_gasto(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
         if self._authorized(update):
             uid = str(update.effective_user.id)
@@ -1094,6 +1103,8 @@ class TelegramInterface:
         app.add_handler(CommandHandler("concluir", self.cmd_concluir))
         app.add_handler(CommandHandler("buscar", self.cmd_buscar))
         app.add_handler(CommandHandler("clima", self.cmd_clima))
+        app.add_handler(CommandHandler("noticias", self.cmd_noticias))
+        app.add_handler(CommandHandler("calendario", self.cmd_calendario))
         app.add_handler(CommandHandler("gasto", self.cmd_gasto))
         app.add_handler(CommandHandler("gastos", self.cmd_gastos))
         app.add_handler(CommandHandler("habito", self.cmd_habito))
