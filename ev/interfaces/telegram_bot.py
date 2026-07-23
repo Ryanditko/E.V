@@ -94,7 +94,7 @@ class TelegramInterface:
                 "Se você é o dono, coloque-o em EV_OWNER_ID no .env."
             )
             return
-        await update.message.reply_text(f"E.V. online, chefe. (seu ID: {uid})")
+        await update.message.reply_text(f"E.V. online, Ryan. (seu ID: {uid})")
         await update.message.reply_text(
             self._MAIN_TEXT, reply_markup=self._kb_main(), parse_mode="HTML"
         )
