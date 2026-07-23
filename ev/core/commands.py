@@ -93,7 +93,7 @@ class Commands:
 
     def help(self) -> str:
         return (
-            "🕷️ E.V. — comandos rápidos (sem IA)\n"
+            "🕷️ E.V. — comandos rápidos\n"
             "━━━━━━━━━━━━━━━━━━\n"
             "📋 Tarefas\n"
             "   /tarefa · /tarefas · /concluir\n\n"
