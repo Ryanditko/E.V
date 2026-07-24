@@ -259,35 +259,66 @@ class TelegramInterface:
             return max(1, min(cap, int(arg)))
         return None
 
+    _CLEARCHAT_ALL_KW = ("tudo", "todas", "all", "max", "máximo", "maximo")
+
+    async def _delete_range(self, bot, chat_id: int, latest: int, limit: int,
+                            stop_after_fails: int | None = None) -> int:
+        """Delete messages walking down from `latest`. Stops after `limit`
+        attempts, or after `stop_after_fails` consecutive failures (used by
+        'tudo' to stop once it hits the un-deletable/older-than-48h zone)."""
+        deleted = fails = attempts = 0
+        mid = latest
+        while attempts < limit and mid > 0:
+            try:
+                await bot.delete_message(chat_id, mid)
+                deleted += 1
+                fails = 0
+            except Exception:
+                fails += 1
+                if stop_after_fails and fails >= stop_after_fails:
+                    break
+            mid -= 1
+            attempts += 1
+        return deleted
+
+    def _clearchat_note(self, deleted: int, capped: bool) -> str:
+        msg = f"🧽 Apaguei {deleted} mensagem(ns) do chat."
+        if capped:
+            msg += " O Telegram só deixa apagar as dos últimos ~2 dias."
+        msg += ("\n\n(Some só com as bolhas; memória/lembretes seguem intactos. "
+                "Pra apagar o que a E.V. lembra: /limpar ou /dados.)")
+        return msg
+
     async def cmd_limparchat(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
-        """Delete the last N visible messages from the Telegram chat itself."""
+        """Delete the last N (or all possible) visible messages from the chat."""
         if not self._authorized(update):
             return
-        n = self._parse_count(self._args(c))
+        arg = self._args(c).strip().lower()
+        if arg in self._CLEARCHAT_ALL_KW:
+            b = InlineKeyboardButton
+            await update.message.reply_text(
+                "Apagar TODAS as bolhas possíveis do chat (limite do Telegram: "
+                "últimos ~2 dias)? Sua memória e seus dados NÃO são afetados.",
+                reply_markup=InlineKeyboardMarkup([
+                    [b("🧽 Sim, apagar o máximo", callback_data="clearchat:all")],
+                    [b("✖️ Cancelar", callback_data="nav:main")],
+                ]),
+            )
+            return
+        n = self._parse_count(arg)
         if n is None:
             await update.message.reply_text(
-                "Uso: /limparchat <número>. Ex: /limparchat 10 apaga as últimas 10 "
-                "mensagens do chat (máx. 100)."
+                "Uso: /limparchat <número> ou /limparchat tudo.\n"
+                "Ex: /limparchat 10 (últimas 10 bolhas, máx. 100) · "
+                "/limparchat tudo (o máximo possível)."
             )
             return
         chat_id = update.effective_chat.id
-        latest = update.message.message_id
-        deleted = 0
-        # Telegram IDs are ~sequential per chat; walk down from the newest and
-        # delete each, skipping gaps/older-than-48h/not-permitted silently.
-        for mid in range(latest, max(0, latest - n), -1):
-            try:
-                await c.bot.delete_message(chat_id, mid)
-                deleted += 1
-            except Exception:
-                pass
-        msg = f"🧽 Apaguei {deleted} mensagem(ns) do chat."
-        if deleted < n:
-            msg += (" Algumas não deu — o Telegram só permite apagar mensagens "
-                    "dos últimos ~2 dias.")
-        msg += "\n\n(Isso some com as bolhas aqui; sua memória/lembretes seguem intactos. "
-        msg += "Para apagar o que a E.V. lembra, use /limpar ou /dados.)"
-        await c.bot.send_message(chat_id, msg, reply_markup=self._quick_kb())
+        deleted = await self._delete_range(c.bot, chat_id, update.message.message_id, n)
+        await c.bot.send_message(
+            chat_id, self._clearchat_note(deleted, capped=deleted < n),
+            reply_markup=self._quick_kb(),
+        )
 
     async def _handle_data(self, q, uid: str, action: str) -> None:
         op, _, key = action.partition(":")
@@ -1155,6 +1186,18 @@ class TelegramInterface:
             return
         if section == "data":
             await self._handle_data(q, uid, action)
+            return
+        if section == "clearchat" and action == "all":
+            await q.answer("Apagando o máximo...")
+            bot = q.get_bot()
+            chat_id = q.message.chat_id
+            deleted = await self._delete_range(
+                bot, chat_id, q.message.message_id, limit=2000, stop_after_fails=40
+            )
+            await bot.send_message(
+                chat_id, self._clearchat_note(deleted, capped=True),
+                reply_markup=self._quick_kb(),
+            )
             return
         if section == "fileact":
             await self._handle_fileact(q, uid, action)
