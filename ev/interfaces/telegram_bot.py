@@ -621,24 +621,26 @@ class TelegramInterface:
         self._pomo = None
         return running
 
-    def _pomo_kb(self) -> InlineKeyboardMarkup:
+    def _pomo_kb(self, paused: bool = False) -> InlineKeyboardMarkup:
         b = InlineKeyboardButton
-        return InlineKeyboardMarkup([[
-            b("⏹️ Parar", callback_data="pomo:stop"),
-            b("➕5min", callback_data="pomo:add"),
-            b("➖5min", callback_data="pomo:sub"),
-        ]])
+        toggle = (b("▶️ Retomar", callback_data="pomo:pause") if paused
+                  else b("⏸️ Pausar", callback_data="pomo:pause"))
+        return InlineKeyboardMarkup([
+            [b("⏹️ Parar", callback_data="pomo:stop"), toggle],
+            [b("➕5min", callback_data="pomo:add"), b("➖5min", callback_data="pomo:sub")],
+        ])
 
     @staticmethod
-    def _focus_card(title: str, remaining: int, total: int) -> str:
-        """A live progress card: title + bar + mm:ss remaining."""
+    def _focus_card(title: str, remaining: int, total: int, paused: bool = False) -> str:
+        """A live progress card: title + bar + mm:ss remaining (or paused)."""
         remaining = max(0, int(remaining))
         frac = 1.0 if total <= 0 else (total - remaining) / total
         frac = max(0.0, min(1.0, frac))  # clamp (remaining may exceed total after +5)
         blocks = max(0, min(10, int(round(frac * 10))))
         bar = "▰" * blocks + "▱" * (10 - blocks)
         m, s = divmod(remaining, 60)
-        return f"{title}\n{bar}  {int(frac * 100)}%\n⏳ {m:02d}:{s:02d} restantes"
+        tail = f"⏸️ pausado — {m:02d}:{s:02d}" if paused else f"⏳ {m:02d}:{s:02d} restantes"
+        return f"{title}\n{bar}  {int(frac * 100)}%\n{tail}"
 
     async def _run_phase(self, bot, chat_id: int, state: dict, interval: int = 10) -> None:
         """Count down `state['remaining']`, editing the card. Reads state live so
@@ -648,6 +650,8 @@ class TelegramInterface:
             await asyncio.sleep(step)
             if state["cancelled"]:
                 break
+            if state["paused"]:
+                continue  # frozen: don't decrement (handler renders the paused card)
             state["remaining"] -= step
             try:
                 await bot.edit_message_text(
@@ -661,7 +665,8 @@ class TelegramInterface:
     async def _pomodoro(self, bot, chat_id: int, focus: int, brk: int, label: str) -> None:
         lbl = f" — {label}" if label else ""
         state = {
-            "cancelled": False, "remaining": focus * 60, "total": focus * 60,
+            "cancelled": False, "paused": False,
+            "remaining": focus * 60, "total": focus * 60,
             "title": f"🍅 Foco{lbl}", "phase": "focus", "message_id": None,
         }
         self._pomo = state
@@ -685,7 +690,7 @@ class TelegramInterface:
                 reply_markup=self._pomo_kb(),
             )
             state.update(remaining=brk * 60, total=brk * 60, title="☕ Pausa",
-                         phase="break", message_id=pause.message_id)
+                         phase="break", message_id=pause.message_id, paused=False)
             await self._run_phase(bot, chat_id, state)
             if state["cancelled"]:
                 return
@@ -721,10 +726,15 @@ class TelegramInterface:
         elif action == "sub":
             state["remaining"] = max(10, state["remaining"] - 300)
             await q.answer("➖ 5 minutos")
+        elif action == "pause":
+            state["paused"] = not state["paused"]
+            await q.answer("⏸️ Pausado" if state["paused"] else "▶️ Retomado")
         try:
             await q.edit_message_text(
-                self._focus_card(state["title"], state["remaining"], state["total"]),
-                reply_markup=self._pomo_kb(),
+                self._focus_card(
+                    state["title"], state["remaining"], state["total"], state["paused"]
+                ),
+                reply_markup=self._pomo_kb(state["paused"]),
             )
         except Exception:
             pass

@@ -65,7 +65,7 @@ She is **locked to you** (owner-only) and replies with a natural female voice.
 | `/dados` | Storage control: see counts per category and wipe by category (tap-confirm) or **everything** (two-factor: tap + type `APAGAR TUDO`) |
 | `/limpar` | Clear the conversation history in her memory (keeps reminders, facts, everything else) |
 | `/limparchat <N>` · `/limparchat tudo` | Delete the last N (or as many as possible) visible message bubbles from the Telegram chat (only ~last 48h, Telegram limit) |
-| `/foco [min] [pausa]` | Pomodoro timer (default 25/5) with a **live countdown** (bar + mm:ss, ~10s updates). Buttons on the card: **⏹️ Parar · ➕5min · ➖5min** (adjust while running). Also `/foco parar`. A new `/foco` replaces the running one |
+| `/foco [min] [pausa]` | Pomodoro timer (default 25/5) with a **live countdown** (bar + mm:ss, ~10s updates). Buttons on the card: **⏹️ Parar · ⏸️ Pausar/▶️ Retomar · ➕5min · ➖5min** (control while running). Also `/foco parar`. A new `/foco` replaces the running one |
 | `/resumir <url>` | Fetch a page/article and return a short summary (with a save-to-KB button) |
 
 ### Tasks
