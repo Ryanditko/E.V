@@ -50,6 +50,10 @@ She is **locked to you** (owner-only) and replies with a natural female voice.
 | `/menu` | Open the interactive button menu |
 | `/ajuda` | List all commands |
 | `/modelo` | Show AI models + today's usage; `/modelo <nome>` switches the primary model |
+| `/status` | Diagnostics: uptime, DB, disk/memory, which API keys are set — plus a button to live-test the keys |
+| `/silenciar <2h\|30m\|1d\|off>` | Do-not-disturb: mute proactive pings (briefing, check-in, nudges); reminders still fire |
+| `/foco [min] [pausa]` | Pomodoro focus timer (default 25/5) — she pings you at break and end |
+| `/resumir <url>` | Fetch a page/article and return a short summary (with a save-to-KB button) |
 
 ### Tasks
 | Command | Does |
@@ -66,6 +70,8 @@ She is **locked to you** (owner-only) and replies with a natural female voice.
 | `/rotina mensal <dia> <HH:MM> <texto>` | Monthly reminder (e.g. `mensal 5 10:00 pagar aluguel`) |
 | `/lembretes` | List reminders |
 | `/cancelar <id>` | Cancel a reminder |
+
+When a reminder fires it comes with quick buttons: **✅ Feito · ⏰ +10min · ⏰ +1h · 🌙 Amanhã** (snooze creates a fresh reminder).
 | `/calendario` | Agenda view by day (+ Google Calendar if connected) |
 
 ### Memory

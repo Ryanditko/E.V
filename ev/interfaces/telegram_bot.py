@@ -38,7 +38,7 @@ from telegram.ext import (
 )
 
 from ..config import Config
-from ..core import knowledge
+from ..core import health, knowledge
 from ..core.brain import Brain
 from ..core.timeparse import add_months
 from ..core.commands import COMMAND_LIST, Commands
@@ -66,7 +66,10 @@ class TelegramInterface:
         self._pending_files: dict[str, tuple[str, str]] = {}
         # short id -> (image_bytes, mime) for photo OCR
         self._pending_images: dict[str, tuple[bytes, str]] = {}
+        # short id -> reminder text, for the snooze/done buttons on a fired reminder
+        self._pending_rem: dict[str, str] = {}
         self._doc_seq = 0
+        self._started_at = datetime.now(timezone.utc)  # for /status uptime
         self._last_briefing: str | None = None  # date of the last daily briefing
         self._last_checkin: str | None = None    # date of the last proactive check-in
         self._last_weekly: str | None = None     # date of the last weekly review
@@ -180,6 +183,208 @@ class TelegramInterface:
             "bytes": data, "filename": filename, "title": "Transcrição",
             "content": text, "saved_kb": False,
         })
+
+    # --- /status : diagnostics ---------------------------------------------
+
+    def _uptime_str(self) -> str:
+        secs = int((datetime.now(timezone.utc) - self._started_at).total_seconds())
+        d, secs = divmod(secs, 86400)
+        h, secs = divmod(secs, 3600)
+        m = secs // 60
+        parts = [f"{d}d" if d else "", f"{h}h" if h else "", f"{m}min"]
+        return " ".join(p for p in parts if p) or "agora"
+
+    async def cmd_status(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
+        if not self._authorized(update):
+            return
+        arg = self._args(c).strip().lower()
+        if arg in ("chaves", "teste", "testar", "full", "ping"):
+            await self._status_live(update.message)
+            return
+        rep = await asyncio.to_thread(health.system_report, self._config, self._memory)
+        keys = health.keys_status(self._config)
+        alive = sum(1 for t in self._bg_tasks if not t.done())
+        y, n = "🟢", "🔴"
+        lines = ["🩺 <b>Status da E.V.</b>", ""]
+        lines.append(f"• Online há: <b>{self._uptime_str()}</b>")
+        lines.append(f"• Agendadores ativos: {alive}/{len(self._bg_tasks)} {'🟢' if alive else '🔴'}")
+        db = y if rep.get("db_query_ok") else n
+        lines.append(f"• Banco de dados: {db} ({rep.get('db_size_mb', 0)} MB)")
+        if "disk_used_pct" in rep:
+            d = rep["disk_used_pct"]
+            lines.append(f"• Disco: {d}% usado · {rep.get('disk_free_gb','?')} GB livres "
+                         f"{'🟢' if d < 85 else '🟡' if d < 95 else '🔴'}")
+        if "mem_used_pct" in rep:
+            mm = rep["mem_used_pct"]
+            lines.append(f"• Memória: {mm}% ({rep.get('mem_used_mb','?')}/{rep.get('mem_total_mb','?')} MB) "
+                         f"{'🟢' if mm < 85 else '🟡' if mm < 95 else '🔴'}")
+        if "load1" in rep:
+            lines.append(f"• Carga (1min): {rep['load1']}")
+        q = self._quiet_status_line()
+        if q:
+            lines.append(f"• {q}")
+        lines.append("\n🔑 <b>Chaves / integrações</b> (configuradas):")
+        for k in keys:
+            mark = y if k["ok"] else ("⚪" if k["note"] in ("opcional", "desligado") else n)
+            note = f" — <i>{html.escape(k['note'])}</i>" if k["note"] else ""
+            lines.append(f"• {mark} {html.escape(k['name'])}{note}")
+        lines.append("\n<i>Isso mostra o que está configurado. Para testar as chaves "
+                     "ao vivo (faz uma chamada real), toque abaixo.</i>")
+        b = InlineKeyboardButton
+        kb = InlineKeyboardMarkup([[b("🔌 Testar chaves ao vivo", callback_data="status:live")]])
+        await update.message.reply_text("\n".join(lines), parse_mode="HTML", reply_markup=kb)
+
+    async def _status_live(self, message) -> None:
+        await message.reply_text("🔌 Testando os provedores ao vivo (pode levar alguns segundos)...")
+        results = await self._brain.health_check()
+        lines = ["🔌 <b>Teste ao vivo dos provedores</b>", ""]
+        for r in results:
+            mark = "🟢" if r["ok"] else "🔴"
+            note = f" — <i>{html.escape(r['note'])}</i>" if r.get("note") else ""
+            lines.append(f"• {mark} {html.escape(r['name'])}{note}")
+        if not results:
+            lines.append("Nenhum provedor configurado para testar.")
+        await self._send(message, "\n".join(lines), self._quick_kb())
+
+    # --- /silenciar : do-not-disturb ---------------------------------------
+
+    def _is_quiet(self) -> bool:
+        until = self._memory.get_setting("quiet_until")
+        if not until:
+            return False
+        try:
+            return datetime.now(timezone.utc) < datetime.fromisoformat(until)
+        except Exception:
+            return False
+
+    def _quiet_status_line(self) -> str | None:
+        until = self._memory.get_setting("quiet_until")
+        if not until:
+            return None
+        try:
+            dt = datetime.fromisoformat(until)
+        except Exception:
+            return None
+        if datetime.now(timezone.utc) >= dt:
+            return None
+        local = dt.astimezone(self._tz()) if self._tz() else dt
+        return f"🔕 Não perturbe até {local.strftime('%d/%m %H:%M')}"
+
+    async def cmd_silenciar(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
+        if not self._authorized(update):
+            return
+        arg = self._args(c).strip().lower()
+        if not arg:
+            line = self._quiet_status_line()
+            await update.message.reply_text(
+                (line + "\nPara ligar avisos: /silenciar off") if line else
+                "🔔 Avisos automáticos ativos.\nSilenciar: /silenciar 2h (ou 30m, 1d). "
+                "Desligar: /silenciar off"
+            )
+            return
+        if arg in ("off", "0", "fim", "desligar", "ligar"):
+            self._memory.set_setting("quiet_until", "")
+            await update.message.reply_text("🔔 Avisos automáticos religados.")
+            return
+        secs = self._parse_duration(arg)
+        if not secs:
+            await update.message.reply_text("Não entendi. Use /silenciar 2h, 30m ou 1d.")
+            return
+        until = datetime.now(timezone.utc) + timedelta(seconds=secs)
+        self._memory.set_setting("quiet_until", until.isoformat())
+        local = until.astimezone(self._tz()) if self._tz() else until
+        await update.message.reply_text(
+            f"🔕 Ok, não te aviso automaticamente até {local.strftime('%d/%m %H:%M')}. "
+            "(Lembretes que você marcou continuam chegando.)"
+        )
+
+    @staticmethod
+    def _parse_duration(s: str) -> int | None:
+        m = re.match(r"^(\d+)\s*(m|min|h|hora|horas|d|dia|dias)$", s)
+        if not m:
+            return None
+        n, unit = int(m.group(1)), m.group(2)
+        if unit.startswith("m"):
+            return n * 60
+        if unit.startswith("h"):
+            return n * 3600
+        return n * 86400
+
+    # --- /resumir : summarize a link ---------------------------------------
+
+    async def cmd_resumir(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
+        if not self._authorized(update):
+            return
+        await self._summarize_url(update.message, self._args(c).strip())
+
+    async def _summarize_url(self, message, url: str) -> None:
+        if not url.lower().startswith("http"):
+            await self._send(message, "Uso: /resumir <url>. Ex: /resumir https://...", self._quick_kb())
+            return
+        await message.reply_text("🌐 Lendo a página e resumindo...")
+        try:
+            text = await asyncio.to_thread(tools_mod.fetch_text, url)
+        except Exception as exc:
+            await self._send(message, f"Não consegui abrir essa página ({exc}).", self._quick_kb())
+            return
+        if not text or len(text.strip()) < 80:
+            await self._send(message, "Não achei texto útil nessa página.", self._quick_kb())
+            return
+        summary = await self._brain.ask(
+            "Você é a E.V. Resuma o artigo em português: um parágrafo curto de contexto "
+            "e depois 3 a 6 bullets com os pontos principais. Seja fiel ao texto.",
+            f"Conteúdo de {url}:\n\n{text[:12000]}",
+        )
+        if not summary:
+            await self._send(message, "Não consegui resumir agora, tenta de novo?", self._quick_kb())
+            return
+        did = self._stash_doc(f"Resumo — {url[:60]}", summary)
+        b = InlineKeyboardButton
+        kb = InlineKeyboardMarkup([[b("📚 Salvar na base", callback_data=f"docsave:{did}")]])
+        parts = self._split(f"📰 Resumo\n\n{summary}")
+        for i, part in enumerate(parts):
+            await message.reply_text(part, reply_markup=kb if i == len(parts) - 1 else None)
+
+    # --- /foco : Pomodoro focus timer --------------------------------------
+
+    async def cmd_foco(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
+        if not self._authorized(update):
+            return
+        tokens = self._args(c).split()
+        focus, brk = 25, 5
+        nums = [t for t in tokens if t.isdigit()]
+        if len(nums) >= 1:
+            focus = max(1, min(180, int(nums[0])))
+        if len(nums) >= 2:
+            brk = max(1, min(60, int(nums[1])))
+        label = " ".join(t for t in tokens if not t.isdigit()).strip()
+        chat_id = update.effective_chat.id
+        bot = update.get_bot()
+        await update.message.reply_text(
+            f"🍅 Foco iniciado: {focus}min" + (f" — {label}" if label else "") +
+            f"\nTe aviso quando for a pausa de {brk}min. Bons estudos! 📚"
+        )
+        self._bg_tasks = [t for t in self._bg_tasks if not t.done()]  # drop finished
+        task = asyncio.create_task(self._pomodoro(bot, chat_id, focus, brk, label))
+        self._bg_tasks.append(task)
+
+    async def _pomodoro(self, bot, chat_id: int, focus: int, brk: int, label: str) -> None:
+        try:
+            await asyncio.sleep(focus * 60)
+            await bot.send_message(
+                chat_id,
+                f"⏳ Foco concluído{(' — ' + label) if label else ''}! "
+                f"Hora da pausa de {brk}min. Levanta, respira, bebe água. 💧",
+            )
+            await asyncio.sleep(brk * 60)
+            await bot.send_message(
+                chat_id,
+                "▶️ Fim da pausa! Bora pro próximo ciclo? Manda /foco de novo. 🍅",
+            )
+        except asyncio.CancelledError:
+            pass
+        except Exception:
+            log.exception("Pomodoro failed")
 
     async def cmd_transcrever(self, update: Update, _c: ContextTypes.DEFAULT_TYPE) -> None:
         if not self._authorized(update):
@@ -790,6 +995,21 @@ class TelegramInterface:
         if section == "docsave":
             await self._save_doc_to_kb(q, uid, action)
             return
+        if section == "remdone":
+            self._pending_rem.pop(action, None)
+            await q.answer("Feito! ✅")
+            try:
+                await q.edit_message_reply_markup(reply_markup=None)
+            except Exception:
+                pass
+            return
+        if section == "remsnooze":
+            await self._snooze_reminder(q, uid, action)
+            return
+        if section == "status" and action == "live":
+            await q.answer("Testando...")
+            await self._status_live(q.message)
+            return
         if section == "fileact":
             await self._handle_fileact(q, uid, action)
             return
@@ -1197,13 +1417,14 @@ class TelegramInterface:
     async def _briefing_loop(self, app: Application) -> None:
         while True:
             try:
-                await self._maybe_send_briefing(app)
-                await self._maybe_send_checkin(app)
-                await self._maybe_send_weekly(app)
-                await self._maybe_send_rain(app)
-                await self._maybe_run_recurring(app)
-                await self._maybe_habit_nudge(app)
-                await self._maybe_monthly_report(app)
+                await self._maybe_run_recurring(app)  # bookkeeping — runs even when muted
+                if not self._is_quiet():  # /silenciar mutes proactive pings
+                    await self._maybe_send_briefing(app)
+                    await self._maybe_send_checkin(app)
+                    await self._maybe_send_weekly(app)
+                    await self._maybe_send_rain(app)
+                    await self._maybe_habit_nudge(app)
+                    await self._maybe_monthly_report(app)
             except Exception:
                 log.exception("Briefing loop error")
             await asyncio.sleep(60)
@@ -1406,14 +1627,49 @@ class TelegramInterface:
                 continue  # unparseable time — skip (leave it pending)
             if due <= now:
                 try:
+                    sid = self._stash(self._pending_rem, r["text"])
                     await self._bot_send(
                         app.bot, int(r["user_id"]),
-                        f"Lembrete: {r['text']}", self._quick_kb(),
+                        f"⏰ Lembrete: {r['text']}", self._reminder_kb(sid),
                     )
                     self._advance_reminder(r, due, now)
                     log.info("Delivered reminder #%s", r["id"])
                 except Exception:
                     log.exception("Failed to deliver reminder #%s", r["id"])
+
+    def _reminder_kb(self, sid: str) -> InlineKeyboardMarkup:
+        b = InlineKeyboardButton
+        return InlineKeyboardMarkup([
+            [b("✅ Feito", callback_data=f"remdone:{sid}")],
+            [b("⏰ +10min", callback_data=f"remsnooze:10:{sid}"),
+             b("⏰ +1h", callback_data=f"remsnooze:60:{sid}"),
+             b("🌙 Amanhã", callback_data=f"remsnooze:tom:{sid}")],
+        ])
+
+    async def _snooze_reminder(self, q, uid: str, action: str) -> None:
+        what, _, sid = action.partition(":")
+        text = self._pending_rem.get(sid)
+        if text is None:
+            await q.answer("Esse lembrete expirou. Cria um novo com /lembrete.", show_alert=True)
+            return
+        now = datetime.now(self._tz())
+        if what == "tom":
+            nxt = (now + timedelta(days=1)).replace(hour=9, minute=0, second=0, microsecond=0)
+            label = nxt.strftime("%d/%m às %H:%M")
+        else:
+            mins = int(what)
+            nxt = now + timedelta(minutes=mins)
+            label = f"em {mins}min"
+        self._memory.add_reminder(uid, text, nxt.isoformat())
+        self._pending_rem.pop(sid, None)
+        await q.answer("Adiado ⏰")
+        try:
+            await q.edit_message_reply_markup(reply_markup=None)
+        except Exception:
+            pass
+        await q.message.reply_text(
+            f"⏰ Ok, te lembro de novo {label}: {text}", reply_markup=self._quick_kb()
+        )
 
     def _advance_reminder(self, r: dict, due: datetime, now: datetime) -> None:
         """Recurring -> schedule the next future occurrence; one-off -> mark done."""
@@ -1509,6 +1765,10 @@ class TelegramInterface:
         app.add_handler(CommandHandler("documento", self.cmd_documento))
         app.add_handler(CommandHandler("exportar", self.cmd_exportar))
         app.add_handler(CommandHandler("transcrever", self.cmd_transcrever))
+        app.add_handler(CommandHandler("status", self.cmd_status))
+        app.add_handler(CommandHandler("silenciar", self.cmd_silenciar))
+        app.add_handler(CommandHandler("resumir", self.cmd_resumir))
+        app.add_handler(CommandHandler("foco", self.cmd_foco))
         app.add_handler(CommandHandler("agenda", self.cmd_agenda))
         app.add_handler(CommandHandler("evento", self.cmd_evento))
         app.add_handler(CommandHandler("email", self.cmd_email))

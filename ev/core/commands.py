@@ -26,6 +26,10 @@ from .timeparse import add_months, parse_when
 COMMAND_LIST = [
     ("menu", "Abre o menu interativo com botões"),
     ("ajuda", "Lista os comandos disponíveis"),
+    ("status", "Diagnóstico: VM, banco, chaves de API"),
+    ("silenciar", "Não perturbe: /silenciar 2h (ou off)"),
+    ("resumir", "Resumir um link: /resumir https://..."),
+    ("foco", "Timer de foco/Pomodoro: /foco 25 5"),
     ("lembrete", "Criar lembrete: /lembrete 10m tomar água"),
     ("rotina", "Recorrente: /rotina diario|semanal|mensal [dia] HH:MM texto"),
     ("lembretes", "Listar seus lembretes"),
@@ -117,7 +121,9 @@ class Commands:
             "🕷️ E.V. — todos os comandos\n"
             "━━━━━━━━━━━━━━━━━━\n"
             "🏠 Geral\n"
-            "   /menu · /ajuda · /modelo\n\n"
+            "   /menu · /ajuda · /modelo · /status · /silenciar\n\n"
+            "🎯 Foco & Web\n"
+            "   /foco (pomodoro) · /resumir (link)\n\n"
             "📋 Tarefas\n"
             "   /tarefa · /tarefas · /concluir\n\n"
             "⏰ Lembretes & Agenda\n"
