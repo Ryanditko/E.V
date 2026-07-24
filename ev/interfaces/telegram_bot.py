@@ -70,6 +70,7 @@ class TelegramInterface:
         self._pending_rem: dict[str, str] = {}
         self._doc_seq = 0
         self._started_at = datetime.now(timezone.utc)  # for /status uptime
+        self._pomodoro_task = None  # the current live focus timer (if any)
         self._last_briefing: str | None = None  # date of the last daily briefing
         self._last_checkin: str | None = None    # date of the last proactive check-in
         self._last_weekly: str | None = None     # date of the last weekly review
@@ -533,29 +534,64 @@ class TelegramInterface:
         label = " ".join(t for t in tokens if not t.isdigit()).strip()
         chat_id = update.effective_chat.id
         bot = update.get_bot()
-        await update.message.reply_text(
-            f"🍅 Foco iniciado: {focus}min" + (f" — {label}" if label else "") +
-            f"\nTe aviso quando for a pausa de {brk}min. Bons estudos! 📚"
-        )
+        # Only one live timer at a time — a new /foco replaces the running one.
+        if self._pomodoro_task and not self._pomodoro_task.done():
+            self._pomodoro_task.cancel()
         self._bg_tasks = [t for t in self._bg_tasks if not t.done()]  # drop finished
-        task = asyncio.create_task(self._pomodoro(bot, chat_id, focus, brk, label))
-        self._bg_tasks.append(task)
+        self._pomodoro_task = asyncio.create_task(
+            self._pomodoro(bot, chat_id, focus, brk, label)
+        )
+        self._bg_tasks.append(self._pomodoro_task)
+
+    @staticmethod
+    def _focus_card(title: str, remaining: int, total: int) -> str:
+        """A live progress card: title + bar + mm:ss remaining."""
+        remaining = max(0, int(remaining))
+        frac = 1.0 if total <= 0 else (total - remaining) / total
+        blocks = max(0, min(10, int(round(frac * 10))))
+        bar = "▰" * blocks + "▱" * (10 - blocks)
+        m, s = divmod(remaining, 60)
+        return f"{title}\n{bar}  {int(frac * 100)}%\n⏳ {m:02d}:{s:02d} restantes"
+
+    async def _countdown(self, bot, chat_id: int, message_id: int, title: str,
+                         total: int, interval: int = 10) -> None:
+        """Edit `message_id` every `interval` seconds with the remaining time."""
+        remaining = total
+        while remaining > 0:
+            step = min(interval, remaining)
+            await asyncio.sleep(step)
+            remaining -= step
+            try:
+                await bot.edit_message_text(
+                    chat_id=chat_id, message_id=message_id,
+                    text=self._focus_card(title, remaining, total),
+                )
+            except Exception:
+                pass  # ignore rate-limit / not-modified; keep counting
 
     async def _pomodoro(self, bot, chat_id: int, focus: int, brk: int, label: str) -> None:
+        lbl = f" — {label}" if label else ""
+        f_secs, b_secs = focus * 60, brk * 60
         try:
-            await asyncio.sleep(focus * 60)
-            await bot.send_message(
-                chat_id,
-                f"⏳ Foco concluído{(' — ' + label) if label else ''}! "
-                f"Hora da pausa de {brk}min. Levanta, respira, bebe água. 💧",
+            card = await bot.send_message(
+                chat_id, self._focus_card(f"🍅 Foco{lbl}", f_secs, f_secs)
             )
-            await asyncio.sleep(brk * 60)
-            await bot.send_message(
-                chat_id,
-                "▶️ Fim da pausa! Bora pro próximo ciclo? Manda /foco de novo. 🍅",
+            await self._countdown(bot, chat_id, card.message_id, f"🍅 Foco{lbl}", f_secs)
+            await bot.edit_message_text(
+                chat_id=chat_id, message_id=card.message_id,
+                text=f"✅ Foco concluído{lbl}! Hora da pausa de {brk}min. "
+                     "Levanta, respira, bebe água. 💧",
+            )
+            pause = await bot.send_message(
+                chat_id, self._focus_card("☕ Pausa", b_secs, b_secs)
+            )
+            await self._countdown(bot, chat_id, pause.message_id, "☕ Pausa", b_secs)
+            await bot.edit_message_text(
+                chat_id=chat_id, message_id=pause.message_id,
+                text="▶️ Fim da pausa! Bora pro próximo ciclo? Manda /foco. 🍅",
             )
         except asyncio.CancelledError:
-            pass
+            pass  # replaced by a new /foco or stopped
         except Exception:
             log.exception("Pomodoro failed")
 

@@ -53,3 +53,12 @@ def test_parse_count():
     assert TelegramInterface._parse_count("999") == 100    # capped
     assert TelegramInterface._parse_count("0") == 1        # floored
     assert TelegramInterface._parse_count("abc") is None
+
+
+def test_focus_card():
+    start = TelegramInterface._focus_card("🍅 Foco", 1500, 1500)
+    assert "25:00 restantes" in start and "0%" in start and "▱" * 10 in start
+    end = TelegramInterface._focus_card("🍅 Foco", 0, 1500)
+    assert "00:00 restantes" in end and "100%" in end and "▰" * 10 in end
+    half = TelegramInterface._focus_card("🍅 Foco", 750, 1500)
+    assert "12:30 restantes" in half and "50%" in half

@@ -30,6 +30,12 @@ She is **locked to you** (owner-only) and replies with a natural female voice.
   ones (semantic search) at the right moment.
 - **Commitment detection:** if you mention a deadline/appointment in chat
   ("tenho prova sexta"), she offers to create a reminder.
+- **Hands-free command execution:** ask her by voice or text to do anything you'd
+  normally type as a command ("anota um gasto de 50 no mercado", "cria uma tarefa",
+  "marca o hábito treino", "esquece a memória 3") and she runs it herself via
+  `executar_comando` — no need to type the slash command. Covers tasks, reminders,
+  expenses, budgets, habits, journal, links, subscriptions, web monitors, search,
+  news, weather, calendar, and deletions.
 - **Real-world tools she calls automatically when useful:**
   - `buscar_web` — current facts, prices, events (Tavily → Brave → DuckDuckGo).
   - `consultar_noticias` — recent news (with sources).
@@ -55,7 +61,7 @@ She is **locked to you** (owner-only) and replies with a natural female voice.
 | `/dados` | Storage control: see counts per category and wipe by category (tap-confirm) or **everything** (two-factor: tap + type `APAGAR TUDO`) |
 | `/limpar` | Clear the conversation history in her memory (keeps reminders, facts, everything else) |
 | `/limparchat <N>` · `/limparchat tudo` | Delete the last N (or as many as possible) visible message bubbles from the Telegram chat (only ~last 48h, Telegram limit) |
-| `/foco [min] [pausa]` | Pomodoro focus timer (default 25/5) — she pings you at break and end |
+| `/foco [min] [pausa]` | Pomodoro timer (default 25/5) with a **live countdown** in the chat (progress bar + mm:ss, updates every ~10s), then break and end. A new `/foco` replaces the running one |
 | `/resumir <url>` | Fetch a page/article and return a short summary (with a save-to-KB button) |
 
 ### Tasks

@@ -57,6 +57,28 @@ def test_clear_all_user_data(tmp_path):
     assert all(s["count"] == 0 for s in m.storage_summary("u"))
 
 
+def test_delete_fact_by_id(tmp_path):
+    # Primitives behind the AI's apagar_memoria tool.
+    m = _mem(tmp_path)
+    m.add_fact("u", "meu id do sistema X é 123")
+    m.add_fact("u", "gosto de café")
+    facts = m.list_facts("u")
+    assert {f["fact"] for f in facts} and all("id" in f for f in facts)
+    target = next(f["id"] for f in facts if "123" in f["fact"])
+    assert m.delete_fact("u", target) is True
+    assert m.delete_fact("u", 99999) is False
+    remaining = [f["fact"] for f in m.list_facts("u")]
+    assert remaining == ["gosto de café"]
+
+
+def test_cancel_reminder_by_id(tmp_path):
+    # Primitive behind the AI's apagar_lembrete tool.
+    m = _mem(tmp_path)
+    rid = m.add_reminder("u", "pagar conta", None)
+    assert m.cancel_reminder("u", rid) is True
+    assert m.cancel_reminder("u", rid) is False
+
+
 def test_unknown_table_rejected(tmp_path):
     m = _mem(tmp_path)
     with pytest.raises(ValueError):

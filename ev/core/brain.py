@@ -34,6 +34,7 @@ from ..config import Config
 from ..personality import SYSTEM_PROMPT
 from ..providers import documents as documents_mod, embeddings, llm as providers, tools as tools_mod
 from . import knowledge
+from .commands import Commands
 from .memory import Memory
 
 log = logging.getLogger("ev.brain")
@@ -51,6 +52,7 @@ class Brain:
         self._client = genai.Client(api_key=config.gemini_api_key)
         self._model = config.model
         self._memory = memory
+        self._commands = Commands(config, memory)  # for the hands-free command tool
         self._last_provider: str | None = None  # which provider answered last
         # Documents the LLM asked to create during the current turn. The interface
         # drains this after respond() and sends each file to the user.
@@ -350,6 +352,57 @@ class Brain:
                 for r in items
             )
 
+        def listar_memorias() -> str:
+            """Lista as memórias/fatos salvos sobre o usuário, com seus IDs.
+            Use ANTES de apagar, para descobrir o ID certo."""
+            items = self._memory.list_facts(user_id)
+            if not items:
+                return "não há memórias salvas"
+            return "; ".join(f"#{f['id']}: {f['fact']}" for f in items)
+
+        def apagar_memoria(id: int) -> str:
+            """Apaga UMA memória/fato do usuário pelo ID. Se o usuário descrever
+            a memória em vez do número, chame listar_memorias primeiro para achar o ID.
+
+            Args:
+                id: o número (ID) da memória a apagar.
+            """
+            facts = {f["id"]: f["fact"] for f in self._memory.list_facts(user_id)}
+            if int(id) not in facts:
+                return f"não encontrei a memória #{id}"
+            self._memory.delete_fact(user_id, int(id))
+            return f"apaguei a memória #{id}: {facts[int(id)]}"
+
+        def apagar_lembrete(id: int) -> str:
+            """Cancela/apaga um lembrete do usuário pelo ID (veja em listar_lembretes).
+
+            Args:
+                id: o número (ID) do lembrete a apagar.
+            """
+            ok = self._memory.cancel_reminder(user_id, int(id))
+            return f"apaguei o lembrete #{id}" if ok else f"não encontrei o lembrete #{id}"
+
+        def executar_comando(comando: str, argumentos: str = "") -> str:
+            """Executa QUALQUER comando da E.V. em nome do usuário — use para fazer
+            hands-free (por voz ou texto) o que ele normalmente faria manualmente:
+            criar/listar/concluir tarefas, gastos, orçamentos, hábitos, diário,
+            links, assinaturas, monitores web, agenda/eventos/e-mail, buscar, etc.
+            Também apaga itens (ex: comando 'esquecer', 'gastorm', 'cancelar').
+
+            Comandos disponíveis: tarefa, tarefas, concluir, lembrete, lembretes,
+            rotina, cancelar, calendario, lembrar, memorias, esquecer, gasto, gastos,
+            gastorm, orcamento, orcamentos, orcamentorm, relatorio, habito, feito,
+            habitos, habitorm, diario, diariorm, link, links, linkrm, procurar,
+            buscar, noticias, clima, kb, kbrm, kbweb, semana, vigiar, vigias,
+            vigiarm, assinatura, assinaturas, assinaturarm, agenda, evento, email.
+
+            Args:
+                comando: o nome do comando (ex: 'gasto', 'tarefa', 'habito').
+                argumentos: os argumentos no mesmo formato do comando
+                    (ex: '50 mercado #casa' para gasto; 'estudar #faculdade' para tarefa).
+            """
+            return self._commands.run(user_id, comando, argumentos)
+
         def consultar_clima(cidade: str) -> str:
             """Consulta a previsão do tempo real (hoje e próximos dias) de uma cidade.
 
@@ -403,9 +456,13 @@ class Brain:
             return f"documento '{filename}' criado{extra}; será enviado ao usuário agora"
 
         callables: dict = {
+            "executar_comando": executar_comando,
             "salvar_memoria": salvar_memoria,
+            "listar_memorias": listar_memorias,
+            "apagar_memoria": apagar_memoria,
             "criar_lembrete": criar_lembrete,
             "listar_lembretes": listar_lembretes,
+            "apagar_lembrete": apagar_lembrete,
             "consultar_clima": consultar_clima,
             "consultar_noticias": consultar_noticias,
             "criar_documento": criar_documento,
@@ -478,6 +535,21 @@ class Brain:
         s = "string"
         schemas = [
             fn(
+                "executar_comando",
+                "Executa QUALQUER comando da E.V. em nome do usuário (hands-free por "
+                "voz/texto): tarefa, tarefas, concluir, lembrete, lembretes, rotina, "
+                "cancelar, calendario, lembrar, memorias, esquecer, gasto, gastos, "
+                "gastorm, orcamento, orcamentos, orcamentorm, relatorio, habito, feito, "
+                "habitos, habitorm, diario, diariorm, link, links, linkrm, procurar, "
+                "buscar, noticias, clima, kb, kbrm, kbweb, semana, vigiar, vigias, "
+                "vigiarm, assinatura, assinaturas, assinaturarm, agenda, evento, email.",
+                {
+                    "comando": {"type": s, "description": "nome do comando, ex: 'gasto'"},
+                    "argumentos": {"type": s, "description": "argumentos no formato do comando"},
+                },
+                ["comando"],
+            ),
+            fn(
                 "salvar_memoria",
                 "Guarda um fato duradouro sobre o usuário.",
                 {"fato": {"type": s, "description": "o fato, em uma frase curta"}},
@@ -492,7 +564,24 @@ class Brain:
                 },
                 ["texto"],
             ),
+            fn(
+                "listar_memorias",
+                "Lista as memórias/fatos salvos sobre o usuário, com IDs. "
+                "Use antes de apagar para achar o ID certo.",
+            ),
+            fn(
+                "apagar_memoria",
+                "Apaga UMA memória/fato do usuário pelo ID.",
+                {"id": {"type": "integer", "description": "ID da memória (de listar_memorias)"}},
+                ["id"],
+            ),
             fn("listar_lembretes", "Lista os lembretes em aberto do usuário."),
+            fn(
+                "apagar_lembrete",
+                "Cancela/apaga um lembrete do usuário pelo ID.",
+                {"id": {"type": "integer", "description": "ID do lembrete (de listar_lembretes)"}},
+                ["id"],
+            ),
             fn(
                 "consultar_clima",
                 "Consulta a previsão do tempo real (hoje/próximos dias) de uma cidade.",

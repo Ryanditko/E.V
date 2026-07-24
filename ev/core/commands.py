@@ -157,6 +157,74 @@ class Commands:
             "💬 Ou toque em /menu pra usar por botões. Também entendo mensagem, áudio, foto e PDF!"
         )
 
+    # --- generic dispatcher (lets the AI run any command hands-free) --------
+
+    def _dispatch(self) -> dict:
+        """name -> callable(user_id, argstr) for every command the AI can run
+        on the user's behalf (voice/text). Interface-only commands (documento,
+        exportar, status, foco, silenciar, limpar*, dados) are handled elsewhere."""
+        return {
+            "tarefa": lambda u, a: self.tarefa(u, a),
+            "tarefas": lambda u, a: self.tarefas(u, a),
+            "concluir": lambda u, a: self.concluir(u, a),
+            "lembrete": lambda u, a: self.lembrete(u, a),
+            "lembretes": lambda u, a: self.lembretes(u),
+            "rotina": lambda u, a: self.rotina(u, a),
+            "cancelar": lambda u, a: self.cancelar(u, a),
+            "calendario": lambda u, a: self.calendario(u),
+            "lembrar": lambda u, a: self.lembrar(u, a),
+            "memorias": lambda u, a: self.memorias(u),
+            "esquecer": lambda u, a: self.esquecer(u, a),
+            "gasto": lambda u, a: self.gasto(u, a),
+            "gastos": lambda u, a: self.gastos(u),
+            "gastorm": lambda u, a: self.gastorm(u, a),
+            "orcamento": lambda u, a: self.orcamento(u, a),
+            "orcamentos": lambda u, a: self.orcamentos(u),
+            "orcamentorm": lambda u, a: self.orcamentorm(u, a),
+            "relatorio": lambda u, a: self.relatorio(u),
+            "habito": lambda u, a: self.habito(u, a),
+            "feito": lambda u, a: self.feito(u, a),
+            "habitos": lambda u, a: self.habitos(u),
+            "habitorm": lambda u, a: self.habitorm(u, a),
+            "diario": lambda u, a: self.diario(u, a),
+            "diariorm": lambda u, a: self.diariorm(u, a),
+            "link": lambda u, a: self.link(u, a),
+            "links": lambda u, a: self.links(u, a),
+            "linkrm": lambda u, a: self.linkrm(u, a),
+            "procurar": lambda u, a: self.procurar(u, a),
+            "buscar": lambda u, a: self.buscar(a),
+            "noticias": lambda u, a: self.noticias(a),
+            "clima": lambda u, a: self.clima(a),
+            "kb": lambda u, a: self.kb(u),
+            "kbrm": lambda u, a: self.kbrm(u, a),
+            "kbweb": lambda u, a: self.kbweb(u, a),
+            "semana": lambda u, a: self.semana(u),
+            "vigiar": lambda u, a: self.vigiar(u, a),
+            "vigias": lambda u, a: self.vigias(u),
+            "vigiarm": lambda u, a: self.vigiarm(u, a),
+            "assinatura": lambda u, a: self.assinatura(u, a),
+            "assinaturas": lambda u, a: self.assinaturas(u),
+            "assinaturarm": lambda u, a: self.assinaturarm(u, a),
+            "agenda": lambda u, a: self.agenda(a),
+            "evento": lambda u, a: self.evento(a),
+            "email": lambda u, a: self.email(a),
+        }
+
+    def runnable(self) -> list[str]:
+        return sorted(self._dispatch())
+
+    def run(self, user_id: str, name: str, argstr: str = "") -> str:
+        """Run a command by name (as if the user typed /name argstr)."""
+        key = (name or "").strip().lower().lstrip("/")
+        fn = self._dispatch().get(key)
+        if not fn:
+            return (f"Não conheço o comando '{name}'. Comandos que posso executar: "
+                    + ", ".join(self.runnable()))
+        try:
+            return fn(user_id, argstr or "")
+        except Exception as exc:  # never crash the chat turn
+            return f"Erro ao executar {key}: {exc}"
+
     # --- reminders ----------------------------------------------------------
 
     def lembrete(self, user_id: str, argstr: str) -> str:
