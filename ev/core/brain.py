@@ -90,6 +90,33 @@ class Brain:
         Used by features like quizzes and weekly insights."""
         return await asyncio.to_thread(self._ask_sync, system, prompt)
 
+    async def transcribe(self, audio: bytes, mime: str | None) -> str | None:
+        """Transcribe an audio file to text (Groq Whisper). For /transcrever."""
+        return await asyncio.to_thread(self._transcribe, audio, mime)
+
+    async def ocr_image(self, image: bytes, mime: str | None) -> str | None:
+        """Extract text from an image via Gemini vision (OCR)."""
+        return await asyncio.to_thread(self._ocr_sync, image, mime)
+
+    def _ocr_sync(self, image: bytes, mime: str | None) -> str | None:
+        try:
+            resp = self._client.models.generate_content(
+                model=self.current_model(),
+                contents=[
+                    types.Part.from_bytes(data=image, mime_type=mime or "image/jpeg"),
+                    types.Part.from_text(
+                        text="Extraia TODO o texto visível nesta imagem, exatamente "
+                        "como está, preservando as quebras de linha. Não comente nem "
+                        "resuma. Se não houver texto, responda apenas: (sem texto)"
+                    ),
+                ],
+                config=types.GenerateContentConfig(temperature=0.0),
+            )
+            return (resp.text or "").strip() or None
+        except Exception as exc:
+            log.warning("OCR (Gemini vision) failed (%s)", exc)
+            return None
+
     def _ask_sync(self, system: str, prompt: str) -> str | None:
         try:
             resp = self._client.models.generate_content(

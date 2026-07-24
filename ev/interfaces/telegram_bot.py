@@ -40,6 +40,7 @@ from telegram.ext import (
 from ..config import Config
 from ..core import knowledge
 from ..core.brain import Brain
+from ..core.timeparse import add_months
 from ..core.commands import COMMAND_LIST, Commands
 from ..core.memory import Memory
 from ..providers import documents as documents_mod, voice as voice_mod
@@ -61,6 +62,10 @@ class TelegramInterface:
         self._pending: dict[str, str] = {}
         # short id -> (title, content) for the "save to knowledge base" button
         self._pending_docs: dict[str, tuple[str, str]] = {}
+        # short id -> (filename, extracted_text) for received-file actions
+        self._pending_files: dict[str, tuple[str, str]] = {}
+        # short id -> (image_bytes, mime) for photo OCR
+        self._pending_images: dict[str, tuple[bytes, str]] = {}
         self._doc_seq = 0
         self._last_briefing: str | None = None  # date of the last daily briefing
         self._last_checkin: str | None = None    # date of the last proactive check-in
@@ -115,6 +120,12 @@ class TelegramInterface:
             if pending == "kb:doc":  # menu-driven document creation (sends a file)
                 await self._make_and_send_document(update, update.message.text)
                 return
+            if pending == "transcribe":  # waiting for audio, not text
+                self._pending[user_id] = "transcribe"  # keep waiting
+                await update.message.reply_text(
+                    "Manda o áudio (mensagem de voz ou arquivo) que eu transcrevo. 🎙️"
+                )
+                return
             result = self._handle_pending(user_id, pending, update.message.text)
             await update.message.reply_text(result, reply_markup=self._kb_main())
             return
@@ -130,11 +141,54 @@ class TelegramInterface:
         voice = update.message.voice
         tg_file = await ctx.bot.get_file(voice.file_id)
         audio_bytes = bytes(await tg_file.download_as_bytearray())
+        # If /transcrever armed the transcription mode, transcribe instead of chatting.
+        if self._pending.pop(user_id, None) == "transcribe":
+            await self._transcribe_and_deliver(
+                update, audio_bytes, voice.mime_type or "audio/ogg"
+            )
+            return
         await self._reply(
             update,
             await self._brain.respond(
                 user_id, audio=audio_bytes, audio_mime=voice.mime_type or "audio/ogg"
             ),
+        )
+
+    async def on_audio(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+        """An audio FILE (not a voice note) — treat as something to transcribe."""
+        if not self._authorized(update):
+            return
+        user_id = str(update.effective_user.id)
+        self._pending.pop(user_id, None)
+        audio = update.message.audio
+        tg_file = await ctx.bot.get_file(audio.file_id)
+        audio_bytes = bytes(await tg_file.download_as_bytearray())
+        await self._transcribe_and_deliver(
+            update, audio_bytes, audio.mime_type or "audio/mpeg"
+        )
+
+    async def _transcribe_and_deliver(self, update: Update, audio: bytes, mime: str) -> None:
+        await update.message.reply_text("🎧 Transcrevendo o áudio...")
+        text = await self._brain.transcribe(audio, mime)
+        if not text:
+            await self._cmd_out(
+                update, "Não consegui transcrever agora (o serviço de áudio pode estar no limite). Tenta de novo?"
+            )
+            return
+        data, filename = documents_mod.build("txt", "Transcrição", text)
+        await self._deliver_document(update.message, {
+            "bytes": data, "filename": filename, "title": "Transcrição",
+            "content": text, "saved_kb": False,
+        })
+
+    async def cmd_transcrever(self, update: Update, _c: ContextTypes.DEFAULT_TYPE) -> None:
+        if not self._authorized(update):
+            return
+        uid = str(update.effective_user.id)
+        self._pending[uid] = "transcribe"
+        await update.message.reply_text(
+            "🎙️ Manda o áudio (mensagem de voz ou arquivo) que eu transcrevo e te "
+            "devolvo em texto. Ou é só mandar um arquivo de áudio direto."
         )
 
     async def on_photo(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -144,15 +198,21 @@ class TelegramInterface:
         photo = update.message.photo[-1]  # largest resolution
         tg_file = await ctx.bot.get_file(photo.file_id)
         img = bytes(await tg_file.download_as_bytearray())
-        await self._reply(
-            update,
-            await self._brain.respond(
-                user_id,
-                text=update.message.caption,
-                image=img,
-                image_mime="image/jpeg",
-            ),
+        answer = await self._brain.respond(
+            user_id, text=update.message.caption, image=img, image_mime="image/jpeg",
         )
+        fid = self._stash(self._pending_images, (img, "image/jpeg"))
+        self._trim(self._pending_images, 8)  # image bytes are heavy; keep few
+        await self._reply(update, answer, self._photo_kb(fid))
+
+    def _photo_kb(self, fid: str) -> InlineKeyboardMarkup:
+        b = InlineKeyboardButton
+        return InlineKeyboardMarkup([
+            [b("📄 Extrair texto (OCR)", callback_data=f"ocr:{fid}")],
+            [b("🏠 Menu", callback_data="nav:main"),
+             b("➕ Tarefa", callback_data="task:add"),
+             b("⏰ Lembrete", callback_data="rem:add")],
+        ])
 
     # --- slash commands (no LLM) --------------------------------------------
 
@@ -556,18 +616,80 @@ class TelegramInterface:
         if self._authorized(update):
             await self._make_and_send_document(update, self._args(c))
 
-    async def on_document(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    def _kb_export(self) -> InlineKeyboardMarkup:
+        b = InlineKeyboardButton
+        return InlineKeyboardMarkup([
+            [b("📊 Gastos (CSV)", callback_data="export:csv")],
+            [b("🗂️ Meus dados (PDF)", callback_data="export:pdf")],
+            [b("⬅️ Voltar", callback_data="nav:main")],
+        ])
+
+    async def cmd_exportar(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
         if not self._authorized(update):
             return
         uid = str(update.effective_user.id)
+        arg = self._args(c).strip().lower()
+        if arg in ("gastos", "gasto", "csv", "financeiro"):
+            await self._export_csv(update.message, uid)
+        elif arg in ("dados", "tudo", "pdf"):
+            await self._export_pdf(update.message, uid)
+        else:
+            await update.message.reply_text(
+                "O que você quer exportar?", reply_markup=self._kb_export()
+            )
+
+    async def _export_csv(self, message, uid: str) -> None:
+        res = await asyncio.to_thread(self._commands.export_expenses_csv, uid)
+        if isinstance(res, str):  # error/empty message
+            await self._send(message, res, self._quick_kb())
+            return
+        data, filename = res
+        buf = io.BytesIO(data)
+        buf.name = filename
+        await message.reply_document(
+            document=buf, filename=filename,
+            caption="📊 Seus gastos em CSV (abre no Excel / Google Sheets).",
+            reply_markup=self._quick_kb(),
+        )
+
+    async def _export_pdf(self, message, uid: str) -> None:
+        title, content = await asyncio.to_thread(self._commands.data_digest, uid)
+        data, filename = documents_mod.build("pdf", title, content)
+        await self._deliver_document(message, {
+            "bytes": data, "filename": filename, "title": title,
+            "content": content, "saved_kb": False,
+        })
+
+    async def on_document(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+        if not self._authorized(update):
+            return
         doc = update.message.document
-        await update.message.reply_text("Recebi o documento, estou indexando...")
+        filename = doc.file_name or "documento"
+        if not filename.lower().endswith(knowledge.READABLE_EXTS):
+            await self._cmd_out(
+                update, "Consigo ler PDF, Word (.docx) e texto (.txt, .md). Manda um desses."
+            )
+            return
+        await update.message.reply_text("📥 Recebi o arquivo, estou lendo...")
         tg_file = await ctx.bot.get_file(doc.file_id)
         data = bytes(await tg_file.download_as_bytearray())
-        result = await asyncio.to_thread(
-            self._commands.ingest_document, uid, data, doc.file_name or "documento.pdf"
+        text = await asyncio.to_thread(knowledge.extract_text, data, filename)
+        if not text.strip():
+            await self._cmd_out(
+                update, "Não achei texto extraível nesse arquivo (talvez seja escaneado/imagem)."
+            )
+            return
+        fid = self._stash(self._pending_files, (filename, text))
+        b = InlineKeyboardButton
+        kb = InlineKeyboardMarkup([
+            [b("📝 Resumir", callback_data=f"fileact:sum:{fid}"),
+             b("📚 Indexar na base", callback_data=f"fileact:kb:{fid}")],
+        ])
+        await update.message.reply_text(
+            f"📄 <b>{html.escape(filename)}</b> — {len(text)} caracteres.\n"
+            "O que você quer que eu faça?",
+            parse_mode="HTML", reply_markup=kb,
         )
-        await self._cmd_out(update, result)
 
     async def cmd_agenda(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
         if self._authorized(update):
@@ -599,6 +721,7 @@ class TelegramInterface:
                 [b("🔗 Links", callback_data="link:menu"), b("📄 Conhecimento", callback_data="kb:menu")],
                 [b("🧠 Memória", callback_data="mem:menu"), b("📅 Google", callback_data="goog:menu")],
                 [b("🔎 Buscar web", callback_data="search:add")],
+                [b("📤 Exportar dados", callback_data="export:menu")],
                 [b("❓ Ajuda", callback_data="misc:ajuda")],
             ]
         )
@@ -666,6 +789,24 @@ class TelegramInterface:
 
         if section == "docsave":
             await self._save_doc_to_kb(q, uid, action)
+            return
+        if section == "fileact":
+            await self._handle_fileact(q, uid, action)
+            return
+        if section == "ocr":
+            await self._handle_ocr(q, uid, action)
+            return
+        if section == "export":
+            if action == "menu":
+                await q.edit_message_text(
+                    "📤 O que você quer exportar?", reply_markup=self._kb_export()
+                )
+                return
+            await q.answer("Gerando...")
+            if action == "csv":
+                await self._export_csv(q.message, uid)
+            else:
+                await self._export_pdf(q.message, uid)
             return
 
         if section == "nav" or (section == "misc" and action == "menu"):
@@ -835,15 +976,21 @@ class TelegramInterface:
         """Send a command result with the quick-action bar."""
         await self._send(update.message, text, self._quick_kb())
 
-    def _stash_doc(self, title: str, content: str) -> str:
+    @staticmethod
+    def _trim(store: dict, keep: int = 50) -> None:
+        if len(store) > keep:
+            for k in list(store)[:-keep]:
+                store.pop(k, None)
+
+    def _stash(self, store: dict, value) -> str:
         self._doc_seq += 1
-        did = str(self._doc_seq)
-        self._pending_docs[did] = (title, content)
-        # Bound memory: keep only the last 50 pending docs.
-        if len(self._pending_docs) > 50:
-            for k in list(self._pending_docs)[:-50]:
-                self._pending_docs.pop(k, None)
-        return did
+        sid = str(self._doc_seq)
+        store[sid] = value
+        self._trim(store)
+        return sid
+
+    def _stash_doc(self, title: str, content: str) -> str:
+        return self._stash(self._pending_docs, (title, content))
 
     async def _deliver_document(self, message, artifact: dict) -> None:
         """Send a generated file; offer a 'save to knowledge base' button unless
@@ -868,6 +1015,73 @@ class TelegramInterface:
                 await self._deliver_document(message, artifact)
             except Exception:
                 log.exception("Failed to deliver generated document")
+
+    async def _handle_fileact(self, q, uid: str, action: str) -> None:
+        """Buttons under a received file: 'sum:<id>' summarize, 'kb:<id>' index."""
+        what, _, fid = action.partition(":")
+        entry = self._pending_files.get(fid)
+        if entry is None:
+            await q.answer("Esse arquivo expirou. Envia de novo, por favor.", show_alert=True)
+            return
+        filename, text = entry
+        try:
+            await q.edit_message_reply_markup(reply_markup=None)
+        except Exception:
+            pass
+        if what == "kb":
+            await q.answer("Indexando na base...")
+            self._pending_files.pop(fid, None)
+            try:
+                stored, truncated = await asyncio.to_thread(
+                    knowledge.ingest_text, text, filename, self._config, self._memory, uid
+                )
+                extra = " (arquivo grande — indexei o começo)" if truncated else ""
+                msg = (
+                    f"📚 '{filename}' indexado: {stored} trechos{extra}. Pode me perguntar sobre ele!"
+                    if stored else "Não consegui extrair trechos úteis desse arquivo."
+                )
+            except Exception:
+                log.exception("Failed to index received file")
+                msg = "Não consegui indexar agora. Tenta de novo?"
+            await q.message.reply_text(msg, reply_markup=self._quick_kb())
+            return
+        # summarize
+        await q.answer("Resumindo...")
+        await q.message.reply_text("📝 Lendo e resumindo o documento...")
+        summary = await self._brain.ask(
+            "Você é a E.V. Resuma o documento do usuário em português: pontos "
+            "principais em bullets curtos e, se houver, ações/prazos. Seja fiel ao texto.",
+            f"Documento '{filename}':\n\n{text[:12000]}",
+        )
+        await self._send(
+            q.message, summary or "Não consegui resumir agora, tenta de novo?",
+            self._quick_kb(),
+        )
+
+    async def _handle_ocr(self, q, uid: str, fid: str) -> None:
+        entry = self._pending_images.get(fid)
+        if entry is None:
+            await q.answer("Essa imagem expirou. Envia de novo, por favor.", show_alert=True)
+            return
+        image, mime = entry
+        await q.answer("Extraindo texto...")
+        try:
+            await q.edit_message_reply_markup(reply_markup=None)
+        except Exception:
+            pass
+        await q.message.reply_text("📄 Extraindo o texto da imagem...")
+        text = await self._brain.ocr_image(image, mime)
+        if not text or text.strip() == "(sem texto)":
+            await q.message.reply_text(
+                "Não achei texto legível nessa imagem.", reply_markup=self._quick_kb()
+            )
+            return
+        self._pending_images.pop(fid, None)
+        data, filename = documents_mod.build("txt", "Texto extraído", text)
+        await self._deliver_document(q.message, {
+            "bytes": data, "filename": filename, "title": "Texto extraído",
+            "content": text, "saved_kb": False,
+        })
 
     async def _save_doc_to_kb(self, q, uid: str, did: str) -> None:
         """Handle the 'save to knowledge base' button under a generated file."""
@@ -894,8 +1108,8 @@ class TelegramInterface:
             pass
         await q.message.reply_text(msg, reply_markup=self._quick_kb())
 
-    async def _reply(self, update: Update, answer: str) -> None:
-        await self._send(update.message, answer, self._quick_kb())
+    async def _reply(self, update: Update, answer: str, kb: InlineKeyboardMarkup | None = None) -> None:
+        await self._send(update.message, answer, kb or self._quick_kb())
         await self._flush_documents(update.message)
         if not self._config.voice_reply:
             return
@@ -1203,9 +1417,14 @@ class TelegramInterface:
 
     def _advance_reminder(self, r: dict, due: datetime, now: datetime) -> None:
         """Recurring -> schedule the next future occurrence; one-off -> mark done."""
-        delta = {"daily": timedelta(days=1), "weekly": timedelta(days=7)}.get(
-            r.get("recur") or ""
-        )
+        recur = r.get("recur") or ""
+        if recur == "monthly":
+            nxt = due
+            while nxt <= now:  # catch up missed months (day clamped per month)
+                nxt = add_months(nxt, 1)
+            self._memory.reschedule_reminder(r["id"], nxt.isoformat())
+            return
+        delta = {"daily": timedelta(days=1), "weekly": timedelta(days=7)}.get(recur)
         if not delta:
             self._memory.mark_reminder_done(r["id"])
             return
@@ -1288,6 +1507,8 @@ class TelegramInterface:
         app.add_handler(CommandHandler("kbweb", self.cmd_kbweb))
         app.add_handler(CommandHandler("kbrm", self.cmd_kbrm))
         app.add_handler(CommandHandler("documento", self.cmd_documento))
+        app.add_handler(CommandHandler("exportar", self.cmd_exportar))
+        app.add_handler(CommandHandler("transcrever", self.cmd_transcrever))
         app.add_handler(CommandHandler("agenda", self.cmd_agenda))
         app.add_handler(CommandHandler("evento", self.cmd_evento))
         app.add_handler(CommandHandler("email", self.cmd_email))
@@ -1295,6 +1516,8 @@ class TelegramInterface:
         app.add_handler(MessageHandler(filters.Document.ALL, self.on_document))
         # Photo -> multimodal (Gemini vision)
         app.add_handler(MessageHandler(filters.PHOTO, self.on_photo))
+        # Audio file (not a voice note) -> transcription
+        app.add_handler(MessageHandler(filters.AUDIO, self.on_audio))
         # Voice + free text (must be last)
         app.add_handler(MessageHandler(filters.VOICE, self.on_voice))
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.on_text))

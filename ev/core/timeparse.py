@@ -23,6 +23,21 @@ _TIME = re.compile(r"^(\d{1,2})(?::(\d{2})|h)?$")
 _DATE = re.compile(r"^(\d{1,2})/(\d{1,2})(?:/(\d{2,4}))?$")
 
 
+def add_months(dt: datetime, n: int) -> datetime:
+    """Add n months to dt, clamping the day to the target month's length
+    (e.g. Jan 31 + 1 month -> Feb 28/29)."""
+    month_index = dt.month - 1 + n
+    year = dt.year + month_index // 12
+    month = month_index % 12 + 1
+    # Last day of the target month.
+    if month == 12:
+        last = 31
+    else:
+        nxt = datetime(year, month + 1, 1)
+        last = (nxt - timedelta(days=1)).day
+    return dt.replace(year=year, month=month, day=min(dt.day, last))
+
+
 def _parse_time_token(tok: str) -> tuple[int, int] | None:
     m = _TIME.match(tok)
     if not m:

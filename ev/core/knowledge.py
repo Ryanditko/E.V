@@ -27,6 +27,41 @@ def _pdf_text(data: bytes) -> str:
     return "\n".join((page.extract_text() or "") for page in reader.pages)
 
 
+def _docx_text(data: bytes) -> str:
+    from docx import Document
+
+    doc = Document(io.BytesIO(data))
+    return "\n".join(p.text for p in doc.paragraphs)
+
+
+# Filename extensions we can read into text.
+READABLE_EXTS = (".pdf", ".docx", ".txt", ".md", ".markdown", ".csv", ".log")
+
+
+def extract_text(data: bytes, filename: str) -> str:
+    """Extract plain text from a supported file (PDF, Word, or plain text)."""
+    name = (filename or "").lower()
+    if name.endswith(".pdf"):
+        return _pdf_text(data)
+    if name.endswith(".docx"):
+        return _docx_text(data)
+    # Everything else: best-effort decode as UTF-8 text.
+    try:
+        return data.decode("utf-8", errors="replace")
+    except Exception:
+        return ""
+
+
+def ingest_file(
+    data: bytes, filename: str, config, memory: Memory, user_id: str
+) -> tuple[int, bool]:
+    """Extract text from a supported file and ingest it. Returns (stored, truncated)."""
+    text = extract_text(data, filename)
+    if not text.strip():
+        return 0, False
+    return ingest_text(text, filename, config, memory, user_id)
+
+
 def _chunk(text: str, size: int = _CHUNK_CHARS) -> list[str]:
     words = text.split()
     chunks, buf, length = [], [], 0

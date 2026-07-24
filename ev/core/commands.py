@@ -20,14 +20,14 @@ from ..config import Config
 from ..providers import embeddings, tools as tools_mod
 from . import knowledge
 from .memory import Memory
-from .timeparse import parse_when
+from .timeparse import add_months, parse_when
 
 # (command, description) — also used to populate Telegram's command menu.
 COMMAND_LIST = [
     ("menu", "Abre o menu interativo com botões"),
     ("ajuda", "Lista os comandos disponíveis"),
     ("lembrete", "Criar lembrete: /lembrete 10m tomar água"),
-    ("rotina", "Lembrete recorrente: /rotina diario 08:00 remédio"),
+    ("rotina", "Recorrente: /rotina diario|semanal|mensal [dia] HH:MM texto"),
     ("lembretes", "Listar seus lembretes"),
     ("cancelar", "Cancelar lembrete: /cancelar 3"),
     ("calendario", "Ver sua agenda por dia (lembretes + Google)"),
@@ -71,6 +71,8 @@ COMMAND_LIST = [
     ("kbweb", "Indexar uma página web: /kbweb https://..."),
     ("kbrm", "Remover documento da base: /kbrm nome.pdf"),
     ("documento", "Criar arquivo: /documento pdf Título | conteúdo"),
+    ("exportar", "Exportar dados: /exportar gastos (CSV) ou /exportar dados (PDF)"),
+    ("transcrever", "Transcrever áudio em texto (manda o áudio depois)"),
     ("agenda", "Agenda do Google: /agenda [conta]"),
     ("evento", "Criar evento: /evento [conta] amanhã 15:00 Dentista"),
     ("email", "E-mail: /email [conta] fulano@x.com | Assunto | Corpo"),
@@ -125,7 +127,8 @@ class Commands:
             "🔗 Links\n"
             "   /link · /links · /linkrm\n\n"
             "📄 Conhecimento & Estudo\n"
-            "   envie um PDF · /kb · /kbweb · /kbrm · /quiz · /documento\n\n"
+            "   envie um PDF/Word/txt · /kb · /kbweb · /kbrm · /quiz\n"
+            "   /documento (criar) · /exportar (dados) · /transcrever (áudio)\n\n"
             "💰 Finanças\n"
             "   /gasto · /gastos · /gastorm · /relatorio\n"
             "   /orcamento · /orcamentos · /orcamentorm\n"
@@ -161,30 +164,75 @@ class Commands:
         rid = self._memory.add_reminder(user_id, text.strip(), when.isoformat())
         return f"Lembrete #{rid} criado para {when.strftime('%d/%m %H:%M')}: {text.strip()}"
 
+    _USO_ROTINA = (
+        "Uso: /rotina <diario|semanal|mensal> [dia] <HH:MM> <texto>\n"
+        "Ex: /rotina diario 08:00 tomar remédio\n"
+        "Ex: /rotina semanal 09:00 revisar metas\n"
+        "Ex: /rotina mensal 5 10:00 pagar aluguel  (todo dia 5)"
+    )
+
     def rotina(self, user_id: str, argstr: str) -> str:
         tokens = argstr.strip().split()
         if len(tokens) < 3:
-            return "Uso: /rotina <diario|semanal> <HH:MM> <texto>\nEx: /rotina diario 08:00 tomar remédio"
+            return self._USO_ROTINA
         kw = tokens[0].lower()
+        now = self._now()
         if kw in ("diario", "diária", "diaria", "diariamente"):
-            recur, label, step = "daily", "todo dia", timedelta(days=1)
+            recur, label = "daily", "todo dia"
         elif kw in ("semanal", "semana", "semanalmente"):
-            recur, label, step = "weekly", "toda semana", timedelta(days=7)
+            recur, label = "weekly", "toda semana"
+        elif kw in ("mensal", "mensalmente", "mes", "mês", "monthly"):
+            recur = "monthly"
         else:
-            return "Recorrência inválida. Use 'diario' ou 'semanal'."
+            return "Recorrência inválida. Use 'diario', 'semanal' ou 'mensal'."
+
+        if recur == "monthly":
+            # /rotina mensal <dia> <HH:MM> <texto>
+            if len(tokens) < 4 or not tokens[1].isdigit():
+                return "Uso mensal: /rotina mensal <dia> <HH:MM> <texto>\nEx: /rotina mensal 5 10:00 pagar aluguel"
+            day = int(tokens[1])
+            if not 1 <= day <= 31:
+                return "Dia do mês inválido (use 1 a 31)."
+            time_tok, text = tokens[2], " ".join(tokens[3:]).strip()
+        else:
+            time_tok, text = tokens[1], " ".join(tokens[2:]).strip()
+
         try:
-            hm = datetime.strptime(tokens[1], "%H:%M")
+            hm = datetime.strptime(time_tok, "%H:%M")
         except ValueError:
             return "Horário inválido. Use HH:MM. Ex: 08:00"
-        text = " ".join(tokens[2:]).strip()
         if not text:
             return "Faltou o texto da rotina."
-        now = self._now()
-        first = now.replace(hour=hm.hour, minute=hm.minute, second=0, microsecond=0)
-        if first <= now:
-            first += step
+
+        if recur == "monthly":
+            first = self._monthly_first(now, day, hm.hour, hm.minute)
+            label = f"todo dia {day}"
+        else:
+            step = timedelta(days=1) if recur == "daily" else timedelta(days=7)
+            first = now.replace(hour=hm.hour, minute=hm.minute, second=0, microsecond=0)
+            if first <= now:
+                first += step
+
         rid = self._memory.add_reminder(user_id, text, first.isoformat(), recur)
-        return f"Rotina #{rid} criada ({label} às {tokens[1]}): {text}"
+        return f"Rotina #{rid} criada ({label} às {time_tok}): {text}"
+
+    @staticmethod
+    def _clamp_day(dt: datetime, day: int) -> datetime:
+        """Set dt's day to `day`, clamped to the last valid day of dt's month."""
+        if dt.month == 12:
+            last = 31
+        else:
+            last = (dt.replace(month=dt.month + 1, day=1) - timedelta(days=1)).day
+        return dt.replace(day=min(day, last))
+
+    @staticmethod
+    def _monthly_first(now: datetime, day: int, hour: int, minute: int) -> datetime:
+        """First future occurrence of a monthly reminder on `day` at hour:minute."""
+        base = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        cand = Commands._clamp_day(base.replace(day=1), day)
+        if cand <= now:
+            cand = Commands._clamp_day(add_months(base.replace(day=1), 1), day)
+        return cand
 
     _WEEKDAYS_PT = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"]
 
@@ -799,19 +847,68 @@ class Commands:
         return f"Página indexada: {stored} trechos{extra}. Pode me perguntar sobre ela!"
 
     def ingest_document(self, user_id: str, data: bytes, filename: str) -> str:
-        """Ingest an uploaded document (PDF) into the knowledge base."""
-        if not filename.lower().endswith(".pdf"):
-            return "Por enquanto eu só indexo PDFs. Manda um .pdf que eu guardo."
+        """Ingest an uploaded document (PDF, Word or plain text) into the KB."""
+        if not filename.lower().endswith(knowledge.READABLE_EXTS):
+            return "Consigo ler PDF, Word (.docx) e texto (.txt, .md). Manda um desses."
         try:
-            stored, truncated = knowledge.ingest_pdf(
+            stored, truncated = knowledge.ingest_file(
                 data, filename, self._config, self._memory, user_id
             )
         except Exception as exc:
-            return f"Não consegui ler esse PDF ({exc})."
+            return f"Não consegui ler esse arquivo ({exc})."
         if stored == 0:
-            return "Esse PDF parece não ter texto extraível (talvez seja escaneado)."
+            return "Esse arquivo parece não ter texto extraível (talvez seja escaneado/imagem)."
         extra = " (documento grande — indexei o começo)" if truncated else ""
         return f"Documento '{filename}' indexado: {stored} trechos{extra}. Pode me perguntar sobre ele!"
+
+    # --- data export (feature B) -------------------------------------------
+
+    def export_expenses_csv(self, user_id: str, months: int = 6) -> tuple[bytes, str] | str:
+        """Build a CSV of the last `months` of expenses. Returns (bytes, name)
+        or an error string if there is nothing to export."""
+        import csv
+        import io as _io
+
+        since = (self._now() - timedelta(days=30 * months)).isoformat()
+        rows = self._memory.expenses_since(user_id, since)
+        if not rows:
+            return "Você ainda não tem gastos registrados nesse período."
+        buf = _io.StringIO()
+        w = csv.writer(buf)
+        w.writerow(["data", "categoria", "valor", "descricao"])
+        for e in rows:
+            w.writerow([
+                (e.get("created") or "")[:10],
+                e.get("category", ""),
+                f"{e.get('amount', 0):.2f}",
+                e.get("description", ""),
+            ])
+        data = buf.getvalue().encode("utf-8-sig")  # BOM so Excel shows accents
+        return data, f"gastos_{self._now().strftime('%Y%m%d')}.csv"
+
+    def data_digest(self, user_id: str) -> tuple[str, str]:
+        """Human-readable digest of the user's data. Returns (title, content)."""
+        m = self._memory
+        lines: list[str] = []
+
+        tasks = m.open_tasks(user_id)
+        lines.append(f"TAREFAS EM ABERTO ({len(tasks)})")
+        lines += [f"- [{t['category']}] {t['text']}" for t in tasks] or ["- (nenhuma)"]
+
+        facts = m.all_facts(user_id)
+        lines.append(f"\nMEMÓRIAS ({len(facts)})")
+        lines += [f"- {f}" for f in facts] or ["- (nenhuma)"]
+
+        habits = m.list_habits(user_id)
+        lines.append(f"\nHÁBITOS ({len(habits)})")
+        lines += [f"- {h['name']}" for h in habits] or ["- (nenhum)"]
+
+        journ = m.recent_journal(user_id, 30)
+        lines.append(f"\nDIÁRIO (últimas {len(journ)} entradas)")
+        lines += [f"- {e['text']}" for e in journ] or ["- (vazio)"]
+
+        title = f"Meus dados — E.V. ({self._now().strftime('%d/%m/%Y')})"
+        return title, "\n".join(lines)
 
     # --- Google (Calendar + email) -----------------------------------------
 

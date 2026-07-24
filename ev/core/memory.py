@@ -496,7 +496,7 @@ class Memory:
 
     def expenses_since(self, user_id: str, since_iso: str) -> list[dict]:
         rows = self._conn.execute(
-            "SELECT id, amount, description, category FROM expenses "
+            "SELECT id, amount, description, category, created FROM expenses "
             "WHERE user_id = ? AND created >= ? ORDER BY id",
             (user_id, since_iso),
         ).fetchall()

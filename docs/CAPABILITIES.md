@@ -62,7 +62,8 @@ She is **locked to you** (owner-only) and replies with a natural female voice.
 | Command | Does |
 |---------|------|
 | `/lembrete <tempo> <texto>` | One-off reminder (`10m`, `2h`, `amanhã 09:00`, `25/12 14:30`) |
-| `/rotina <diario\|semanal> <HH:MM> <texto>` | Recurring reminder |
+| `/rotina <diario\|semanal> <HH:MM> <texto>` | Recurring reminder (daily/weekly) |
+| `/rotina mensal <dia> <HH:MM> <texto>` | Monthly reminder (e.g. `mensal 5 10:00 pagar aluguel`) |
 | `/lembretes` | List reminders |
 | `/cancelar <id>` | Cancel a reminder |
 | `/calendario` | Agenda view by day (+ Google Calendar if connected) |
@@ -77,11 +78,13 @@ She is **locked to you** (owner-only) and replies with a natural female voice.
 ### Knowledge base & study
 | Action | Does |
 |--------|------|
-| Send a **PDF** | Index the document (RAG) |
+| Send a **PDF / Word (.docx) / .txt** | She reads it and offers **Resumir** (summarize) or **Indexar na base** (index for RAG) |
 | `/kb` | List documents |
 | `/kbweb <url>` | Index a web page |
 | `/kbrm <nome>` | Remove a document |
 | `/quiz [documento]` | Generate a study question from your PDFs (answer hidden as spoiler) |
+| `/exportar` | Export your data: **gastos** as CSV (Excel/Sheets) or **dados** as a PDF digest |
+| `/transcrever` | Transcribe an audio (voice note or audio file) into a text file |
 | `/documento <formato> <título> \| <conteúdo>` | Create a file and send it to you. Formats: `txt`, `md`, `pdf`, `docx` (or `word`); format optional (default `pdf`) |
 
 **Creating documents (txt / Markdown / PDF / Word).** Three ways:
@@ -95,6 +98,17 @@ She is **locked to you** (owner-only) and replies with a natural female voice.
 Every generated file arrives with a **📚 Salvar na base** button — tap it to store
 that content in the knowledge base (RAG), so you can ask about it later or `/quiz`
 on it. (When you ask via the AI, she can also save it in the same step.)
+
+**Working with files, audio and images (in & out):**
+
+- **Send a document** (PDF, Word, txt) → she reads it and shows buttons to
+  **summarize** it or **index** it into the knowledge base.
+- **Send an audio** (voice note or audio file), or use `/transcrever` → she
+  **transcribes** it and returns the text as a `.txt` file.
+- **Send a photo** → besides describing it, she offers **📄 Extrair texto (OCR)**
+  to pull the text out and return it as a file (with the option to save to the KB).
+- **Export your data** → `/exportar` (or 📤 Exportar no menu): expenses as **CSV**,
+  or a **PDF** digest of tasks, memories, habits and journal.
 
 ### Finances
 | Command | Does |

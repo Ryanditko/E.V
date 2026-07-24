@@ -189,4 +189,4 @@ def test_rotina(tmp_path):
     out = c.rotina("u", "diario 08:00 tomar remédio")
     assert "Rotina" in out and "todo dia" in out
     assert "[todo dia]" in c.lembretes("u")
-    assert "inválida" in c.rotina("u", "mensal 08:00 x").lower()
+    assert "inválida" in c.rotina("u", "anual 08:00 x").lower()
