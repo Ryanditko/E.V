@@ -593,6 +593,20 @@ class TelegramInterface:
             else:
                 await update.message.reply_text("Não há nenhum timer rodando agora.")
             return
+        # /foco pausar | retomar -> toggle the running timer (also works by voice).
+        if arg in ("pausar", "pausa", "pause", "retomar", "retoma", "resume",
+                   "continuar", "continua"):
+            if not self._pomo:
+                await update.message.reply_text(
+                    "Não há nenhum timer rodando pra pausar/retomar."
+                )
+                return
+            self._pomo["paused"] = arg in ("pausar", "pausa", "pause")
+            await self._render_pomo_card(update.get_bot())
+            await update.message.reply_text(
+                "⏸️ Foco pausado." if self._pomo["paused"] else "▶️ Foco retomado."
+            )
+            return
         tokens = self._args(c).split()
         focus, brk = 25, 5
         nums = [t for t in tokens if t.isdigit()]
@@ -620,6 +634,20 @@ class TelegramInterface:
             self._pomodoro_task.cancel()
         self._pomo = None
         return running
+
+    async def _render_pomo_card(self, bot) -> None:
+        """Re-draw the current timer card (used when pausing/resuming by voice)."""
+        s = self._pomo
+        if not s or not s.get("message_id"):
+            return
+        try:
+            await bot.edit_message_text(
+                chat_id=s["chat_id"], message_id=s["message_id"],
+                text=self._focus_card(s["title"], s["remaining"], s["total"], s["paused"]),
+                reply_markup=self._pomo_kb(s["paused"]),
+            )
+        except Exception:
+            pass
 
     def _pomo_kb(self, paused: bool = False) -> InlineKeyboardMarkup:
         b = InlineKeyboardButton
@@ -665,7 +693,7 @@ class TelegramInterface:
     async def _pomodoro(self, bot, chat_id: int, focus: int, brk: int, label: str) -> None:
         lbl = f" — {label}" if label else ""
         state = {
-            "cancelled": False, "paused": False,
+            "cancelled": False, "paused": False, "chat_id": chat_id,
             "remaining": focus * 60, "total": focus * 60,
             "title": f"🍅 Foco{lbl}", "phase": "focus", "message_id": None,
         }
