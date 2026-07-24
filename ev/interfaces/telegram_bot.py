@@ -71,6 +71,7 @@ class TelegramInterface:
         self._doc_seq = 0
         self._started_at = datetime.now(timezone.utc)  # for /status uptime
         self._pomodoro_task = None  # the current live focus timer (if any)
+        self._bot_username = ""     # cached in _post_init (for @mention detection)
         self._last_briefing: str | None = None  # date of the last daily briefing
         self._last_checkin: str | None = None    # date of the last proactive check-in
         self._last_weekly: str | None = None     # date of the last weekly review
@@ -112,10 +113,60 @@ class TelegramInterface:
             self._MAIN_TEXT, reply_markup=self._kb_main(), parse_mode="HTML"
         )
 
+    # --- group support ------------------------------------------------------
+
+    def _is_reply_to_bot(self, update: Update) -> bool:
+        m = update.message
+        r = m.reply_to_message if m else None
+        return bool(
+            r and r.from_user
+            and (r.from_user.username or "").lower() == self._bot_username
+        )
+
+    @staticmethod
+    def _extract_group_query(
+        text: str, bot_username: str, reply_from_username: str | None
+    ) -> str | None:
+        """Pure trigger logic: returns the cleaned query if the message calls the
+        bot (reply to it, or @mention), else None. bot_username is lowercase."""
+        text = (text or "").strip()
+        if (bot_username and reply_from_username
+                and reply_from_username.lower() == bot_username):
+            return text or None
+        if bot_username and f"@{bot_username}" in text.lower():
+            cleaned = re.sub(
+                rf"@{re.escape(bot_username)}", "", text, flags=re.I
+            ).strip()
+            return cleaned or None
+        return None
+
+    def _group_query(self, update: Update) -> str | None:
+        """In a group, E.V. answers only when called: a reply to one of her
+        messages, or an @mention. Returns the cleaned query, or None to ignore."""
+        m = update.message
+        r = m.reply_to_message if m else None
+        reply_user = r.from_user.username if (r and r.from_user) else None
+        return self._extract_group_query(
+            m.text if m else "", self._bot_username, reply_user
+        )
+
     async def on_text(self, update: Update, _ctx: ContextTypes.DEFAULT_TYPE) -> None:
         if not self._authorized(update):
             return
         user_id = str(update.effective_user.id)
+        chat = update.effective_chat
+
+        # In groups: only respond when explicitly called (mention / reply / /ev).
+        # Each chat keeps its own conversation thread (conv_id = chat id).
+        if chat.type != "private":
+            query = self._group_query(update)
+            if query is None:
+                return
+            await self._reply(
+                update,
+                await self._brain.respond(user_id, conv_id=str(chat.id), text=query),
+            )
+            return
 
         # If a menu button asked for input, consume this message as that input
         # (no LLM) instead of treating it as a chat message.
@@ -149,13 +200,20 @@ class TelegramInterface:
             return
 
         await self._reply(
-            update, await self._brain.respond(user_id, text=update.message.text)
+            update,
+            await self._brain.respond(
+                user_id, conv_id=str(chat.id), text=update.message.text
+            ),
         )
 
     async def on_voice(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         if not self._authorized(update):
             return
+        # In groups, only handle a voice note that replies to one of her messages.
+        if update.effective_chat.type != "private" and not self._is_reply_to_bot(update):
+            return
         user_id = str(update.effective_user.id)
+        conv_id = str(update.effective_chat.id)
         voice = update.message.voice
         tg_file = await ctx.bot.get_file(voice.file_id)
         audio_bytes = bytes(await tg_file.download_as_bytearray())
@@ -168,7 +226,8 @@ class TelegramInterface:
         await self._reply(
             update,
             await self._brain.respond(
-                user_id, audio=audio_bytes, audio_mime=voice.mime_type or "audio/ogg"
+                user_id, conv_id=conv_id,
+                audio=audio_bytes, audio_mime=voice.mime_type or "audio/ogg",
             ),
         )
 
@@ -608,12 +667,16 @@ class TelegramInterface:
     async def on_photo(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         if not self._authorized(update):
             return
+        # In groups, only handle a photo that replies to one of her messages.
+        if update.effective_chat.type != "private" and not self._is_reply_to_bot(update):
+            return
         user_id = str(update.effective_user.id)
         photo = update.message.photo[-1]  # largest resolution
         tg_file = await ctx.bot.get_file(photo.file_id)
         img = bytes(await tg_file.download_as_bytearray())
         answer = await self._brain.respond(
-            user_id, text=update.message.caption, image=img, image_mime="image/jpeg",
+            user_id, conv_id=str(update.effective_chat.id),
+            text=update.message.caption, image=img, image_mime="image/jpeg",
         )
         fid = self._stash(self._pending_images, (img, "image/jpeg"))
         self._trim(self._pending_images, 8)  # image bytes are heavy; keep few
@@ -633,6 +696,24 @@ class TelegramInterface:
     async def cmd_ajuda(self, update: Update, _c: ContextTypes.DEFAULT_TYPE) -> None:
         if self._authorized(update):
             await self._cmd_out(update, self._commands.help())
+
+    async def cmd_ev(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
+        """Explicitly talk to the AI — handy in groups: /ev <mensagem>."""
+        if not self._authorized(update):
+            return
+        q = self._args(c).strip()
+        if not q:
+            await update.message.reply_text(
+                "Uso: /ev <mensagem>. Ex: /ev resume os pontos principais disso."
+            )
+            return
+        await self._reply(
+            update,
+            await self._brain.respond(
+                str(update.effective_user.id),
+                conv_id=str(update.effective_chat.id), text=q,
+            ),
+        )
 
     async def cmd_lembrete(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
         if self._authorized(update):
@@ -1575,6 +1656,12 @@ class TelegramInterface:
     # --- reminder scheduler -------------------------------------------------
 
     async def _post_init(self, app: Application) -> None:
+        # Cache the bot's @username so we can detect mentions in groups.
+        try:
+            me = await app.bot.get_me()
+            self._bot_username = (me.username or "").lower()
+        except Exception:
+            log.exception("Could not fetch bot username")
         # Register the command menu shown when the user types "/".
         await app.bot.set_my_commands(
             [BotCommand(name, desc) for name, desc in COMMAND_LIST]
@@ -1939,6 +2026,7 @@ class TelegramInterface:
         # Chat (LLM)
         app.add_handler(CommandHandler("start", self.on_start))
         app.add_handler(CommandHandler("menu", self.cmd_menu))
+        app.add_handler(CommandHandler("ev", self.cmd_ev))
         app.add_handler(CallbackQueryHandler(self.on_callback))
         # Deterministic commands (no LLM)
         app.add_handler(CommandHandler("ajuda", self.cmd_ajuda))

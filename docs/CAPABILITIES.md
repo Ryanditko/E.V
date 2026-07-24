@@ -57,6 +57,7 @@ She is **locked to you** (owner-only) and replies with a natural female voice.
 | `/ajuda` | List all commands |
 | `/modelo` | Show AI models + today's usage; `/modelo <nome>` switches the primary model |
 | `/status` | Diagnostics: uptime, DB, disk/memory, which API keys are set — plus a button to live-test the keys |
+| `/ev <mensagem>` | Talk to the AI explicitly — mainly for **groups** (mention/reply also work). See [GROUPS.md](GROUPS.md) |
 | `/silenciar <2h\|30m\|1d\|off>` | Do-not-disturb: mute proactive pings (briefing, check-in, nudges); reminders still fire |
 | `/dados` | Storage control: see counts per category and wipe by category (tap-confirm) or **everything** (two-factor: tap + type `APAGAR TUDO`) |
 | `/limpar` | Clear the conversation history in her memory (keeps reminders, facts, everything else) |

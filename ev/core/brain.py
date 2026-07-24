@@ -73,6 +73,7 @@ class Brain:
         self,
         user_id: str,
         *,
+        conv_id: str | None = None,
         text: str | None = None,
         audio: bytes | None = None,
         audio_mime: str | None = None,
@@ -81,10 +82,15 @@ class Brain:
     ) -> str:
         """Produce E.V.'s answer to a message (text, audio, and/or image).
 
+        `user_id` scopes durable data (facts, tasks, tools) — always the owner.
+        `conv_id` scopes the CONVERSATION thread (defaults to user_id); pass the
+        Telegram chat id so each group/chat keeps its own separate context.
+
         Runs the blocking SDK calls in a thread so the async event loop is free.
         """
         return await asyncio.to_thread(
-            self._respond_sync, user_id, text, audio, audio_mime, image, image_mime
+            self._respond_sync, user_id, conv_id or user_id,
+            text, audio, audio_mime, image, image_mime,
         )
 
     async def ask(self, system: str, prompt: str) -> str | None:
@@ -218,6 +224,7 @@ class Brain:
     def _respond_sync(
         self,
         user_id: str,
+        conv_id: str,
         text: str | None,
         audio: bytes | None,
         audio_mime: str | None,
@@ -238,7 +245,8 @@ class Brain:
         # 1) Gemini — primary (native audio + image + memory).
         try:
             answer = self._gemini(
-                user_id, text, audio, audio_mime, image, image_mime, system_instruction
+                user_id, conv_id, text, audio, audio_mime, image, image_mime,
+                system_instruction,
             )
         except Exception as exc:
             log.warning("Gemini failed (%s). Trying fallbacks...", exc)
@@ -254,7 +262,7 @@ class Brain:
                 return "Consegui receber a imagem, mas meu cérebro de visão está no limite agora. Tenta de novo em uns segundos?"
 
             if fb_text:
-                answer = self._fallbacks(user_id, fb_text, system_instruction)
+                answer = self._fallbacks(user_id, conv_id, fb_text, system_instruction)
 
         if not answer:
             return _ALL_DOWN_MSG
@@ -268,9 +276,9 @@ class Brain:
         except Exception:
             pass
 
-        # Persist the turn in conversation memory.
-        self._memory.add_message(user_id, "user", user_repr)
-        self._memory.add_message(user_id, "model", answer)
+        # Persist the turn in this conversation's history (scoped by conv_id).
+        self._memory.add_message(conv_id, "user", user_repr)
+        self._memory.add_message(conv_id, "model", answer)
         return answer
 
     # --- system prompt ------------------------------------------------------
@@ -648,6 +656,7 @@ class Brain:
     def _gemini(
         self,
         user_id: str,
+        conv_id: str,
         text: str | None,
         audio: bytes | None,
         audio_mime: str | None,
@@ -657,9 +666,9 @@ class Brain:
     ) -> str:
         """Call Gemini with memory (function calling). Raises on failure (rate
         limit, etc.) so the caller falls through to the fallbacks."""
-        tools = list(self._tool_callables(user_id).values())
-        contents = self._build_contents(
-            user_id, text, audio, audio_mime, image, image_mime
+        tools = list(self._tool_callables(user_id).values())  # data scoped to owner
+        contents = self._build_contents(  # history scoped to this conversation
+            conv_id, text, audio, audio_mime, image, image_mime
         )
 
         response = self._client.models.generate_content(
@@ -676,7 +685,7 @@ class Brain:
 
     def _build_contents(
         self,
-        user_id: str,
+        conv_id: str,
         text: str | None,
         audio: bytes | None,
         audio_mime: str | None,
@@ -685,7 +694,7 @@ class Brain:
     ) -> list[types.Content]:
         contents: list[types.Content] = []
 
-        for msg in self._memory.recent_messages(user_id, limit=20):
+        for msg in self._memory.recent_messages(conv_id, limit=20):
             contents.append(
                 types.Content(
                     role=msg["role"],
@@ -721,16 +730,16 @@ class Brain:
 
     # --- fallbacks: Groq -> OpenRouter --------------------------------------
 
-    def _openai_messages(self, user_id: str, new_text: str) -> list[dict]:
+    def _openai_messages(self, conv_id: str, new_text: str) -> list[dict]:
         msgs: list[dict] = []
-        for m in self._memory.recent_messages(user_id, limit=20):
+        for m in self._memory.recent_messages(conv_id, limit=20):
             role = "assistant" if m["role"] == "model" else "user"
             msgs.append({"role": role, "content": m["content"]})
         msgs.append({"role": "user", "content": new_text})
         return msgs
 
-    def _fallbacks(self, user_id: str, text: str, system: str) -> str | None:
-        messages = self._openai_messages(user_id, text)
+    def _fallbacks(self, user_id: str, conv_id: str, text: str, system: str) -> str | None:
+        messages = self._openai_messages(conv_id, text)  # history per conversation
         cfg = self._config
 
         # 1) Groq — WITH memory/tools (function calling): always-available path.

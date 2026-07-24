@@ -25,6 +25,7 @@ from .timeparse import add_months, parse_when
 # (command, description) — also used to populate Telegram's command menu.
 COMMAND_LIST = [
     ("menu", "Abre o menu interativo com botões"),
+    ("ev", "Falar com a IA (útil em grupos): /ev sua mensagem"),
     ("ajuda", "Lista os comandos disponíveis"),
     ("status", "Diagnóstico: VM, banco, chaves de API"),
     ("silenciar", "Não perturbe: /silenciar 2h (ou off)"),
