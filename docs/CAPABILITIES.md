@@ -35,6 +35,9 @@ She is **locked to you** (owner-only) and replies with a natural female voice.
   - `consultar_noticias` — recent news (with sources).
   - `consultar_clima` — real weather forecast (open-meteo).
   - `salvar_memoria`, `criar_lembrete`, `listar_lembretes`.
+  - `criar_documento` — writes a file (txt/md/pdf/docx) with content she composed
+    and sends it to you (say "me manda em pdf", "faz em word"); can also save it
+    to the knowledge base in the same step.
   - `ver_agenda`, `criar_evento`, `enviar_email` — once Google is connected.
 - **Honesty:** if unsure, she says so and offers to search instead of inventing;
   cites sources when she used the web.
@@ -79,6 +82,19 @@ She is **locked to you** (owner-only) and replies with a natural female voice.
 | `/kbweb <url>` | Index a web page |
 | `/kbrm <nome>` | Remove a document |
 | `/quiz [documento]` | Generate a study question from your PDFs (answer hidden as spoiler) |
+| `/documento <formato> <título> \| <conteúdo>` | Create a file and send it to you. Formats: `txt`, `md`, `pdf`, `docx` (or `word`); format optional (default `pdf`) |
+
+**Creating documents (txt / Markdown / PDF / Word).** Three ways:
+
+1. **Just ask in chat or by voice** — "escreve um resumo de X e me manda em PDF",
+   "faz uma lista em word". She writes the content, generates the file and sends it.
+2. **Command** — `/documento pdf Lista de compras | arroz, feijão, café` (exact
+   content, no AI/tokens spent).
+3. **Menu** — `/menu` → 📄 Conhecimento → 📝 Criar documento.
+
+Every generated file arrives with a **📚 Salvar na base** button — tap it to store
+that content in the knowledge base (RAG), so you can ask about it later or `/quiz`
+on it. (When you ask via the AI, she can also save it in the same step.)
 
 ### Finances
 | Command | Does |
@@ -195,5 +211,8 @@ in `.env` — see [`.env.example`](../.env.example). Every service/link/key is i
 - **Google email/calendar** need a one-time OAuth on a personal computer.
 - **Web/news quality** depends on the search provider; forecasts have normal
   meteorological uncertainty.
+- **Documents:** she writes text-based files (txt/md/pdf/docx). Legacy `.doc` is
+  produced as modern `.docx` (opens the same in Word/Docs). No spreadsheets/slides,
+  no images or complex layout inside the generated files — plain formatted text.
 - **The AI can still occasionally be wrong** on un-tooled facts — verify important
   things (she'll flag uncertainty when she can).
