@@ -29,5 +29,9 @@ google-auth-oauthlib>=1.2.0
 # PDF text extraction for the knowledge base
 pypdf>=4.0.0
 
+# Document generation (E.V. creates PDF / Word files) — pure-Python, no system libs
+reportlab>=4.0.0
+python-docx>=1.1.0
+
 # Tests (dev)
 pytest>=8.0.0

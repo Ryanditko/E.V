@@ -70,6 +70,7 @@ COMMAND_LIST = [
     ("kb", "Base de conhecimento (envie um PDF para adicionar)"),
     ("kbweb", "Indexar uma página web: /kbweb https://..."),
     ("kbrm", "Remover documento da base: /kbrm nome.pdf"),
+    ("documento", "Criar arquivo: /documento pdf Título | conteúdo"),
     ("agenda", "Agenda do Google: /agenda [conta]"),
     ("evento", "Criar evento: /evento [conta] amanhã 15:00 Dentista"),
     ("email", "E-mail: /email [conta] fulano@x.com | Assunto | Corpo"),
@@ -124,7 +125,7 @@ class Commands:
             "🔗 Links\n"
             "   /link · /links · /linkrm\n\n"
             "📄 Conhecimento & Estudo\n"
-            "   envie um PDF · /kb · /kbweb · /kbrm · /quiz\n\n"
+            "   envie um PDF · /kb · /kbweb · /kbrm · /quiz · /documento\n\n"
             "💰 Finanças\n"
             "   /gasto · /gastos · /gastorm · /relatorio\n"
             "   /orcamento · /orcamentos · /orcamentorm\n"

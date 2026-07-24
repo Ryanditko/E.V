@@ -38,10 +38,11 @@ from telegram.ext import (
 )
 
 from ..config import Config
+from ..core import knowledge
 from ..core.brain import Brain
 from ..core.commands import COMMAND_LIST, Commands
 from ..core.memory import Memory
-from ..providers import voice as voice_mod
+from ..providers import documents as documents_mod, voice as voice_mod
 
 logging.basicConfig(
     level=logging.INFO,
@@ -58,6 +59,9 @@ class TelegramInterface:
         self._commands = Commands(config, self._memory)
         # user_id -> pending input action (e.g. "task", "rem", "link", ...)
         self._pending: dict[str, str] = {}
+        # short id -> (title, content) for the "save to knowledge base" button
+        self._pending_docs: dict[str, tuple[str, str]] = {}
+        self._doc_seq = 0
         self._last_briefing: str | None = None  # date of the last daily briefing
         self._last_checkin: str | None = None    # date of the last proactive check-in
         self._last_weekly: str | None = None     # date of the last weekly review
@@ -108,6 +112,9 @@ class TelegramInterface:
         # (no LLM) instead of treating it as a chat message.
         pending = self._pending.pop(user_id, None)
         if pending:
+            if pending == "kb:doc":  # menu-driven document creation (sends a file)
+                await self._make_and_send_document(update, update.message.text)
+                return
             result = self._handle_pending(user_id, pending, update.message.text)
             await update.message.reply_text(result, reply_markup=self._kb_main())
             return
@@ -503,6 +510,52 @@ class TelegramInterface:
             uid = str(update.effective_user.id)
             await self._cmd_out(update, self._commands.kbweb(uid, self._args(c)))
 
+    _DOC_USAGE = (
+        "Uso: /documento <formato> <título> | <conteúdo>\n"
+        "Ex: /documento pdf Lista de compras | arroz, feijão, café\n"
+        "Formatos: txt, md, pdf, docx (ou 'word'). O formato é opcional (padrão pdf).\n"
+        "Dica: você também pode só me pedir no chat, ex: \"me manda isso em PDF\"."
+    )
+
+    @staticmethod
+    def _parse_doc_request(raw: str):
+        """Parse '<formato> <título> | <conteúdo>'. Returns (fmt, title, content, error)."""
+        raw = (raw or "").strip()
+        if "|" not in raw:
+            return None, None, None, TelegramInterface._DOC_USAGE
+        left, content = raw.split("|", 1)
+        left, content = left.strip(), content.strip()
+        if not content:
+            return None, None, None, TelegramInterface._DOC_USAGE
+        tokens = left.split()
+        fmt = "pdf"
+        if tokens and documents_mod.normalize_format(tokens[0]):
+            fmt, title = tokens[0], " ".join(tokens[1:]).strip()
+        else:
+            title = left
+        return fmt, (title or "Documento"), content, None
+
+    async def _make_and_send_document(self, update: Update, raw: str) -> None:
+        fmt, title, content, err = self._parse_doc_request(raw)
+        if err:
+            await self._cmd_out(update, err)
+            return
+        try:
+            data, filename = await asyncio.to_thread(
+                documents_mod.build, fmt, title, content
+            )
+        except ValueError as exc:
+            await self._cmd_out(update, str(exc))
+            return
+        await self._deliver_document(update.message, {
+            "bytes": data, "filename": filename, "title": title,
+            "content": content, "saved_kb": False,
+        })
+
+    async def cmd_documento(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
+        if self._authorized(update):
+            await self._make_and_send_document(update, self._args(c))
+
     async def on_document(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         if not self._authorized(update):
             return
@@ -566,6 +619,7 @@ class TelegramInterface:
                 [b("📄 Ver documentos", callback_data="kb:list")],
                 [b("➕ Adicionar (enviar PDF)", callback_data="kb:add")],
                 [b("🌐 Indexar página web", callback_data="kb:web")],
+                [b("📝 Criar documento", callback_data="kb:doc")],
                 [b("⬅️ Voltar", callback_data="nav:main")],
             ]
         )
@@ -609,6 +663,10 @@ class TelegramInterface:
             return
         uid = str(q.from_user.id)
         section, _, action = q.data.partition(":")
+
+        if section == "docsave":
+            await self._save_doc_to_kb(q, uid, action)
+            return
 
         if section == "nav" or (section == "misc" and action == "menu"):
             self._pending.pop(uid, None)
@@ -687,6 +745,12 @@ class TelegramInterface:
             return "📄 Envie um arquivo PDF aqui no chat que eu indexo na base."
         if section == "kb" and action == "web":
             return "🌐 Manda a URL da página que eu indexo. Ex: https://..."
+        if section == "kb" and action == "doc":
+            return (
+                "📝 Formato: <formato> <título> | <conteúdo>\n"
+                "Ex: pdf Lista de compras | arroz, feijão, café\n"
+                "Formatos: txt, md, pdf, docx. O formato é opcional (padrão pdf)."
+            )
         if section == "goog" and action == "evento":
             return "🗓️ Formato: <tempo> <título>\nEx: amanhã 15:00 Dentista"
         if section == "goog" and action == "email":
@@ -771,8 +835,68 @@ class TelegramInterface:
         """Send a command result with the quick-action bar."""
         await self._send(update.message, text, self._quick_kb())
 
+    def _stash_doc(self, title: str, content: str) -> str:
+        self._doc_seq += 1
+        did = str(self._doc_seq)
+        self._pending_docs[did] = (title, content)
+        # Bound memory: keep only the last 50 pending docs.
+        if len(self._pending_docs) > 50:
+            for k in list(self._pending_docs)[:-50]:
+                self._pending_docs.pop(k, None)
+        return did
+
+    async def _deliver_document(self, message, artifact: dict) -> None:
+        """Send a generated file; offer a 'save to knowledge base' button unless
+        it was already saved."""
+        buf = io.BytesIO(artifact["bytes"])
+        buf.name = artifact["filename"]
+        kb = None
+        if artifact.get("saved_kb"):
+            caption = f"📄 {artifact['filename']} · também salvei na base de conhecimento."
+        else:
+            did = self._stash_doc(artifact["title"], artifact.get("content", ""))
+            caption = f"📄 {artifact['filename']}"
+            kb = InlineKeyboardMarkup(
+                [[InlineKeyboardButton("📚 Salvar na base", callback_data=f"docsave:{did}")]]
+            )
+        await message.reply_document(document=buf, filename=artifact["filename"],
+                                     caption=caption, reply_markup=kb)
+
+    async def _flush_documents(self, message) -> None:
+        for artifact in self._brain.pop_documents():
+            try:
+                await self._deliver_document(message, artifact)
+            except Exception:
+                log.exception("Failed to deliver generated document")
+
+    async def _save_doc_to_kb(self, q, uid: str, did: str) -> None:
+        """Handle the 'save to knowledge base' button under a generated file."""
+        title, content = self._pending_docs.pop(did, (None, None))
+        if content is None:
+            await q.answer("Esse documento expirou. Gere de novo, se quiser salvar.", show_alert=True)
+            try:
+                await q.edit_message_reply_markup(reply_markup=None)
+            except Exception:
+                pass
+            return
+        await q.answer("Salvando na base...")
+        try:
+            stored, _ = await asyncio.to_thread(
+                knowledge.ingest_text, content, title, self._config, self._memory, uid
+            )
+            msg = f"📚 '{title}' salvo na base de conhecimento ({stored} trechos)."
+        except Exception:
+            log.exception("Failed to save generated document to KB")
+            msg = "Não consegui salvar na base agora. Tenta de novo?"
+        try:
+            await q.edit_message_reply_markup(reply_markup=None)
+        except Exception:
+            pass
+        await q.message.reply_text(msg, reply_markup=self._quick_kb())
+
     async def _reply(self, update: Update, answer: str) -> None:
         await self._send(update.message, answer, self._quick_kb())
+        await self._flush_documents(update.message)
         if not self._config.voice_reply:
             return
         try:
@@ -1163,6 +1287,7 @@ class TelegramInterface:
         app.add_handler(CommandHandler("kb", self.cmd_kb))
         app.add_handler(CommandHandler("kbweb", self.cmd_kbweb))
         app.add_handler(CommandHandler("kbrm", self.cmd_kbrm))
+        app.add_handler(CommandHandler("documento", self.cmd_documento))
         app.add_handler(CommandHandler("agenda", self.cmd_agenda))
         app.add_handler(CommandHandler("evento", self.cmd_evento))
         app.add_handler(CommandHandler("email", self.cmd_email))

@@ -32,7 +32,8 @@ from google.genai import types
 
 from ..config import Config
 from ..personality import SYSTEM_PROMPT
-from ..providers import embeddings, llm as providers, tools as tools_mod
+from ..providers import documents as documents_mod, embeddings, llm as providers, tools as tools_mod
+from . import knowledge
 from .memory import Memory
 
 log = logging.getLogger("ev.brain")
@@ -51,6 +52,16 @@ class Brain:
         self._model = config.model
         self._memory = memory
         self._last_provider: str | None = None  # which provider answered last
+        # Documents the LLM asked to create during the current turn. The interface
+        # drains this after respond() and sends each file to the user.
+        self._last_documents: list[dict] = []
+
+    def pop_documents(self) -> list[dict]:
+        """Return and clear the documents generated during the last turn.
+
+        Each item: {bytes, filename, title, content, saved_kb}."""
+        docs, self._last_documents = self._last_documents, []
+        return docs
 
     def current_model(self) -> str:
         """Primary Gemini model — a runtime override (via /modelo) wins over .env."""
@@ -127,6 +138,7 @@ class Brain:
         image: bytes | None = None,
         image_mime: str | None = None,
     ) -> str:
+        self._last_documents = []  # fresh per turn; interface drains after respond()
         # Semantic recall uses the text query; audio/image-through-Gemini has none yet.
         system_instruction = self._system_instruction(user_id, text)
         if text is not None:
@@ -271,12 +283,48 @@ class Brain:
             """
             return tools_mod.news(assunto or cfg.news_topic or "Brasil", tavily_key=cfg.tavily_api_key)
 
+        def criar_documento(
+            conteudo: str,
+            titulo: str | None = None,
+            formato: str = "pdf",
+            salvar_kb: bool = False,
+        ) -> str:
+            """Cria um arquivo (txt, md, pdf ou docx/word) com o conteúdo e o
+            ENVIA para o usuário no chat. Use quando pedirem algo "em pdf",
+            "em word", "num arquivo", "um documento", ou para exportar um texto.
+
+            Args:
+                conteudo: o texto completo do documento (já escrito por você).
+                titulo: título/nome do documento (ex: "Lista de compras").
+                formato: txt, md, pdf ou docx (padrão pdf; "word" vira docx).
+                salvar_kb: se True, também guarda o conteúdo na base de conhecimento.
+            """
+            title = (titulo or "Documento").strip()
+            try:
+                data, filename = documents_mod.build(formato, title, conteudo)
+            except ValueError as exc:
+                return str(exc)
+            saved_kb = False
+            if salvar_kb and (conteudo or "").strip():
+                try:
+                    knowledge.ingest_text(conteudo, title, cfg, self._memory, user_id)
+                    saved_kb = True
+                except Exception as exc:  # KB is a bonus — never fail the doc
+                    log.warning("criar_documento KB ingest failed (%s)", exc)
+            self._last_documents.append({
+                "bytes": data, "filename": filename,
+                "title": title, "content": conteudo, "saved_kb": saved_kb,
+            })
+            extra = " e guardei na base de conhecimento" if saved_kb else ""
+            return f"documento '{filename}' criado{extra}; será enviado ao usuário agora"
+
         callables: dict = {
             "salvar_memoria": salvar_memoria,
             "criar_lembrete": criar_lembrete,
             "listar_lembretes": listar_lembretes,
             "consultar_clima": consultar_clima,
             "consultar_noticias": consultar_noticias,
+            "criar_documento": criar_documento,
         }
 
         if cfg.websearch_enabled:
@@ -372,6 +420,19 @@ class Brain:
                 "Busca notícias recentes (últimos dias) sobre um assunto.",
                 {"assunto": {"type": s, "description": "tema das notícias"}},
                 ["assunto"],
+            ),
+            fn(
+                "criar_documento",
+                "Cria um arquivo (txt, md, pdf ou docx/word) com o conteúdo e o "
+                "envia ao usuário. Use quando pedirem algo 'em pdf', 'em word', "
+                "'num arquivo' ou 'um documento'.",
+                {
+                    "conteudo": {"type": s, "description": "o texto completo do documento"},
+                    "titulo": {"type": s, "description": "título/nome do documento"},
+                    "formato": {"type": s, "description": "txt, md, pdf ou docx (padrão pdf)"},
+                    "salvar_kb": {"type": "boolean", "description": "também guardar na base de conhecimento"},
+                },
+                ["conteudo"],
             ),
         ]
         if cfg.websearch_enabled:
