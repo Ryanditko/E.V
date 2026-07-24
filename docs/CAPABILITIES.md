@@ -31,11 +31,14 @@ She is **locked to you** (owner-only) and replies with a natural female voice.
 - **Commitment detection:** if you mention a deadline/appointment in chat
   ("tenho prova sexta"), she offers to create a reminder.
 - **Hands-free command execution:** ask her by voice or text to do anything you'd
-  normally type as a command ("anota um gasto de 50 no mercado", "cria uma tarefa",
-  "marca o hábito treino", "esquece a memória 3") and she runs it herself via
-  `executar_comando` — no need to type the slash command. Covers tasks, reminders,
-  expenses, budgets, habits, journal, links, subscriptions, web monitors, search,
-  news, weather, calendar, and deletions.
+  normally type as a slash command — **create, modify, or delete** — and she runs it
+  herself via `executar_comando`. Covers essentially **every** command: tasks,
+  reminders, expenses, budgets, habits, journal, links, subscriptions, web monitors,
+  search/news/weather, calendar, deletions, and even interface actions like starting
+  a focus timer (`foco`), do-not-disturb (`silenciar`), exporting data (`exportar`),
+  diagnostics (`status`), summarizing a link (`resumir`), and clearing chat. Examples:
+  "anota um gasto de 50 no mercado", "foca 25 minutos em cálculo", "silencia por 2h",
+  "esquece a memória 3", "me exporta os gastos".
 - **Real-world tools she calls automatically when useful:**
   - `buscar_web` — current facts, prices, events (Tavily → Brave → DuckDuckGo).
   - `consultar_noticias` — recent news (with sources).

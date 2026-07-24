@@ -16,6 +16,7 @@ import io
 import logging
 import re
 from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 
 try:
     from zoneinfo import ZoneInfo
@@ -1619,6 +1620,32 @@ class TelegramInterface:
             except Exception:
                 log.exception("Failed to deliver generated document")
 
+    # Interface-level commands the AI can trigger (name -> cmd_* method). These
+    # need chat context (send files, live timer, UI), so the brain queues them
+    # and we run the real command handler here with a synthesized context.
+    _AI_INTERFACE_CMDS = {
+        "foco": "cmd_foco", "silenciar": "cmd_silenciar", "exportar": "cmd_exportar",
+        "status": "cmd_status", "resumir": "cmd_resumir", "limparchat": "cmd_limparchat",
+        "dados": "cmd_dados", "limpar": "cmd_limpar", "quiz": "cmd_quiz",
+        "insights": "cmd_insights", "modelo": "cmd_modelo", "ajuda": "cmd_ajuda",
+        "documento": "cmd_documento", "transcrever": "cmd_transcrever", "menu": "cmd_menu",
+    }
+
+    async def _run_actions(self, update: Update) -> None:
+        """Run interface-level commands the AI requested this turn."""
+        for act in self._brain.pop_actions():
+            name = self._AI_INTERFACE_CMDS.get(act.get("command", ""))
+            if not name:
+                continue
+            try:
+                # Synthesize a context so we can reuse the real command handler.
+                ctx = SimpleNamespace(
+                    args=(act.get("args") or "").split(), bot=update.get_bot()
+                )
+                await getattr(self, name)(update, ctx)
+            except Exception:
+                log.exception("Failed to run AI-requested command %s", act)
+
     async def _handle_fileact(self, q, uid: str, action: str) -> None:
         """Buttons under a received file: 'sum:<id>' summarize, 'kb:<id>' index."""
         what, _, fid = action.partition(":")
@@ -1714,6 +1741,7 @@ class TelegramInterface:
     async def _reply(self, update: Update, answer: str, kb: InlineKeyboardMarkup | None = None) -> None:
         await self._send(update.message, answer, kb or self._quick_kb())
         await self._flush_documents(update.message)
+        await self._run_actions(update)
         if not self._config.voice_reply:
             return
         try:

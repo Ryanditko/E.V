@@ -45,6 +45,15 @@ _ALL_DOWN_MSG = (
     "por minuto). Me dá uns segundos e tenta de novo, tá?"
 )
 
+# Commands that can't run in the pure logic layer (they send files, drive the
+# Telegram UI, or run a live timer). The LLM's executar_comando queues these and
+# the interface executes them with the chat context.
+_INTERFACE_COMMANDS = frozenset({
+    "foco", "silenciar", "exportar", "status", "resumir", "limparchat",
+    "dados", "limpar", "quiz", "insights", "modelo", "ajuda", "documento",
+    "transcrever", "menu",
+})
+
 
 class Brain:
     def __init__(self, config: Config, memory: Memory) -> None:
@@ -57,6 +66,9 @@ class Brain:
         # Documents the LLM asked to create during the current turn. The interface
         # drains this after respond() and sends each file to the user.
         self._last_documents: list[dict] = []
+        # Interface-level commands the LLM requested (foco, exportar, status...).
+        # The interface drains these after respond() and runs them with chat context.
+        self._last_actions: list[dict] = []
 
     def pop_documents(self) -> list[dict]:
         """Return and clear the documents generated during the last turn.
@@ -64,6 +76,12 @@ class Brain:
         Each item: {bytes, filename, title, content, saved_kb}."""
         docs, self._last_documents = self._last_documents, []
         return docs
+
+    def pop_actions(self) -> list[dict]:
+        """Return and clear interface-command intents from the last turn.
+        Each item: {command, args}."""
+        acts, self._last_actions = self._last_actions, []
+        return acts
 
     def current_model(self) -> str:
         """Primary Gemini model — a runtime override (via /modelo) wins over .env."""
@@ -232,6 +250,7 @@ class Brain:
         image_mime: str | None = None,
     ) -> str:
         self._last_documents = []  # fresh per turn; interface drains after respond()
+        self._last_actions = []
         # Semantic recall uses the text query; audio/image-through-Gemini has none yet.
         system_instruction = self._system_instruction(user_id, text)
         if text is not None:
@@ -402,14 +421,23 @@ class Brain:
             gastorm, orcamento, orcamentos, orcamentorm, relatorio, habito, feito,
             habitos, habitorm, diario, diariorm, link, links, linkrm, procurar,
             buscar, noticias, clima, kb, kbrm, kbweb, semana, vigiar, vigias,
-            vigiarm, assinatura, assinaturas, assinaturarm, agenda, evento, email.
+            vigiarm, assinatura, assinaturas, assinaturarm, agenda, evento, email,
+            foco, silenciar, exportar, status, resumir, limparchat, dados, limpar,
+            quiz, insights, modelo, documento, transcrever, ajuda, menu.
 
             Args:
-                comando: o nome do comando (ex: 'gasto', 'tarefa', 'habito').
+                comando: o nome do comando (ex: 'gasto', 'tarefa', 'foco', 'status').
                 argumentos: os argumentos no mesmo formato do comando
                     (ex: '50 mercado #casa' para gasto; 'estudar #faculdade' para tarefa).
             """
-            return self._commands.run(user_id, comando, argumentos)
+            key = (comando or "").strip().lower().lstrip("/")
+            if key in self._commands.runnable():
+                return self._commands.run(user_id, key, argumentos)  # runs now (text)
+            if key in _INTERFACE_COMMANDS:
+                # Needs the chat context — queue it for the interface to run.
+                self._last_actions.append({"command": key, "args": argumentos or ""})
+                return f"ok, executando '{key}' agora"
+            return self._commands.run(user_id, key, argumentos)  # -> "não conheço"
 
         def consultar_clima(cidade: str) -> str:
             """Consulta a previsão do tempo real (hoje e próximos dias) de uma cidade.
