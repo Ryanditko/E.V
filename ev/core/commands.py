@@ -33,7 +33,7 @@ COMMAND_LIST = [
     ("limpar", "Limpar a conversa (mantém memórias e o resto)"),
     ("limparchat", "Apagar bolhas do chat: /limparchat 10 ou /limparchat tudo"),
     ("resumir", "Resumir um link: /resumir https://..."),
-    ("foco", "Timer de foco/Pomodoro: /foco 25 5"),
+    ("foco", "Pomodoro: /foco 25 5 (botões ⏹️/➕/➖) · /foco parar"),
     ("lembrete", "Criar lembrete: /lembrete 10m tomar água"),
     ("rotina", "Recorrente: /rotina diario|semanal|mensal [dia] HH:MM texto"),
     ("lembretes", "Listar seus lembretes"),
