@@ -1,11 +1,7 @@
-name: Deploy E.V. to the VM
+name: Test & deploy E.V.
 
-# Every push to main updates the running bot on the Oracle VM and restarts it.
-# Secrets in the repo (Settings -> Secrets and variables -> Actions):
-#   SSH_PRIVATE_KEY  the VM's private key (contents of oracle_ev.key)
-#   VM_IP            e.g. 129.158.194.108
-#   VM_USER          e.g. ubuntu
-# The .env and other secret files stay on the VM — this only updates the code.
+# On every push to main: run the tests; deploy to the VM ONLY if they pass.
+# Secrets: SSH_PRIVATE_KEY, VM_IP, VM_USER. Secrets/.env stay on the VM.
 
 on:
   push:
@@ -13,7 +9,18 @@ on:
   workflow_dispatch: {}
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -q -r requirements.txt
+      - run: python -m pytest -q
+
   deploy:
+    needs: test          # only runs if tests pass
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

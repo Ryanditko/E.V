@@ -1,0 +1,29 @@
+name: E.V. watchdog
+
+# Scheduled health check: if the bot is down, restart it and alert the owner
+# on Telegram. Uses the same SSH secrets as the deploy workflow.
+# Note: GitHub cron is best-effort (can be delayed several minutes) and pauses
+# after ~60 days of repo inactivity — it complements systemd's auto-restart,
+# it is not a hard real-time monitor.
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"   # every 15 minutes
+  workflow_dispatch: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up SSH key
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_key
+          chmod 600 ~/.ssh/id_key
+
+      - name: Health check
+        env:
+          VM: ${{ secrets.VM_USER }}@${{ secrets.VM_IP }}
+        run: |
+          ssh -i ~/.ssh/id_key -o StrictHostKeyChecking=accept-new "$VM" \
+            'bash ~/ev/deploy/watchdog.sh'
