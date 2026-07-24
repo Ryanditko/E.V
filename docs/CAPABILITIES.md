@@ -53,7 +53,8 @@ She is **locked to you** (owner-only) and replies with a natural female voice.
 | `/status` | Diagnostics: uptime, DB, disk/memory, which API keys are set — plus a button to live-test the keys |
 | `/silenciar <2h\|30m\|1d\|off>` | Do-not-disturb: mute proactive pings (briefing, check-in, nudges); reminders still fire |
 | `/dados` | Storage control: see counts per category and wipe by category (tap-confirm) or **everything** (two-factor: tap + type `APAGAR TUDO`) |
-| `/limpar` | Clear the conversation history only (keeps memories, reminders, everything else) |
+| `/limpar` | Clear the conversation history in her memory (keeps reminders, facts, everything else) |
+| `/limparchat <N>` | Delete the last N visible message bubbles from the Telegram chat (only ~last 48h, Telegram limit) |
 | `/foco [min] [pausa]` | Pomodoro focus timer (default 25/5) — she pings you at break and end |
 | `/resumir <url>` | Fetch a page/article and return a short summary (with a save-to-KB button) |
 

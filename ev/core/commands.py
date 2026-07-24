@@ -30,6 +30,7 @@ COMMAND_LIST = [
     ("silenciar", "Não perturbe: /silenciar 2h (ou off)"),
     ("dados", "Ver/apagar seus dados guardados (por categoria ou tudo)"),
     ("limpar", "Limpar a conversa (mantém memórias e o resto)"),
+    ("limparchat", "Apagar as últimas N bolhas do chat: /limparchat 10"),
     ("resumir", "Resumir um link: /resumir https://..."),
     ("foco", "Timer de foco/Pomodoro: /foco 25 5"),
     ("lembrete", "Criar lembrete: /lembrete 10m tomar água"),
@@ -124,7 +125,7 @@ class Commands:
             "━━━━━━━━━━━━━━━━━━\n"
             "🏠 Geral\n"
             "   /menu · /ajuda · /modelo · /status · /silenciar\n"
-            "   /dados (armazenamento) · /limpar (conversa)\n\n"
+            "   /dados (armazenamento) · /limpar (memória) · /limparchat (bolhas)\n\n"
             "🎯 Foco & Web\n"
             "   /foco (pomodoro) · /resumir (link)\n\n"
             "📋 Tarefas\n"

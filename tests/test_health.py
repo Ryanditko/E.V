@@ -45,3 +45,11 @@ def test_parse_duration():
     assert TelegramInterface._parse_duration("30m") == 1800
     assert TelegramInterface._parse_duration("1d") == 86400
     assert TelegramInterface._parse_duration("xyz") is None
+
+
+def test_parse_count():
+    assert TelegramInterface._parse_count("") == 30        # default
+    assert TelegramInterface._parse_count("10") == 10
+    assert TelegramInterface._parse_count("999") == 100    # capped
+    assert TelegramInterface._parse_count("0") == 1        # floored
+    assert TelegramInterface._parse_count("abc") is None

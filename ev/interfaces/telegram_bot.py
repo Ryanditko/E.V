@@ -249,6 +249,46 @@ class TelegramInterface:
             parse_mode="HTML", reply_markup=kb,
         )
 
+    @staticmethod
+    def _parse_count(arg: str, default: int = 30, cap: int = 100) -> int | None:
+        """Parse an integer count (1..cap). '' -> default; invalid -> None."""
+        arg = (arg or "").strip()
+        if not arg:
+            return default
+        if arg.isdigit():
+            return max(1, min(cap, int(arg)))
+        return None
+
+    async def cmd_limparchat(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
+        """Delete the last N visible messages from the Telegram chat itself."""
+        if not self._authorized(update):
+            return
+        n = self._parse_count(self._args(c))
+        if n is None:
+            await update.message.reply_text(
+                "Uso: /limparchat <número>. Ex: /limparchat 10 apaga as últimas 10 "
+                "mensagens do chat (máx. 100)."
+            )
+            return
+        chat_id = update.effective_chat.id
+        latest = update.message.message_id
+        deleted = 0
+        # Telegram IDs are ~sequential per chat; walk down from the newest and
+        # delete each, skipping gaps/older-than-48h/not-permitted silently.
+        for mid in range(latest, max(0, latest - n), -1):
+            try:
+                await c.bot.delete_message(chat_id, mid)
+                deleted += 1
+            except Exception:
+                pass
+        msg = f"🧽 Apaguei {deleted} mensagem(ns) do chat."
+        if deleted < n:
+            msg += (" Algumas não deu — o Telegram só permite apagar mensagens "
+                    "dos últimos ~2 dias.")
+        msg += "\n\n(Isso some com as bolhas aqui; sua memória/lembretes seguem intactos. "
+        msg += "Para apagar o que a E.V. lembra, use /limpar ou /dados.)"
+        await c.bot.send_message(chat_id, msg, reply_markup=self._quick_kb())
+
     async def _handle_data(self, q, uid: str, action: str) -> None:
         op, _, key = action.partition(":")
         if action == "menu" or op == "menu":
@@ -1875,6 +1915,7 @@ class TelegramInterface:
         app.add_handler(CommandHandler("silenciar", self.cmd_silenciar))
         app.add_handler(CommandHandler("dados", self.cmd_dados))
         app.add_handler(CommandHandler("limpar", self.cmd_limpar))
+        app.add_handler(CommandHandler("limparchat", self.cmd_limparchat))
         app.add_handler(CommandHandler("resumir", self.cmd_resumir))
         app.add_handler(CommandHandler("foco", self.cmd_foco))
         app.add_handler(CommandHandler("agenda", self.cmd_agenda))
