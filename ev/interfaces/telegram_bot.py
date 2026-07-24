@@ -129,6 +129,20 @@ class TelegramInterface:
                     "Manda o áudio (mensagem de voz ou arquivo) que eu transcrevo. 🎙️"
                 )
                 return
+            if pending == "wipe_confirm":  # second factor for the full wipe
+                if update.message.text.strip().upper() == self._WIPE_PHRASE:
+                    n = await asyncio.to_thread(self._memory.clear_all_user_data, user_id)
+                    await update.message.reply_text(
+                        f"🧹 Pronto. Apaguei {n} itens — recomeçamos do zero.",
+                        reply_markup=self._kb_main(),
+                    )
+                else:
+                    await update.message.reply_text(
+                        "❌ Cancelado — não apaguei nada. (Pra confirmar era preciso "
+                        f"digitar exatamente: {self._WIPE_PHRASE})",
+                        reply_markup=self._kb_main(),
+                    )
+                return
             result = self._handle_pending(user_id, pending, update.message.text)
             await update.message.reply_text(result, reply_markup=self._kb_main())
             return
@@ -183,6 +197,94 @@ class TelegramInterface:
             "bytes": data, "filename": filename, "title": "Transcrição",
             "content": text, "saved_kb": False,
         })
+
+    # --- /dados : storage control ------------------------------------------
+
+    _DATA_LABELS = dict(Memory.DATA_TABLES)
+
+    def _data_menu(self, uid: str) -> tuple[str, InlineKeyboardMarkup]:
+        summary = self._memory.storage_summary(uid)
+        total = sum(s["count"] for s in summary)
+        lines = ["🗄️ <b>Seus dados guardados</b>", ""]
+        for s in summary:
+            lines.append(f"• {html.escape(s['label'])}: <b>{s['count']}</b>")
+        lines.append(f"\nTotal: {total} itens.")
+        lines.append("\nToque pra apagar uma categoria (pede confirmação). "
+                     "Apagar aqui é em massa; pra apagar 1 item use os comandos "
+                     "(/esquecer, /gastorm, /cancelar, etc.).")
+        b = InlineKeyboardButton
+        rows = [
+            [b(f"🗑️ {s['label']} ({s['count']})", callback_data=f"data:clr:{s['key']}")]
+            for s in summary if s["count"] > 0
+        ]
+        rows.append([b("🧹 Limpar TUDO", callback_data="data:clr:ALL")])
+        rows.append([b("⬅️ Voltar", callback_data="nav:main")])
+        return "\n".join(lines), InlineKeyboardMarkup(rows)
+
+    _WIPE_PHRASE = "APAGAR TUDO"
+
+    def _data_confirm(self, uid: str, key: str) -> tuple[str, InlineKeyboardMarkup]:
+        """Single-tap confirm for a single category (not the full wipe)."""
+        b = InlineKeyboardButton
+        n = self._memory.count_rows(key, uid)
+        label = self._DATA_LABELS.get(key, key)
+        text = (f"Apagar <b>{n}</b> de <b>{html.escape(label)}</b>? "
+                "Não dá pra desfazer.")
+        yes = b(f"🗑️ Sim, apagar {n}", callback_data=f"data:yes:{key}")
+        return text, InlineKeyboardMarkup([[yes], [b("✖️ Cancelar", callback_data="data:menu")]])
+
+    async def cmd_dados(self, update: Update, _c: ContextTypes.DEFAULT_TYPE) -> None:
+        if not self._authorized(update):
+            return
+        text, kb = self._data_menu(str(update.effective_user.id))
+        await update.message.reply_text(text, parse_mode="HTML", reply_markup=kb)
+
+    async def cmd_limpar(self, update: Update, _c: ContextTypes.DEFAULT_TYPE) -> None:
+        if not self._authorized(update):
+            return
+        uid = str(update.effective_user.id)
+        text, kb = self._data_confirm(uid, "messages")
+        await update.message.reply_text(
+            "🧽 Limpar a conversa (mantém memórias, lembretes e o resto).\n\n" + text,
+            parse_mode="HTML", reply_markup=kb,
+        )
+
+    async def _handle_data(self, q, uid: str, action: str) -> None:
+        op, _, key = action.partition(":")
+        if action == "menu" or op == "menu":
+            self._pending.pop(uid, None)  # cancels any armed wipe
+            text, kb = self._data_menu(uid)
+            await q.edit_message_text(text, parse_mode="HTML", reply_markup=kb)
+            return
+        if op == "clr":
+            if key == "ALL":
+                # Dangerous -> two-factor: must ALSO type the exact phrase.
+                total = sum(s["count"] for s in self._memory.storage_summary(uid))
+                self._pending[uid] = "wipe_confirm"
+                b = InlineKeyboardButton
+                await q.edit_message_text(
+                    f"⚠️ <b>Apagar TUDO?</b> ({total} itens de todas as categorias — "
+                    "memórias, lembretes, tarefas, gastos, base, conversa...). "
+                    "<b>Não dá pra desfazer.</b>\n\n"
+                    f"Pra confirmar, <b>digite</b> exatamente:\n<code>{self._WIPE_PHRASE}</code>",
+                    parse_mode="HTML",
+                    reply_markup=InlineKeyboardMarkup(
+                        [[b("✖️ Cancelar", callback_data="data:menu")]]
+                    ),
+                )
+                return
+            text, kb = self._data_confirm(uid, key)
+            await q.edit_message_text(text, parse_mode="HTML", reply_markup=kb)
+            return
+        if op == "yes":  # single-category confirm (full wipe uses the typed phrase)
+            label = self._DATA_LABELS.get(key, key)
+            n = await asyncio.to_thread(self._memory.clear_table, key, uid)
+            await q.answer("Apagado.")
+            text, kb = self._data_menu(uid)
+            await q.edit_message_text(
+                f"🗑️ Apaguei {n} de {html.escape(label)}.\n\n" + text,
+                parse_mode="HTML", reply_markup=kb,
+            )
 
     # --- /status : diagnostics ---------------------------------------------
 
@@ -926,7 +1028,8 @@ class TelegramInterface:
                 [b("🔗 Links", callback_data="link:menu"), b("📄 Conhecimento", callback_data="kb:menu")],
                 [b("🧠 Memória", callback_data="mem:menu"), b("📅 Google", callback_data="goog:menu")],
                 [b("🔎 Buscar web", callback_data="search:add")],
-                [b("📤 Exportar dados", callback_data="export:menu")],
+                [b("📤 Exportar dados", callback_data="export:menu"),
+                 b("🗄️ Meus dados", callback_data="data:menu")],
                 [b("❓ Ajuda", callback_data="misc:ajuda")],
             ]
         )
@@ -1009,6 +1112,9 @@ class TelegramInterface:
         if section == "status" and action == "live":
             await q.answer("Testando...")
             await self._status_live(q.message)
+            return
+        if section == "data":
+            await self._handle_data(q, uid, action)
             return
         if section == "fileact":
             await self._handle_fileact(q, uid, action)
@@ -1767,6 +1873,8 @@ class TelegramInterface:
         app.add_handler(CommandHandler("transcrever", self.cmd_transcrever))
         app.add_handler(CommandHandler("status", self.cmd_status))
         app.add_handler(CommandHandler("silenciar", self.cmd_silenciar))
+        app.add_handler(CommandHandler("dados", self.cmd_dados))
+        app.add_handler(CommandHandler("limpar", self.cmd_limpar))
         app.add_handler(CommandHandler("resumir", self.cmd_resumir))
         app.add_handler(CommandHandler("foco", self.cmd_foco))
         app.add_handler(CommandHandler("agenda", self.cmd_agenda))

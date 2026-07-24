@@ -28,6 +28,8 @@ COMMAND_LIST = [
     ("ajuda", "Lista os comandos disponíveis"),
     ("status", "Diagnóstico: VM, banco, chaves de API"),
     ("silenciar", "Não perturbe: /silenciar 2h (ou off)"),
+    ("dados", "Ver/apagar seus dados guardados (por categoria ou tudo)"),
+    ("limpar", "Limpar a conversa (mantém memórias e o resto)"),
     ("resumir", "Resumir um link: /resumir https://..."),
     ("foco", "Timer de foco/Pomodoro: /foco 25 5"),
     ("lembrete", "Criar lembrete: /lembrete 10m tomar água"),
@@ -121,7 +123,8 @@ class Commands:
             "🕷️ E.V. — todos os comandos\n"
             "━━━━━━━━━━━━━━━━━━\n"
             "🏠 Geral\n"
-            "   /menu · /ajuda · /modelo · /status · /silenciar\n\n"
+            "   /menu · /ajuda · /modelo · /status · /silenciar\n"
+            "   /dados (armazenamento) · /limpar (conversa)\n\n"
             "🎯 Foco & Web\n"
             "   /foco (pomodoro) · /resumir (link)\n\n"
             "📋 Tarefas\n"
