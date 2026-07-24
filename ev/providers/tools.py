@@ -273,24 +273,54 @@ def news(topic: str, max_results: int = 4, tavily_key: str = "") -> str:
     )
 
 
-def tavily_search(query: str, api_key: str, max_results: int = 5) -> str:
-    """Search via Tavily (AI-focused search; clean relevant results)."""
+def _fmt_pubdate(s: str) -> str:
+    """Format a Tavily published_date (RFC-2822) as 'dd/mm/yyyy · ', or ''."""
+    if not s:
+        return ""
+    try:
+        from email.utils import parsedate_to_datetime
+        return parsedate_to_datetime(s).strftime("%d/%m/%Y") + " · "
+    except Exception:
+        return ""
+
+
+def tavily_search(
+    query: str, api_key: str, max_results: int = 5, recent: bool = False
+) -> str:
+    """Search via Tavily. `recent=True` switches to the news topic (last 7 days)
+    for current-events queries. Includes Tavily's synthesized answer and shows
+    each result's publish date so freshness is visible."""
     import httpx
+
+    payload = {
+        "query": query,
+        "max_results": max_results,
+        "search_depth": "basic",
+        "include_answer": True,
+    }
+    if recent:
+        payload["topic"] = "news"
+        payload["days"] = 7
 
     resp = httpx.post(
         "https://api.tavily.com/search",
-        json={"query": query, "max_results": max_results, "search_depth": "basic"},
+        json=payload,
         headers={"Authorization": f"Bearer {api_key}"},
         timeout=20,
     )
     resp.raise_for_status()
-    results = resp.json().get("results", [])
-    if not results:
+    data = resp.json()
+    results = data.get("results", [])
+    answer = (data.get("answer") or "").strip()
+    if not results and not answer:
         return "não achei nada relevante na web."
     lines = []
+    if answer:
+        lines.append(f"Resumo: {answer}\n")
     for r in results[:max_results]:
-        body = (r.get("content", "") or "")[:200]
-        lines.append(f"- {r.get('title', '')}: {body} ({r.get('url', '')})")
+        body = (r.get("content", "") or "")[:180]
+        date = _fmt_pubdate(r.get("published_date", ""))
+        lines.append(f"- {date}{r.get('title', '')}: {body} ({r.get('url', '')})")
     return "\n".join(lines)
 
 
@@ -314,6 +344,20 @@ def brave_search(query: str, api_key: str, max_results: int = 5) -> str:
     return "\n".join(lines)
 
 
+# Query words that signal the user wants CURRENT info (switch Tavily to news mode).
+_RECENT_KW = (
+    "hoje", "agora", "últimas", "ultimas", "notícia", "noticia", "notícias",
+    "noticias", "atual", "atualmente", "recente", "recentes", "2026", "preço",
+    "preco", "cotação", "cotacao", "dólar", "dolar", "resultado", "placar",
+    "última hora", "ultima hora",
+)
+
+
+def _looks_recent(query: str) -> bool:
+    q = query.lower()
+    return any(k in q for k in _RECENT_KW)
+
+
 def web_search(
     query: str, max_results: int = 5, brave_key: str = "", tavily_key: str = ""
 ) -> str:
@@ -321,7 +365,9 @@ def web_search(
     Tavily -> Brave -> DuckDuckGo (whichever is configured; free/no-key fallback)."""
     if tavily_key:
         try:
-            return tavily_search(query, tavily_key, max_results)
+            return tavily_search(
+                query, tavily_key, max_results, recent=_looks_recent(query)
+            )
         except Exception as exc:
             log.warning("tavily_search failed (%s); trying next", exc)
     if brave_key:

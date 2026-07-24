@@ -285,7 +285,7 @@ class Commands:
         items = self._memory.open_reminders(user_id)
         if not items:
             return "Você não tem lembretes em aberto."
-        marks = {"daily": " [todo dia]", "weekly": " [toda semana]"}
+        marks = {"daily": " [todo dia]", "weekly": " [toda semana]", "monthly": " [todo mês]"}
         lines = ["⏰ Seus lembretes:"]
         for r in items:
             when = ""
