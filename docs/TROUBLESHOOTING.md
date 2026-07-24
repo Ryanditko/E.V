@@ -55,6 +55,42 @@ ssh -i ~/ev/oracle_ev.key ubuntu@129.158.194.108 'sudo systemctl restart ev'
 ```
 (Local daily backups are also on the server in `~/ev/backups/`.)
 
+## VM running low on memory or disk (keep E.V. always up)
+
+The watchdog warns you on Telegram if disk goes over 85% or free memory gets
+tight. `/status` shows the current numbers any time. What "used%" means: on Linux,
+`buff/cache` is reclaimable, so the number that matters for memory is
+**available** (and there's 2 GB of swap as a cushion).
+
+### Memory is tight (bot got killed / keeps restarting)
+```bash
+sudo systemctl restart ev          # 1) free memory immediately (usually enough)
+free -h                            # 2) check "available" and swap
+ps aux --sort=-%rss | head -6      # 3) see what's using RAM
+grep -c '^OLLAMA_ENABLED=false' ~/ev/.env   # 4) confirm Ollama is OFF (must print 1)
+```
+If it keeps happening, **grow the swap** (cheap and very effective on a 1 GB VM):
+```bash
+sudo swapoff -a
+sudo fallocate -l 4G /swapfile && sudo chmod 600 /swapfile
+sudo mkswap /swapfile && sudo swapon /swapfile
+# make it permanent:
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+```
+Last resort: move to a bigger Oracle shape (e.g. ARM A1 with more RAM) when
+capacity is available — that's a migration, not a quick fix.
+
+### Disk is filling up (over 85%)
+```bash
+df -h /                                   # confirm
+sudo journalctl --vacuum-time=3d          # trim systemd logs (usual culprit)
+sudo apt-get clean                        # clear apt cache
+du -sh ~/ev/backups/* 2>/dev/null         # DB backups (auto-pruned to 7)
+du -sh /var/log/* ~/* 2>/dev/null | sort -h | tail   # find big files
+```
+E.V.'s own footprint is small (~150 MB RAM, a few MB of DB), so disk growth is
+almost always logs — the vacuum above fixes it.
+
 ## Nothing worked?
 Grab the logs and hand them to any AI assistant (Claude Code, etc.):
 ```bash
