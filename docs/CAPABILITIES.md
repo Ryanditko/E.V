@@ -58,7 +58,8 @@ She is **locked to you** (owner-only) and replies with a natural female voice.
 |---------|------|
 | `/menu` | Open the interactive button menu |
 | `/ajuda` | List all commands |
-| `/modelo` | Show AI models + today's usage; `/modelo <nome>` switches the primary model |
+| `/modelo` | Show AI models + today's usage; `/modelo <gemini-...>` switches the primary **Gemini** model (must be a valid gemini name) |
+| `/provedor <auto\|gemini\|groq\|openrouter\|ollama>` | Force one provider (to test it) instead of the automatic Gemini→Groq→OpenRouter→Ollama chain. `auto` restores normal fallback |
 | `/status` | Diagnostics: uptime, DB, disk/memory, which API keys are set — plus a button to live-test the keys |
 | `/ev <mensagem>` | Talk to the AI explicitly — mainly for **groups** (mention/reply also work). See [GROUPS.md](GROUPS.md) |
 | `/silenciar <2h\|30m\|1d\|off>` | Do-not-disturb: mute proactive pings (briefing, check-in, nudges); reminders still fire |

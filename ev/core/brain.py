@@ -51,7 +51,7 @@ _ALL_DOWN_MSG = (
 _INTERFACE_COMMANDS = frozenset({
     "foco", "silenciar", "exportar", "status", "resumir", "limparchat",
     "dados", "limpar", "quiz", "insights", "modelo", "ajuda", "documento",
-    "transcrever", "menu",
+    "transcrever", "menu", "provedor",
 })
 
 
@@ -260,17 +260,19 @@ class Brain:
         else:
             user_repr = "[mensagem de voz]"
         answer: str | None = None
+        force = (self._memory.get_setting("force_provider") or "").strip().lower()
 
-        # 1) Gemini — primary (native audio + image + memory).
-        try:
-            answer = self._gemini(
-                user_id, conv_id, text, audio, audio_mime, image, image_mime,
-                system_instruction,
-            )
-        except Exception as exc:
-            log.warning("Gemini failed (%s). Trying fallbacks...", exc)
-
-            # Fallbacks handle text only. Audio -> transcribe; image can't be seen.
+        if force == "gemini":
+            # Forced Gemini only — no fallback (so you can actually test it).
+            try:
+                answer = self._gemini(
+                    user_id, conv_id, text, audio, audio_mime, image, image_mime,
+                    system_instruction,
+                )
+            except Exception as exc:
+                log.warning("Forced Gemini failed (%s)", exc)
+        elif force in ("groq", "openrouter", "ollama"):
+            # Forced fallback provider only. Audio -> transcribe; image unsupported.
             fb_text = text
             if audio is not None:
                 fb_text = self._transcribe(audio, audio_mime)
@@ -278,12 +280,35 @@ class Brain:
                     user_repr = fb_text
                     system_instruction = self._system_instruction(user_id, fb_text)
             if image is not None and not fb_text:
-                return "Consegui receber a imagem, mas meu cérebro de visão está no limite agora. Tenta de novo em uns segundos?"
-
+                return f"O provedor forçado ({force}) não enxerga imagens. Use /provedor gemini ou /provedor auto."
             if fb_text:
-                answer = self._fallbacks(user_id, conv_id, fb_text, system_instruction)
+                answer = self._fallbacks(
+                    user_id, conv_id, fb_text, system_instruction, only=force
+                )
+        else:
+            # Automatic chain: Gemini -> Groq -> OpenRouter -> Ollama.
+            try:
+                answer = self._gemini(
+                    user_id, conv_id, text, audio, audio_mime, image, image_mime,
+                    system_instruction,
+                )
+            except Exception as exc:
+                log.warning("Gemini failed (%s). Trying fallbacks...", exc)
+                fb_text = text
+                if audio is not None:
+                    fb_text = self._transcribe(audio, audio_mime)
+                    if fb_text:
+                        user_repr = fb_text
+                        system_instruction = self._system_instruction(user_id, fb_text)
+                if image is not None and not fb_text:
+                    return "Consegui receber a imagem, mas meu cérebro de visão está no limite agora. Tenta de novo em uns segundos?"
+                if fb_text:
+                    answer = self._fallbacks(user_id, conv_id, fb_text, system_instruction)
 
         if not answer:
+            if force:
+                return (f"O provedor forçado ({force}) não respondeu agora (pode estar "
+                        "sem cota ou fora do ar). Volta pro automático com /provedor auto.")
             return _ALL_DOWN_MSG
 
         # Track which provider answered (for /modelo usage stats).
@@ -766,12 +791,13 @@ class Brain:
         msgs.append({"role": "user", "content": new_text})
         return msgs
 
-    def _fallbacks(self, user_id: str, conv_id: str, text: str, system: str) -> str | None:
+    def _fallbacks(self, user_id: str, conv_id: str, text: str, system: str,
+                   only: str | None = None) -> str | None:
         messages = self._openai_messages(conv_id, text)  # history per conversation
         cfg = self._config
 
         # 1) Groq — WITH memory/tools (function calling): always-available path.
-        if cfg.groq_api_key:
+        if cfg.groq_api_key and only in (None, "groq"):
             try:
                 answer = providers.chat_with_tools(
                     base_url=providers.GROQ_BASE_URL,
@@ -790,7 +816,7 @@ class Brain:
                 log.warning("Groq fallback failed (%s).", exc)
 
         # 2) OpenRouter — plain text (final backstop, no memory).
-        if cfg.openrouter_api_key:
+        if cfg.openrouter_api_key and only in (None, "openrouter"):
             try:
                 answer = providers.chat_openai_compat(
                     base_url=providers.OPENROUTER_BASE_URL,
@@ -807,7 +833,7 @@ class Brain:
                 log.warning("OpenRouter fallback failed (%s).", exc)
 
         # 3) Ollama — local model, never rate-limited (final safety net).
-        if cfg.ollama_enabled:
+        if cfg.ollama_enabled and only in (None, "ollama"):
             try:
                 answer = providers.chat_openai_compat(
                     base_url=cfg.ollama_base_url,

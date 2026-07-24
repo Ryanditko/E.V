@@ -419,6 +419,42 @@ class TelegramInterface:
                 parse_mode="HTML", reply_markup=kb,
             )
 
+    # --- /provedor : force a provider (for testing) ------------------------
+
+    _PROVIDERS = ("auto", "gemini", "groq", "openrouter", "ollama")
+
+    async def cmd_provedor(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
+        if not self._authorized(update):
+            return
+        arg = self._args(c).strip().lower()
+        if not arg:
+            cur = self._memory.get_setting("force_provider") or "auto"
+            await update.message.reply_text(
+                f"🔀 Provedor atual: <b>{cur}</b>\n\n"
+                "Por padrão é <b>auto</b> (cascata: Gemini → Groq → OpenRouter → Ollama).\n"
+                "Forçar um só, pra testar: <code>/provedor groq</code> "
+                "(ou gemini, openrouter, ollama).\n"
+                "Voltar ao automático: <code>/provedor auto</code>",
+                parse_mode="HTML",
+            )
+            return
+        if arg not in self._PROVIDERS:
+            await update.message.reply_text(
+                "Opções: auto, gemini, groq, openrouter, ollama."
+            )
+            return
+        self._memory.set_setting("force_provider", "" if arg == "auto" else arg)
+        if arg == "auto":
+            await update.message.reply_text(
+                "🔄 Voltei pro automático (Gemini → Groq → OpenRouter → Ollama)."
+            )
+        else:
+            await update.message.reply_text(
+                f"📌 Agora respondo SÓ pelo <b>{arg}</b> (modo teste, sem fallback). "
+                "Volte ao normal com /provedor auto.",
+                parse_mode="HTML",
+            )
+
     # --- /status : diagnostics ---------------------------------------------
 
     def _uptime_str(self) -> str:
@@ -1090,12 +1126,19 @@ class TelegramInterface:
                     "Modelo principal voltou ao padrão (gemini-flash-latest)."
                 )
                 return
+            if low in ("gemini", "gemini-", "geminis"):
+                await update.message.reply_text(
+                    "'gemini' sozinho não é um modelo válido — precisa da versão, "
+                    "ex: gemini-flash-latest ou gemini-2.5-flash.\n\n"
+                    "Quer só FORÇAR o provedor Gemini pra testar? Use /provedor gemini.\n"
+                    "Pra voltar ao padrão: /modelo reset"
+                )
+                return
             if not low.startswith("gemini"):
                 await update.message.reply_text(
                     "O /modelo troca só o modelo PRINCIPAL, que é do Gemini — "
-                    "use um nome que comece com 'gemini' (ex: gemini-flash-latest, "
-                    "gemini-2.5-flash).\n\nGroq e OpenRouter já são fallbacks "
-                    "automáticos — não dá pra defini-los como principal aqui.\n"
+                    "use um nome que comece com 'gemini' (ex: gemini-flash-latest).\n\n"
+                    "Pra testar Groq/OpenRouter/Ollama, use /provedor <nome>.\n"
                     "Pra voltar ao padrão: /modelo reset"
                 )
                 return
@@ -1115,6 +1158,9 @@ class TelegramInterface:
             lines.append(f"• Fallback 2: {html.escape(cfg.openrouter_model)} · OpenRouter")
         if cfg.ollama_enabled:
             lines.append(f"• Rede local: {html.escape(cfg.ollama_model)} · Ollama")
+        forced = self._memory.get_setting("force_provider")
+        if forced:
+            lines.append(f"\n📌 Forçado em: <b>{self._PROVIDER_LABELS.get(forced, forced)}</b> (teste) · liberar: /provedor auto")
         last = self._brain._last_provider
         if last:
             lines.append(f"\nÚltima resposta veio de: <b>{self._PROVIDER_LABELS.get(last, last)}</b>")
@@ -1667,6 +1713,7 @@ class TelegramInterface:
         "dados": "cmd_dados", "limpar": "cmd_limpar", "quiz": "cmd_quiz",
         "insights": "cmd_insights", "modelo": "cmd_modelo", "ajuda": "cmd_ajuda",
         "documento": "cmd_documento", "transcrever": "cmd_transcrever", "menu": "cmd_menu",
+        "provedor": "cmd_provedor",
     }
 
     async def _run_actions(self, update: Update) -> None:
@@ -2210,6 +2257,7 @@ class TelegramInterface:
         app.add_handler(CommandHandler("quiz", self.cmd_quiz))
         app.add_handler(CommandHandler("insights", self.cmd_insights))
         app.add_handler(CommandHandler("modelo", self.cmd_modelo))
+        app.add_handler(CommandHandler("provedor", self.cmd_provedor))
         app.add_handler(CommandHandler("lembrar", self.cmd_lembrar))
         app.add_handler(CommandHandler("memorias", self.cmd_memorias))
         app.add_handler(CommandHandler("link", self.cmd_link))
