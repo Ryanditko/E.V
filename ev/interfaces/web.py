@@ -495,10 +495,10 @@ f.onsubmit=e=>{e.preventDefault();if(slash.style.display==='block'&&slSel>=0){pi
   if(m.startsWith('/'))runCmd(m.slice(1));else send(m);};
 
 const CAT={tarefas:['Tarefas','list-checks'],lembretes:['Lembretes','alarm-clock'],gastos:['Gastos','wallet'],memorias:['Memórias','brain'],kb:['Base','book-open'],buscar:['Buscar web','search'],noticias:['Notícias','newspaper'],clima:['Clima','cloud-sun'],relatorio:['Relatório','bar-chart-3'],status:['Status','activity'],semana:['Semana','calendar-days'],foco:['Pomodoro','timer'],procurar:['Procurar','file-search'],calendario:['Agenda','calendar'],habitos:['Hábitos','repeat'],diario:['Diário','notebook-pen'],orcamentos:['Orçamentos','piggy-bank'],assinaturas:['Assinaturas','credit-card'],dados:['Meus dados','database'],insights:['Insights','sparkles'],quiz:['Quiz','graduation-cap']};
-const SM={tasks:['Tarefas','list-checks','tarefas'],reminders:['Lembretes','alarm-clock','lembretes'],expenses:['Gastos · mês','wallet','gastos'],memories:['Memórias','brain','memorias'],kb:['Base','book-open','kb']};
+const SM={tasks:['Tarefas','list-checks','tarefas'],reminders:['Lembretes','alarm-clock','lembretes'],expenses:['Gastos · mês','wallet','gastos'],memories:['Memórias','brain','memorias'],kb:['Base','book-open','kb'],links:['Links','link','links'],habits:['Hábitos','repeat','habitos'],journal:['Diário','notebook-pen','diario'],subscriptions:['Assinaturas','credit-card','assinaturas'],budgets:['Orçamentos','piggy-bank','orcamentos'],watches:['Monitores','radar','monitores']};
 let config={actions:['buscar','noticias','clima','relatorio','status','semana'],stats:['tasks','reminders','expenses','memories','kb']};let _counts={};
 function renderStats(){const box=$('#stats');box.textContent='';config.stats.forEach(k=>{const m=SM[k];if(!m)return;
-  const VMAP={tasks:'tasks',reminders:'rem',expenses:'exp',memories:'mem',kb:'kb'};
+  const VMAP={tasks:'tasks',reminders:'rem',expenses:'exp',memories:'mem',kb:'kb',links:'lnk',habits:'hab',journal:'jou',subscriptions:'sub',budgets:'orc',watches:'mon'};
   const s=el('div','stat');s.onclick=()=>{if(VMAP[k])switchView(VMAP[k]);else runCmd(m[2]);};const lbl=el('span','lbl');lbl.appendChild(ficon(m[1]));lbl.appendChild(document.createTextNode(m[0]));
   const num=el('span','num');if(k==='expenses'){const rs=el('span','','R$');rs.style.cssText='font-size:12px;color:var(--subtle);margin-right:2px';num.appendChild(rs);}
   num.appendChild(document.createTextNode(_counts[k]!=null?_counts[k]:'0'));s.appendChild(lbl);s.appendChild(num);box.appendChild(s);});window.lucide&&lucide.createIcons();}
@@ -665,32 +665,55 @@ async function loadSub(){try{const items=(await (await fetch('/api/recurring',{h
   if(!items.length){box.appendChild(el('div','tv-empty','Nenhuma assinatura.'));return;}
   items.forEach(x=>{const row=el('div','tv-row');const t=el('div','txt');t.appendChild(el('div','',x.description));t.appendChild(subline(x.category+' · dia '+x.day));
     const val=el('div','');val.style.cssText='font-family:var(--mono);font-weight:600';val.textContent='R$'+x.amount.toFixed(0);
+    const ed=el('button','tv-ic');ed.title='editar';ed.appendChild(ficon('pencil'));ed.onclick=()=>editSub(x);
     const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));dl.onclick=async ()=>{if(await confirmDialog('Remover assinatura?'))recDel('/api/recurring/delete',x.id,loadSub);};
-    row.appendChild(t);row.appendChild(val);row.appendChild(dl);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
+    row.appendChild(t);row.appendChild(val);row.appendChild(ed);row.appendChild(dl);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
+function editSub(x){openForm('Editar assinatura',[
+  {key:'amount',label:'Valor (R$)',value:String(x.amount)},
+  {key:'description',label:'Descrição',value:x.description},
+  {key:'category',label:'Categoria',value:x.category},
+  {key:'day',label:'Dia do mês',value:String(x.day)}],
+  async v=>{await fetch('/api/recurring/update',{method:'POST',headers:H(),body:JSON.stringify({id:x.id,amount:v.amount,description:v.description,category:v.category,day:v.day})});loadSub();});}
 $('#subform').onsubmit=async e=>{e.preventDefault();const amount=$('#sub-amt').value.trim();if(!amount)return;
   await fetch('/api/recurring',{method:'POST',headers:H(),body:JSON.stringify({amount,description:$('#sub-desc').value.trim(),day:$('#sub-day').value})});$('#sub-amt').value='';$('#sub-desc').value='';loadSub();};
 async function loadOrc(){try{const items=(await (await fetch('/api/budgets',{headers:H()})).json()).items||[];const box=$('#orclist');box.textContent='';
   if(!items.length){box.appendChild(el('div','tv-empty','Nenhum orçamento definido.'));return;}
   items.forEach(b=>{const row=el('div','tv-row');const t=el('div','txt');t.appendChild(el('div','',b.category));
     const val=el('div','');val.style.cssText='font-family:var(--mono);font-weight:600';val.textContent='R$'+b.amount.toFixed(0)+'/mês';
+    const ed=el('button','tv-ic');ed.title='editar';ed.appendChild(ficon('pencil'));ed.onclick=()=>editOrc(b);
     const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));dl.onclick=async ()=>{if(await confirmDialog('Remover orçamento?')){await fetch('/api/budgets/delete',{method:'POST',headers:H(),body:JSON.stringify({category:b.category})});loadOrc();loadPanel();}};
-    row.appendChild(t);row.appendChild(val);row.appendChild(dl);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
+    row.appendChild(t);row.appendChild(val);row.appendChild(ed);row.appendChild(dl);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
+function editOrc(b){openForm('Editar orçamento · '+b.category,[
+  {key:'amount',label:'Valor mensal (R$)',value:String(b.amount)}],
+  async v=>{if(!v.amount)return;await fetch('/api/budgets',{method:'POST',headers:H(),body:JSON.stringify({category:b.category,amount:v.amount})});loadOrc();loadPanel();});}
 $('#orcform').onsubmit=async e=>{e.preventDefault();const cat=$('#orc-cat').value.trim(),amount=$('#orc-amt').value.trim();if(!cat||!amount)return;
   await fetch('/api/budgets',{method:'POST',headers:H(),body:JSON.stringify({category:cat,amount})});$('#orc-cat').value='';$('#orc-amt').value='';loadOrc();};
 async function loadMon(){try{const items=(await (await fetch('/api/watches',{headers:H()})).json()).items||[];const box=$('#monlist');box.textContent='';
   if(!items.length){box.appendChild(el('div','tv-empty','Nenhum monitor.'));return;}
   items.forEach(w=>{const row=el('div','tv-row');const t=el('div','txt');const a=document.createElement('a');a.href=w.url;a.target='_blank';a.rel='noopener';a.className='lnk';a.textContent=w.url;t.appendChild(a);if(w.keyword)t.appendChild(subline('palavra: '+w.keyword));
+    const ed=el('button','tv-ic');ed.title='editar';ed.appendChild(ficon('pencil'));ed.onclick=()=>editMon(w);
     const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));dl.onclick=async ()=>{if(await confirmDialog('Remover monitor?'))recDel('/api/watches/delete',w.id,loadMon);};
-    row.appendChild(t);row.appendChild(dl);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
+    row.appendChild(t);row.appendChild(ed);row.appendChild(dl);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
+function editMon(w){openForm('Editar monitor',[
+  {key:'url',label:'URL',value:w.url},
+  {key:'keyword',label:'Palavra-chave',value:w.keyword||''}],
+  async v=>{if(!v.url)return;await fetch('/api/watches/update',{method:'POST',headers:H(),body:JSON.stringify({id:w.id,url:v.url,keyword:v.keyword})});loadMon();});}
 $('#monform').onsubmit=async e=>{e.preventDefault();const url=$('#mon-url').value.trim();if(!url)return;
   await fetch('/api/watches',{method:'POST',headers:H(),body:JSON.stringify({url,keyword:$('#mon-kw').value.trim()})});$('#mon-url').value='';$('#mon-kw').value='';loadMon();};
 async function loadLinks(){try{const items=(await (await fetch('/api/links',{headers:H()})).json()).items||[];const box=$('#lnklist');box.textContent='';
+  window._lcats=[...new Set(items.map(l=>l.category))];
   if(!items.length){box.appendChild(el('div','tv-empty','Nenhum link salvo.'));return;}
   const g={};items.forEach(l=>{(g[l.category]=g[l.category]||[]).push(l);});
   Object.keys(g).sort().forEach(cat=>{box.appendChild(el('div','tv-cat',cat));
     g[cat].forEach(l=>{const row=el('div','tv-row');const t=el('div','txt');const a=document.createElement('a');a.href=l.url;a.target='_blank';a.rel='noopener';a.className='lnk';a.textContent=l.name;t.appendChild(a);t.appendChild(subline(l.url));
+      const ed=el('button','tv-ic');ed.title='editar';ed.appendChild(ficon('pencil'));ed.onclick=()=>editLink(l);
       const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));dl.onclick=async ()=>{if(await confirmDialog('Remover link?'))recDel('/api/links/delete',l.id,loadLinks);};
-      row.appendChild(t);row.appendChild(dl);box.appendChild(row);});});window.lucide&&lucide.createIcons();}catch(e){}}
+      row.appendChild(t);row.appendChild(ed);row.appendChild(dl);box.appendChild(row);});});window.lucide&&lucide.createIcons();}catch(e){}}
+function editLink(l){openForm('Editar link',[
+  {key:'name',label:'Nome',value:l.name},
+  {key:'url',label:'URL',value:l.url},
+  {key:'category',label:'Categoria',value:l.category,options:window._lcats||[]}],
+  async v=>{if(!v.name||!v.url)return;await fetch('/api/links/update',{method:'POST',headers:H(),body:JSON.stringify({id:l.id,name:v.name,url:v.url,category:v.category})});loadLinks();});}
 $('#lnkform').onsubmit=async e=>{e.preventDefault();const name=$('#lnk-name').value.trim(),url=$('#lnk-url').value.trim(),cat=$('#lnk-cat').value.trim()||'geral';if(!name||!url)return;
   await fetch('/api/links',{method:'POST',headers:H(),body:JSON.stringify({name,url,category:cat})});$('#lnk-name').value='';$('#lnk-url').value='';loadLinks();};
 async function loadHabits(){try{const items=(await (await fetch('/api/habits',{headers:H()})).json()).items||[];const box=$('#hablist');box.textContent='';
@@ -698,14 +721,22 @@ async function loadHabits(){try{const items=(await (await fetch('/api/habits',{h
   items.forEach(h=>{const row=el('div','tv-row');const done=el('button','tv-ic');done.title=h.done_today?'feito hoje':'marcar feito';done.appendChild(ficon(h.done_today?'check-check':'check'));if(h.done_today)done.style.color='var(--fg)';
     done.onclick=async()=>{await fetch('/api/habits/done',{method:'POST',headers:H(),body:JSON.stringify({id:h.id})});loadHabits();};
     const t=el('div','txt');t.appendChild(el('div','',h.name));t.appendChild(subline(h.total+' dias'+(h.done_today?' · feito hoje':'')));
+    const ed=el('button','tv-ic');ed.title='renomear';ed.appendChild(ficon('pencil'));ed.onclick=()=>editHab(h);
     const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));dl.onclick=async ()=>{if(await confirmDialog('Apagar hábito?'))recDel('/api/habits/delete',h.id,loadHabits);};
-    row.appendChild(done);row.appendChild(t);row.appendChild(dl);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
+    row.appendChild(done);row.appendChild(t);row.appendChild(ed);row.appendChild(dl);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
+function editHab(h){openForm('Renomear hábito',[
+  {key:'name',label:'Nome',value:h.name}],
+  async v=>{if(!v.name)return;await fetch('/api/habits/update',{method:'POST',headers:H(),body:JSON.stringify({id:h.id,name:v.name})});loadHabits();});}
 $('#habform').onsubmit=async e=>{e.preventDefault();const name=$('#hab-name').value.trim();if(!name)return;await fetch('/api/habits',{method:'POST',headers:H(),body:JSON.stringify({name})});$('#hab-name').value='';loadHabits();};
 async function loadJournal(){try{const items=(await (await fetch('/api/journal',{headers:H()})).json()).items||[];const box=$('#joulist');box.textContent='';
   if(!items.length){box.appendChild(el('div','tv-empty','Diário vazio.'));return;}
   items.slice().reverse().forEach(j=>{const row=el('div','tv-row');const t=el('div','txt');t.appendChild(el('div','',j.text));if(j.created)t.appendChild(subline(j.created.slice(0,10)));
+    const ed=el('button','tv-ic');ed.title='editar';ed.appendChild(ficon('pencil'));ed.onclick=()=>editJou(j);
     const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));dl.onclick=async ()=>{if(await confirmDialog('Apagar entrada?'))recDel('/api/journal/delete',j.id,loadJournal);};
-    row.appendChild(t);row.appendChild(dl);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
+    row.appendChild(t);row.appendChild(ed);row.appendChild(dl);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
+function editJou(j){openForm('Editar entrada',[
+  {key:'text',label:'Texto',value:j.text,type:'textarea'}],
+  async v=>{if(!v.text)return;await fetch('/api/journal/update',{method:'POST',headers:H(),body:JSON.stringify({id:j.id,text:v.text})});loadJournal();});}
 $('#jouform').onsubmit=async e=>{e.preventDefault();const text=$('#jou-text').value.trim();if(!text)return;await fetch('/api/journal',{method:'POST',headers:H(),body:JSON.stringify({text})});$('#jou-text').value='';loadJournal();};
 let calY=null,calM=null;
 function ymd(y,m,d){return y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');}
@@ -730,6 +761,7 @@ $('#cal-next').onclick=()=>{calM++;if(calM>11){calM=0;calY++;}loadCal();};
 async function recDel(url,id,reload){await fetch(url,{method:'POST',headers:H(),body:JSON.stringify({id})});reload();loadPanel();}
 function subline(txt){const d=el('div','',txt);d.style.cssText='color:var(--subtle);font-family:var(--mono);font-size:11px;margin-top:2px';return d;}
 async function loadExp(){try{const items=(await (await fetch('/api/expenses',{headers:H()})).json()).items||[];
+  window._ecats=[...new Set(items.map(x=>x.category))];
   const by={};let tot=0;items.forEach(x=>{by[x.category]=(by[x.category]||0)+x.amount;tot+=x.amount;});
   const ch=$('#expchart');ch.textContent='';const cats=Object.entries(by).sort((a,b)=>b[1]-a[1]);const mx=Math.max(1,...cats.map(c=>c[1]));
   cats.forEach(([c,v])=>{const row=el('div','bar-row');row.appendChild(el('div','bar-lbl',c));const tr=el('div','bar-track');const fl=el('div','bar-fill');fl.style.width=(v/mx*100)+'%';tr.appendChild(fl);row.appendChild(tr);row.appendChild(el('div','bar-val','R$'+v.toFixed(0)));ch.appendChild(row);});
@@ -737,23 +769,38 @@ async function loadExp(){try{const items=(await (await fetch('/api/expenses',{he
   const box=$('#explist');box.textContent='';if(!items.length){box.appendChild(el('div','tv-empty','Nenhum gasto registrado.'));return;}
   items.slice().reverse().forEach(x=>{const row=el('div','tv-row');const t=el('div','txt');t.appendChild(el('div','',x.description));t.appendChild(subline(x.category+' · '+((x.created||'').slice(0,10))));
     const val=el('div','');val.style.cssText='font-family:var(--mono);font-weight:600';val.textContent='R$'+x.amount.toFixed(0);
+    const ed=el('button','tv-ic');ed.title='editar';ed.appendChild(ficon('pencil'));ed.onclick=()=>editExp(x);
     const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));dl.onclick=async ()=>{if(await confirmDialog('Apagar este gasto?'))recDel('/api/expenses/delete',x.id,loadExp);};
-    row.appendChild(t);row.appendChild(val);row.appendChild(dl);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
+    row.appendChild(t);row.appendChild(val);row.appendChild(ed);row.appendChild(dl);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
+function editExp(x){openForm('Editar gasto',[
+  {key:'amount',label:'Valor (R$)',value:String(x.amount)},
+  {key:'description',label:'Descrição',value:x.description},
+  {key:'category',label:'Categoria',value:x.category,options:window._ecats||[]}],
+  async v=>{await fetch('/api/expenses/update',{method:'POST',headers:H(),body:JSON.stringify({id:x.id,amount:v.amount,description:v.description,category:v.category})});loadExp();loadPanel();});}
 $('#expform').onsubmit=async e=>{e.preventDefault();const amount=$('#exp-amt').value.trim();if(!amount)return;
   await fetch('/api/expenses',{method:'POST',headers:H(),body:JSON.stringify({amount,description:$('#exp-desc').value.trim(),category:$('#exp-cat').value.trim()||'geral'})});
   $('#exp-amt').value='';$('#exp-desc').value='';loadExp();loadPanel();};
 async function loadRem(){try{const items=(await (await fetch('/api/reminders',{headers:H()})).json()).items||[];const box=$('#remlist');box.textContent='';
   if(!items.length){box.appendChild(el('div','tv-empty','Nenhum lembrete em aberto.'));return;}
   items.forEach(r=>{const row=el('div','tv-row');const t=el('div','txt');t.appendChild(el('div','',r.text));if(r.when_iso)t.appendChild(subline(r.when_iso.replace('T',' ').slice(0,16)+(r.recur?(' · '+r.recur):'')));
+    const ed=el('button','tv-ic');ed.title='editar';ed.appendChild(ficon('pencil'));ed.onclick=()=>editRem(r);
     const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));dl.onclick=async ()=>{if(await confirmDialog('Cancelar este lembrete?'))recDel('/api/reminders/delete',r.id,loadRem);};
-    row.appendChild(t);row.appendChild(dl);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
+    row.appendChild(t);row.appendChild(ed);row.appendChild(dl);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
+function editRem(r){openForm('Editar lembrete',[
+  {key:'text',label:'Lembrar de',value:r.text},
+  {key:'when',label:'Quando (AAAA-MM-DDTHH:MM)',value:r.when_iso||''}],
+  async v=>{if(!v.text)return;await fetch('/api/reminders/update',{method:'POST',headers:H(),body:JSON.stringify({id:r.id,text:v.text,when:v.when})});loadRem();loadCal();loadPanel();});}
 $('#remform').onsubmit=async e=>{e.preventDefault();const text=$('#rem-text').value.trim();if(!text)return;
   await fetch('/api/reminders',{method:'POST',headers:H(),body:JSON.stringify({text,when:$('#rem-when').value||''})});$('#rem-text').value='';$('#rem-when').value='';loadRem();loadPanel();};
 async function loadMem(){try{const items=(await (await fetch('/api/facts',{headers:H()})).json()).items||[];const box=$('#memlist');box.textContent='';
   if(!items.length){box.appendChild(el('div','tv-empty','Nenhuma memória ainda.'));return;}
   items.forEach(f=>{const row=el('div','tv-row');row.appendChild(el('div','txt',f.fact));
+    const ed=el('button','tv-ic');ed.title='editar';ed.appendChild(ficon('pencil'));ed.onclick=()=>editMem(f);
     const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));dl.onclick=async ()=>{if(await confirmDialog('Apagar esta memória?'))recDel('/api/facts/delete',f.id,loadMem);};
-    row.appendChild(dl);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
+    row.appendChild(ed);row.appendChild(dl);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
+function editMem(f){openForm('Editar memória',[
+  {key:'text',label:'Memória',value:f.fact,type:'textarea'}],
+  async v=>{if(!v.text)return;await fetch('/api/facts/update',{method:'POST',headers:H(),body:JSON.stringify({id:f.id,text:v.text})});loadMem();});}
 $('#memform').onsubmit=async e=>{e.preventDefault();const text=$('#mem-text').value.trim();if(!text)return;
   await fetch('/api/facts',{method:'POST',headers:H(),body:JSON.stringify({text})});$('#mem-text').value='';loadMem();loadPanel();};
 async function loadKB(){try{const d=await (await fetch('/api/kb',{headers:H()})).json();const box=$('#kblist');box.textContent='';
@@ -1530,6 +1577,84 @@ def create_app(config: Config, brain: Brain | None = None):
         memory.delete_watch(owner, int((await _body(request)).get("id") or 0))
         return {"ok": True}
 
+    def _num(v):
+        try:
+            return float(str(v).replace(",", "."))
+        except Exception:
+            return None
+
+    @app.post("/api/expenses/update")
+    async def exp_update(request: Request):
+        _check(request.headers.get("authorization"))
+        d = await _body(request)
+        memory.update_expense(owner, int(d.get("id") or 0), amount=_num(d.get("amount")),
+                              description=(d.get("description") or None), category=(d.get("category") or None))
+        return {"ok": True}
+
+    @app.post("/api/reminders/update")
+    async def rem_update(request: Request):
+        _check(request.headers.get("authorization"))
+        d = await _body(request)
+        memory.update_reminder(owner, int(d.get("id") or 0), text=(d.get("text") or None),
+                               when_iso=(d.get("when") or None))
+        return {"ok": True}
+
+    @app.post("/api/facts/update")
+    async def fact_update(request: Request):
+        _check(request.headers.get("authorization"))
+        d = await _body(request)
+        t = (d.get("text") or "").strip()
+        if t:
+            memory.update_fact(owner, int(d.get("id") or 0), t)
+        return {"ok": bool(t)}
+
+    @app.post("/api/links/update")
+    async def link_update(request: Request):
+        _check(request.headers.get("authorization"))
+        d = await _body(request)
+        memory.update_link(owner, int(d.get("id") or 0), category=(d.get("category") or None),
+                           name=(d.get("name") or None), url=(d.get("url") or None))
+        return {"ok": True}
+
+    @app.post("/api/journal/update")
+    async def jou_update(request: Request):
+        _check(request.headers.get("authorization"))
+        d = await _body(request)
+        t = (d.get("text") or "").strip()
+        if t:
+            memory.update_journal(owner, int(d.get("id") or 0), t)
+        return {"ok": bool(t)}
+
+    @app.post("/api/habits/update")
+    async def hab_update(request: Request):
+        _check(request.headers.get("authorization"))
+        d = await _body(request)
+        n = (d.get("name") or "").strip()
+        if n:
+            memory.rename_habit(owner, int(d.get("id") or 0), n)
+        return {"ok": bool(n)}
+
+    @app.post("/api/recurring/update")
+    async def rec_update(request: Request):
+        _check(request.headers.get("authorization"))
+        d = await _body(request)
+        try:
+            day = int(d.get("day")) if d.get("day") else None
+        except Exception:
+            day = None
+        memory.update_recurring(owner, int(d.get("id") or 0), amount=_num(d.get("amount")),
+                                description=(d.get("description") or None),
+                                category=(d.get("category") or None), day=day)
+        return {"ok": True}
+
+    @app.post("/api/watches/update")
+    async def wat_update(request: Request):
+        _check(request.headers.get("authorization"))
+        d = await _body(request)
+        memory.update_watch(owner, int(d.get("id") or 0), url=(d.get("url") or None),
+                            keyword=(d.get("keyword") or None))
+        return {"ok": True}
+
     @app.get("/api/panel")
     async def panel(request: Request):
         _check(request.headers.get("authorization"))
@@ -1549,6 +1674,12 @@ def create_app(config: Config, brain: Brain | None = None):
             "expenses": round(sum(e.get("amount", 0) for e in exp)),
             "memories": len(memory.all_facts(owner)),
             "kb": len(memory.list_sources(owner)),
+            "links": len(memory.list_links(owner)),
+            "habits": len(memory.list_habits(owner)),
+            "journal": len(memory.recent_journal(owner, 9999)),
+            "subscriptions": len(memory.list_recurring(owner)),
+            "budgets": len(memory.list_budgets(owner)),
+            "watches": len(memory.list_watches(owner)),
             "provider": prov,
             "model": model,
         }

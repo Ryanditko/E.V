@@ -495,6 +495,43 @@ class Memory:
         self._conn.commit()
         return cur.rowcount > 0
 
+    def _update(self, table: str, user_id: str, row_id: int, fields: dict) -> bool:
+        """Generic partial UPDATE (table/column names are fixed literals, no injection)."""
+        fields = {k: v for k, v in fields.items() if v is not None}
+        if not fields:
+            return False
+        sets = ", ".join(f"{k} = ?" for k in fields)
+        cur = self._conn.execute(
+            f"UPDATE {table} SET {sets} WHERE id = ? AND user_id = ?",
+            (*fields.values(), row_id, user_id),
+        )
+        self._conn.commit()
+        return cur.rowcount > 0
+
+    def update_expense(self, u, i, amount=None, description=None, category=None):
+        return self._update("expenses", u, i, {"amount": amount, "description": description, "category": category})
+
+    def update_reminder(self, u, i, text=None, when_iso=None):
+        return self._update("reminders", u, i, {"text": text, "when_iso": when_iso})
+
+    def update_fact(self, u, i, fact):
+        return self._update("facts", u, i, {"fact": fact})
+
+    def update_link(self, u, i, category=None, name=None, url=None):
+        return self._update("links", u, i, {"category": category, "name": name, "url": url})
+
+    def update_journal(self, u, i, text):
+        return self._update("journal", u, i, {"text": text})
+
+    def update_recurring(self, u, i, amount=None, description=None, category=None, day=None):
+        return self._update("recurring_expenses", u, i, {"amount": amount, "description": description, "category": category, "day": day})
+
+    def update_watch(self, u, i, url=None, keyword=None):
+        return self._update("watches", u, i, {"url": url, "keyword": keyword})
+
+    def rename_habit(self, u, i, name):
+        return self._update("habits", u, i, {"name": name})
+
     def tasks_completed_since(self, user_id: str, since_iso: str) -> int:
         row = self._conn.execute(
             "SELECT COUNT(*) AS n FROM tasks "

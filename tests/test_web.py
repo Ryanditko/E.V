@@ -293,6 +293,68 @@ def test_recurring_budgets_watches_crud(tmp_path):
     assert client.get("/api/watches", headers=_auth()).json()["items"] == []
 
 
+def test_crud_update_endpoints(tmp_path):
+    client, _ = _client(tmp_path)
+    # expense
+    client.post("/api/expenses", json={"amount": "10", "description": "x", "category": "casa"}, headers=_auth())
+    e = client.get("/api/expenses", headers=_auth()).json()["items"][0]
+    client.post("/api/expenses/update", json={"id": e["id"], "amount": "25,5", "description": "y", "category": "lazer"}, headers=_auth())
+    e = client.get("/api/expenses", headers=_auth()).json()["items"][0]
+    assert e["amount"] == 25.5 and e["description"] == "y" and e["category"] == "lazer"
+    # reminder
+    client.post("/api/reminders", json={"text": "a", "when": "2026-08-01T09:00"}, headers=_auth())
+    r = client.get("/api/reminders", headers=_auth()).json()["items"][0]
+    client.post("/api/reminders/update", json={"id": r["id"], "text": "b", "when": "2026-09-02T10:30"}, headers=_auth())
+    r = client.get("/api/reminders", headers=_auth()).json()["items"][0]
+    assert r["text"] == "b" and r["when_iso"].startswith("2026-09-02T10:30")
+    # fact
+    client.post("/api/facts", json={"text": "old"}, headers=_auth())
+    f = client.get("/api/facts", headers=_auth()).json()["items"][0]
+    client.post("/api/facts/update", json={"id": f["id"], "text": "new"}, headers=_auth())
+    assert client.get("/api/facts", headers=_auth()).json()["items"][0]["fact"] == "new"
+    # link
+    client.post("/api/links", json={"name": "n", "url": "https://a.com", "category": "c"}, headers=_auth())
+    l = client.get("/api/links", headers=_auth()).json()["items"][0]
+    client.post("/api/links/update", json={"id": l["id"], "name": "n2", "url": "https://b.com", "category": "c2"}, headers=_auth())
+    l = client.get("/api/links", headers=_auth()).json()["items"][0]
+    assert l["name"] == "n2" and l["url"] == "https://b.com" and l["category"] == "c2"
+    # habit rename
+    client.post("/api/habits", json={"name": "h1"}, headers=_auth())
+    h = client.get("/api/habits", headers=_auth()).json()["items"][0]
+    client.post("/api/habits/update", json={"id": h["id"], "name": "h2"}, headers=_auth())
+    assert client.get("/api/habits", headers=_auth()).json()["items"][0]["name"] == "h2"
+    # journal
+    client.post("/api/journal", json={"text": "j1"}, headers=_auth())
+    j = client.get("/api/journal", headers=_auth()).json()["items"][0]
+    client.post("/api/journal/update", json={"id": j["id"], "text": "j2"}, headers=_auth())
+    assert client.get("/api/journal", headers=_auth()).json()["items"][0]["text"] == "j2"
+    # recurring
+    client.post("/api/recurring", json={"amount": "9", "description": "Spotify", "day": 5}, headers=_auth())
+    rec = client.get("/api/recurring", headers=_auth()).json()["items"][0]
+    client.post("/api/recurring/update", json={"id": rec["id"], "amount": "19,9", "description": "Spotify Duo", "category": "musica", "day": 12}, headers=_auth())
+    rec = client.get("/api/recurring", headers=_auth()).json()["items"][0]
+    assert rec["amount"] == 19.9 and rec["description"] == "Spotify Duo" and rec["day"] == 12
+    # watch
+    client.post("/api/watches", json={"url": "https://x.com", "keyword": "k1"}, headers=_auth())
+    w = client.get("/api/watches", headers=_auth()).json()["items"][0]
+    client.post("/api/watches/update", json={"id": w["id"], "url": "https://y.com", "keyword": "k2"}, headers=_auth())
+    w = client.get("/api/watches", headers=_auth()).json()["items"][0]
+    assert w["url"] == "https://y.com" and w["keyword"] == "k2"
+
+
+def test_panel_extended_counts(tmp_path):
+    client, _ = _client(tmp_path)
+    client.post("/api/links", json={"name": "n", "url": "https://a.com", "category": "c"}, headers=_auth())
+    client.post("/api/habits", json={"name": "h"}, headers=_auth())
+    client.post("/api/journal", json={"text": "j"}, headers=_auth())
+    client.post("/api/recurring", json={"amount": "9", "description": "Sub", "day": 5}, headers=_auth())
+    client.post("/api/budgets", json={"category": "comida", "amount": 100}, headers=_auth())
+    client.post("/api/watches", json={"url": "https://x.com", "keyword": "k"}, headers=_auth())
+    p = client.get("/api/panel", headers=_auth()).json()
+    assert p["links"] == 1 and p["habits"] == 1 and p["journal"] == 1
+    assert p["subscriptions"] == 1 and p["budgets"] == 1 and p["watches"] == 1
+
+
 def test_geral_folder_protected(tmp_path):
     client, _ = _client(tmp_path)
     out = client.post("/api/threads/delete", json={"name": "geral"}, headers=_auth()).json()
