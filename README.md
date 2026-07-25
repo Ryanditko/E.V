@@ -320,6 +320,7 @@ CI runs the suite as a **gate before every deploy** — a red test never ships.
 | [docs/KEYS.md](docs/KEYS.md) | Every service, variable and cost |
 | [docs/WEB.md](docs/WEB.md) | The web console, endpoints, voice, HTTPS |
 | [docs/architecture.md](docs/architecture.md) | Design & diagrams |
+| [docs/STACK.md](docs/STACK.md) | Every tool, library & service used |
 | [docs/CAPABILITIES.md](docs/CAPABILITIES.md) | Full capability reference |
 | [docs/EXTENDING.md](docs/EXTENDING.md) | Add features (yourself or with an AI) |
 | [docs/DEPLOY.md](docs/DEPLOY.md) · [docs/SELF_HOST.md](docs/SELF_HOST.md) · [docs/TERMUX.md](docs/TERMUX.md) | Hosting 24/7 |

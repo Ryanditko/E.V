@@ -15,10 +15,12 @@ about inner ones, never the reverse.
 flowchart LR
     subgraph OUT["Interfaces (I/O adapters)"]
         TG["telegram_bot.py"]
+        WEB["web.py (FastAPI SPA)"]
         TE["terminal.py"]
     end
     subgraph CORE["Core (reusable logic)"]
         B["brain.py"]
+        CM["commands.py"]
         M["memory.py"]
     end
     subgraph PROV["Providers (external services)"]
@@ -26,18 +28,25 @@ flowchart LR
         E["embeddings.py"]
         V["voice.py"]
         T["tools.py"]
+        D["documents.py"]
     end
     TG --> B
+    WEB --> B
+    WEB --> CM
     TE --> B
+    B --> CM
     B --> M
     B --> L
     B --> T
+    B --> D
     M --> E
     TG --> V
+    WEB --> V
 ```
 
-- **Interfaces** (`ev/interfaces`): receive input and deliver output (Telegram and
-  Terminal today; web later). They only call `Brain.respond()`.
+- **Interfaces** (`ev/interfaces`): receive input and deliver output — **Telegram**,
+  the **web console** (`web.py`, FastAPI serving a single-page app), and **Terminal**.
+  They only call `Brain.respond()` (and `Commands.run()` for deterministic actions).
 - **Core** (`ev/core`): `Brain` orchestrates; `Memory` holds state. They know
   nothing about Telegram or HTTP.
 - **Providers** (`ev/providers`): talk to external services (LLMs, embeddings,
@@ -194,6 +203,20 @@ internal CA), Python's `certifi` fails (`CERTIFICATE_VERIFY_FAILED`) for some
 hosts. E.V. injects the **OS trust store** via `truststore` in `ev/__init__.py`,
 before any HTTP client — so it trusts the corporate CA (already in the system)
 and works on any network. Outside a corporate proxy, it's harmless.
+
+## Web access & private HTTPS
+
+The web console (`web.py`) runs as its own process/service and binds to
+`EV_WEB_HOST:EV_WEB_PORT` (default `127.0.0.1:8000` in production). It is fronted by
+**Tailscale Serve**, which terminates TLS with a valid `*.ts.net` certificate and
+proxies to the local port — so the UI is reachable at `https://ev.<tailnet>.ts.net`
+**only from the owner's Tailscale devices**, with **no ports opened** on the cloud
+firewall. HTTPS is what unlocks the browser's secure-context features (microphone/voice,
+Picture-in-Picture, notifications). Setup: **[../deploy/HTTPS_TAILSCALE.md](../deploy/HTTPS_TAILSCALE.md)**.
+
+Recurrence note: reminders and calendar events repeat via the scheduler (`recur` =
+daily/weekly/monthly); tasks carry a `due` datetime and roll to their next occurrence
+on completion or via the `Memory.roll_due_tasks` worker in the reminder loop.
 
 ## Configuration
 

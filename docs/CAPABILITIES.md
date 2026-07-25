@@ -22,9 +22,13 @@ Via the **Telegram bot** (24/7 in the cloud). Three modes, all mixable:
 
 She is **locked to you** (owner-only) and replies with a natural female voice.
 
-> **Web interface:** besides Telegram, E.V. has a browser chat (`python run_web.py`,
-> token-protected) that reuses the same brain — use her from any device. See
-> [WEB.md](WEB.md).
+> **Web console:** besides Telegram, E.V. has a full browser console (`python run_web.py`,
+> token-protected) that reuses the same brain and data — chat, **voice in/out** (recorded
+> and transcribed server-side with Whisper, so it works in any browser), and **CRUD tabs**
+> for every data type with edit and recurrence. It's served privately over HTTPS via
+> **Tailscale Serve** (`https://ev.<tailnet>.ts.net`, reachable only from your Tailscale
+> devices, no open ports) — which is what unlocks the browser microphone, Picture-in-Picture
+> and notifications. See [WEB.md](WEB.md) and [../deploy/HTTPS_TAILSCALE.md](../deploy/HTTPS_TAILSCALE.md).
 
 ## 2. What she does in conversation (AI)
 
