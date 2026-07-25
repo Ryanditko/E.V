@@ -16,6 +16,9 @@ class _FakeBrain:
     def current_model(self):
         return "gemini-flash-latest"
 
+    async def ask(self, system, prompt):
+        return "resposta de teste"
+
     def pop_documents(self):
         return []
 
@@ -30,6 +33,10 @@ def _client(tmp_path):
         web_token="secret", owner_id=123, db_path=tmp_path / "t.db",
         timezone="America/Sao_Paulo", google_oauth_client="", google_accounts=(),
         gemini_api_key="x", embed_backend="gemini", embed_model="m",
+        telegram_token="t", groq_api_key="", openrouter_api_key="",
+        tavily_api_key="", brave_api_key="", ollama_enabled=False,
+        groq_model="g", openrouter_model="o", ollama_model="l",
+        google_ready=lambda: False, google_authorized=lambda account=None: False,
     )
     brain = _FakeBrain()
     return TestClient(create_app(cfg, brain=brain)), brain
@@ -193,6 +200,30 @@ def test_reminders_and_facts_crud(tmp_path):
     assert fs and fs[0]["fact"] == "gosto de café"
     client.post("/api/facts/delete", json={"id": fs[0]["id"]}, headers=_auth())
     assert client.get("/api/facts", headers=_auth()).json()["items"] == []
+
+
+def test_dados_shows_summary_on_web(tmp_path):
+    # was returning "funciona no Telegram" — must show the storage summary now.
+    client, _ = _client(tmp_path)
+    reply = client.post("/api/cmd", json={"command": "dados"}, headers=_auth()).json()["reply"]
+    assert "guardados" in reply.lower()
+    assert "funciona no telegram" not in reply.lower()
+
+
+# Commands that run locally (no external network) — must never crash on web.
+_SAFE_CMDS = [
+    "tarefas", "memorias", "gastos", "habitos", "lembretes", "links",
+    "orcamentos", "assinaturas", "vigias", "diario", "calendario", "procurar",
+    "status", "modelo", "dados", "ajuda", "quiz", "insights", "provedor",
+]
+
+
+def test_commands_do_not_crash(tmp_path):
+    client, _ = _client(tmp_path)
+    for c in _SAFE_CMDS:
+        r = client.post("/api/cmd", json={"command": c}, headers=_auth())
+        assert r.status_code == 200, c
+        assert isinstance(r.json().get("reply"), str) and r.json()["reply"], c
 
 
 def test_geral_folder_protected(tmp_path):

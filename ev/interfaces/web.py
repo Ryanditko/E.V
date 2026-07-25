@@ -16,7 +16,7 @@ from ..core import health, knowledge
 from ..core.brain import Brain
 from ..core.commands import COMMAND_LIST, Commands
 from ..core.memory import Memory
-from ..providers import voice as voice_mod
+from ..providers import tools as tools_mod, voice as voice_mod
 
 log = logging.getLogger("ev.web")
 
@@ -162,6 +162,8 @@ body.listening .bigcore .bdot{animation:pulse .9s infinite}
 .tv-ic{width:34px;height:34px;flex:none;display:grid;place-items:center;border-radius:9px;border:1px solid var(--line);background:var(--elev);color:var(--muted);cursor:pointer;transition:.15s}
 .tv-ic:hover{color:var(--fg);border-color:var(--line-2)}.tv-ic svg{width:16px;height:16px}
 .tv-empty{color:var(--subtle);font-family:var(--mono);font-size:13px;padding:8px 2px}
+.tv-search{width:100%;max-width:720px;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:11px 14px;color:var(--fg);font:inherit;font-size:14px;margin-bottom:14px;display:block}
+.tv-search:focus{outline:none;border-color:var(--line-2)}
 #log{flex:1;min-height:0;overflow-y:auto;padding:20px 22px;display:flex;flex-direction:column;gap:14px}
 .msg{max-width:82%;padding:13px 16px;line-height:1.55;border:1px solid var(--line);border-radius:16px;animation:rise .32s cubic-bezier(.2,.7,.2,1)}
 .msg.you{align-self:flex-end;background:var(--fg);color:var(--ink);border:none;border-bottom-right-radius:5px;font-weight:500}
@@ -280,6 +282,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
         <input id="task-cat" placeholder="categoria" value="geral" autocomplete="off">
         <button class="mbtn" type="submit">Adicionar</button>
       </form>
+      <input class="tv-search" id="tasks-search" placeholder="Buscar tarefas..." autocomplete="off">
       <div id="tasklist"></div>
     </div>
     <div id="kbview">
@@ -289,6 +292,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
         <div class="tv-form" style="align-items:center"><label class="mbtn2" for="kb-file" style="cursor:pointer">⭱ Enviar arquivo (PDF / Word / txt)</label><input id="kb-file" type="file" accept=".pdf,.docx,.txt,.md" style="display:none"><span id="kb-fmsg" class="tv-empty"></span></div>
         <form id="kb-textf"><input id="kb-title" class="minput" placeholder="Título da nota" style="margin-bottom:8px"><textarea id="kb-text" class="minput" placeholder="Cole um texto pra E.V. aprender e responder com base nele..."></textarea><button class="mbtn" type="submit" style="margin-top:8px">Adicionar texto</button></form>
       </div>
+      <input class="tv-search" id="kb-search" placeholder="Buscar na base..." autocomplete="off">
       <div class="tv-cat">Documentos indexados</div>
       <div id="kblist"></div>
     </div>
@@ -296,12 +300,14 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
       <div class="tv-h">Gastos</div>
       <form id="expform" class="tv-form"><input id="exp-amt" placeholder="Valor" style="width:110px;flex:none"><input id="exp-desc" placeholder="Descrição"><input id="exp-cat" placeholder="categoria" value="geral" style="width:140px;flex:none"><button class="mbtn" type="submit">Registrar</button></form>
       <div id="expchart"></div>
+      <input class="tv-search" id="exp-search" placeholder="Buscar gastos..." autocomplete="off">
       <div class="tv-cat">Últimos 60 dias</div>
       <div id="explist"></div>
     </div>
     <div id="remview">
       <div class="tv-h">Lembretes</div>
       <form id="remform" class="tv-form"><input id="rem-text" placeholder="Lembrar de..."><input id="rem-when" type="datetime-local" style="flex:none"><button class="mbtn" type="submit">Criar</button></form>
+      <input class="tv-search" id="rem-search" placeholder="Buscar lembretes..." autocomplete="off">
       <div class="tv-cat">Em aberto</div>
       <div id="remlist"></div>
     </div>
@@ -312,6 +318,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
     <div id="memview">
       <div class="tv-h">Memórias</div>
       <form id="memform" class="tv-form"><input id="mem-text" placeholder="Algo que a E.V. deve lembrar sobre você..."><button class="mbtn" type="submit">Salvar</button></form>
+      <input class="tv-search" id="mem-search" placeholder="Buscar memórias..." autocomplete="off">
       <div class="tv-cat">O que a E.V. sabe</div>
       <div id="memlist"></div>
     </div>
@@ -649,6 +656,13 @@ function editTask(t){openForm('Editar tarefa',[
   async v=>{if(!v.text)return;await fetch('/api/tasks/update',{method:'POST',headers:H(),body:JSON.stringify({id:t.id,text:v.text,category:v.category||t.category})});loadTasks();loadPanel();});}
 $('#taskform').onsubmit=async e=>{e.preventDefault();const text=$('#task-text').value.trim();const cat=$('#task-cat').value.trim()||'geral';
   if(!text)return;await fetch('/api/tasks',{method:'POST',headers:H(),body:JSON.stringify({text,category:cat})});$('#task-text').value='';loadTasks();loadPanel();};
+// per-tab search filter
+function filterRows(box,q){if(!box)return;q=(q||'').trim().toLowerCase();let cur=null,shown=0;
+  [...box.children].forEach(k=>{
+    if(k.classList.contains('tv-cat')){if(cur)cur.style.display=shown?'':'none';cur=k;shown=0;}
+    else if(k.classList.contains('tv-row')){const m=k.textContent.toLowerCase().includes(q);k.style.display=m?'':'none';if(m)shown++;}
+  });if(cur)cur.style.display=shown?'':'none';}
+[['tasks-search','tasklist'],['exp-search','explist'],['rem-search','remlist'],['mem-search','memlist'],['kb-search','kblist']].forEach(p=>{const inp=document.getElementById(p[0]);if(inp)inp.oninput=()=>filterRows(document.getElementById(p[1]),inp.value);});
 // command palette (Ctrl/Cmd+K)
 const CK=$('#cmdk'),CKI=$('#ck-input'),CKL=$('#ck-list');let ckItems=[],ckSel=0;
 function ckBuild(){const nav=[['Conversa',()=>switchView('chat')],['Tarefas',()=>switchView('tasks')],['Gastos',()=>switchView('exp')],['Lembretes',()=>switchView('rem')],['Agenda',()=>switchView('cal')],['Memórias',()=>switchView('mem')],['Base',()=>switchView('kb')],['Pomodoro',()=>openPomo(25)],['Voz ao vivo',()=>$('#vcopen').click()]];
@@ -718,7 +732,7 @@ def create_app(config: Config, brain: Brain | None = None):
             out.append(f"- {k['name']}: {mark}")
         return "\n".join(out)
 
-    def run_command(cmd_str: str, thread=None) -> str:
+    async def run_command(cmd_str: str, thread=None) -> str:
         """Run a slash command from the web (data + interface commands)."""
         parts = (cmd_str or "").strip().split(None, 1)
         if not parts:
@@ -761,9 +775,39 @@ def create_app(config: Config, brain: Brain | None = None):
             return "\n".join(out)
         if name == "ajuda":
             return commands.help()
-        if name in ("foco", "exportar", "transcrever", "documento", "resumir",
-                    "quiz", "insights", "menu", "dados"):
-            return f"O comando /{name} funciona no Telegram. Na web, use o chat ou o painel."
+        if name == "dados":
+            summ = memory.storage_summary(owner)
+            out = ["🗄️ Seus dados guardados:", ""]
+            out += [f"- {s['label']}: {s['count']}" for s in summ]
+            out.append("\nPra apagar por categoria, use as abas (Tarefas/Gastos/...) "
+                       "ou o /dados no Telegram (com dupla confirmação pra apagar tudo).")
+            return "\n".join(out)
+        if name == "resumir":
+            if not rest.lower().startswith("http"):
+                return "Uso: /resumir <url>"
+            try:
+                text = await asyncio.to_thread(tools_mod.fetch_text, rest)
+            except Exception as e:
+                return f"Não consegui abrir a página ({str(e)[:80]})."
+            if not text or len(text.strip()) < 80:
+                return "Não achei texto útil nessa página."
+            s = await brain.ask(
+                "Você é a E.V. Resuma o artigo em português: um parágrafo de contexto "
+                "e depois 3 a 6 bullets com os pontos principais.",
+                f"Conteúdo de {rest}:\n\n{text[:12000]}")
+            return s or "Não consegui resumir agora, tenta de novo?"
+        if name == "quiz":
+            chunk = memory.random_chunk(owner, rest or None)
+            if not chunk:
+                return "Base de conhecimento vazia. Adicione algo na aba Base primeiro."
+            out = await brain.ask(
+                "Você é um tutor. Com base no trecho, crie UMA pergunta de estudo "
+                "objetiva e a resposta. Formato:\nPERGUNTA: <pergunta>\nRESPOSTA: <resposta>",
+                f"Trecho de [{chunk['source']}]:\n{chunk['chunk']}")
+            return out or "Não consegui gerar a pergunta agora."
+        if name in ("foco", "exportar", "transcrever", "documento", "insights", "menu"):
+            return (f"O /{name} é melhor no Telegram ou pela interface: use a aba/botão "
+                    "correspondente (ex: Pomodoro, exportar no painel).")
         return commands.run(owner, name, rest)  # -> "não conheço"
 
     @app.get("/", response_class=HTMLResponse)
@@ -854,7 +898,7 @@ def create_app(config: Config, brain: Brain | None = None):
         data = await _body(request)
         command = (data.get("command") or "").strip()
         thread = data.get("thread")
-        reply = run_command(command, thread)
+        reply = await run_command(command, thread)
         name = command.lstrip("/").split()[0].lower() if command else ""
         if name not in ("limpar", "limparchat"):  # don't re-log after clearing
             conv = _conv(thread)
