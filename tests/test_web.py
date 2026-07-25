@@ -162,6 +162,16 @@ def test_move_folder_into_another(tmp_path):
     assert "personal/work" in out and "work" not in out
 
 
+def test_kb_endpoints(tmp_path):
+    client, _ = _client(tmp_path)
+    assert client.get("/api/kb", headers=_auth()).json()["sources"] == []
+    # invalid URL is rejected without touching the network
+    r = client.post("/api/kb/url", json={"url": "nao-e-url"}, headers=_auth())
+    assert r.json()["ok"] is False
+    # deleting a missing source is a no-op
+    assert client.post("/api/kb/delete", json={"source": "x"}, headers=_auth()).json()["ok"] is False
+
+
 def test_geral_folder_protected(tmp_path):
     client, _ = _client(tmp_path)
     out = client.post("/api/threads/delete", json={"name": "geral"}, headers=_auth()).json()

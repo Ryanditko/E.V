@@ -6,12 +6,13 @@ Conversations are scoped by folder -> conv_id = "web:<folder>" (own thread each,
 shared data). Runs data commands AND interface commands (provedor/status/...).
 """
 
+import asyncio
 import hmac
 import json
 import logging
 
 from ..config import Config
-from ..core import health
+from ..core import health, knowledge
 from ..core.brain import Brain
 from ..core.commands import COMMAND_LIST, Commands
 from ..core.memory import Memory
@@ -121,7 +122,9 @@ body.listening .bigcore .bdot{animation:pulse .9s infinite}
 .tab{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--muted);border:none;background:transparent;border-radius:8px;padding:7px 13px;cursor:pointer}
 .tab.on{background:var(--fg);color:var(--ink)}
 #chatview{flex:1;display:flex;flex-direction:column;min-height:0}
-#taskview{flex:1;min-height:0;overflow:auto;padding:24px;display:none}
+#taskview,#kbview{flex:1;min-height:0;overflow:auto;padding:24px;display:none}
+.kb-add{max-width:720px;display:flex;flex-direction:column;gap:14px;margin-bottom:22px}
+#kb-text{min-height:84px}
 .tv-h{font-family:var(--disp);font-weight:600;font-size:22px;margin-bottom:18px}
 .tv-form{display:flex;gap:8px;margin-bottom:22px;max-width:720px}
 .tv-form input{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:12px 15px;color:var(--fg);font:inherit;font-size:15px}
@@ -224,7 +227,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
   </aside>
   <main id="center">
     <div class="topbar">
-      <div class="tabs"><button class="tab on" data-view="chat">Conversa</button><button class="tab" data-view="tasks">Tarefas</button></div>
+      <div class="tabs"><button class="tab on" data-view="chat">Conversa</button><button class="tab" data-view="tasks">Tarefas</button><button class="tab" data-view="kb">Base</button></div>
       <span class="eyebrow" id="scope">geral</span><span style="flex:1"></span>
       <button class="tbtn" id="vcopen">◉ FALAR</button>
       <button class="tbtn" id="term">TERMINAL</button><button class="tbtn on" id="voz">VOZ</button></div>
@@ -243,6 +246,16 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
         <button class="mbtn" type="submit">Adicionar</button>
       </form>
       <div id="tasklist"></div>
+    </div>
+    <div id="kbview">
+      <div class="tv-h">Base de conhecimento</div>
+      <div class="kb-add">
+        <form id="kb-urlf" class="tv-form"><input id="kb-url" placeholder="https://...  (indexar uma página)"><button class="mbtn" type="submit">Indexar URL</button></form>
+        <div class="tv-form" style="align-items:center"><label class="mbtn2" for="kb-file" style="cursor:pointer">⭱ Enviar arquivo (PDF / Word / txt)</label><input id="kb-file" type="file" accept=".pdf,.docx,.txt,.md" style="display:none"><span id="kb-fmsg" class="tv-empty"></span></div>
+        <form id="kb-textf"><input id="kb-title" class="minput" placeholder="Título da nota" style="margin-bottom:8px"><textarea id="kb-text" class="minput" placeholder="Cole um texto pra E.V. aprender e responder com base nele..."></textarea><button class="mbtn" type="submit" style="margin-top:8px">Adicionar texto</button></form>
+      </div>
+      <div class="tv-cat">Documentos indexados</div>
+      <div id="kblist"></div>
     </div>
   </main>
   <aside id="right" class="rail">
@@ -339,7 +352,7 @@ const CAT={tarefas:['Tarefas','list-checks'],lembretes:['Lembretes','alarm-clock
 const SM={tasks:['Tarefas','list-checks','tarefas'],reminders:['Lembretes','alarm-clock','lembretes'],expenses:['Gastos · mês','wallet','gastos'],memories:['Memórias','brain','memorias'],kb:['Base','book-open','kb']};
 let config={actions:['buscar','noticias','clima','relatorio','status','semana'],stats:['tasks','reminders','expenses','memories','kb']};let _counts={};
 function renderStats(){const box=$('#stats');box.textContent='';config.stats.forEach(k=>{const m=SM[k];if(!m)return;
-  const s=el('div','stat');s.onclick=()=>{if(k==='tasks')switchView('tasks');else runCmd(m[2]);};const lbl=el('span','lbl');lbl.appendChild(ficon(m[1]));lbl.appendChild(document.createTextNode(m[0]));
+  const s=el('div','stat');s.onclick=()=>{if(k==='tasks')switchView('tasks');else if(k==='kb')switchView('kb');else runCmd(m[2]);};const lbl=el('span','lbl');lbl.appendChild(ficon(m[1]));lbl.appendChild(document.createTextNode(m[0]));
   const num=el('span','num');if(k==='expenses'){const rs=el('span','','R$');rs.style.cssText='font-size:12px;color:var(--subtle);margin-right:2px';num.appendChild(rs);}
   num.appendChild(document.createTextNode(_counts[k]!=null?_counts[k]:'0'));s.appendChild(lbl);s.appendChild(num);box.appendChild(s);});window.lucide&&lucide.createIcons();}
 function renderActs(){const box=$('#acts');box.textContent='';config.actions.forEach(cmd=>{const m=CAT[cmd]||[cmd,'chevron-right'];
@@ -487,7 +500,22 @@ if(SR){const vr=new (window.SpeechRecognition||window.webkitSpeechRecognition)()
 // view tabs (Conversa / Tarefas)
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>switchView(t.dataset.view));
 function switchView(v){document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.view===v));
-  $('#chatview').style.display=v==='chat'?'flex':'none';$('#taskview').style.display=v==='tasks'?'block':'none';if(v==='tasks')loadTasks();}
+  $('#chatview').style.display=v==='chat'?'flex':'none';$('#taskview').style.display=v==='tasks'?'block':'none';$('#kbview').style.display=v==='kb'?'block':'none';
+  if(v==='tasks')loadTasks();if(v==='kb')loadKB();}
+async function loadKB(){try{const d=await (await fetch('/api/kb',{headers:H()})).json();const box=$('#kblist');box.textContent='';
+  if(!d.sources||!d.sources.length){box.appendChild(el('div','tv-empty','Nada na base ainda. Adicione uma URL, arquivo ou texto acima.'));return;}
+  d.sources.forEach(s=>{const row=el('div','tv-row');const t=el('div','txt');t.appendChild(el('div','',s.source));
+    const sub=el('div','');sub.style.cssText='color:var(--subtle);font-family:var(--mono);font-size:11px;margin-top:2px';sub.textContent=s.chunks+' trechos';t.appendChild(sub);
+    const dl=el('button','tv-ic');dl.title='remover';dl.appendChild(ficon('trash-2'));dl.onclick=()=>{if(confirm('Remover "'+s.source+'" da base?'))kbDel(s.source);};
+    row.appendChild(t);row.appendChild(dl);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
+async function kbDel(source){await fetch('/api/kb/delete',{method:'POST',headers:H(),body:JSON.stringify({source})});loadKB();loadPanel();}
+$('#kb-urlf').onsubmit=async e=>{e.preventDefault();const url=$('#kb-url').value.trim();if(!url)return;$('#kb-fmsg').textContent='indexando...';
+  const j=await (await fetch('/api/kb/url',{method:'POST',headers:H(),body:JSON.stringify({url})})).json();$('#kb-fmsg').textContent=j.msg||'';$('#kb-url').value='';loadKB();loadPanel();};
+$('#kb-textf').onsubmit=async e=>{e.preventDefault();const title=$('#kb-title').value.trim()||'Nota';const text=$('#kb-text').value.trim();if(!text)return;$('#kb-fmsg').textContent='indexando...';
+  const j=await (await fetch('/api/kb/text',{method:'POST',headers:H(),body:JSON.stringify({title,text})})).json();$('#kb-fmsg').textContent=j.msg||'';$('#kb-title').value='';$('#kb-text').value='';loadKB();loadPanel();};
+$('#kb-file').onchange=async e=>{const f=e.target.files[0];if(!f)return;$('#kb-fmsg').textContent='enviando '+f.name+'...';const fd=new FormData();fd.append('file',f);
+  try{const j=await (await fetch('/api/kb/upload',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd})).json();$('#kb-fmsg').textContent=j.msg||'ok';}catch(x){$('#kb-fmsg').textContent='erro no upload';}
+  e.target.value='';loadKB();loadPanel();};
 async function loadTasks(){try{const d=await (await fetch('/api/tasks',{headers:H()})).json();const box=$('#tasklist');box.textContent='';
   window._cats=[...new Set((d.tasks||[]).map(t=>t.category))];
   const g={};(d.tasks||[]).forEach(t=>{(g[t.category]=g[t.category]||[]).push(t);});
@@ -798,6 +826,66 @@ def create_app(config: Config, brain: Brain | None = None):
         _check(request.headers.get("authorization"))
         memory.delete_task(owner, int((await _body(request)).get("id") or 0))
         return {"tasks": memory.open_tasks(owner)}
+
+    # --- Knowledge base ----------------------------------------------------
+    @app.get("/api/kb")
+    async def kb_list(request: Request):
+        _check(request.headers.get("authorization"))
+        return {"sources": memory.list_sources(owner)}
+
+    @app.post("/api/kb/url")
+    async def kb_url(request: Request):
+        _check(request.headers.get("authorization"))
+        url = ((await _body(request)).get("url") or "").strip()
+        if not url.lower().startswith("http"):
+            return {"ok": False, "msg": "Informe uma URL válida (http...)."}
+        try:
+            stored, trunc = await asyncio.to_thread(
+                knowledge.ingest_url, url, config, memory, owner)
+            msg = f"{stored} trechos indexados" + (" (parcial)" if trunc else "") if stored else "Não achei texto útil."
+            return {"ok": stored > 0, "msg": msg, "sources": memory.list_sources(owner)}
+        except Exception as e:
+            return {"ok": False, "msg": str(e)[:120]}
+
+    @app.post("/api/kb/text")
+    async def kb_text(request: Request):
+        _check(request.headers.get("authorization"))
+        d = await _body(request)
+        title = (d.get("title") or "Nota").strip()
+        text = (d.get("text") or "").strip()
+        if not text:
+            return {"ok": False, "msg": "Texto vazio."}
+        stored, trunc = await asyncio.to_thread(
+            knowledge.ingest_text, text, title, config, memory, owner)
+        return {"ok": stored > 0, "msg": f"{stored} trechos indexados",
+                "sources": memory.list_sources(owner)}
+
+    @app.post("/api/kb/upload")
+    async def kb_upload(request: Request):
+        from fastapi import UploadFile
+        _check(request.headers.get("authorization"))
+        form = await request.form()
+        f = form.get("file")
+        if not isinstance(f, UploadFile):
+            return {"ok": False, "msg": "Nenhum arquivo enviado."}
+        name = f.filename or "arquivo"
+        if not name.lower().endswith(knowledge.READABLE_EXTS):
+            return {"ok": False, "msg": "Só PDF, Word (.docx) ou texto (.txt/.md)."}
+        data = await f.read()
+        try:
+            stored, trunc = await asyncio.to_thread(
+                knowledge.ingest_file, data, name, config, memory, owner)
+            msg = f"'{name}': {stored} trechos" if stored else "Sem texto extraível."
+            return {"ok": stored > 0, "msg": msg, "sources": memory.list_sources(owner)}
+        except Exception as e:
+            return {"ok": False, "msg": str(e)[:120]}
+
+    @app.post("/api/kb/delete")
+    async def kb_delete(request: Request):
+        _check(request.headers.get("authorization"))
+        source = ((await _body(request)).get("source") or "").strip()
+        n = memory.delete_source(owner, source) if source else 0
+        return {"ok": n > 0, "sources": memory.list_sources(owner)}
 
     @app.get("/api/panel")
     async def panel(request: Request):
