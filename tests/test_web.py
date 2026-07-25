@@ -260,6 +260,20 @@ def test_links_habits_journal_crud(tmp_path):
     assert client.get("/api/journal", headers=_auth()).json()["items"] == []
 
 
+def test_kb_file_download(tmp_path):
+    client, _ = _client(tmp_path)
+    # no file yet
+    assert client.get("/api/kb", headers=_auth()).json()["files"] == []
+    assert client.get("/api/kb/file?source=x", headers=_auth()).status_code == 404
+    # store one directly and fetch it back
+    from ev.core.memory import Memory
+    m = Memory(tmp_path / "t.db")
+    m.save_kb_file("123", "meu.pdf", "meu.pdf", "application/pdf", b"%PDF-1.4 test")
+    assert "meu.pdf" in client.get("/api/kb", headers=_auth()).json()["files"]
+    r = client.get("/api/kb/file?source=meu.pdf", headers=_auth())
+    assert r.status_code == 200 and r.content == b"%PDF-1.4 test"
+
+
 def test_geral_folder_protected(tmp_path):
     client, _ = _client(tmp_path)
     out = client.post("/api/threads/delete", json={"name": "geral"}, headers=_auth()).json()

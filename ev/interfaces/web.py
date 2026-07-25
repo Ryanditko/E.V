@@ -142,8 +142,12 @@ body.hide-left #left{display:none}body.hide-right #right{display:none}
 body.hide-left #app{grid-template-columns:1fr 272px}
 body.hide-right #app{grid-template-columns:238px 1fr}
 body.hide-left.hide-right #app{grid-template-columns:1fr}
-.tabs{display:flex;gap:3px;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:3px;overflow-x:auto;scrollbar-width:none}
+.tabs{display:flex;gap:3px;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:3px;overflow-x:auto;scrollbar-width:none;min-width:0;flex:0 1 auto}
 .tabs::-webkit-scrollbar{display:none}.tab{white-space:nowrap;flex:none}
+.topbar{gap:8px}
+@media(max-width:1180px){.topbar #scope{display:none}}
+@media(max-width:1000px){#term{display:none}}
+@media(max-width:760px){#vcopen span{display:none}.tbtn.ic-txt{padding:7px 9px}}
 .lnk{color:var(--fg);text-decoration:underline;text-underline-offset:2px}.lnk:hover{opacity:.75}
 .tab{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--muted);border:none;background:transparent;border-radius:8px;padding:7px 13px;cursor:pointer}
 .tab.on{background:var(--fg);color:var(--ink)}
@@ -713,11 +717,19 @@ $('#memform').onsubmit=async e=>{e.preventDefault();const text=$('#mem-text').va
   await fetch('/api/facts',{method:'POST',headers:H(),body:JSON.stringify({text})});$('#mem-text').value='';loadMem();loadPanel();};
 async function loadKB(){try{const d=await (await fetch('/api/kb',{headers:H()})).json();const box=$('#kblist');box.textContent='';
   if(!d.sources||!d.sources.length){box.appendChild(el('div','tv-empty','Nada na base ainda. Adicione uma URL, arquivo ou texto acima.'));return;}
+  const files=new Set(d.files||[]);
   d.sources.forEach(s=>{const row=el('div','tv-row');const t=el('div','txt');
     if(/^https?:\/\//.test(s.source)){const a=document.createElement('a');a.href=s.source;a.target='_blank';a.rel='noopener';a.className='lnk';a.textContent=s.source;t.appendChild(a);}else t.appendChild(el('div','',s.source));
-    const sub=el('div','');sub.style.cssText='color:var(--subtle);font-family:var(--mono);font-size:11px;margin-top:2px';sub.textContent=s.chunks+' trechos';t.appendChild(sub);
+    const sub=el('div','');sub.style.cssText='color:var(--subtle);font-family:var(--mono);font-size:11px;margin-top:2px';sub.textContent=s.chunks+' trechos'+(files.has(s.source)?' · arquivo':'');t.appendChild(sub);
+    row.appendChild(t);
+    if(files.has(s.source)){const op=el('button','tv-ic');op.title='abrir';op.appendChild(ficon('external-link'));op.onclick=()=>kbOpen(s.source,false);
+      const dw=el('button','tv-ic');dw.title='baixar';dw.appendChild(ficon('download'));dw.onclick=()=>kbOpen(s.source,true);row.appendChild(op);row.appendChild(dw);}
     const dl=el('button','tv-ic');dl.title='remover';dl.appendChild(ficon('trash-2'));dl.onclick=async ()=>{if(await confirmDialog('Remover "'+s.source+'" da base?'))kbDel(s.source);};
-    row.appendChild(t);row.appendChild(dl);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
+    row.appendChild(dl);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
+async function kbOpen(source,download){try{const r=await fetch('/api/kb/file?source='+encodeURIComponent(source),{headers:H()});if(!r.ok){sys('Arquivo não encontrado.');return;}
+  const url=URL.createObjectURL(await r.blob());
+  if(download){const a=document.createElement('a');a.href=url;a.download=source;document.body.appendChild(a);a.click();a.remove();}else window.open(url,'_blank');
+  setTimeout(()=>URL.revokeObjectURL(url),60000);}catch(e){sys('Não consegui abrir o arquivo.');}}
 async function kbDel(source){await fetch('/api/kb/delete',{method:'POST',headers:H(),body:JSON.stringify({source})});loadKB();loadPanel();}
 $('#kb-urlf').onsubmit=e=>{e.preventDefault();const url=$('#kb-url').value.trim();if(!url)return;
   const def=url.replace(/^https?:\/\//,'').replace(/\/$/,'').slice(0,50);
@@ -1138,7 +1150,21 @@ def create_app(config: Config, brain: Brain | None = None):
     @app.get("/api/kb")
     async def kb_list(request: Request):
         _check(request.headers.get("authorization"))
-        return {"sources": memory.list_sources(owner)}
+        return {"sources": memory.list_sources(owner),
+                "files": memory.kb_file_sources(owner)}
+
+    @app.get("/api/kb/file")
+    async def kb_file(request: Request):
+        from urllib.parse import quote
+        _check(request.headers.get("authorization"))
+        f = memory.get_kb_file(owner, request.query_params.get("source", ""))
+        if not f:
+            raise HTTPException(status_code=404, detail="arquivo não encontrado")
+        fn = f["filename"] or "arquivo"
+        return Response(
+            content=f["data"], media_type=f["mime"] or "application/octet-stream",
+            headers={"Content-Disposition": f"inline; filename*=UTF-8''{quote(fn)}"},
+        )
 
     @app.post("/api/kb/url")
     async def kb_url(request: Request):
@@ -1186,6 +1212,9 @@ def create_app(config: Config, brain: Brain | None = None):
             stored, trunc = await asyncio.to_thread(
                 knowledge.ingest_file, data, fname, config, memory, owner, title)
             label = title or fname
+            if stored and len(data) <= 25_000_000:  # keep the original for download/open
+                mime = getattr(f, "content_type", None) or "application/octet-stream"
+                memory.save_kb_file(owner, label, fname, mime, data)
             msg = f"'{label}': {stored} trechos" if stored else "Sem texto extraível."
             return {"ok": stored > 0, "msg": msg, "sources": memory.list_sources(owner)}
         except Exception as e:

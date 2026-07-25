@@ -169,6 +169,16 @@ class Memory:
                 key   TEXT PRIMARY KEY,
                 value TEXT
             );
+
+            CREATE TABLE IF NOT EXISTS kb_files (
+                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id  TEXT NOT NULL,
+                source   TEXT NOT NULL,   -- the friendly name used for its KB chunks
+                filename TEXT NOT NULL,
+                mime     TEXT,
+                data     BLOB NOT NULL,
+                created  TEXT NOT NULL
+            );
             """
         )
         # Migrations for older DBs.
@@ -576,8 +586,36 @@ class Memory:
             "DELETE FROM knowledge WHERE user_id = ? AND source = ?",
             (user_id, source),
         )
+        self._conn.execute(  # drop the stored original file too
+            "DELETE FROM kb_files WHERE user_id = ? AND source = ?", (user_id, source))
         self._conn.commit()
         return cur.rowcount
+
+    # --- original KB files (for download / open) ---------------------------
+
+    def save_kb_file(self, user_id: str, source: str, filename: str,
+                     mime: str, data: bytes) -> None:
+        self._conn.execute(
+            "DELETE FROM kb_files WHERE user_id = ? AND source = ?", (user_id, source))
+        self._conn.execute(
+            "INSERT INTO kb_files (user_id, source, filename, mime, data, created) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (user_id, source, filename, mime, data, self._now()),
+        )
+        self._conn.commit()
+
+    def get_kb_file(self, user_id: str, source: str) -> dict | None:
+        row = self._conn.execute(
+            "SELECT filename, mime, data FROM kb_files WHERE user_id = ? AND source = ?",
+            (user_id, source),
+        ).fetchone()
+        return dict(row) if row else None
+
+    def kb_file_sources(self, user_id: str) -> list[str]:
+        rows = self._conn.execute(
+            "SELECT DISTINCT source FROM kb_files WHERE user_id = ?", (user_id,)
+        ).fetchall()
+        return [r["source"] for r in rows]
 
     # --- expenses -----------------------------------------------------------
 
