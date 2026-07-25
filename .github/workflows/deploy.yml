@@ -35,7 +35,7 @@ jobs:
         env:
           VM: ${{ secrets.VM_USER }}@${{ secrets.VM_IP }}
         run: |
-          tar czf /tmp/ev.tgz ev run_telegram.py run_terminal.py \
+          tar czf /tmp/ev.tgz ev run_telegram.py run_terminal.py run_web.py \
             requirements.txt deploy docs tests authorize_google.py README.md
           scp -i ~/.ssh/id_key -o StrictHostKeyChecking=accept-new \
             /tmp/ev.tgz "$VM:~/ev.tgz"

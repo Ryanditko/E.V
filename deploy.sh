@@ -29,7 +29,7 @@ export COPYFILE_DISABLE=1  # macOS: don't add ._ xattr headers to the tar
 tar czf /tmp/ev-deploy.tgz \
   --exclude=.venv --exclude=.git --exclude=backups --exclude=__pycache__ \
   --exclude='*.pyc' --exclude='*.log' --exclude="$KEY" \
-  ev run_telegram.py run_terminal.py requirements.txt deploy docs tests \
+  ev run_telegram.py run_terminal.py run_web.py requirements.txt deploy docs tests \
   authorize_google.py README.md
 
 echo ">> 2/4 Enviando código e suas chaves pra VM..."
