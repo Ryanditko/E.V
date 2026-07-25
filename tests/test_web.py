@@ -226,6 +226,16 @@ def test_commands_do_not_crash(tmp_path):
         assert isinstance(r.json().get("reply"), str) and r.json()["reply"], c
 
 
+def test_api_keys_manage(tmp_path):
+    client, _ = _client(tmp_path)
+    keys = {k["field"]: k["set"] for k in client.get("/api/keys", headers=_auth()).json()["keys"]}
+    assert keys["tavily_api_key"] is False and keys["gemini_api_key"] is True  # from fake cfg
+    r = client.post("/api/keys", json={"tavily_api_key": "tvly-abc"}, headers=_auth())
+    assert r.json()["ok"] is True
+    keys = {k["field"]: k["set"] for k in client.get("/api/keys", headers=_auth()).json()["keys"]}
+    assert keys["tavily_api_key"] is True  # now set (in memory + .env)
+
+
 def test_geral_folder_protected(tmp_path):
     client, _ = _client(tmp_path)
     out = client.post("/api/threads/delete", json={"name": "geral"}, headers=_auth()).json()

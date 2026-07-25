@@ -346,6 +346,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
     <div class="grid2" id="acts"></div>
     <div class="eyebrow">Provedor de IA</div>
     <select id="prov"><option>auto</option><option>gemini</option><option>groq</option><option>openrouter</option><option>ollama</option></select>
+    <button class="act" id="btn-keys" style="margin-top:12px;width:100%"><i data-lucide="key-round"></i>Chaves de API</button>
   </aside>
 </div>
 <div id="vc">
@@ -462,6 +463,11 @@ async function loadPanel(){try{const r=await fetch('/api/panel',{headers:H()});i
 async function loadConfig(){try{config=await (await fetch('/api/config',{headers:H()})).json();}catch(e){}renderActs();}
 async function saveConfig(){try{await fetch('/api/config',{method:'POST',headers:H(),body:JSON.stringify(config)});}catch(e){}}
 $('#prov').onchange=()=>runCmd('provedor '+$('#prov').value);
+async function openKeys(){let d;try{d=await (await fetch('/api/keys',{headers:H()})).json();}catch(e){return;}
+  const fields=d.keys.map(k=>({key:k.field,label:k.label,type:'password',placeholder:k.set?'definida — deixe em branco pra manter':'não definida'}));
+  openForm('Chaves de API',fields,async v=>{const body={};Object.keys(v).forEach(k=>{if(v[k])body[k]=v[k];});
+    if(Object.keys(body).length){const r=await (await fetch('/api/keys',{method:'POST',headers:H(),body:JSON.stringify(body)})).json();sys('Chaves atualizadas: '+(r.changed||[]).join(', '));loadPanel();}});}
+$('#btn-keys').onclick=openKeys;
 function openPicker(title,sub,items,selected,onSave){const m=$('#modal');m.textContent='';const card=el('div','mcard');
   const tt=el('div','mtitle',title);tt.appendChild(el('small','',sub));card.appendChild(tt);const sel=new Set(selected);
   items.forEach(it=>{const row=el('label','mrow');const cb=document.createElement('input');cb.type='checkbox';cb.checked=sel.has(it.key);
@@ -471,7 +477,7 @@ function openPicker(title,sub,items,selected,onSave){const m=$('#modal');m.textC
   m.appendChild(card);m.classList.add('on');}
 function openForm(title,fields,onSave){const m=$('#modal');m.textContent='';const card=el('div','mcard');card.appendChild(el('div','mtitle',title));
   const inp={};fields.forEach(fd=>{const w=el('div','mfield');w.appendChild(el('label','mlabel',fd.label));
-    let i;if(fd.type==='textarea'){i=document.createElement('textarea');}else{i=document.createElement('input');i.type='text';}
+    let i;if(fd.type==='textarea'){i=document.createElement('textarea');}else{i=document.createElement('input');i.type=fd.type==='password'?'password':'text';}
     i.className='minput';i.value=fd.value||'';if(fd.placeholder)i.placeholder=fd.placeholder;
     if(fd.options&&fd.options.length){const dl=document.createElement('datalist');dl.id='dl_'+fd.key;fd.options.forEach(o=>{const op=document.createElement('option');op.value=o;dl.appendChild(op);});w.appendChild(dl);i.setAttribute('list','dl_'+fd.key);}
     w.appendChild(i);card.appendChild(w);inp[fd.key]=i;});
@@ -704,7 +710,7 @@ function filterRows(box,q){if(!box)return;q=(q||'').trim().toLowerCase();let cur
 [['tasks-search','tasklist'],['exp-search','explist'],['rem-search','remlist'],['mem-search','memlist'],['kb-search','kblist']].forEach(p=>{const inp=document.getElementById(p[0]);if(inp)inp.oninput=()=>filterRows(document.getElementById(p[1]),inp.value);});
 // command palette (Ctrl/Cmd+K)
 const CK=$('#cmdk'),CKI=$('#ck-input'),CKL=$('#ck-list');let ckItems=[],ckSel=0;
-function ckBuild(){const nav=[['Conversa',()=>switchView('chat')],['Tarefas',()=>switchView('tasks')],['Gastos',()=>switchView('exp')],['Lembretes',()=>switchView('rem')],['Agenda',()=>switchView('cal')],['Memórias',()=>switchView('mem')],['Base',()=>switchView('kb')],['Pomodoro',()=>openPomo(25)],['Voz ao vivo',()=>$('#vcopen').click()]];
+function ckBuild(){const nav=[['Conversa',()=>switchView('chat')],['Tarefas',()=>switchView('tasks')],['Gastos',()=>switchView('exp')],['Lembretes',()=>switchView('rem')],['Agenda',()=>switchView('cal')],['Memórias',()=>switchView('mem')],['Base',()=>switchView('kb')],['Pomodoro',()=>openPomo(25)],['Voz ao vivo',()=>$('#vcopen').click()],['Chaves de API',()=>openKeys()]];
   return nav.map(n=>({k:'ir',label:n[0],desc:'abrir',run:n[1]})).concat((COMMANDS||[]).map(c=>({k:'/'+c.name,label:c.name,desc:c.desc,run:()=>runCmd(c.name)})));}
 function ckRender(q){ckItems=ckBuild().filter(i=>(i.label+' '+i.k+' '+i.desc).toLowerCase().includes((q||'').toLowerCase())).slice(0,40);ckSel=0;CKL.textContent='';
   ckItems.forEach((i,ix)=>{const r=el('div','ck-item'+(ix===0?' sel':''));r.appendChild(el('span','ck-k',i.k));r.appendChild(el('span','',i.label));r.appendChild(el('span','ck-d',i.desc||''));r.onclick=()=>{ckClose();i.run();};CKL.appendChild(r);});}
@@ -1200,6 +1206,57 @@ def create_app(config: Config, brain: Brain | None = None):
         _check(request.headers.get("authorization"))
         memory.delete_fact(owner, int((await _body(request)).get("id") or 0))
         return {"ok": True}
+
+    # --- API keys management -----------------------------------------------
+    _KEY_FIELDS = [
+        ("gemini_api_key", "GEMINI_API_KEY", "Gemini (IA principal)"),
+        ("groq_api_key", "GROQ_API_KEY", "Groq (fallback + voz→texto)"),
+        ("openrouter_api_key", "OPENROUTER_API_KEY", "OpenRouter (fallback)"),
+        ("tavily_api_key", "TAVILY_API_KEY", "Tavily (busca web)"),
+        ("brave_api_key", "BRAVE_API_KEY", "Brave (busca web)"),
+    ]
+
+    def _env_write(var, value):
+        import re
+        p = config.db_path.parent / ".env"
+        try:
+            s = p.read_text() if p.exists() else ""
+        except Exception:
+            s = ""
+        line = f"{var}={value}"
+        if re.search(rf"(?m)^{re.escape(var)}=", s):
+            s = re.sub(rf"(?m)^{re.escape(var)}=.*$", line, s)
+        else:
+            s = (s.rstrip("\n") + "\n" + line + "\n") if s else line + "\n"
+        p.write_text(s)
+
+    def _keys_state():
+        return [{"field": f, "label": lbl, "set": bool(getattr(config, f, ""))}
+                for f, env, lbl in _KEY_FIELDS]
+
+    @app.get("/api/keys")
+    async def keys_get(request: Request):
+        _check(request.headers.get("authorization"))
+        return {"keys": _keys_state()}
+
+    @app.post("/api/keys")
+    async def keys_set(request: Request):
+        _check(request.headers.get("authorization"))
+        d = await _body(request)
+        changed = []
+        for f, env, lbl in _KEY_FIELDS:
+            v = (d.get(f) or "").strip()
+            if v:
+                try:  # frozen dataclass -> update in place so the web uses it now
+                    object.__setattr__(config, f, v)
+                except Exception:
+                    pass
+                try:  # persist to .env (survives restart; Telegram picks it up too)
+                    _env_write(env, v)
+                    changed.append(lbl)
+                except Exception:
+                    pass
+        return {"ok": bool(changed), "changed": changed, "keys": _keys_state()}
 
     @app.get("/api/panel")
     async def panel(request: Request):
