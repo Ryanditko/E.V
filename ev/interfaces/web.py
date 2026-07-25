@@ -152,7 +152,7 @@ body.hide-left.hide-right #app{grid-template-columns:1fr}
 .tab{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--muted);border:none;background:transparent;border-radius:8px;padding:7px 13px;cursor:pointer}
 .tab.on{background:var(--fg);color:var(--ink)}
 #chatview{flex:1;display:flex;flex-direction:column;min-height:0}
-#taskview,#kbview,#expview,#remview,#memview,#calview,#lnkview,#habview,#jouview{flex:1;min-height:0;overflow:auto;padding:24px;display:none}
+#taskview,#kbview,#expview,#remview,#memview,#calview,#lnkview,#habview,#jouview,#subview,#orcview,#monview{flex:1;min-height:0;overflow:auto;padding:24px;display:none}
 .cal-head{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:18px}
 #calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;max-width:940px;margin:0 auto}
 .cal-dow{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--subtle);text-align:center;padding:4px}
@@ -286,7 +286,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
   <main id="center">
     <div class="topbar">
       <button class="tbtn ico" id="tgl-left" title="Ocultar/mostrar pastas"><i data-lucide="panel-left"></i></button>
-      <div class="tabs"><button class="tab on" data-view="chat">Conversa</button><button class="tab" data-view="tasks">Tarefas</button><button class="tab" data-view="exp">Gastos</button><button class="tab" data-view="rem">Lembretes</button><button class="tab" data-view="cal">Agenda</button><button class="tab" data-view="mem">Memórias</button><button class="tab" data-view="lnk">Links</button><button class="tab" data-view="hab">Hábitos</button><button class="tab" data-view="jou">Diário</button><button class="tab" data-view="kb">Base</button></div>
+      <div class="tabs"><button class="tab on" data-view="chat">Conversa</button><button class="tab" data-view="tasks">Tarefas</button><button class="tab" data-view="exp">Gastos</button><button class="tab" data-view="rem">Lembretes</button><button class="tab" data-view="cal">Agenda</button><button class="tab" data-view="mem">Memórias</button><button class="tab" data-view="lnk">Links</button><button class="tab" data-view="hab">Hábitos</button><button class="tab" data-view="jou">Diário</button><button class="tab" data-view="sub">Assinaturas</button><button class="tab" data-view="orc">Orçamentos</button><button class="tab" data-view="mon">Monitores</button><button class="tab" data-view="kb">Base</button></div>
       <span class="eyebrow" id="scope">geral</span><span style="flex:1"></span>
       <button class="tbtn ic-txt" id="vcopen"><i data-lucide="mic"></i>FALAR</button>
       <button class="tbtn" id="term">TERMINAL</button><button class="tbtn on" id="voz">VOZ</button>
@@ -362,6 +362,24 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
       <form id="jouform" class="tv-form"><input id="jou-text" placeholder="Como foi seu dia?"><button class="mbtn" type="submit">Registrar</button></form>
       <input class="tv-search" id="jou-search" placeholder="Buscar no diário..." autocomplete="off">
       <div id="joulist"></div>
+    </div>
+    <div id="subview">
+      <div class="tv-h">Assinaturas</div>
+      <form id="subform" class="tv-form"><input id="sub-amt" placeholder="Valor" style="width:100px;flex:none"><input id="sub-desc" placeholder="Ex: Netflix"><input id="sub-day" type="number" min="1" max="28" value="1" title="dia do mês" style="width:70px;flex:none"><button class="mbtn" type="submit">Salvar</button></form>
+      <input class="tv-search" id="sub-search" placeholder="Buscar assinaturas..." autocomplete="off">
+      <div id="sublist"></div>
+    </div>
+    <div id="orcview">
+      <div class="tv-h">Orçamentos</div>
+      <form id="orcform" class="tv-form"><input id="orc-cat" placeholder="Categoria (ex: comida)"><input id="orc-amt" placeholder="Limite/mês" style="width:130px;flex:none"><button class="mbtn" type="submit">Definir</button></form>
+      <input class="tv-search" id="orc-search" placeholder="Buscar orçamentos..." autocomplete="off">
+      <div id="orclist"></div>
+    </div>
+    <div id="monview">
+      <div class="tv-h">Monitores web</div>
+      <form id="monform" class="tv-form"><input id="mon-url" placeholder="https://... (página a vigiar)"><input id="mon-kw" placeholder="palavra (opcional)" style="width:160px;flex:none"><button class="mbtn" type="submit">Vigiar</button></form>
+      <input class="tv-search" id="mon-search" placeholder="Buscar monitores..." autocomplete="off">
+      <div id="monlist"></div>
     </div>
   </main>
   <aside id="right" class="rail">
@@ -639,10 +657,33 @@ if(SR){const vr=new (window.SpeechRecognition||window.webkitSpeechRecognition)()
   vr.onend=()=>vcMic.classList.remove('rec');}
 // view tabs (Conversa / Tarefas)
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>switchView(t.dataset.view));
-const VIEWS={chat:'#chatview',tasks:'#taskview',exp:'#expview',rem:'#remview',cal:'#calview',mem:'#memview',lnk:'#lnkview',hab:'#habview',jou:'#jouview',kb:'#kbview'};
+const VIEWS={chat:'#chatview',tasks:'#taskview',exp:'#expview',rem:'#remview',cal:'#calview',mem:'#memview',lnk:'#lnkview',hab:'#habview',jou:'#jouview',sub:'#subview',orc:'#orcview',mon:'#monview',kb:'#kbview'};
 function switchView(v){if(!VIEWS[v])v='chat';document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.view===v));
   Object.entries(VIEWS).forEach(([k,sel])=>{const el2=$(sel);if(el2)el2.style.display=(k===v)?(k==='chat'?'flex':'block'):'none';});
-  ({tasks:loadTasks,exp:loadExp,rem:loadRem,mem:loadMem,kb:loadKB,cal:loadCal,lnk:loadLinks,hab:loadHabits,jou:loadJournal}[v]||function(){})();}
+  ({tasks:loadTasks,exp:loadExp,rem:loadRem,mem:loadMem,kb:loadKB,cal:loadCal,lnk:loadLinks,hab:loadHabits,jou:loadJournal,sub:loadSub,orc:loadOrc,mon:loadMon}[v]||function(){})();}
+async function loadSub(){try{const items=(await (await fetch('/api/recurring',{headers:H()})).json()).items||[];const box=$('#sublist');box.textContent='';
+  if(!items.length){box.appendChild(el('div','tv-empty','Nenhuma assinatura.'));return;}
+  items.forEach(x=>{const row=el('div','tv-row');const t=el('div','txt');t.appendChild(el('div','',x.description));t.appendChild(subline(x.category+' · dia '+x.day));
+    const val=el('div','');val.style.cssText='font-family:var(--mono);font-weight:600';val.textContent='R$'+x.amount.toFixed(0);
+    const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));dl.onclick=async ()=>{if(await confirmDialog('Remover assinatura?'))recDel('/api/recurring/delete',x.id,loadSub);};
+    row.appendChild(t);row.appendChild(val);row.appendChild(dl);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
+$('#subform').onsubmit=async e=>{e.preventDefault();const amount=$('#sub-amt').value.trim();if(!amount)return;
+  await fetch('/api/recurring',{method:'POST',headers:H(),body:JSON.stringify({amount,description:$('#sub-desc').value.trim(),day:$('#sub-day').value})});$('#sub-amt').value='';$('#sub-desc').value='';loadSub();};
+async function loadOrc(){try{const items=(await (await fetch('/api/budgets',{headers:H()})).json()).items||[];const box=$('#orclist');box.textContent='';
+  if(!items.length){box.appendChild(el('div','tv-empty','Nenhum orçamento definido.'));return;}
+  items.forEach(b=>{const row=el('div','tv-row');const t=el('div','txt');t.appendChild(el('div','',b.category));
+    const val=el('div','');val.style.cssText='font-family:var(--mono);font-weight:600';val.textContent='R$'+b.amount.toFixed(0)+'/mês';
+    const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));dl.onclick=async ()=>{if(await confirmDialog('Remover orçamento?')){await fetch('/api/budgets/delete',{method:'POST',headers:H(),body:JSON.stringify({category:b.category})});loadOrc();loadPanel();}};
+    row.appendChild(t);row.appendChild(val);row.appendChild(dl);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
+$('#orcform').onsubmit=async e=>{e.preventDefault();const cat=$('#orc-cat').value.trim(),amount=$('#orc-amt').value.trim();if(!cat||!amount)return;
+  await fetch('/api/budgets',{method:'POST',headers:H(),body:JSON.stringify({category:cat,amount})});$('#orc-cat').value='';$('#orc-amt').value='';loadOrc();};
+async function loadMon(){try{const items=(await (await fetch('/api/watches',{headers:H()})).json()).items||[];const box=$('#monlist');box.textContent='';
+  if(!items.length){box.appendChild(el('div','tv-empty','Nenhum monitor.'));return;}
+  items.forEach(w=>{const row=el('div','tv-row');const t=el('div','txt');const a=document.createElement('a');a.href=w.url;a.target='_blank';a.rel='noopener';a.className='lnk';a.textContent=w.url;t.appendChild(a);if(w.keyword)t.appendChild(subline('palavra: '+w.keyword));
+    const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));dl.onclick=async ()=>{if(await confirmDialog('Remover monitor?'))recDel('/api/watches/delete',w.id,loadMon);};
+    row.appendChild(t);row.appendChild(dl);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
+$('#monform').onsubmit=async e=>{e.preventDefault();const url=$('#mon-url').value.trim();if(!url)return;
+  await fetch('/api/watches',{method:'POST',headers:H(),body:JSON.stringify({url,keyword:$('#mon-kw').value.trim()})});$('#mon-url').value='';$('#mon-kw').value='';loadMon();};
 async function loadLinks(){try{const items=(await (await fetch('/api/links',{headers:H()})).json()).items||[];const box=$('#lnklist');box.textContent='';
   if(!items.length){box.appendChild(el('div','tv-empty','Nenhum link salvo.'));return;}
   const g={};items.forEach(l=>{(g[l.category]=g[l.category]||[]).push(l);});
@@ -773,10 +814,10 @@ function filterRows(box,q){if(!box)return;q=(q||'').trim().toLowerCase();let cur
     if(k.classList.contains('tv-cat')){if(cur)cur.style.display=shown?'':'none';cur=k;shown=0;}
     else if(k.classList.contains('tv-row')){const m=k.textContent.toLowerCase().includes(q);k.style.display=m?'':'none';if(m)shown++;}
   });if(cur)cur.style.display=shown?'':'none';}
-[['tasks-search','tasklist'],['exp-search','explist'],['rem-search','remlist'],['mem-search','memlist'],['kb-search','kblist'],['lnk-search','lnklist'],['hab-search','hablist'],['jou-search','joulist']].forEach(p=>{const inp=document.getElementById(p[0]);if(inp)inp.oninput=()=>filterRows(document.getElementById(p[1]),inp.value);});
+[['tasks-search','tasklist'],['exp-search','explist'],['rem-search','remlist'],['mem-search','memlist'],['kb-search','kblist'],['lnk-search','lnklist'],['hab-search','hablist'],['jou-search','joulist'],['sub-search','sublist'],['orc-search','orclist'],['mon-search','monlist']].forEach(p=>{const inp=document.getElementById(p[0]);if(inp)inp.oninput=()=>filterRows(document.getElementById(p[1]),inp.value);});
 // command palette (Ctrl/Cmd+K)
 const CK=$('#cmdk'),CKI=$('#ck-input'),CKL=$('#ck-list');let ckItems=[],ckSel=0;
-function ckBuild(){const nav=[['Conversa',()=>switchView('chat')],['Tarefas',()=>switchView('tasks')],['Gastos',()=>switchView('exp')],['Lembretes',()=>switchView('rem')],['Agenda',()=>switchView('cal')],['Memórias',()=>switchView('mem')],['Links',()=>switchView('lnk')],['Hábitos',()=>switchView('hab')],['Diário',()=>switchView('jou')],['Base',()=>switchView('kb')],['Pomodoro',()=>openPomo(25)],['Voz ao vivo',()=>$('#vcopen').click()],['Chaves de API',()=>openKeys()]];
+function ckBuild(){const nav=[['Conversa',()=>switchView('chat')],['Tarefas',()=>switchView('tasks')],['Gastos',()=>switchView('exp')],['Lembretes',()=>switchView('rem')],['Agenda',()=>switchView('cal')],['Memórias',()=>switchView('mem')],['Links',()=>switchView('lnk')],['Hábitos',()=>switchView('hab')],['Diário',()=>switchView('jou')],['Assinaturas',()=>switchView('sub')],['Orçamentos',()=>switchView('orc')],['Monitores',()=>switchView('mon')],['Base',()=>switchView('kb')],['Pomodoro',()=>openPomo(25)],['Voz ao vivo',()=>$('#vcopen').click()],['Chaves de API',()=>openKeys()]];
   return nav.map(n=>({k:'ir',label:n[0],desc:'abrir',run:n[1]})).concat((COMMANDS||[]).map(c=>({k:'/'+c.name,label:c.name,desc:c.desc,run:()=>runCmd(c.name)})));}
 function ckRender(q){ckItems=ckBuild().filter(i=>(i.label+' '+i.k+' '+i.desc).toLowerCase().includes((q||'').toLowerCase())).slice(0,40);ckSel=0;CKL.textContent='';
   ckItems.forEach((i,ix)=>{const r=el('div','ck-item'+(ix===0?' sel':''));r.appendChild(el('span','ck-k',i.k));r.appendChild(el('span','',i.label));r.appendChild(el('span','ck-d',i.desc||''));r.onclick=()=>{ckClose();i.run();};CKL.appendChild(r);});}
@@ -1417,6 +1458,76 @@ def create_app(config: Config, brain: Brain | None = None):
     async def journal_del(request: Request):
         _check(request.headers.get("authorization"))
         memory.delete_journal(owner, int((await _body(request)).get("id") or 0))
+        return {"ok": True}
+
+    # --- Subscriptions / Budgets / Watches CRUD ----------------------------
+    @app.get("/api/recurring")
+    async def rec_list(request: Request):
+        _check(request.headers.get("authorization"))
+        return {"items": memory.list_recurring(owner)}
+
+    @app.post("/api/recurring")
+    async def rec_create(request: Request):
+        _check(request.headers.get("authorization"))
+        d = await _body(request)
+        try:
+            amount = float(str(d.get("amount", "")).replace(",", "."))
+            day = max(1, min(28, int(d.get("day") or 1)))
+        except Exception:
+            return {"ok": False}
+        memory.add_recurring(owner, amount, (d.get("description") or "assinatura").strip(),
+                             (d.get("category") or "assinatura").strip() or "assinatura", day)
+        return {"ok": True}
+
+    @app.post("/api/recurring/delete")
+    async def rec_del(request: Request):
+        _check(request.headers.get("authorization"))
+        memory.delete_recurring(owner, int((await _body(request)).get("id") or 0))
+        return {"ok": True}
+
+    @app.get("/api/budgets")
+    async def bud_list(request: Request):
+        _check(request.headers.get("authorization"))
+        return {"items": memory.list_budgets(owner)}
+
+    @app.post("/api/budgets")
+    async def bud_set(request: Request):
+        _check(request.headers.get("authorization"))
+        d = await _body(request)
+        cat = (d.get("category") or "").strip()
+        try:
+            amount = float(str(d.get("amount", "")).replace(",", "."))
+        except Exception:
+            return {"ok": False}
+        if cat:
+            memory.set_budget(owner, cat, amount)
+        return {"ok": bool(cat)}
+
+    @app.post("/api/budgets/delete")
+    async def bud_del(request: Request):
+        _check(request.headers.get("authorization"))
+        memory.delete_budget(owner, ((await _body(request)).get("category") or "").strip())
+        return {"ok": True}
+
+    @app.get("/api/watches")
+    async def wat_list(request: Request):
+        _check(request.headers.get("authorization"))
+        return {"items": memory.list_watches(owner)}
+
+    @app.post("/api/watches")
+    async def wat_create(request: Request):
+        _check(request.headers.get("authorization"))
+        d = await _body(request)
+        url = (d.get("url") or "").strip()
+        kw = (d.get("keyword") or "").strip() or None
+        if url:
+            memory.add_watch(owner, url, kw)
+        return {"ok": bool(url)}
+
+    @app.post("/api/watches/delete")
+    async def wat_del(request: Request):
+        _check(request.headers.get("authorization"))
+        memory.delete_watch(owner, int((await _body(request)).get("id") or 0))
         return {"ok": True}
 
     @app.get("/api/panel")

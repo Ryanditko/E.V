@@ -274,6 +274,25 @@ def test_kb_file_download(tmp_path):
     assert r.status_code == 200 and r.content == b"%PDF-1.4 test"
 
 
+def test_recurring_budgets_watches_crud(tmp_path):
+    client, _ = _client(tmp_path)
+    client.post("/api/recurring", json={"amount": "39,90", "description": "Netflix", "day": 15}, headers=_auth())
+    r = client.get("/api/recurring", headers=_auth()).json()["items"]
+    assert r and r[0]["description"] == "Netflix" and r[0]["day"] == 15
+    client.post("/api/recurring/delete", json={"id": r[0]["id"]}, headers=_auth())
+    assert client.get("/api/recurring", headers=_auth()).json()["items"] == []
+    client.post("/api/budgets", json={"category": "comida", "amount": 800}, headers=_auth())
+    b = client.get("/api/budgets", headers=_auth()).json()["items"]
+    assert b and b[0]["category"] == "comida" and b[0]["amount"] == 800
+    client.post("/api/budgets/delete", json={"category": "comida"}, headers=_auth())
+    assert client.get("/api/budgets", headers=_auth()).json()["items"] == []
+    client.post("/api/watches", json={"url": "https://x.com", "keyword": "promo"}, headers=_auth())
+    w = client.get("/api/watches", headers=_auth()).json()["items"]
+    assert w and w[0]["keyword"] == "promo"
+    client.post("/api/watches/delete", json={"id": w[0]["id"]}, headers=_auth())
+    assert client.get("/api/watches", headers=_auth()).json()["items"] == []
+
+
 def test_geral_folder_protected(tmp_path):
     client, _ = _client(tmp_path)
     out = client.post("/api/threads/delete", json={"name": "geral"}, headers=_auth()).json()
