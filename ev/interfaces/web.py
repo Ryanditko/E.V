@@ -198,6 +198,10 @@ select{width:100%;font-family:var(--mono);font-size:12px;background:var(--surfac
 .mtitle{font-family:var(--disp);font-weight:600;font-size:16px;margin-bottom:6px}.mtitle small{display:block;font-family:var(--body);font-weight:400;font-size:12px;color:var(--muted);margin-top:3px}
 .mrow{display:flex;align-items:center;gap:10px;padding:9px 6px;border-top:1px solid var(--line);cursor:pointer;font-size:14px}
 .mrow input{width:16px;height:16px;accent-color:var(--fg)}
+.mfield{margin-bottom:13px}.mlabel{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+.minput{width:100%;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:11px 13px;color:var(--fg);font:inherit;font-size:14px}
+.minput:focus{outline:none;border-color:var(--line-2)}
+textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-height:1.45}
 .mbar{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
 .mbtn{background:var(--fg);color:var(--ink);border:none;border-radius:10px;padding:9px 16px;cursor:pointer;font-weight:500}
 .mbtn2{background:var(--surface);color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:9px 16px;cursor:pointer}
@@ -320,7 +324,7 @@ async function send(msg){if(!msg)return;you(msg);const p=thinking();setState('th
     const j=await r.json();p.remove();ev(j.reply);speak(j.reply);loadPanel();
   }catch(e){p.remove();sys('Sem conexão com a E.V. — '+e);}finally{setState();}}
 async function runCmd(cmd,btn,e){const nm=cmd.trim().replace(/^\//,'').split(/\s+/)[0].toLowerCase();
-  if(nm==='foco'){if(btn)ripple(btn,e);openPomo(parseInt((cmd.match(/\d+/)||[25])[0])||25);return;}
+  if(nm==='foco'){if(btn)ripple(btn,e);const n=cmd.match(/\d+/g)||[];openPomo(parseInt(n[0])||25,parseInt(n[1])||5);return;}
   if(btn)ripple(btn,e);const p=thinking();setState('thinking');
   try{const r=await fetch('/api/cmd',{method:'POST',headers:H(),body:JSON.stringify({command:cmd,thread})});
     const j=await r.json();
@@ -353,16 +357,30 @@ function openPicker(title,sub,items,selected,onSave){const m=$('#modal');m.textC
   const bar=el('div','mbar');const c=el('button','mbtn2','Cancelar');c.onclick=()=>m.classList.remove('on');
   const sv=el('button','mbtn','Salvar');sv.onclick=()=>{onSave([...sel]);m.classList.remove('on');};bar.appendChild(c);bar.appendChild(sv);card.appendChild(bar);
   m.appendChild(card);m.classList.add('on');}
+function openForm(title,fields,onSave){const m=$('#modal');m.textContent='';const card=el('div','mcard');card.appendChild(el('div','mtitle',title));
+  const inp={};fields.forEach(fd=>{const w=el('div','mfield');w.appendChild(el('label','mlabel',fd.label));
+    let i;if(fd.type==='textarea'){i=document.createElement('textarea');}else{i=document.createElement('input');i.type='text';}
+    i.className='minput';i.value=fd.value||'';if(fd.placeholder)i.placeholder=fd.placeholder;
+    if(fd.options&&fd.options.length){const dl=document.createElement('datalist');dl.id='dl_'+fd.key;fd.options.forEach(o=>{const op=document.createElement('option');op.value=o;dl.appendChild(op);});w.appendChild(dl);i.setAttribute('list','dl_'+fd.key);}
+    w.appendChild(i);card.appendChild(w);inp[fd.key]=i;});
+  const bar=el('div','mbar');const c=el('button','mbtn2','Cancelar');c.onclick=()=>m.classList.remove('on');
+  const s=el('button','mbtn','Salvar');s.onclick=()=>{const v={};Object.keys(inp).forEach(k=>v[k]=inp[k].value.trim());m.classList.remove('on');onSave(v);};
+  bar.appendChild(c);bar.appendChild(s);card.appendChild(bar);m.appendChild(card);m.classList.add('on');
+  setTimeout(()=>{const f=inp[fields[0].key];f.focus();if(f.select)f.select();},60);}
 $('#edit-acts').onclick=()=>openPicker('Ações rápidas','Escolha os atalhos do painel.',Object.keys(CAT).map(k=>({key:k,label:CAT[k][0]})),config.actions,async l=>{config.actions=l;await saveConfig();renderActs();});
 $('#edit-stats').onclick=()=>openPicker('Sistema','Escolha os indicadores exibidos.',Object.keys(SM).map(k=>({key:k,label:SM[k][0]})),config.stats,async l=>{config.stats=l;await saveConfig();renderStats();});
 const PT=$('#pomo-time'),PL=$('#pomo-label'),PG=$('#pomo-toggle'),PBOX=$('#pomo-timebox'),PW=$('#pomo');
-let pomo={rem:1500,total:1500,run:false,timer:null};
+let pomo={rem:1500,total:1500,brk:300,phase:'focus',run:false,timer:null};
 function pfmt(){const s=Math.max(0,pomo.rem);return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');}
-function prender(){PT.textContent=pfmt();PG.textContent=pomo.run?'⏸':'▶';PW.classList.toggle('run',pomo.run);}
-function ptick(){if(!pomo.run)return;pomo.rem--;if(pomo.rem<=0){pomo.rem=0;pstop();PL.textContent='Pausa!';speak('Foco concluído, hora da pausa.',true);}prender();}
+function prender(){PT.textContent=pfmt();PG.textContent=pomo.run?'⏸':'▶';PW.classList.toggle('run',pomo.run);PW.classList.toggle('brk',pomo.phase==='break');}
+function ptick(){if(!pomo.run)return;pomo.rem--;
+  if(pomo.rem<=0){
+    if(pomo.phase==='focus'){pomo.phase='break';pomo.total=pomo.brk;pomo.rem=pomo.brk;PL.textContent='Pausa';speak('Foco concluído, hora da pausa.',true);}
+    else{pomo.rem=0;pstop();PL.textContent='Ciclo concluído';speak('Pausa concluída. Bora pro próximo ciclo.',true);}
+  }prender();}
 function pstart(){if(pomo.timer)clearInterval(pomo.timer);pomo.run=true;pomo.timer=setInterval(ptick,1000);prender();}
 function pstop(){pomo.run=false;if(pomo.timer){clearInterval(pomo.timer);pomo.timer=null;}prender();}
-function openPomo(mins){mins=mins||25;pomo.total=mins*60;pomo.rem=mins*60;PL.textContent='Foco';PW.classList.add('on');pstart();}
+function openPomo(mins,brk){mins=mins||25;brk=brk||5;pomo.phase='focus';pomo.brk=brk*60;pomo.total=mins*60;pomo.rem=mins*60;PL.textContent='Foco';PW.classList.add('on');pstart();}
 $('#pomo-x').onclick=()=>{pstop();PW.classList.remove('on');};
 PG.onclick=()=>pomo.run?pstop():pstart();
 $('#pomo-reset').onclick=()=>{pomo.rem=pomo.total;prender();};
@@ -411,24 +429,26 @@ async function loadFolders(){try{const r=await fetch('/api/threads',{headers:H()
   bx.ondrop=async e=>{if(e.target!==bx)return;e.preventDefault();const src=e.dataTransfer.getData('text/plain');
     if(src){await fetch('/api/threads/move',{method:'POST',headers:H(),body:JSON.stringify({path:src,parent:''})});await switchThread(thread);}};
 }catch(e){}}
-async function childFolder(parent){const name=(prompt('Nome da subpasta dentro de "'+parent+'":')||'').trim().toLowerCase().replace(/\s+/g,'-').replace(/\//g,'-');
-  if(!name)return;await fetch('/api/threads',{method:'POST',headers:H(),body:JSON.stringify({name,parent})});await switchThread(parent+'/'+name);}
+function childFolder(parent){openForm('Nova subpasta em "'+parent+'"',[{key:'name',label:'Nome',placeholder:'ex: projetos'}],async v=>{
+  const name=(v.name||'').toLowerCase().replace(/\s+/g,'-').replace(/\//g,'-');if(!name)return;
+  await fetch('/api/threads',{method:'POST',headers:H(),body:JSON.stringify({name,parent})});await switchThread(parent+'/'+name);});}
 async function delFolder(path){if(!confirm('Apagar "'+path+'" (e subpastas/conversas)? Não dá pra desfazer.'))return;
   await fetch('/api/threads/delete',{method:'POST',headers:H(),body:JSON.stringify({name:path})});
   if(thread===path||thread.startsWith(path+'/'))await switchThread('geral');else loadFolders();}
-async function renameFolder(path){if(path==='geral')return;const seg=path.split('/');const leaf=seg[seg.length-1];
-  const nv=(prompt('Novo nome para "'+leaf+'":',leaf)||'').trim().toLowerCase().replace(/\s+/g,'-').replace(/\//g,'-');if(!nv||nv===leaf)return;
-  await fetch('/api/threads/rename',{method:'POST',headers:H(),body:JSON.stringify({old:path,new:nv})});
-  const np=(seg.slice(0,-1).join('/')?seg.slice(0,-1).join('/')+'/':'')+nv;
-  if(thread===path||thread.startsWith(path+'/')){thread=thread.replace(path,np);localStorage.setItem('ev_thread',thread);}
-  await switchThread(thread);}
+function renameFolder(path){if(path==='geral')return;const seg=path.split('/');const leaf=seg[seg.length-1];
+  openForm('Renomear pasta',[{key:'name',label:'Novo nome',value:leaf}],async v=>{const nv=(v.name||'').toLowerCase().replace(/\s+/g,'-').replace(/\//g,'-');if(!nv||nv===leaf)return;
+    await fetch('/api/threads/rename',{method:'POST',headers:H(),body:JSON.stringify({old:path,new:nv})});
+    const np=(seg.slice(0,-1).join('/')?seg.slice(0,-1).join('/')+'/':'')+nv;
+    if(thread===path||thread.startsWith(path+'/')){thread=thread.replace(path,np);localStorage.setItem('ev_thread',thread);}
+    await switchThread(thread);});}
 async function switchThread(name){thread=name;localStorage.setItem('ev_thread',name);scopeEl.textContent='Conversa · '+name;
   loadFolders();log.textContent='';await loadHistory();}
 async function loadHistory(){try{const r=await fetch('/api/history?thread='+encodeURIComponent(thread),{headers:H()});const d=await r.json();
   if(!d.messages.length){sys('Pasta "'+thread+'" — comece a conversa.');return;}
   d.messages.forEach(m=>m.role==='user'?you(m.content):ev(m.content));}catch(e){}}
-$('#newf').onclick=async()=>{const name=(prompt('Nome da nova pasta (ex: projetos):')||'').trim().toLowerCase().replace(/\s+/g,'-');
-  if(!name)return;await fetch('/api/threads',{method:'POST',headers:H(),body:JSON.stringify({name})});await switchThread(name);};
+$('#newf').onclick=()=>openForm('Nova pasta',[{key:'name',label:'Nome',placeholder:'ex: projetos'}],async v=>{
+  const name=(v.name||'').toLowerCase().replace(/\s+/g,'-').replace(/\//g,'-');if(!name)return;
+  await fetch('/api/threads',{method:'POST',headers:H(),body:JSON.stringify({name})});await switchThread(name);});
 
 // slash autocomplete
 let slSel=-1,slList=[];
@@ -455,7 +475,7 @@ if(SR){const rec=new SR();rec.lang='pt-BR';rec.interimResults=false;
 
 // live voice console
 const vc=$('#vc'),vcTxt=$('#vc-txt'),vcMic=$('#vc-mic');
-$('#vcopen').onclick=()=>{if(!SR){sys('Voz indisponível neste navegador (use o Chrome).');return;}vc.classList.add('on');vcTxt.textContent='Toque no microfone e fale.';};
+$('#vcopen').onclick=()=>{if(!SR){sys('Voz indisponível neste navegador (use o Chrome).');return;}vc.classList.add('on');vcTxt.textContent='Toque no microfone e fale.';$('#vc-sub').textContent='pasta: '+thread+' · a conversa fica salva aqui';};
 $('#vc-x').onclick=()=>{vc.classList.remove('on');setState();};
 if(SR){const vr=new (window.SpeechRecognition||window.webkitSpeechRecognition)();vr.lang='pt-BR';vr.interimResults=false;
   vcMic.onclick=()=>{try{vcMic.classList.add('rec');setState('listening');vcTxt.textContent='ouvindo...';vr.start();}catch(e){vcMic.classList.remove('rec');}};
@@ -469,6 +489,7 @@ document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>switchView(t.dataset.
 function switchView(v){document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.view===v));
   $('#chatview').style.display=v==='chat'?'flex':'none';$('#taskview').style.display=v==='tasks'?'block':'none';if(v==='tasks')loadTasks();}
 async function loadTasks(){try{const d=await (await fetch('/api/tasks',{headers:H()})).json();const box=$('#tasklist');box.textContent='';
+  window._cats=[...new Set((d.tasks||[]).map(t=>t.category))];
   const g={};(d.tasks||[]).forEach(t=>{(g[t.category]=g[t.category]||[]).push(t);});
   if(!d.tasks||!d.tasks.length){box.appendChild(el('div','tv-empty','Nenhuma tarefa em aberto. Crie uma acima.'));return;}
   Object.keys(g).sort().forEach(cat=>{box.appendChild(el('div','tv-cat',cat));
@@ -480,8 +501,10 @@ async function loadTasks(){try{const d=await (await fetch('/api/tasks',{headers:
       row.appendChild(done);row.appendChild(txt);row.appendChild(ed);row.appendChild(dl);box.appendChild(row);});});
   window.lucide&&lucide.createIcons();}catch(e){}}
 async function taskAction(op,id){await fetch('/api/tasks/'+op,{method:'POST',headers:H(),body:JSON.stringify({id})});loadTasks();loadPanel();}
-async function editTask(t){const nt=prompt('Editar tarefa:',t.text);if(nt===null)return;const nc=(prompt('Categoria:',t.category)||t.category).trim();
-  await fetch('/api/tasks/update',{method:'POST',headers:H(),body:JSON.stringify({id:t.id,text:nt.trim(),category:nc})});loadTasks();loadPanel();}
+function editTask(t){openForm('Editar tarefa',[
+  {key:'text',label:'Descrição',value:t.text,type:'textarea'},
+  {key:'category',label:'Categoria',value:t.category,options:window._cats||[],placeholder:'ex: faculdade'}],
+  async v=>{if(!v.text)return;await fetch('/api/tasks/update',{method:'POST',headers:H(),body:JSON.stringify({id:t.id,text:v.text,category:v.category||t.category})});loadTasks();loadPanel();});}
 $('#taskform').onsubmit=async e=>{e.preventDefault();const text=$('#task-text').value.trim();const cat=$('#task-cat').value.trim()||'geral';
   if(!text)return;await fetch('/api/tasks',{method:'POST',headers:H(),body:JSON.stringify({text,category:cat})});$('#task-text').value='';loadTasks();loadPanel();};
 setInterval(()=>{$('#s-clock').textContent=new Date().toTimeString().slice(0,8);},1000);
@@ -561,8 +584,26 @@ def create_app(config: Config, brain: Brain | None = None):
         if name == "status":
             return _status_text()
         if name == "modelo":
+            from datetime import datetime, timezone
+            usage = memory.usage_for_day(datetime.now(timezone.utc).date().isoformat())
+            caps = {"gemini": 20, "groq": 1000, "openrouter": 1000}
             forced = memory.get_setting("force_provider") or "auto"
-            return f"Modelo principal: {brain.current_model()}\nProvedor: {forced}\nTrocar provedor: /provedor <nome>"
+            out = [f"🧠 Principal: {brain.current_model()} (Gemini)"]
+            if config.groq_api_key:
+                out.append(f"Fallback: {config.groq_model} (Groq)")
+            if config.openrouter_api_key:
+                out.append(f"Fallback: {config.openrouter_model} (OpenRouter)")
+            out.append(f"Provedor ativo: {forced}")
+            out.append("")
+            out.append("📊 Uso hoje (zera à meia-noite UTC):")
+            for prov in ("gemini", "groq", "openrouter", "ollama"):
+                used = usage.get(prov, 0)
+                cap = caps.get(prov)
+                if cap:
+                    out.append(f"- {prov}: {used} usados · ~{max(0, cap - used)} restantes (de ~{cap})")
+                elif prov == "ollama" and config.ollama_enabled:
+                    out.append(f"- ollama: {used} usados · ilimitado")
+            return "\n".join(out)
         if name == "ajuda":
             return commands.help()
         if name in ("foco", "exportar", "transcrever", "documento", "resumir",
