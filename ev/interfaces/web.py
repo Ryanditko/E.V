@@ -26,6 +26,7 @@ _PAGE = r"""<!doctype html><html lang="pt-br"><head><meta charset="utf-8">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 <style>
 :root{
   --ink:#0a0a0a;--panel:#0d0d0d;--elev:#141414;--surface:#101010;
@@ -132,6 +133,11 @@ body.term #txt{font-family:var(--mono)}
 .stat{display:flex;align-items:baseline;justify-content:space-between;padding:11px 13px;border:1px solid var(--line);border-radius:12px;background:var(--surface);cursor:pointer;transition:.2s}
 .stat:hover{border-color:var(--line-2);background:var(--elev)}.stat .lbl{font-size:13px;color:var(--muted)}
 .stat .num{font-family:var(--mono);font-weight:600;font-size:18px}
+[data-lucide],svg.lucide{width:16px;height:16px;stroke-width:1.75;vertical-align:-3px;flex:none}
+.stat .lbl{display:flex;align-items:center;gap:9px}.stat .lbl svg{width:17px;height:17px;color:var(--muted)}
+.act{display:flex;align-items:center;gap:8px}.act svg{width:16px;height:16px;color:var(--muted)}
+.msg .h svg{width:19px;height:19px;vertical-align:-4px;margin-right:8px;color:var(--fg)}
+.row .id svg,.hint svg{width:13px;height:13px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .act{font-size:13px;color:var(--fg);border:1px solid var(--line);background:var(--surface);border-radius:11px;padding:11px 10px;cursor:pointer;text-align:left;transition:.15s}
 .act:hover{border-color:var(--line-2);transform:translateY(-1px);background:var(--elev)}
@@ -165,16 +171,16 @@ select{width:100%;font-family:var(--mono);font-size:12px;background:var(--surfac
   </main>
   <aside id="right" class="rail">
     <div class="eyebrow">Sistema</div>
-    <div class="stat" data-cmd="tarefas"><span class="lbl">Tarefas</span><span class="num" data-k="tasks">0</span></div>
-    <div class="stat" data-cmd="lembretes"><span class="lbl">Lembretes</span><span class="num" data-k="reminders">0</span></div>
-    <div class="stat" data-cmd="gastos"><span class="lbl">Gastos · mês</span><span class="num"><span style="font-size:12px;color:var(--subtle)">R$</span><span data-k="expenses">0</span></span></div>
-    <div class="stat" data-cmd="memorias"><span class="lbl">Memórias</span><span class="num" data-k="memories">0</span></div>
-    <div class="stat" data-cmd="kb"><span class="lbl">Base</span><span class="num" data-k="kb">0</span></div>
+    <div class="stat" data-cmd="tarefas"><span class="lbl"><i data-lucide="list-checks"></i>Tarefas</span><span class="num" data-k="tasks">0</span></div>
+    <div class="stat" data-cmd="lembretes"><span class="lbl"><i data-lucide="alarm-clock"></i>Lembretes</span><span class="num" data-k="reminders">0</span></div>
+    <div class="stat" data-cmd="gastos"><span class="lbl"><i data-lucide="wallet"></i>Gastos · mês</span><span class="num"><span style="font-size:12px;color:var(--subtle)">R$</span><span data-k="expenses">0</span></span></div>
+    <div class="stat" data-cmd="memorias"><span class="lbl"><i data-lucide="brain"></i>Memórias</span><span class="num" data-k="memories">0</span></div>
+    <div class="stat" data-cmd="kb"><span class="lbl"><i data-lucide="book-open"></i>Base</span><span class="num" data-k="kb">0</span></div>
     <div class="eyebrow">Ações rápidas</div>
     <div class="grid2">
-      <button class="act" data-cmd="buscar">Buscar web</button><button class="act" data-cmd="noticias">Notícias</button>
-      <button class="act" data-cmd="clima">Clima</button><button class="act" data-cmd="relatorio">Relatório</button>
-      <button class="act" data-cmd="status">Status</button><button class="act" data-cmd="semana">Semana</button></div>
+      <button class="act" data-cmd="buscar"><i data-lucide="search"></i>Buscar web</button><button class="act" data-cmd="noticias"><i data-lucide="newspaper"></i>Notícias</button>
+      <button class="act" data-cmd="clima"><i data-lucide="cloud-sun"></i>Clima</button><button class="act" data-cmd="relatorio"><i data-lucide="bar-chart-3"></i>Relatório</button>
+      <button class="act" data-cmd="status"><i data-lucide="activity"></i>Status</button><button class="act" data-cmd="semana"><i data-lucide="calendar-days"></i>Semana</button></div>
     <div class="eyebrow">Provedor de IA</div>
     <select id="prov"><option>auto</option><option>gemini</option><option>groq</option><option>openrouter</option><option>ollama</option></select>
   </aside>
@@ -202,16 +208,21 @@ vozBtn.onclick=()=>{voiceOn=!voiceOn;localStorage.setItem('ev_voice',voiceOn?'on
 termBtn.onclick=()=>{document.body.classList.toggle('term');termBtn.classList.toggle('on',document.body.classList.contains('term'));};
 
 function el(t,c,x){const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e;}
-// structured, monochrome rendering of E.V.'s replies (lists, ids, categories)
+const HASEMO=/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{2190}-\u{21FF}\u{2300}-\u{23FF}\u{20E3}]/u;
+const EMOG=/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{2190}-\u{21FF}\u{2300}-\u{23FF}️‍\u{20E3}]/gu;
+const IC={'📋':'list-checks','📝':'file-pen','✅':'check-circle-2','⏰':'alarm-clock','💰':'wallet','🧠':'brain','📄':'file-text','📰':'newspaper','☀':'sun','🌧':'cloud-rain','🩺':'activity','🔎':'search','📊':'bar-chart-3','📚':'book-open','🍅':'timer','⚠':'triangle-alert','🔕':'bell-off','🔔':'bell','🗄':'database','📅':'calendar-days','🔗':'link','📌':'pin','🌐':'globe','🎧':'headphones','📥':'download','🧽':'eraser','🧹':'trash-2','🔀':'shuffle','▶':'play','⏸':'pause','⏹':'square','💧':'droplet','🕷':'sparkles','🗓':'calendar-clock','📔':'notebook-pen','☕':'coffee'};
+function stripEmoji(s){return s.replace(EMOG,'').replace(/\s{2,}/g,' ').trim();}
+function iconName(s){for(const ch of s){if(IC[ch])return IC[ch];}return 'sparkles';}
+function ficon(n){const i=document.createElement('i');i.setAttribute('data-lucide',n);return i;}
+// structured, monochrome rendering with Lucide icons (no emoji read-out)
 function renderReply(box,text){box.textContent='';const lines=(text||'').split('\n');let first=true;
-  lines.forEach(ln=>{const s=ln.trim();
-    if(!s){box.appendChild(el('div','',' '));return;}
-    let m;
-    if(first && /[\p{Emoji}]/u.test(s)){box.appendChild(el('span','h',s));first=false;return;}
+  lines.forEach(ln=>{const s=ln.trim();if(!s)return;let m;
+    if(first && HASEMO.test(s)){const h=el('span','h');h.appendChild(ficon(iconName(s)));h.appendChild(document.createTextNode(stripEmoji(s)));box.appendChild(h);first=false;return;}
     if((m=s.match(/^\[(.+)\]$/))){box.appendChild(el('div','cat',m[1]));return;}
-    if((m=s.match(/^#(\w+)\s+(.*)$/))){const r=el('div','row');r.appendChild(el('span','id','#'+m[1]));r.appendChild(el('span','t',m[2]));box.appendChild(r);return;}
-    if(/^(Concluir|Cancelar|Uso|Remover|Apagar):/i.test(s)||s.startsWith('/')){box.appendChild(el('div','hint',s));return;}
-    box.appendChild(el('p','',s));first=false;});
+    if((m=s.match(/^#(\w+)\s+(.*)$/))){const r=el('div','row');r.appendChild(el('span','id','#'+m[1]));r.appendChild(el('span','t',stripEmoji(m[2])));box.appendChild(r);return;}
+    if(/^(Concluir|Cancelar|Uso|Remover|Apagar):/i.test(s)||s.startsWith('/')){box.appendChild(el('div','hint',stripEmoji(s)));return;}
+    box.appendChild(el('p','',stripEmoji(s)));first=false;});
+  window.lucide&&lucide.createIcons();
 }
 function you(t){const d=el('div','msg you',t);log.appendChild(d);log.scrollTop=log.scrollHeight;}
 function ev(t){const d=el('div','msg ev');renderReply(d,t);log.appendChild(d);log.scrollTop=log.scrollHeight;return d;}
@@ -300,7 +311,8 @@ if(SR){const vr=new (window.SpeechRecognition||window.webkitSpeechRecognition)()
   vr.onend=()=>vcMic.classList.remove('rec');}
 setInterval(()=>{$('#s-clock').textContent=new Date().toTimeString().slice(0,8);},1000);
 (async()=>{try{COMMANDS=(await (await fetch('/api/commands',{headers:H()})).json()).commands;}catch(e){}
-  scopeEl.textContent='Conversa · '+thread;await loadFolders();await loadHistory();loadPanel();})();
+  scopeEl.textContent='Conversa · '+thread;await loadFolders();await loadHistory();loadPanel();
+  window.lucide&&lucide.createIcons();})();
 </script></body></html>"""
 
 
@@ -471,14 +483,21 @@ def create_app(config: Config, brain: Brain | None = None):
         from datetime import datetime, timedelta, timezone
         since = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
         exp = memory.expenses_since(owner, since)
+        prov = memory.get_setting("force_provider") or "auto"
+        # the model that actually answers depends on the forced provider
+        model = {
+            "groq": config.groq_model,
+            "openrouter": config.openrouter_model,
+            "ollama": config.ollama_model,
+        }.get(prov) or brain.current_model()
         return {
             "tasks": len(memory.open_tasks(owner)),
             "reminders": len(memory.open_reminders(owner)),
             "expenses": round(sum(e.get("amount", 0) for e in exp)),
             "memories": len(memory.all_facts(owner)),
             "kb": len(memory.list_sources(owner)),
-            "provider": memory.get_setting("force_provider") or "auto",
-            "model": brain.current_model(),
+            "provider": prov,
+            "model": model,
         }
 
     @app.post("/api/tts")

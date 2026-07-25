@@ -24,6 +24,30 @@ def _apply_fixes(text: str, fixes) -> str:
     return text
 
 
+# Emoji / pictographic ranges the TTS would otherwise read out loud.
+_EMOJI = re.compile(
+    "[\U0001F000-\U0001FAFF\U00002600-\U000027BF\U0001F1E6-\U0001F1FF"
+    "\U00002190-\U000021FF\U00002300-\U000023FF\U00002B00-\U00002BFF"
+    "️‍⃣•▪●■✓✔]"
+)
+
+
+def clean_for_speech(text: str) -> str:
+    """Strip emoji and markdown so the voice doesn't read '*', '#', emoji names.
+
+    Kept public + pure so it's testable. Applies to Telegram AND the web voice.
+    """
+    t = text or ""
+    t = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", t)   # [texto](url) -> texto
+    t = re.sub(r"https?://\S+", "", t)                # bare URLs
+    t = _EMOJI.sub("", t)                             # emojis / bullets
+    t = re.sub(r"`{1,3}([^`]*)`{1,3}", r"\1", t)      # `code` -> code
+    t = re.sub(r"[*_#~>|]+", "", t)                   # markdown symbols
+    t = re.sub(r"[ \t]{2,}", " ", t)
+    t = re.sub(r"\n{2,}", "\n", t)
+    return t.strip()
+
+
 async def synthesize(
     text: str,
     voice: str,
@@ -32,7 +56,7 @@ async def synthesize(
     fixes=(),
 ) -> bytes:
     """Return MP3 bytes speaking `text` with the chosen voice/tuning."""
-    spoken = _apply_fixes(text, fixes)
+    spoken = _apply_fixes(clean_for_speech(text), fixes) or "..."
     communicate = edge_tts.Communicate(spoken, voice, rate=rate, pitch=pitch)
     audio = bytearray()
     async for chunk in communicate.stream():
