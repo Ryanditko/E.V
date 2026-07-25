@@ -122,7 +122,16 @@ body.listening .bigcore .bdot{animation:pulse .9s infinite}
 .tab{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--muted);border:none;background:transparent;border-radius:8px;padding:7px 13px;cursor:pointer}
 .tab.on{background:var(--fg);color:var(--ink)}
 #chatview{flex:1;display:flex;flex-direction:column;min-height:0}
-#taskview,#kbview,#expview,#remview,#memview{flex:1;min-height:0;overflow:auto;padding:24px;display:none}
+#taskview,#kbview,#expview,#remview,#memview,#calview{flex:1;min-height:0;overflow:auto;padding:24px;display:none}
+.cal-head{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:18px}
+#calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;max-width:940px;margin:0 auto}
+.cal-dow{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--subtle);text-align:center;padding:4px}
+.cal-cell{min-height:94px;border:1px solid var(--line);border-radius:10px;padding:7px;background:var(--surface);cursor:pointer;transition:border-color .15s;overflow:hidden}
+.cal-cell:hover{border-color:var(--line-2)}.cal-cell.empty{background:transparent;border:none;cursor:default}
+.cal-cell.today{border-color:var(--fg)}
+.cal-num{font-family:var(--mono);font-size:12px;color:var(--muted);margin-bottom:5px}.cal-cell.today .cal-num{color:var(--fg);font-weight:600}
+.cal-ev{font-size:11px;background:var(--elev);border-radius:5px;padding:2px 5px;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-more{font-family:var(--mono);font-size:10px;color:var(--subtle)}
 .kb-add{max-width:720px;display:flex;flex-direction:column;gap:14px;margin-bottom:22px}
 #kb-text{min-height:84px}
 #expchart{max-width:720px;margin-bottom:10px}
@@ -243,7 +252,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
   </aside>
   <main id="center">
     <div class="topbar">
-      <div class="tabs"><button class="tab on" data-view="chat">Conversa</button><button class="tab" data-view="tasks">Tarefas</button><button class="tab" data-view="exp">Gastos</button><button class="tab" data-view="rem">Lembretes</button><button class="tab" data-view="mem">Memórias</button><button class="tab" data-view="kb">Base</button></div>
+      <div class="tabs"><button class="tab on" data-view="chat">Conversa</button><button class="tab" data-view="tasks">Tarefas</button><button class="tab" data-view="exp">Gastos</button><button class="tab" data-view="rem">Lembretes</button><button class="tab" data-view="cal">Agenda</button><button class="tab" data-view="mem">Memórias</button><button class="tab" data-view="kb">Base</button></div>
       <span class="eyebrow" id="scope">geral</span><span style="flex:1"></span>
       <button class="tbtn" id="vcopen">◉ FALAR</button>
       <button class="tbtn" id="term">TERMINAL</button><button class="tbtn on" id="voz">VOZ</button></div>
@@ -285,6 +294,10 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
       <form id="remform" class="tv-form"><input id="rem-text" placeholder="Lembrar de..."><input id="rem-when" type="datetime-local" style="flex:none"><button class="mbtn" type="submit">Criar</button></form>
       <div class="tv-cat">Em aberto</div>
       <div id="remlist"></div>
+    </div>
+    <div id="calview">
+      <div class="cal-head"><button class="tbtn" id="cal-prev">‹</button><div class="tv-h" id="cal-title" style="margin:0;min-width:200px;text-align:center"></div><button class="tbtn" id="cal-next">›</button></div>
+      <div id="calgrid"></div>
     </div>
     <div id="memview">
       <div class="tv-h">Memórias</div>
@@ -536,10 +549,30 @@ if(SR){const vr=new (window.SpeechRecognition||window.webkitSpeechRecognition)()
   vr.onend=()=>vcMic.classList.remove('rec');}
 // view tabs (Conversa / Tarefas)
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>switchView(t.dataset.view));
-const VIEWS={chat:'#chatview',tasks:'#taskview',exp:'#expview',rem:'#remview',mem:'#memview',kb:'#kbview'};
+const VIEWS={chat:'#chatview',tasks:'#taskview',exp:'#expview',rem:'#remview',cal:'#calview',mem:'#memview',kb:'#kbview'};
 function switchView(v){if(!VIEWS[v])v='chat';document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.view===v));
   Object.entries(VIEWS).forEach(([k,sel])=>{const el2=$(sel);if(el2)el2.style.display=(k===v)?(k==='chat'?'flex':'block'):'none';});
-  ({tasks:loadTasks,exp:loadExp,rem:loadRem,mem:loadMem,kb:loadKB}[v]||function(){})();}
+  ({tasks:loadTasks,exp:loadExp,rem:loadRem,mem:loadMem,kb:loadKB,cal:loadCal}[v]||function(){})();}
+let calY=null,calM=null;
+function ymd(y,m,d){return y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');}
+async function loadCal(){const now=new Date();if(calY==null){calY=now.getFullYear();calM=now.getMonth();}
+  const items=(await (await fetch('/api/reminders',{headers:H()})).json()).items||[];
+  const byDay={};items.forEach(r=>{if(r.when_iso){const d=r.when_iso.slice(0,10);(byDay[d]=byDay[d]||[]).push(r);}});
+  const MONTHS=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  $('#cal-title').textContent=MONTHS[calM]+' '+calY;const grid=$('#calgrid');grid.textContent='';
+  ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].forEach(d=>grid.appendChild(el('div','cal-dow',d)));
+  const first=new Date(calY,calM,1).getDay(),days=new Date(calY,calM+1,0).getDate();
+  const tn=new Date(),tstr=ymd(tn.getFullYear(),tn.getMonth(),tn.getDate());
+  for(let i=0;i<first;i++)grid.appendChild(el('div','cal-cell empty'));
+  for(let d=1;d<=days;d++){const ds=ymd(calY,calM,d);const cell=el('div','cal-cell'+(ds===tstr?' today':''));
+    cell.appendChild(el('div','cal-num',String(d)));const list=byDay[ds]||[];
+    list.slice(0,3).forEach(r=>{const ev=el('div','cal-ev',r.when_iso.slice(11,16)+' '+r.text);ev.title=r.text;cell.appendChild(ev);});
+    if(list.length>3)cell.appendChild(el('div','cal-more','+'+(list.length-3)+' mais'));
+    cell.onclick=()=>calAdd(ds);grid.appendChild(cell);}}
+function calAdd(ds){openForm('Novo lembrete · '+ds.split('-').reverse().join('/'),[{key:'text',label:'Lembrar de',placeholder:'...'},{key:'time',label:'Hora',value:'09:00'}],async v=>{
+  if(!v.text)return;await fetch('/api/reminders',{method:'POST',headers:H(),body:JSON.stringify({text:v.text,when:ds+'T'+(v.time||'09:00')})});loadCal();loadPanel();});}
+$('#cal-prev').onclick=()=>{calM--;if(calM<0){calM=11;calY--;}loadCal();};
+$('#cal-next').onclick=()=>{calM++;if(calM>11){calM=0;calY++;}loadCal();};
 async function recDel(url,id,reload){await fetch(url,{method:'POST',headers:H(),body:JSON.stringify({id})});reload();loadPanel();}
 function subline(txt){const d=el('div','',txt);d.style.cssText='color:var(--subtle);font-family:var(--mono);font-size:11px;margin-top:2px';return d;}
 async function loadExp(){try{const items=(await (await fetch('/api/expenses',{headers:H()})).json()).items||[];
@@ -608,7 +641,7 @@ $('#taskform').onsubmit=async e=>{e.preventDefault();const text=$('#task-text').
   if(!text)return;await fetch('/api/tasks',{method:'POST',headers:H(),body:JSON.stringify({text,category:cat})});$('#task-text').value='';loadTasks();loadPanel();};
 // command palette (Ctrl/Cmd+K)
 const CK=$('#cmdk'),CKI=$('#ck-input'),CKL=$('#ck-list');let ckItems=[],ckSel=0;
-function ckBuild(){const nav=[['Conversa',()=>switchView('chat')],['Tarefas',()=>switchView('tasks')],['Gastos',()=>switchView('exp')],['Lembretes',()=>switchView('rem')],['Memórias',()=>switchView('mem')],['Base',()=>switchView('kb')],['Pomodoro',()=>openPomo(25)],['Voz ao vivo',()=>$('#vcopen').click()]];
+function ckBuild(){const nav=[['Conversa',()=>switchView('chat')],['Tarefas',()=>switchView('tasks')],['Gastos',()=>switchView('exp')],['Lembretes',()=>switchView('rem')],['Agenda',()=>switchView('cal')],['Memórias',()=>switchView('mem')],['Base',()=>switchView('kb')],['Pomodoro',()=>openPomo(25)],['Voz ao vivo',()=>$('#vcopen').click()]];
   return nav.map(n=>({k:'ir',label:n[0],desc:'abrir',run:n[1]})).concat((COMMANDS||[]).map(c=>({k:'/'+c.name,label:c.name,desc:c.desc,run:()=>runCmd(c.name)})));}
 function ckRender(q){ckItems=ckBuild().filter(i=>(i.label+' '+i.k+' '+i.desc).toLowerCase().includes((q||'').toLowerCase())).slice(0,40);ckSel=0;CKL.textContent='';
   ckItems.forEach((i,ix)=>{const r=el('div','ck-item'+(ix===0?' sel':''));r.appendChild(el('span','ck-k',i.k));r.appendChild(el('span','',i.label));r.appendChild(el('span','ck-d',i.desc||''));r.onclick=()=>{ckClose();i.run();};CKL.appendChild(r);});}
