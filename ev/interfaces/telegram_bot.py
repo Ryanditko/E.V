@@ -2103,6 +2103,8 @@ class TelegramInterface:
         while True:
             try:
                 await self._deliver_due_reminders(app)
+                # Roll recurring tasks forward to their next occurrence.
+                self._memory.roll_due_tasks(datetime.now(self._tz()))
             except Exception:
                 log.exception("Reminder loop error")
             await asyncio.sleep(self._config.reminder_poll_seconds)

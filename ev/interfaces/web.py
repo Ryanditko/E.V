@@ -174,7 +174,7 @@ body.hide-left.hide-right #app{grid-template-columns:1fr}
 .bar-val{width:80px;font-family:var(--mono);font-size:12px;flex:none}
 .tv-cat.drop{color:var(--fg);background:var(--elev);border-radius:6px}
 .tv-h{font-family:var(--disp);font-weight:600;font-size:22px;margin-bottom:18px}
-.tv-form{display:flex;gap:8px;margin-bottom:22px;max-width:720px}
+.tv-form{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:22px;max-width:720px}
 .tv-form input{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:12px 15px;color:var(--fg);font:inherit;font-size:15px}
 .tv-form #task-text{flex:1}.tv-form #task-cat{width:140px;flex:none;font-family:var(--mono);font-size:13px}
 .tv-form input:focus{outline:none;border-color:var(--line-2)}
@@ -308,6 +308,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
       <form id="taskform" class="tv-form">
         <input id="task-text" placeholder="Nova tarefa..." autocomplete="off">
         <input id="task-cat" placeholder="categoria" value="geral" autocomplete="off">
+        <input id="task-due" type="datetime-local" title="Vencimento (opcional)" style="flex:none">
         <select id="task-recur" title="Repetir"><option value="">Uma vez</option><option value="daily">Diário</option><option value="weekly">Semanal</option><option value="monthly">Mensal</option></select>
         <button class="mbtn" type="submit">Adicionar</button>
       </form>
@@ -540,7 +541,7 @@ function openForm(title,fields,onSave,onDelete){const m=$('#modal');m.textConten
     let i;
     if(fd.type==='textarea'){i=document.createElement('textarea');}
     else if(fd.select){i=document.createElement('select');fd.select.forEach(o=>{const op=document.createElement('option');op.value=o.v;op.textContent=o.l;i.appendChild(op);});}
-    else{i=document.createElement('input');i.type=fd.type==='password'?'password':'text';}
+    else{i=document.createElement('input');i.type=fd.type==='password'?'password':fd.type==='datetime'?'datetime-local':'text';}
     i.className='minput';i.value=fd.value||'';if(fd.placeholder)i.placeholder=fd.placeholder;
     if(fd.options&&fd.options.length){const dl=document.createElement('datalist');dl.id='dl_'+fd.key;fd.options.forEach(o=>{const op=document.createElement('option');op.value=o;dl.appendChild(op);});w.appendChild(dl);i.setAttribute('list','dl_'+fd.key);}
     w.appendChild(i);card.appendChild(w);inp[fd.key]=i;});
@@ -882,19 +883,24 @@ async function loadTasks(){try{const d=await (await fetch('/api/tasks',{headers:
     g[cat].forEach(t=>{const row=el('div','tv-row');row.draggable=true;row.ondragstart=e=>e.dataTransfer.setData('text/plain',String(t.id));
       const done=el('button','tv-ic');done.title='concluir';done.appendChild(ficon('check'));done.onclick=()=>taskAction('complete',t.id);
       const txt=el('div','txt');const parts=t.text.split(/\s+(?=\d+[.)]\s)/);if(parts.length>1)parts.forEach(p=>txt.appendChild(el('div','',p)));else txt.appendChild(el('div','',t.text));
-      if(t.recur)txt.appendChild(subline(RECUR_LBL[t.recur]||('repete '+t.recur)));
+      const metas=[];if(t.recur)metas.push('repete '+recurShort(t.recur));
+      const overdue=t.due&&new Date(t.due)<new Date();
+      if(t.due)metas.push((t.recur?'próxima ':(overdue?'atrasada · ':'vence '))+fmtDue(t.due));
+      if(metas.length){const s=subline(metas.join(' · '));if(overdue&&!t.recur){s.style.color='var(--fg)';s.style.fontWeight='600';}txt.appendChild(s);}
       const ed=el('button','tv-ic');ed.title='editar';ed.appendChild(ficon('pencil'));ed.onclick=()=>editTask(t);
       const dl=el('button','tv-ic');dl.title='apagar';dl.appendChild(ficon('trash-2'));dl.onclick=async ()=>{if(await confirmDialog('Apagar esta tarefa?'))taskAction('delete',t.id);};
       row.appendChild(done);row.appendChild(txt);row.appendChild(ed);row.appendChild(dl);box.appendChild(row);});});
   window.lucide&&lucide.createIcons();}catch(e){}}
 async function taskAction(op,id){await fetch('/api/tasks/'+op,{method:'POST',headers:H(),body:JSON.stringify({id})});loadTasks();loadPanel();}
+function fmtDue(iso){const d=new Date(iso);if(isNaN(d))return iso;return d.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}
 function editTask(t){openForm('Editar tarefa',[
   {key:'text',label:'Descrição',value:t.text,type:'textarea'},
   {key:'category',label:'Categoria',value:t.category,options:window._cats||[],placeholder:'ex: faculdade'},
-  {key:'recur',label:'Repetir (regenera ao concluir)',select:RECUR,value:t.recur||''}],
-  async v=>{if(!v.text)return;await fetch('/api/tasks/update',{method:'POST',headers:H(),body:JSON.stringify({id:t.id,text:v.text,category:v.category||t.category,recur:v.recur})});loadTasks();loadPanel();});}
-$('#taskform').onsubmit=async e=>{e.preventDefault();const text=$('#task-text').value.trim();const cat=$('#task-cat').value.trim()||'geral';const recur=$('#task-recur').value;
-  if(!text)return;await fetch('/api/tasks',{method:'POST',headers:H(),body:JSON.stringify({text,category:cat,recur})});$('#task-text').value='';$('#task-recur').value='';loadTasks();loadPanel();};
+  {key:'due',label:'Vencimento (opcional)',value:(t.due||'').slice(0,16),type:'datetime'},
+  {key:'recur',label:'Repetir',select:RECUR,value:t.recur||''}],
+  async v=>{if(!v.text)return;await fetch('/api/tasks/update',{method:'POST',headers:H(),body:JSON.stringify({id:t.id,text:v.text,category:v.category||t.category,due:v.due,recur:v.recur})});loadTasks();loadPanel();});}
+$('#taskform').onsubmit=async e=>{e.preventDefault();const text=$('#task-text').value.trim();const cat=$('#task-cat').value.trim()||'geral';const recur=$('#task-recur').value;const due=$('#task-due').value;
+  if(!text)return;await fetch('/api/tasks',{method:'POST',headers:H(),body:JSON.stringify({text,category:cat,recur,due})});$('#task-text').value='';$('#task-due').value='';$('#task-recur').value='';loadTasks();loadPanel();};
 // per-tab search filter
 function filterRows(box,q){if(!box)return;q=(q||'').trim().toLowerCase();let cur=null,shown=0;
   [...box.children].forEach(k=>{
@@ -1249,6 +1255,7 @@ def create_app(config: Config, brain: Brain | None = None):
     @app.get("/api/tasks")
     async def tasks_get(request: Request):
         _check(request.headers.get("authorization"))
+        memory.roll_due_tasks()  # keep recurring tasks rolled to their next occurrence
         return {"tasks": memory.open_tasks(owner)}
 
     @app.post("/api/tasks")
@@ -1258,7 +1265,8 @@ def create_app(config: Config, brain: Brain | None = None):
         text = (data.get("text") or "").strip()
         cat = (data.get("category") or "geral").strip() or "geral"
         if text:
-            memory.add_task(owner, text, cat, recur=_recurval(data.get("recur")))
+            memory.add_task(owner, text, cat, recur=_recurval(data.get("recur")),
+                            due=(data.get("due") or "").strip() or None)
         return {"tasks": memory.open_tasks(owner)}
 
     @app.post("/api/tasks/update")
@@ -1266,10 +1274,11 @@ def create_app(config: Config, brain: Brain | None = None):
         _check(request.headers.get("authorization"))
         data = await _body(request)
         recur = _recurval(data.get("recur"), allow_clear=True) if "recur" in data else None
+        due = (data.get("due") or "").strip() if "due" in data else None
         memory.update_task(owner, int(data.get("id") or 0),
                            text=(data.get("text") or None),
                            category=(data.get("category") or None),
-                           recur=recur)
+                           recur=recur, due=due)
         return {"tasks": memory.open_tasks(owner)}
 
     @app.post("/api/tasks/complete")
