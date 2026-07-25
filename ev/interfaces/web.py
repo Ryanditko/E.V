@@ -1743,8 +1743,8 @@ def create_app(config: Config, brain: Brain | None = None):
     @app.get("/api/panel")
     async def panel(request: Request):
         _check(request.headers.get("authorization"))
-        from datetime import datetime, timedelta, timezone
-        since = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+        # "Gastos · mês" = current calendar month in the user's timezone.
+        _, since, _ = commands._month_bounds(0)
         exp = memory.expenses_since(owner, since)
         prov = memory.get_setting("force_provider") or "auto"
         # the model that actually answers depends on the forced provider

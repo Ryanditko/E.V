@@ -85,15 +85,27 @@ def test_weekly_review(tmp_path):
     assert "concluídas: 1" in out
 
 
-def test_monthly_report(tmp_path):
+def test_report_current_vs_previous_month(tmp_path):
     c = _commands(tmp_path)
-    # No expenses last month -> friendly message
-    out = c.relatorio("u")
-    assert "Relatório" in out
-    # An expense created "now" is in the current month, not last month, so the
-    # previous-month report stays empty — that's the correct behavior.
+    # empty month -> friendly message
+    assert "nenhum gasto" in c.relatorio("u").lower()
     c.gasto("u", "50 mercado #comida")
-    assert "Relatório" in c.relatorio("u")
+    # default report = CURRENT month, so a just-added expense shows up
+    cur = c.relatorio("u")
+    assert "Relatório" in cur and "50" in cur and "comida" in cur
+    # previous month (offset=-1) has nothing yet, and its label differs
+    prev = c.relatorio("u", offset=-1)
+    assert "nenhum gasto" in prev.lower()
+    assert c._month_bounds(0)[0] != c._month_bounds(-1)[0]
+
+
+def test_month_bounds_are_utc_iso(tmp_path):
+    # boundaries must be UTC ISO (matches how expenses.created is stored), so a
+    # lexical DB comparison equals a chronological one.
+    c = _commands(tmp_path)
+    label, start, end = c._month_bounds(0)
+    assert start.endswith("+00:00") and end.endswith("+00:00")
+    assert start < end and len(label) == 7  # 'MM/YYYY'
 
 
 def test_watches(tmp_path):

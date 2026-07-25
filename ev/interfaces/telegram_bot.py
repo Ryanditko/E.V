@@ -2023,7 +2023,8 @@ class TelegramInterface:
             return
         self._last_monthly = month
         uid = str(cfg.owner_id)
-        report = self._commands.relatorio(uid)
+        # Fires at the start of a month → summarize the month that just ended.
+        report = self._commands.relatorio(uid, offset=-1)
         insight = await self._brain.ask(
             "Você é a E.V. Comente em 1-2 frases este relatório do mês (padrões, "
             "dicas gentis). Breve e humano, em português.",

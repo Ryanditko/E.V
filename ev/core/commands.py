@@ -52,7 +52,7 @@ COMMAND_LIST = [
     ("orcamento", "Definir orçamento: /orcamento comida 800"),
     ("orcamentos", "Ver orçamentos e quanto já gastou"),
     ("orcamentorm", "Apagar orçamento: /orcamentorm comida"),
-    ("relatorio", "Relatório financeiro do mês passado"),
+    ("relatorio", "Relatório financeiro do mês atual"),
     ("quiz", "Estudar: pergunta sobre seus PDFs (/quiz [documento])"),
     ("insights", "Insights da sua semana (IA)"),
     ("modelo", "Ver/trocar o modelo principal (Gemini) e uso do dia"),
@@ -101,6 +101,20 @@ class Commands:
             return datetime.now(tz)
         except Exception:
             return datetime.now()
+
+    def _month_bounds(self, offset: int = 0) -> tuple[str, str, str]:
+        """Boundaries of a calendar month in the user's LOCAL timezone, returned as
+        UTC ISO strings for querying (expenses are stored in UTC). offset 0 = current
+        month, -1 = previous. Returns (label 'MM/YYYY', start_iso_utc, end_iso_utc)."""
+        first = self._now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        if offset:
+            first = add_months(first, offset)
+        nxt = add_months(first, 1)
+
+        def _utc(dt: datetime) -> str:
+            return (dt.astimezone(timezone.utc) if dt.tzinfo else dt).isoformat()
+
+        return first.strftime("%m/%Y"), _utc(first), _utc(nxt)
 
     def _google_ready(self) -> bool:
         return bool(
@@ -487,9 +501,7 @@ class Commands:
         # Budget alert (if a limit is set for this category).
         budget = self._memory.get_budget(user_id, category)
         if budget:
-            since = datetime.now(timezone.utc).replace(
-                day=1, hour=0, minute=0, second=0, microsecond=0
-            ).isoformat()
+            _, since, _ = self._month_bounds(0)
             spent = self._memory.category_total_since(user_id, category, since)
             pct = spent / budget * 100 if budget else 0
             if pct >= 100:
@@ -499,10 +511,8 @@ class Commands:
         return msg
 
     def gastos(self, user_id: str, argstr: str = "") -> str:
-        since = datetime.now(timezone.utc).replace(
-            day=1, hour=0, minute=0, second=0, microsecond=0
-        )
-        items = self._memory.expenses_since(user_id, since.isoformat())
+        _, since, _ = self._month_bounds(0)
+        items = self._memory.expenses_since(user_id, since)
         if not items:
             return "Nenhum gasto registrado neste mês."
         total = sum(i["amount"] for i in items)
@@ -525,17 +535,11 @@ class Commands:
         ok = self._memory.delete_expense(user_id, int(arg))
         return f"Gasto #{arg} apagado." if ok else f"Não achei o gasto #{arg}."
 
-    def relatorio(self, user_id: str) -> str:
-        """Financial report for the PREVIOUS month, by category vs budget."""
-        now = datetime.now(timezone.utc)
-        first_this = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        first_prev = (first_this - timedelta(seconds=1)).replace(
-            day=1, hour=0, minute=0, second=0, microsecond=0
-        )
-        label = first_prev.strftime("%m/%Y")
-        items = self._memory.expenses_between(
-            user_id, first_prev.isoformat(), first_this.isoformat()
-        )
+    def relatorio(self, user_id: str, offset: int = 0) -> str:
+        """Financial report for a calendar month, by category vs budget.
+        offset 0 = current month (on-demand default), -1 = previous month."""
+        label, start_iso, end_iso = self._month_bounds(offset)
+        items = self._memory.expenses_between(user_id, start_iso, end_iso)
         if not items:
             return f"📈 Relatório de {label}: nenhum gasto registrado."
         total = sum(i["amount"] for i in items)
@@ -567,9 +571,7 @@ class Commands:
         budgets = self._memory.list_budgets(user_id)
         if not budgets:
             return "Nenhum orçamento. Crie com /orcamento <categoria> <valor>."
-        since = datetime.now(timezone.utc).replace(
-            day=1, hour=0, minute=0, second=0, microsecond=0
-        ).isoformat()
+        _, since, _ = self._month_bounds(0)
         lines = ["💰 Orçamentos do mês:"]
         for b in budgets:
             spent = self._memory.category_total_since(user_id, b["category"], since)
