@@ -462,6 +462,29 @@ class Memory:
         self._conn.commit()
         return cur.rowcount > 0
 
+    def delete_task(self, user_id: str, task_id: int) -> bool:
+        cur = self._conn.execute(
+            "DELETE FROM tasks WHERE id = ? AND user_id = ?", (task_id, user_id)
+        )
+        self._conn.commit()
+        return cur.rowcount > 0
+
+    def update_task(self, user_id: str, task_id: int, text: str | None = None,
+                    category: str | None = None) -> bool:
+        sets, params = [], []
+        if text is not None:
+            sets.append("text = ?"); params.append(text)
+        if category is not None:
+            sets.append("category = ?"); params.append(category)
+        if not sets:
+            return False
+        params += [task_id, user_id]
+        cur = self._conn.execute(
+            f"UPDATE tasks SET {', '.join(sets)} WHERE id = ? AND user_id = ?", params
+        )
+        self._conn.commit()
+        return cur.rowcount > 0
+
     def tasks_completed_since(self, user_id: str, since_iso: str) -> int:
         row = self._conn.execute(
             "SELECT COUNT(*) AS n FROM tasks "

@@ -129,6 +129,39 @@ def test_rename_folder_moves_descendants(tmp_path):
     assert "pessoal" in out and "pessoal/sub" in out and "personal" not in out
 
 
+def test_tasks_crud(tmp_path):
+    client, _ = _client(tmp_path)
+    assert client.get("/api/tasks", headers=_auth()).json()["tasks"] == []
+    client.post("/api/tasks", json={"text": "estudar", "category": "faculdade"}, headers=_auth())
+    tasks = client.get("/api/tasks", headers=_auth()).json()["tasks"]
+    assert len(tasks) == 1 and tasks[0]["category"] == "faculdade"
+    tid = tasks[0]["id"]
+    client.post("/api/tasks/update", json={"id": tid, "text": "estudar cálculo"}, headers=_auth())
+    assert client.get("/api/tasks", headers=_auth()).json()["tasks"][0]["text"] == "estudar cálculo"
+    client.post("/api/tasks/complete", json={"id": tid}, headers=_auth())
+    assert client.get("/api/tasks", headers=_auth()).json()["tasks"] == []
+    # a second one, then hard delete
+    client.post("/api/tasks", json={"text": "x"}, headers=_auth())
+    tid2 = client.get("/api/tasks", headers=_auth()).json()["tasks"][0]["id"]
+    client.post("/api/tasks/delete", json={"id": tid2}, headers=_auth())
+    assert client.get("/api/tasks", headers=_auth()).json()["tasks"] == []
+
+
+def test_limparchat_clears_folder(tmp_path):
+    client, _ = _client(tmp_path)
+    client.post("/api/cmd", json={"command": "tarefas", "thread": "work"}, headers=_auth())
+    assert client.get("/api/history?thread=work", headers=_auth()).json()["messages"]
+    r = client.post("/api/cmd", json={"command": "limparchat", "thread": "work"}, headers=_auth())
+    assert "limpa" in r.json()["reply"].lower()
+    assert client.get("/api/history?thread=work", headers=_auth()).json()["messages"] == []
+
+
+def test_move_folder_into_another(tmp_path):
+    client, _ = _client(tmp_path)
+    out = client.post("/api/threads/move", json={"path": "work", "parent": "personal"}, headers=_auth()).json()["threads"]
+    assert "personal/work" in out and "work" not in out
+
+
 def test_geral_folder_protected(tmp_path):
     client, _ = _client(tmp_path)
     out = client.post("/api/threads/delete", json={"name": "geral"}, headers=_auth()).json()

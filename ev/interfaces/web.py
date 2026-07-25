@@ -36,6 +36,12 @@ _PAGE = r"""<!doctype html><html lang="pt-br"><head><meta charset="utf-8">
 }
 *{box-sizing:border-box}html,body{height:100%}
 body{margin:0;background:var(--ink);color:var(--fg);font-family:var(--body);-webkit-font-smoothing:antialiased;overflow:hidden}
+*{scrollbar-width:thin;scrollbar-color:#242424 transparent}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#202020;border-radius:8px;border:2px solid var(--ink);background-clip:padding-box}
+::-webkit-scrollbar-thumb:hover{background:#2f2f2f;background-clip:padding-box}
+::-webkit-scrollbar-corner{background:transparent}
 body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;background-image:radial-gradient(rgba(244,243,241,.04) 1px,transparent 1px);background-size:26px 26px;mask:radial-gradient(120% 90% at 50% 0%,#000,transparent 78%)}
 #app{position:relative;z-index:1;height:100%;display:grid;grid-template-columns:238px 1fr 272px;min-height:0}
 .rail{display:flex;flex-direction:column;min-height:0}
@@ -57,6 +63,7 @@ body.listening .core .dot{animation:pulse 1s infinite}@keyframes pulse{50%{trans
 .folder{display:flex;align-items:center;gap:9px;font-size:14px;color:var(--muted);padding:9px 11px;border:1px solid transparent;border-radius:10px;cursor:pointer;transition:.15s}
 .folder:hover{background:var(--surface);color:var(--fg)}
 .folder.on{background:var(--elev);color:var(--fg);border-color:var(--line-2)}
+.folder.drop{border-color:var(--fg);background:var(--elev)}
 .folder .fi{font-family:var(--mono);font-size:11px;color:var(--subtle)}
 .newf{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--subtle);border:1px dashed var(--line);border-radius:10px;padding:8px;cursor:pointer;text-align:center}
 .newf:hover{color:var(--fg);border-color:var(--line-2)}
@@ -86,6 +93,22 @@ body.listening #vc .bigcore .bdot{animation:pulse .9s infinite}
 .topbar .eyebrow{flex:1;margin:0}
 .tbtn{font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:var(--muted);border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 12px;cursor:pointer}
 .tbtn.on{color:var(--ink);background:var(--fg);border-color:var(--fg)}
+.tabs{display:flex;gap:3px;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:3px}
+.tab{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--muted);border:none;background:transparent;border-radius:8px;padding:7px 13px;cursor:pointer}
+.tab.on{background:var(--fg);color:var(--ink)}
+#chatview{flex:1;display:flex;flex-direction:column;min-height:0}
+#taskview{flex:1;min-height:0;overflow:auto;padding:24px;display:none}
+.tv-h{font-family:var(--disp);font-weight:600;font-size:22px;margin-bottom:18px}
+.tv-form{display:flex;gap:8px;margin-bottom:22px;max-width:720px}
+.tv-form input{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:12px 15px;color:var(--fg);font:inherit;font-size:15px}
+.tv-form #task-text{flex:1}.tv-form #task-cat{width:140px;flex:none;font-family:var(--mono);font-size:13px}
+.tv-form input:focus{outline:none;border-color:var(--line-2)}
+.tv-cat{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--subtle);margin:20px 0 9px}
+.tv-row{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;background:var(--surface);max-width:720px;transition:border-color .15s}
+.tv-row:hover{border-color:var(--line-2)}.tv-row .txt{flex:1;line-height:1.4}
+.tv-ic{width:34px;height:34px;flex:none;display:grid;place-items:center;border-radius:9px;border:1px solid var(--line);background:var(--elev);color:var(--muted);cursor:pointer;transition:.15s}
+.tv-ic:hover{color:var(--fg);border-color:var(--line-2)}.tv-ic svg{width:16px;height:16px}
+.tv-empty{color:var(--subtle);font-family:var(--mono);font-size:13px;padding:8px 2px}
 #log{flex:1;min-height:0;overflow-y:auto;padding:20px 22px;display:flex;flex-direction:column;gap:14px}
 .msg{max-width:82%;padding:13px 16px;line-height:1.55;border:1px solid var(--line);border-radius:16px;animation:rise .32s cubic-bezier(.2,.7,.2,1)}
 .msg.you{align-self:flex-end;background:var(--fg);color:var(--ink);border:none;border-bottom-right-radius:5px;font-weight:500}
@@ -172,14 +195,27 @@ select{width:100%;font-family:var(--mono);font-size:12px;background:var(--surfac
     </div>
   </aside>
   <main id="center">
-    <div class="topbar"><div class="eyebrow" id="scope">Conversa · geral</div>
+    <div class="topbar">
+      <div class="tabs"><button class="tab on" data-view="chat">Conversa</button><button class="tab" data-view="tasks">Tarefas</button></div>
+      <span class="eyebrow" id="scope">geral</span><span style="flex:1"></span>
       <button class="tbtn" id="vcopen">◉ FALAR</button>
       <button class="tbtn" id="term">TERMINAL</button><button class="tbtn on" id="voz">VOZ</button></div>
-    <div id="log"></div>
-    <form id="f"><div id="slash"></div>
-      <button type="button" class="icon mic" id="mic" title="Falar"><span class="mg">🎙</span><span class="wave"><b></b><b></b><b></b><b></b></span></button>
-      <div class="field"><input id="txt" placeholder="Fala com a E.V.  ·  digite / para comandos" autocomplete="off"></div>
-      <button class="icon send" id="send" title="Enviar">➤</button></form>
+    <div id="chatview">
+      <div id="log"></div>
+      <form id="f"><div id="slash"></div>
+        <button type="button" class="icon mic" id="mic" title="Falar"><span class="mg">🎙</span><span class="wave"><b></b><b></b><b></b><b></b></span></button>
+        <div class="field"><input id="txt" placeholder="Fala com a E.V.  ·  digite / para comandos" autocomplete="off"></div>
+        <button class="icon send" id="send" title="Enviar">➤</button></form>
+    </div>
+    <div id="taskview">
+      <div class="tv-h">Tarefas</div>
+      <form id="taskform" class="tv-form">
+        <input id="task-text" placeholder="Nova tarefa..." autocomplete="off">
+        <input id="task-cat" placeholder="categoria" value="geral" autocomplete="off">
+        <button class="mbtn" type="submit">Adicionar</button>
+      </form>
+      <div id="tasklist"></div>
+    </div>
   </main>
   <aside id="right" class="rail">
     <div class="eyebrow">Sistema <span class="mini" id="edit-stats">editar</span></div>
@@ -249,7 +285,10 @@ async function send(msg){if(!msg)return;you(msg);const p=thinking();setState('th
   }catch(e){p.remove();sys('Sem conexão com a E.V. — '+e);}finally{setState();}}
 async function runCmd(cmd,btn,e){if(btn)ripple(btn,e);const p=thinking();setState('thinking');
   try{const r=await fetch('/api/cmd',{method:'POST',headers:H(),body:JSON.stringify({command:cmd,thread})});
-    const j=await r.json();p.remove();ev(j.reply);loadPanel();}catch(err){p.remove();sys('Erro — '+err);}finally{setState();}}
+    const j=await r.json();
+    if(/^\/?limpar(chat)?\b/.test(cmd.trim())){log.textContent='';sys(j.reply);}
+    else{p.remove();ev(j.reply);}
+    loadPanel();}catch(err){p.remove();sys('Erro — '+err);}finally{setState();}}
 f.onsubmit=e=>{e.preventDefault();if(slash.style.display==='block'&&slSel>=0){pickSlash();return;}
   ripple($('#send'));const m=txt.value.trim();txt.value='';hideSlash();
   if(m.startsWith('/'))runCmd(m.slice(1));else send(m);};
@@ -258,7 +297,7 @@ const CAT={tarefas:['Tarefas','list-checks'],lembretes:['Lembretes','alarm-clock
 const SM={tasks:['Tarefas','list-checks','tarefas'],reminders:['Lembretes','alarm-clock','lembretes'],expenses:['Gastos · mês','wallet','gastos'],memories:['Memórias','brain','memorias'],kb:['Base','book-open','kb']};
 let config={actions:['buscar','noticias','clima','relatorio','status','semana'],stats:['tasks','reminders','expenses','memories','kb']};let _counts={};
 function renderStats(){const box=$('#stats');box.textContent='';config.stats.forEach(k=>{const m=SM[k];if(!m)return;
-  const s=el('div','stat');s.onclick=()=>runCmd(m[2]);const lbl=el('span','lbl');lbl.appendChild(ficon(m[1]));lbl.appendChild(document.createTextNode(m[0]));
+  const s=el('div','stat');s.onclick=()=>{if(k==='tasks')switchView('tasks');else runCmd(m[2]);};const lbl=el('span','lbl');lbl.appendChild(ficon(m[1]));lbl.appendChild(document.createTextNode(m[0]));
   const num=el('span','num');if(k==='expenses'){const rs=el('span','','R$');rs.style.cssText='font-size:12px;color:var(--subtle);margin-right:2px';num.appendChild(rs);}
   num.appendChild(document.createTextNode(_counts[k]!=null?_counts[k]:'0'));s.appendChild(lbl);s.appendChild(num);box.appendChild(s);});window.lucide&&lucide.createIcons();}
 function renderActs(){const box=$('#acts');box.textContent='';config.actions.forEach(cmd=>{const m=CAT[cmd]||[cmd,'chevron-right'];
@@ -292,7 +331,21 @@ async function loadFolders(){try{const r=await fetch('/api/threads',{headers:H()
     f.appendChild(el('span','fi',depth?'└':'▚'));const nm=el('span','fn',label);nm.style.flex='1';f.appendChild(nm);
     const add=el('span','fx','+');add.title='subpasta';add.onclick=e=>{e.stopPropagation();childFolder(path);};f.appendChild(add);
     if(path!=='geral'){const x=el('span','fx','✕');x.title='apagar';x.onclick=e=>{e.stopPropagation();delFolder(path);};f.appendChild(x);}
-    f.onclick=()=>switchThread(path);f.ondblclick=()=>renameFolder(path);box.appendChild(f);});
+    f.onclick=()=>switchThread(path);f.ondblclick=()=>renameFolder(path);
+    f.draggable=true;
+    f.ondragstart=e=>{e.dataTransfer.setData('text/plain',path);e.dataTransfer.effectAllowed='move';};
+    f.ondragover=e=>{e.preventDefault();f.classList.add('drop');};
+    f.ondragleave=()=>f.classList.remove('drop');
+    f.ondrop=async e=>{e.preventDefault();f.classList.remove('drop');const src=e.dataTransfer.getData('text/plain');
+      if(src&&src!==path&&!path.startsWith(src+'/')){await fetch('/api/threads/move',{method:'POST',headers:H(),body:JSON.stringify({path:src,parent:path})});
+        const leaf=src.split('/').pop(),np=path+'/'+leaf;
+        if(thread===src||thread.startsWith(src+'/')){thread=thread.replace(src,np);localStorage.setItem('ev_thread',thread);}
+        await switchThread(thread);}};
+    box.appendChild(f);});
+  // drop on empty area -> move to root
+  const bx=$('#folders');bx.ondragover=e=>e.preventDefault();
+  bx.ondrop=async e=>{if(e.target!==bx)return;e.preventDefault();const src=e.dataTransfer.getData('text/plain');
+    if(src){await fetch('/api/threads/move',{method:'POST',headers:H(),body:JSON.stringify({path:src,parent:''})});await switchThread(thread);}};
 }catch(e){}}
 async function childFolder(parent){const name=(prompt('Nome da subpasta dentro de "'+parent+'":')||'').trim().toLowerCase().replace(/\s+/g,'-').replace(/\//g,'-');
   if(!name)return;await fetch('/api/threads',{method:'POST',headers:H(),body:JSON.stringify({name,parent})});await switchThread(parent+'/'+name);}
@@ -347,6 +400,26 @@ if(SR){const vr=new (window.SpeechRecognition||window.webkitSpeechRecognition)()
       vcTxt.textContent=j.reply||'(sem resposta)';speak(j.reply,true);loadPanel();}catch(x){vcTxt.textContent='Sem conexão com a E.V.';}finally{setState();}};
   vr.onerror=e=>{vcMic.classList.remove('rec');setState();if(e.error==='not-allowed'||e.error==='service-not-allowed')vcTxt.textContent='O microfone precisa de HTTPS (ou localhost). Configure o HTTPS pra falar por aqui.';};
   vr.onend=()=>vcMic.classList.remove('rec');}
+// view tabs (Conversa / Tarefas)
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>switchView(t.dataset.view));
+function switchView(v){document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.view===v));
+  $('#chatview').style.display=v==='chat'?'flex':'none';$('#taskview').style.display=v==='tasks'?'block':'none';if(v==='tasks')loadTasks();}
+async function loadTasks(){try{const d=await (await fetch('/api/tasks',{headers:H()})).json();const box=$('#tasklist');box.textContent='';
+  const g={};(d.tasks||[]).forEach(t=>{(g[t.category]=g[t.category]||[]).push(t);});
+  if(!d.tasks||!d.tasks.length){box.appendChild(el('div','tv-empty','Nenhuma tarefa em aberto. Crie uma acima.'));return;}
+  Object.keys(g).sort().forEach(cat=>{box.appendChild(el('div','tv-cat',cat));
+    g[cat].forEach(t=>{const row=el('div','tv-row');
+      const done=el('button','tv-ic');done.title='concluir';done.appendChild(ficon('check'));done.onclick=()=>taskAction('complete',t.id);
+      const txt=el('div','txt');const parts=t.text.split(/\s+(?=\d+[.)]\s)/);if(parts.length>1)parts.forEach(p=>txt.appendChild(el('div','',p)));else txt.textContent=t.text;
+      const ed=el('button','tv-ic');ed.title='editar';ed.appendChild(ficon('pencil'));ed.onclick=()=>editTask(t);
+      const dl=el('button','tv-ic');dl.title='apagar';dl.appendChild(ficon('trash-2'));dl.onclick=()=>{if(confirm('Apagar esta tarefa?'))taskAction('delete',t.id);};
+      row.appendChild(done);row.appendChild(txt);row.appendChild(ed);row.appendChild(dl);box.appendChild(row);});});
+  window.lucide&&lucide.createIcons();}catch(e){}}
+async function taskAction(op,id){await fetch('/api/tasks/'+op,{method:'POST',headers:H(),body:JSON.stringify({id})});loadTasks();loadPanel();}
+async function editTask(t){const nt=prompt('Editar tarefa:',t.text);if(nt===null)return;const nc=(prompt('Categoria:',t.category)||t.category).trim();
+  await fetch('/api/tasks/update',{method:'POST',headers:H(),body:JSON.stringify({id:t.id,text:nt.trim(),category:nc})});loadTasks();loadPanel();}
+$('#taskform').onsubmit=async e=>{e.preventDefault();const text=$('#task-text').value.trim();const cat=$('#task-cat').value.trim()||'geral';
+  if(!text)return;await fetch('/api/tasks',{method:'POST',headers:H(),body:JSON.stringify({text,category:cat})});$('#task-text').value='';loadTasks();loadPanel();};
 setInterval(()=>{$('#s-clock').textContent=new Date().toTimeString().slice(0,8);},1000);
 (async()=>{try{COMMANDS=(await (await fetch('/api/commands',{headers:H()})).json()).commands;}catch(e){}
   scopeEl.textContent='Conversa · '+thread;await loadFolders();await loadHistory();await loadConfig();loadPanel();
@@ -403,13 +476,16 @@ def create_app(config: Config, brain: Brain | None = None):
             out.append(f"- {k['name']}: {mark}")
         return "\n".join(out)
 
-    def run_command(cmd_str: str) -> str:
+    def run_command(cmd_str: str, thread=None) -> str:
         """Run a slash command from the web (data + interface commands)."""
         parts = (cmd_str or "").strip().split(None, 1)
         if not parts:
             return "Digite um comando."
         name = parts[0].lstrip("/").lower()
         rest = parts[1] if len(parts) > 1 else ""
+        if name in ("limpar", "limparchat"):  # clear THIS folder's conversation
+            memory.clear_conversation(_conv(thread))
+            return "Conversa limpa nesta pasta."
         if name in commands.runnable():
             return commands.run(owner, name, rest)
         if name == "provedor":
@@ -425,8 +501,8 @@ def create_app(config: Config, brain: Brain | None = None):
             return f"Modelo principal: {brain.current_model()}\nProvedor: {forced}\nTrocar provedor: /provedor <nome>"
         if name == "ajuda":
             return commands.help()
-        if name in ("foco", "exportar", "limparchat", "dados", "limpar",
-                    "transcrever", "documento", "resumir", "quiz", "insights", "menu"):
+        if name in ("foco", "exportar", "transcrever", "documento", "resumir",
+                    "quiz", "insights", "menu", "dados"):
             return f"O comando /{name} funciona no Telegram. Na web, use o chat ou o painel."
         return commands.run(owner, name, rest)  # -> "não conheço"
 
@@ -462,6 +538,29 @@ def create_app(config: Config, brain: Brain | None = None):
                 memory.set_setting("web_folders", json.dumps(fs))
         return {"threads": _folders()}
 
+    @app.post("/api/threads/move")
+    async def threads_move(request: Request):
+        _check(request.headers.get("authorization"))
+        data = await _body(request)
+        path = (data.get("path") or "").strip().lower()
+        parent = (data.get("parent") or "").strip().lower()  # "" = to root
+        if not path or path == "geral" or parent == path or parent.startswith(path + "/"):
+            return {"threads": _folders()}  # can't move into itself/descendant
+        leaf = path.rsplit("/", 1)[-1]
+        newpath = f"{parent}/{leaf}" if parent else leaf
+        fs = _folders()
+        if newpath != path and path in fs and newpath not in fs:
+            out = []
+            for f in fs:
+                if f == path or f.startswith(path + "/"):
+                    nf = newpath + f[len(path):]
+                    memory.rename_conversation(_conv(f), _conv(nf))
+                    out.append(nf)
+                else:
+                    out.append(f)
+            memory.set_setting("web_folders", json.dumps(out))
+        return {"threads": _folders()}
+
     @app.get("/api/history")
     async def history_ep(request: Request):
         _check(request.headers.get("authorization"))
@@ -486,10 +585,13 @@ def create_app(config: Config, brain: Brain | None = None):
         _check(request.headers.get("authorization"))
         data = await _body(request)
         command = (data.get("command") or "").strip()
-        reply = run_command(command)
-        conv = _conv(data.get("thread"))  # persist so it shows in the folder history
-        memory.add_message(conv, "user", "/" + command)
-        memory.add_message(conv, "model", reply)
+        thread = data.get("thread")
+        reply = run_command(command, thread)
+        name = command.lstrip("/").split()[0].lower() if command else ""
+        if name not in ("limpar", "limparchat"):  # don't re-log after clearing
+            conv = _conv(thread)
+            memory.add_message(conv, "user", "/" + command)
+            memory.add_message(conv, "model", reply)
         return {"reply": reply}
 
     @app.post("/api/threads/delete")
@@ -554,6 +656,43 @@ def create_app(config: Config, brain: Brain | None = None):
         if isinstance(data.get("stats"), list):
             memory.set_setting("web_stats", json.dumps(data["stats"][:10]))
         return {"ok": True}
+
+    # --- Tasks CRUD (dedicated panel) --------------------------------------
+    @app.get("/api/tasks")
+    async def tasks_get(request: Request):
+        _check(request.headers.get("authorization"))
+        return {"tasks": memory.open_tasks(owner)}
+
+    @app.post("/api/tasks")
+    async def tasks_create(request: Request):
+        _check(request.headers.get("authorization"))
+        data = await _body(request)
+        text = (data.get("text") or "").strip()
+        cat = (data.get("category") or "geral").strip() or "geral"
+        if text:
+            memory.add_task(owner, text, cat)
+        return {"tasks": memory.open_tasks(owner)}
+
+    @app.post("/api/tasks/update")
+    async def tasks_update(request: Request):
+        _check(request.headers.get("authorization"))
+        data = await _body(request)
+        memory.update_task(owner, int(data.get("id") or 0),
+                           text=(data.get("text") or None),
+                           category=(data.get("category") or None))
+        return {"tasks": memory.open_tasks(owner)}
+
+    @app.post("/api/tasks/complete")
+    async def tasks_complete(request: Request):
+        _check(request.headers.get("authorization"))
+        memory.complete_task(owner, int((await _body(request)).get("id") or 0))
+        return {"tasks": memory.open_tasks(owner)}
+
+    @app.post("/api/tasks/delete")
+    async def tasks_delete(request: Request):
+        _check(request.headers.get("authorization"))
+        memory.delete_task(owner, int((await _body(request)).get("id") or 0))
+        return {"tasks": memory.open_tasks(owner)}
 
     @app.get("/api/panel")
     async def panel(request: Request):
