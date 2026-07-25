@@ -44,5 +44,6 @@ jobs:
             tar xzf ~/ev.tgz &&
             ./.venv/bin/pip install -q -r requirements.txt &&
             sudo systemctl restart ev &&
+            (sudo systemctl restart ev-web 2>/dev/null || true) &&
             sleep 5 &&
             systemctl is-active ev'
