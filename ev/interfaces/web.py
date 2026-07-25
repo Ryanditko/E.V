@@ -142,6 +142,18 @@ body.term #txt{font-family:var(--mono)}
 .act{font-size:13px;color:var(--fg);border:1px solid var(--line);background:var(--surface);border-radius:11px;padding:11px 10px;cursor:pointer;text-align:left;transition:.15s}
 .act:hover{border-color:var(--line-2);transform:translateY(-1px);background:var(--elev)}
 select{width:100%;font-family:var(--mono);font-size:12px;background:var(--surface);color:var(--fg);border:1px solid var(--line);border-radius:11px;padding:10px}
+.eyebrow .mini{font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--subtle);cursor:pointer;float:right;border:1px solid var(--line);border-radius:6px;padding:2px 7px;text-transform:none}
+.mini:hover{color:var(--fg);border-color:var(--line-2)}
+.row .t div{padding:1px 0}
+#modal{position:fixed;inset:0;z-index:30;background:rgba(4,4,4,.72);display:none;align-items:center;justify-content:center}
+#modal.on{display:flex}
+.mcard{width:min(420px,92vw);max-height:80vh;overflow:auto;background:var(--panel);border:1px solid var(--line-2);border-radius:16px;padding:18px}
+.mtitle{font-family:var(--disp);font-weight:600;font-size:16px;margin-bottom:6px}.mtitle small{display:block;font-family:var(--body);font-weight:400;font-size:12px;color:var(--muted);margin-top:3px}
+.mrow{display:flex;align-items:center;gap:10px;padding:9px 6px;border-top:1px solid var(--line);cursor:pointer;font-size:14px}
+.mrow input{width:16px;height:16px;accent-color:var(--fg)}
+.mbar{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+.mbtn{background:var(--fg);color:var(--ink);border:none;border-radius:10px;padding:9px 16px;cursor:pointer;font-weight:500}
+.mbtn2{background:var(--surface);color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:9px 16px;cursor:pointer}
 @media(max-width:980px){#app{grid-template-columns:1fr}.rail{display:none}#slash{left:18px;right:18px}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important}}
 </style></head><body>
@@ -170,17 +182,10 @@ select{width:100%;font-family:var(--mono);font-size:12px;background:var(--surfac
       <button class="icon send" id="send" title="Enviar">➤</button></form>
   </main>
   <aside id="right" class="rail">
-    <div class="eyebrow">Sistema</div>
-    <div class="stat" data-cmd="tarefas"><span class="lbl"><i data-lucide="list-checks"></i>Tarefas</span><span class="num" data-k="tasks">0</span></div>
-    <div class="stat" data-cmd="lembretes"><span class="lbl"><i data-lucide="alarm-clock"></i>Lembretes</span><span class="num" data-k="reminders">0</span></div>
-    <div class="stat" data-cmd="gastos"><span class="lbl"><i data-lucide="wallet"></i>Gastos · mês</span><span class="num"><span style="font-size:12px;color:var(--subtle)">R$</span><span data-k="expenses">0</span></span></div>
-    <div class="stat" data-cmd="memorias"><span class="lbl"><i data-lucide="brain"></i>Memórias</span><span class="num" data-k="memories">0</span></div>
-    <div class="stat" data-cmd="kb"><span class="lbl"><i data-lucide="book-open"></i>Base</span><span class="num" data-k="kb">0</span></div>
-    <div class="eyebrow">Ações rápidas</div>
-    <div class="grid2">
-      <button class="act" data-cmd="buscar"><i data-lucide="search"></i>Buscar web</button><button class="act" data-cmd="noticias"><i data-lucide="newspaper"></i>Notícias</button>
-      <button class="act" data-cmd="clima"><i data-lucide="cloud-sun"></i>Clima</button><button class="act" data-cmd="relatorio"><i data-lucide="bar-chart-3"></i>Relatório</button>
-      <button class="act" data-cmd="status"><i data-lucide="activity"></i>Status</button><button class="act" data-cmd="semana"><i data-lucide="calendar-days"></i>Semana</button></div>
+    <div class="eyebrow">Sistema <span class="mini" id="edit-stats">editar</span></div>
+    <div id="stats"></div>
+    <div class="eyebrow">Ações rápidas <span class="mini" id="edit-acts">editar</span></div>
+    <div class="grid2" id="acts"></div>
     <div class="eyebrow">Provedor de IA</div>
     <select id="prov"><option>auto</option><option>gemini</option><option>groq</option><option>openrouter</option><option>ollama</option></select>
   </aside>
@@ -192,6 +197,7 @@ select{width:100%;font-family:var(--mono);font-size:12px;background:var(--surfac
   <div id="vc-sub">voz ao vivo · português</div>
   <div id="vc-actions"><button class="vcbtn" id="vc-mic">🎙</button></div>
 </div>
+<div id="modal"></div>
 <script>
 let token=localStorage.getItem('ev_token');
 if(!token){token=prompt('Token de acesso da E.V.:')||'';localStorage.setItem('ev_token',token);}
@@ -219,14 +225,17 @@ function renderReply(box,text){box.textContent='';const lines=(text||'').split('
   lines.forEach(ln=>{const s=ln.trim();if(!s)return;let m;
     if(first && HASEMO.test(s)){const h=el('span','h');h.appendChild(ficon(iconName(s)));h.appendChild(document.createTextNode(stripEmoji(s)));box.appendChild(h);first=false;return;}
     if((m=s.match(/^\[(.+)\]$/))){box.appendChild(el('div','cat',m[1]));return;}
-    if((m=s.match(/^#(\w+)\s+(.*)$/))){const r=el('div','row');r.appendChild(el('span','id','#'+m[1]));r.appendChild(el('span','t',stripEmoji(m[2])));box.appendChild(r);return;}
+    if((m=s.match(/^#(\w+)\s+(.*)$/))){const r=el('div','row');r.appendChild(el('span','id','#'+m[1]));
+      const t=el('span','t');const tt=stripEmoji(m[2]);const parts=tt.split(/\s+(?=\d+[.)]\s)/);
+      if(parts.length>1)parts.forEach(p=>t.appendChild(el('div','',p)));else t.textContent=tt;
+      r.appendChild(t);box.appendChild(r);return;}
     if(/^(Concluir|Cancelar|Uso|Remover|Apagar):/i.test(s)||s.startsWith('/')){box.appendChild(el('div','hint',stripEmoji(s)));return;}
     box.appendChild(el('p','',stripEmoji(s)));first=false;});
   window.lucide&&lucide.createIcons();
 }
 function you(t){const d=el('div','msg you',t);log.appendChild(d);log.scrollTop=log.scrollHeight;}
 function ev(t){const d=el('div','msg ev');renderReply(d,t);log.appendChild(d);log.scrollTop=log.scrollHeight;return d;}
-function sys(t){const d=el('div','msg sys',t);log.appendChild(d);log.scrollTop=log.scrollHeight;}
+function sys(t){const d=el('div','msg sys',t);log.appendChild(d);log.scrollTop=log.scrollHeight;return d;}
 function thinking(){const d=el('div','msg ev');d.innerHTML='<span class="tp"><i></i><i></i><i></i></span>';log.appendChild(d);log.scrollTop=log.scrollHeight;return d;}
 function ripple(b,e){const r=el('span','ripple');const q=b.getBoundingClientRect(),s=Math.max(q.width,q.height);
   r.style.width=r.style.height=s+'px';r.style.left=((e?e.clientX:q.left+q.width/2)-q.left-s/2)+'px';
@@ -244,14 +253,36 @@ async function runCmd(cmd,btn,e){if(btn)ripple(btn,e);const p=thinking();setStat
 f.onsubmit=e=>{e.preventDefault();if(slash.style.display==='block'&&slSel>=0){pickSlash();return;}
   ripple($('#send'));const m=txt.value.trim();txt.value='';hideSlash();
   if(m.startsWith('/'))runCmd(m.slice(1));else send(m);};
-document.querySelectorAll('[data-cmd]').forEach(el=>el.addEventListener('click',e=>runCmd(el.dataset.cmd,el,e)));
 
-function countTo(el,to){const from=+el.textContent||0;if(from===to){el.textContent=to;return;}const t0=performance.now();
-  (function s(t){const k=Math.min(1,(t-t0)/500);el.textContent=Math.round(from+(to-from)*(1-Math.pow(1-k,3)));if(k<1)requestAnimationFrame(s);})(t0);}
-async function loadPanel(){try{const r=await fetch('/api/panel',{headers:H()});if(!r.ok)return;const d=await r.json();
-  ['tasks','reminders','expenses','memories','kb'].forEach(k=>{const e=document.querySelector('[data-k="'+k+'"]');if(e)countTo(e,d[k]);});
-  $('#s-prov').textContent=d.provider;$('#s-model').textContent=d.model;$('#prov').value=d.provider;}catch(e){}}
+const CAT={tarefas:['Tarefas','list-checks'],lembretes:['Lembretes','alarm-clock'],gastos:['Gastos','wallet'],memorias:['Memórias','brain'],kb:['Base','book-open'],buscar:['Buscar web','search'],noticias:['Notícias','newspaper'],clima:['Clima','cloud-sun'],relatorio:['Relatório','bar-chart-3'],status:['Status','activity'],semana:['Semana','calendar-days'],foco:['Pomodoro','timer'],procurar:['Procurar','file-search'],calendario:['Agenda','calendar'],habitos:['Hábitos','repeat'],diario:['Diário','notebook-pen'],orcamentos:['Orçamentos','piggy-bank'],assinaturas:['Assinaturas','credit-card'],dados:['Meus dados','database'],insights:['Insights','sparkles'],quiz:['Quiz','graduation-cap']};
+const SM={tasks:['Tarefas','list-checks','tarefas'],reminders:['Lembretes','alarm-clock','lembretes'],expenses:['Gastos · mês','wallet','gastos'],memories:['Memórias','brain','memorias'],kb:['Base','book-open','kb']};
+let config={actions:['buscar','noticias','clima','relatorio','status','semana'],stats:['tasks','reminders','expenses','memories','kb']};let _counts={};
+function renderStats(){const box=$('#stats');box.textContent='';config.stats.forEach(k=>{const m=SM[k];if(!m)return;
+  const s=el('div','stat');s.onclick=()=>runCmd(m[2]);const lbl=el('span','lbl');lbl.appendChild(ficon(m[1]));lbl.appendChild(document.createTextNode(m[0]));
+  const num=el('span','num');if(k==='expenses'){const rs=el('span','','R$');rs.style.cssText='font-size:12px;color:var(--subtle);margin-right:2px';num.appendChild(rs);}
+  num.appendChild(document.createTextNode(_counts[k]!=null?_counts[k]:'0'));s.appendChild(lbl);s.appendChild(num);box.appendChild(s);});window.lucide&&lucide.createIcons();}
+function renderActs(){const box=$('#acts');box.textContent='';config.actions.forEach(cmd=>{const m=CAT[cmd]||[cmd,'chevron-right'];
+  const b=el('button','act');b.appendChild(ficon(m[1]));b.appendChild(document.createTextNode(m[0]));
+  b.onclick=e=>{if(cmd==='foco')startFoco(25,e,b);else runCmd(cmd,b,e);};box.appendChild(b);});window.lucide&&lucide.createIcons();}
+async function loadPanel(){try{const r=await fetch('/api/panel',{headers:H()});if(!r.ok)return;_counts=await r.json();
+  renderStats();$('#s-prov').textContent=_counts.provider;$('#s-model').textContent=_counts.model;$('#prov').value=_counts.provider;}catch(e){}}
+async function loadConfig(){try{config=await (await fetch('/api/config',{headers:H()})).json();}catch(e){}renderActs();}
+async function saveConfig(){try{await fetch('/api/config',{method:'POST',headers:H(),body:JSON.stringify(config)});}catch(e){}}
 $('#prov').onchange=()=>runCmd('provedor '+$('#prov').value);
+function openPicker(title,sub,items,selected,onSave){const m=$('#modal');m.textContent='';const card=el('div','mcard');
+  const tt=el('div','mtitle',title);tt.appendChild(el('small','',sub));card.appendChild(tt);const sel=new Set(selected);
+  items.forEach(it=>{const row=el('label','mrow');const cb=document.createElement('input');cb.type='checkbox';cb.checked=sel.has(it.key);
+    cb.onchange=()=>cb.checked?sel.add(it.key):sel.delete(it.key);row.appendChild(cb);row.appendChild(el('span','',it.label));card.appendChild(row);});
+  const bar=el('div','mbar');const c=el('button','mbtn2','Cancelar');c.onclick=()=>m.classList.remove('on');
+  const sv=el('button','mbtn','Salvar');sv.onclick=()=>{onSave([...sel]);m.classList.remove('on');};bar.appendChild(c);bar.appendChild(sv);card.appendChild(bar);
+  m.appendChild(card);m.classList.add('on');}
+$('#edit-acts').onclick=()=>openPicker('Ações rápidas','Escolha os atalhos do painel.',Object.keys(CAT).map(k=>({key:k,label:CAT[k][0]})),config.actions,async l=>{config.actions=l;await saveConfig();renderActs();});
+$('#edit-stats').onclick=()=>openPicker('Sistema','Escolha os indicadores exibidos.',Object.keys(SM).map(k=>({key:k,label:SM[k][0]})),config.stats,async l=>{config.stats=l;await saveConfig();renderStats();});
+let focoTimer=null;
+function startFoco(mins,e,b){if(b)ripple(b,e);if(focoTimer)clearInterval(focoTimer);let rem=mins*60;
+  const line=sys('Pomodoro '+mins+':00');const tick=()=>{const mm=String(Math.floor(Math.max(0,rem)/60)).padStart(2,'0'),ss=String(Math.max(0,rem)%60).padStart(2,'0');
+    line.textContent=rem>0?('Pomodoro · '+mm+':'+ss+' restantes'):'Pomodoro concluído — hora da pausa.';};tick();
+  focoTimer=setInterval(()=>{rem--;tick();if(rem<0){clearInterval(focoTimer);speak('Foco concluído, hora da pausa.',true);}},1000);}
 
 // folders
 async function loadFolders(){try{const r=await fetch('/api/threads',{headers:H()});const d=await r.json();
@@ -311,7 +342,7 @@ if(SR){const vr=new (window.SpeechRecognition||window.webkitSpeechRecognition)()
   vr.onend=()=>vcMic.classList.remove('rec');}
 setInterval(()=>{$('#s-clock').textContent=new Date().toTimeString().slice(0,8);},1000);
 (async()=>{try{COMMANDS=(await (await fetch('/api/commands',{headers:H()})).json()).commands;}catch(e){}
-  scopeEl.textContent='Conversa · '+thread;await loadFolders();await loadHistory();loadPanel();
+  scopeEl.textContent='Conversa · '+thread;await loadFolders();await loadHistory();await loadConfig();loadPanel();
   window.lucide&&lucide.createIcons();})();
 </script></body></html>"""
 
@@ -476,6 +507,33 @@ def create_app(config: Config, brain: Brain | None = None):
                 memory.set_setting("web_folders", json.dumps(fs))
                 memory.rename_conversation(_conv(old), _conv(new))
         return {"threads": _folders()}
+
+    _DEF_ACTIONS = ["buscar", "noticias", "clima", "relatorio", "status", "semana"]
+    _DEF_STATS = ["tasks", "reminders", "expenses", "memories", "kb"]
+
+    def _cfg_list(key, default):
+        raw = memory.get_setting(key)
+        try:
+            v = json.loads(raw) if raw else None
+        except Exception:
+            v = None
+        return v if isinstance(v, list) else list(default)
+
+    @app.get("/api/config")
+    async def cfg_get(request: Request):
+        _check(request.headers.get("authorization"))
+        return {"actions": _cfg_list("web_actions", _DEF_ACTIONS),
+                "stats": _cfg_list("web_stats", _DEF_STATS)}
+
+    @app.post("/api/config")
+    async def cfg_set(request: Request):
+        _check(request.headers.get("authorization"))
+        data = await _body(request)
+        if isinstance(data.get("actions"), list):
+            memory.set_setting("web_actions", json.dumps(data["actions"][:24]))
+        if isinstance(data.get("stats"), list):
+            memory.set_setting("web_stats", json.dumps(data["stats"][:10]))
+        return {"ok": True}
 
     @app.get("/api/panel")
     async def panel(request: Request):

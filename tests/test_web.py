@@ -103,6 +103,15 @@ def test_folder_rename_and_delete(tmp_path):
     assert client.get("/api/history?thread=trabalho", headers=_auth()).json()["messages"] == []
 
 
+def test_config_actions_customizable(tmp_path):
+    client, _ = _client(tmp_path)
+    d = client.get("/api/config", headers=_auth()).json()
+    assert "buscar" in d["actions"] and "tasks" in d["stats"]
+    client.post("/api/config", json={"actions": ["foco", "clima"]}, headers=_auth())
+    d = client.get("/api/config", headers=_auth()).json()
+    assert d["actions"] == ["foco", "clima"]  # e.g. added Pomodoro, removed others
+
+
 def test_geral_folder_protected(tmp_path):
     client, _ = _client(tmp_path)
     out = client.post("/api/threads/delete", json={"name": "geral"}, headers=_auth()).json()
