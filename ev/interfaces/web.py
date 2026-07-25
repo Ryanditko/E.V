@@ -482,7 +482,11 @@ function thinking(){const d=el('div','msg ev');d.innerHTML='<span class="tp"><i>
 function ripple(b,e){const r=el('span','ripple');const q=b.getBoundingClientRect(),s=Math.max(q.width,q.height);
   r.style.width=r.style.height=s+'px';r.style.left=((e?e.clientX:q.left+q.width/2)-q.left-s/2)+'px';
   r.style.top=((e?e.clientY:q.top+q.height/2)-q.top-s/2)+'px';b.appendChild(r);setTimeout(()=>r.remove(),500);}
-async function speak(t,force){if((!voiceOn&&!force)||!t)return;try{const r=await fetch('/api/tts',{method:'POST',headers:H(),body:JSON.stringify({text:t})});if(!r.ok)return;new Audio(URL.createObjectURL(await r.blob())).play().catch(()=>{});}catch(e){}}
+let _audio=null,_audioMsg=false;
+function unlockAudio(){if(!_audio)_audio=new Audio();try{_audio.play().catch(()=>{});}catch(e){}}
+window.addEventListener('pointerdown',unlockAudio,{once:true});
+function srMsg(err){return {'not-allowed':'Permissão do microfone negada. Toque no ícone de cadeado/site na barra de endereço e habilite o microfone para ev.taild3b231.ts.net.','service-not-allowed':'Permissão do microfone bloqueada nas configurações do navegador.','no-speech':'Não ouvi nada — fale mais perto do microfone e tente de novo.','audio-capture':'Nenhum microfone detectado no aparelho.','network':'Falha de rede no reconhecimento de voz (ele usa um serviço online). Tente de novo.','aborted':''}[err]||('Erro no microfone: '+err);}
+async function speak(t,force){if((!voiceOn&&!force)||!t)return;try{const r=await fetch('/api/tts',{method:'POST',headers:H(),body:JSON.stringify({text:t})});if(!r.ok)return;const url=URL.createObjectURL(await r.blob());if(!_audio)_audio=new Audio();_audio.src=url;await _audio.play().catch(()=>{if(!_audioMsg){_audioMsg=true;sys('O navegador bloqueou o áudio automático. Toque uma vez na tela e a E.V. volta a falar.');}});}catch(e){}}
 
 async function send(msg){if(!msg)return;you(msg);const p=thinking();setState('thinking');
   try{const r=await fetch('/api/chat',{method:'POST',headers:H(),body:JSON.stringify({message:msg,thread})});
@@ -654,7 +658,7 @@ const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 if(SR){const rec=new SR();rec.lang='pt-BR';rec.interimResults=false;
   micBtn.onclick=e=>{ripple(micBtn,e);try{micBtn.classList.add('on');setState('listening');rec.start();}catch(x){micBtn.classList.remove('on');setState();}};
   rec.onresult=e=>{micBtn.classList.remove('on');send(e.results[0][0].transcript);};
-  rec.onerror=e=>{micBtn.classList.remove('on');setState();if(e.error==='not-allowed'||e.error==='service-not-allowed')sys('Microfone exige HTTPS (ou localhost). Configure o HTTPS pra usar voz aqui.');};
+  rec.onerror=e=>{micBtn.classList.remove('on');setState();const m=srMsg(e.error);if(m)sys(m);};
   rec.onend=()=>{micBtn.classList.remove('on');if(document.body.classList.contains('listening'))setState();};
 }else micBtn.onclick=()=>sys('Reconhecimento de voz indisponível (use o Chrome).');
 
@@ -667,7 +671,7 @@ if(SR){const vr=new (window.SpeechRecognition||window.webkitSpeechRecognition)()
   vr.onresult=async e=>{const t=e.results[0][0].transcript;vcMic.classList.remove('rec');vcTxt.textContent='"'+t+'"';setState('thinking');
     try{const r=await fetch('/api/chat',{method:'POST',headers:H(),body:JSON.stringify({message:t,thread})});const j=await r.json();
       vcTxt.textContent=j.reply||'(sem resposta)';speak(j.reply,true);loadPanel();}catch(x){vcTxt.textContent='Sem conexão com a E.V.';}finally{setState();}};
-  vr.onerror=e=>{vcMic.classList.remove('rec');setState();if(e.error==='not-allowed'||e.error==='service-not-allowed')vcTxt.textContent='O microfone precisa de HTTPS (ou localhost). Configure o HTTPS pra falar por aqui.';};
+  vr.onerror=e=>{vcMic.classList.remove('rec');setState();vcTxt.textContent=srMsg(e.error)||'Não consegui ouvir. Toque no microfone e fale de novo.';};
   vr.onend=()=>vcMic.classList.remove('rec');}
 // view tabs (Conversa / Tarefas)
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>switchView(t.dataset.view));
