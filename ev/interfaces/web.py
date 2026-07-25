@@ -22,8 +22,18 @@ log = logging.getLogger("ev.web")
 
 _DEFAULT_FOLDERS = ["geral", "work", "university", "personal"]
 
+# Monochrome "core" mark — the E.V. identity, as an inline SVG favicon.
+_FAVICON = (
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
+    '<rect width="64" height="64" rx="14" fill="#0a0a0a"/>'
+    '<circle cx="32" cy="32" r="21" fill="none" stroke="#f4f3f1" stroke-opacity=".22" stroke-width="2"/>'
+    '<circle cx="32" cy="32" r="12.5" fill="none" stroke="#f4f3f1" stroke-opacity=".5" stroke-width="2"/>'
+    '<circle cx="32" cy="32" r="4.5" fill="#f4f3f1"/></svg>'
+)
+
 _PAGE = r"""<!doctype html><html lang="pt-br"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>E.V.</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -759,6 +769,14 @@ def create_app(config: Config, brain: Brain | None = None):
     @app.get("/", response_class=HTMLResponse)
     async def index():
         return _PAGE
+
+    @app.get("/favicon.svg")
+    async def favicon_svg():
+        return Response(content=_FAVICON, media_type="image/svg+xml")
+
+    @app.get("/favicon.ico")
+    async def favicon_ico():
+        return Response(content=_FAVICON, media_type="image/svg+xml")
 
     @app.get("/api/health")
     async def health_ep():
