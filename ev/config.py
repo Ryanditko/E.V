@@ -71,6 +71,9 @@ class Config:
     tavily_api_key: str  # optional: AI-focused web search (preferred if set)
     google_oauth_client: str
     google_accounts: tuple[str, ...]  # e.g. ("pessoal", "faculdade")
+    web_token: str      # bearer token for the web interface (empty disables it)
+    web_host: str       # host to bind the web server
+    web_port: int       # port for the web server
     db_path: Path
 
     @property
@@ -195,5 +198,8 @@ class Config:
             tavily_api_key=os.getenv("TAVILY_API_KEY", "").strip(),
             google_oauth_client=os.getenv("GOOGLE_OAUTH_CLIENT", "").strip(),
             google_accounts=google_accounts,
+            web_token=os.getenv("EV_WEB_TOKEN", "").strip(),
+            web_host=os.getenv("EV_WEB_HOST", "0.0.0.0").strip(),
+            web_port=_get_int("EV_WEB_PORT", 8000),
             db_path=_PROJECT_ROOT / "ev_memory.db",
         )

@@ -22,6 +22,10 @@ Via the **Telegram bot** (24/7 in the cloud). Three modes, all mixable:
 
 She is **locked to you** (owner-only) and replies with a natural female voice.
 
+> **Web interface:** besides Telegram, E.V. has a browser chat (`python run_web.py`,
+> token-protected) that reuses the same brain — use her from any device. See
+> [WEB.md](WEB.md).
+
 ## 2. What she does in conversation (AI)
 
 - **Chat & advice:** answers, decisions, brainstorming, venting — with a warm,
