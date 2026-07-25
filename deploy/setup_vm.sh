@@ -51,8 +51,33 @@ sudo systemctl daemon-reload
 sudo systemctl enable ev
 sudo systemctl restart ev
 
+# Web interface service (mirrors ev.service; serves run_web.py on EV_WEB_PORT).
+echo ">> Registrando o serviço systemd da interface web (ev-web)..."
+sudo tee /etc/systemd/system/ev-web.service >/dev/null <<EOF
+[Unit]
+Description=E.V. — web interface
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=$PROJ
+ExecStart=$PROJ/.venv/bin/python $PROJ/run_web.py
+Restart=always
+RestartSec=5
+User=$USER
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl enable ev-web
+sudo systemctl restart ev-web
+
 echo ""
 echo "✅ E.V. instalada e rodando como serviço (liga sozinha no boot)."
-echo "   Ver logs ao vivo:  sudo journalctl -u ev -f"
-echo "   Reiniciar:         sudo systemctl restart ev"
-echo "   Status:            sudo systemctl status ev"
+echo "   Ver logs ao vivo:  sudo journalctl -u ev -f   (ou -u ev-web)"
+echo "   Reiniciar:         sudo systemctl restart ev   (ou ev-web)"
+echo "   Status:            sudo systemctl status ev    (ou ev-web)"
+echo "   Web:               interface em EV_WEB_PORT (padrão 8000); HTTPS via deploy/HTTPS_TAILSCALE.md"

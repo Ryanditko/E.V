@@ -27,17 +27,23 @@ alert_once() {  # alert_once <key> <text>
 clear_alert() { rm -f "$HOME/ev/.wd_$1"; }  # reset so it can alert again later
 
 # --- 1) service health -----------------------------------------------------
-if [ "$(systemctl is-active ev)" != "active" ]; then
-  echo "E.V. is down — restarting"
-  sudo systemctl restart ev
+check_service() {  # check_service <unit> <friendly-name>
+  local unit="$1" name="$2"
+  systemctl list-unit-files "$unit.service" >/dev/null 2>&1 || return 0  # not installed -> skip
+  [ "$(systemctl is-active "$unit")" = "active" ] && return 0
+  echo "$unit is down — restarting"
+  sudo systemctl restart "$unit"
   sleep 5
-  state="$(systemctl is-active ev)"
+  local state; state="$(systemctl is-active "$unit")"
   if [ "$state" = "active" ]; then
-    send "E.V. estava fora do ar e foi reiniciada automaticamente pelo watchdog. Já estou de volta."
+    send "$name estava fora do ar e foi reiniciada automaticamente pelo watchdog. Já estou de volta."
   else
-    send "Alerta: E.V. caiu e o watchdog NÃO conseguiu reiniciar (estado: $state). Dá uma olhada no servidor quando puder."
+    send "Alerta: $name caiu e o watchdog NÃO conseguiu reiniciar (estado: $state). Dá uma olhada no servidor quando puder."
   fi
-fi
+}
+
+check_service ev "E.V."
+check_service ev-web "A interface web da E.V."
 
 # --- 2) resources ----------------------------------------------------------
 disk="$(df / | awk 'NR==2 {gsub("%","",$5); print $5}')"
