@@ -88,3 +88,22 @@ def test_cmd_data_command(tmp_path):
     client, _ = _client(tmp_path)
     r = client.post("/api/cmd", json={"command": "tarefa comprar pão"}, headers=_auth())
     assert "adicionada" in r.json()["reply"].lower()
+
+
+def test_folder_rename_and_delete(tmp_path):
+    client, _ = _client(tmp_path)
+    client.post("/api/threads", json={"name": "temp"}, headers=_auth())
+    # a command persists into the folder (chat needs the real brain to persist)
+    client.post("/api/cmd", json={"command": "tarefas", "thread": "temp"}, headers=_auth())
+    out = client.post("/api/threads/rename", json={"old": "temp", "new": "trabalho"}, headers=_auth()).json()
+    assert "trabalho" in out["threads"] and "temp" not in out["threads"]
+    assert client.get("/api/history?thread=trabalho", headers=_auth()).json()["messages"]
+    out = client.post("/api/threads/delete", json={"name": "trabalho"}, headers=_auth()).json()
+    assert "trabalho" not in out["threads"]
+    assert client.get("/api/history?thread=trabalho", headers=_auth()).json()["messages"] == []
+
+
+def test_geral_folder_protected(tmp_path):
+    client, _ = _client(tmp_path)
+    out = client.post("/api/threads/delete", json={"name": "geral"}, headers=_auth()).json()
+    assert "geral" in out["threads"]  # can't delete the home folder

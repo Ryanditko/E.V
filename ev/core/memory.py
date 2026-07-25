@@ -228,6 +228,20 @@ class Memory:
         self._conn.commit()
         return cur.rowcount
 
+    def clear_conversation(self, conv_id: str) -> int:
+        """Delete all messages of one conversation thread (e.g. a web folder)."""
+        cur = self._conn.execute("DELETE FROM messages WHERE user_id = ?", (conv_id,))
+        self._conn.commit()
+        return cur.rowcount
+
+    def rename_conversation(self, old: str, new: str) -> int:
+        """Move a conversation's messages to a new key (rename a folder)."""
+        cur = self._conn.execute(
+            "UPDATE messages SET user_id = ? WHERE user_id = ?", (new, old)
+        )
+        self._conn.commit()
+        return cur.rowcount
+
     # --- storage control (user-owned data) ---------------------------------
 
     # key -> friendly label. Every table here is scoped by user_id (habit_logs

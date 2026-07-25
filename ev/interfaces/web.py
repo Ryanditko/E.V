@@ -59,6 +59,25 @@ body.listening .core .dot{animation:pulse 1s infinite}@keyframes pulse{50%{trans
 .folder .fi{font-family:var(--mono);font-size:11px;color:var(--subtle)}
 .newf{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--subtle);border:1px dashed var(--line);border-radius:10px;padding:8px;cursor:pointer;text-align:center}
 .newf:hover{color:var(--fg);border-color:var(--line-2)}
+.fx{font-family:var(--mono);font-size:11px;color:var(--subtle);opacity:0;transition:.15s;padding:0 4px}
+.folder:hover .fx{opacity:1}.fx:hover{color:var(--fg)}
+/* voice console overlay */
+#vc{position:fixed;inset:0;z-index:20;background:radial-gradient(80% 60% at 50% 30%,#111,#060606 80%);display:none;flex-direction:column;align-items:center;justify-content:center;gap:26px}
+#vc.on{display:flex}
+#vc .bigcore{width:220px;height:220px;position:relative}
+#vc .bigcore .ring{position:absolute;border-radius:50%;border:1px solid var(--line-2)}
+#vc .bigcore .r1{inset:0}#vc .bigcore .r2{inset:26px;border-color:var(--line)}#vc .bigcore .r3{inset:60px;border-color:var(--line-2)}
+#vc .bigcore .arc{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,transparent 0 66%,rgba(244,243,241,.95) 84%,transparent 100%);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1px));mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1px));animation:spin 8s linear infinite}
+#vc .bigcore .bdot{position:absolute;inset:0;margin:auto;width:14px;height:14px;border-radius:50%;background:var(--fg);box-shadow:0 0 40px 10px rgba(244,243,241,.4)}
+body.listening #vc .bigcore .arc{animation-duration:1.6s}
+body.listening #vc .bigcore .bdot{animation:pulse .9s infinite}
+#vc-txt{font-family:var(--disp);font-size:22px;text-align:center;max-width:640px;padding:0 24px;line-height:1.4;min-height:60px}
+#vc-sub{font-family:var(--mono);font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--subtle)}
+#vc-actions{display:flex;gap:12px}
+.vcbtn{width:76px;height:76px;border-radius:50%;border:1px solid var(--line-2);background:var(--elev);color:var(--fg);font-size:26px;cursor:pointer;transition:.15s}
+.vcbtn:hover{border-color:var(--fg);transform:translateY(-2px)}
+.vcbtn.rec{background:var(--fg);color:var(--ink);border:none;animation:pulse 1.1s infinite}
+#vc-x{position:absolute;top:20px;right:24px;font-family:var(--mono);font-size:12px;letter-spacing:.1em;color:var(--muted);background:none;border:1px solid var(--line);border-radius:999px;padding:8px 14px;cursor:pointer}
 .sysbox{margin-top:auto;display:flex;flex-direction:column;gap:7px;border-top:1px solid var(--line);padding-top:12px}
 .kv{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px}
 .kv span{color:var(--subtle)}.kv b{font-weight:500}
@@ -136,6 +155,7 @@ select{width:100%;font-family:var(--mono);font-size:12px;background:var(--surfac
   </aside>
   <main id="center">
     <div class="topbar"><div class="eyebrow" id="scope">Conversa · geral</div>
+      <button class="tbtn" id="vcopen">◉ FALAR</button>
       <button class="tbtn" id="term">TERMINAL</button><button class="tbtn on" id="voz">VOZ</button></div>
     <div id="log"></div>
     <form id="f"><div id="slash"></div>
@@ -158,6 +178,13 @@ select{width:100%;font-family:var(--mono);font-size:12px;background:var(--surfac
     <div class="eyebrow">Provedor de IA</div>
     <select id="prov"><option>auto</option><option>gemini</option><option>groq</option><option>openrouter</option><option>ollama</option></select>
   </aside>
+</div>
+<div id="vc">
+  <button id="vc-x">FECHAR</button>
+  <div class="bigcore"><div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div><div class="arc"></div><div class="bdot"></div></div>
+  <div id="vc-txt">Toque no microfone e fale.</div>
+  <div id="vc-sub">voz ao vivo · português</div>
+  <div id="vc-actions"><button class="vcbtn" id="vc-mic">🎙</button></div>
 </div>
 <script>
 let token=localStorage.getItem('ev_token');
@@ -193,7 +220,7 @@ function thinking(){const d=el('div','msg ev');d.innerHTML='<span class="tp"><i>
 function ripple(b,e){const r=el('span','ripple');const q=b.getBoundingClientRect(),s=Math.max(q.width,q.height);
   r.style.width=r.style.height=s+'px';r.style.left=((e?e.clientX:q.left+q.width/2)-q.left-s/2)+'px';
   r.style.top=((e?e.clientY:q.top+q.height/2)-q.top-s/2)+'px';b.appendChild(r);setTimeout(()=>r.remove(),500);}
-async function speak(t){if(!voiceOn||!t)return;try{const r=await fetch('/api/tts',{method:'POST',headers:H(),body:JSON.stringify({text:t})});if(!r.ok)return;new Audio(URL.createObjectURL(await r.blob())).play().catch(()=>{});}catch(e){}}
+async function speak(t,force){if((!voiceOn&&!force)||!t)return;try{const r=await fetch('/api/tts',{method:'POST',headers:H(),body:JSON.stringify({text:t})});if(!r.ok)return;new Audio(URL.createObjectURL(await r.blob())).play().catch(()=>{});}catch(e){}}
 
 async function send(msg){if(!msg)return;you(msg);const p=thinking();setState('thinking');
   try{const r=await fetch('/api/chat',{method:'POST',headers:H(),body:JSON.stringify({message:msg,thread})});
@@ -219,8 +246,16 @@ $('#prov').onchange=()=>runCmd('provedor '+$('#prov').value);
 async function loadFolders(){try{const r=await fetch('/api/threads',{headers:H()});const d=await r.json();
   const box=$('#folders');box.textContent='';
   d.threads.forEach(name=>{const f=el('div','folder'+(name===thread?' on':''));
-    f.appendChild(el('span','fi','▚'));f.appendChild(el('span','',name));f.onclick=()=>switchThread(name);box.appendChild(f);});
+    f.appendChild(el('span','fi','▚'));const nm=el('span','fn',name);nm.style.flex='1';f.appendChild(nm);
+    if(name!=='geral'){const x=el('span','fx','✕');x.title='apagar';x.onclick=e=>{e.stopPropagation();delFolder(name);};f.appendChild(x);}
+    f.onclick=()=>switchThread(name);f.ondblclick=()=>renameFolder(name);box.appendChild(f);});
 }catch(e){}}
+async function delFolder(name){if(!confirm('Apagar a pasta "'+name+'" e a conversa dela? Não dá pra desfazer.'))return;
+  await fetch('/api/threads/delete',{method:'POST',headers:H(),body:JSON.stringify({name})});
+  if(thread===name)await switchThread('geral');else loadFolders();}
+async function renameFolder(name){if(name==='geral')return;const nv=(prompt('Novo nome para "'+name+'":',name)||'').trim().toLowerCase().replace(/\s+/g,'-');
+  if(!nv||nv===name)return;await fetch('/api/threads/rename',{method:'POST',headers:H(),body:JSON.stringify({old:name,new:nv})});
+  if(thread===name){thread=nv;localStorage.setItem('ev_thread',nv);}await switchThread(thread);}
 async function switchThread(name){thread=name;localStorage.setItem('ev_thread',name);scopeEl.textContent='Conversa · '+name;
   loadFolders();log.textContent='';await loadHistory();}
 async function loadHistory(){try{const r=await fetch('/api/history?thread='+encodeURIComponent(thread),{headers:H()});const d=await r.json();
@@ -252,6 +287,17 @@ if(SR){const rec=new SR();rec.lang='pt-BR';rec.interimResults=false;
   rec.onend=()=>{micBtn.classList.remove('on');if(document.body.classList.contains('listening'))setState();};
 }else micBtn.onclick=()=>sys('Reconhecimento de voz indisponível (use o Chrome).');
 
+// live voice console
+const vc=$('#vc'),vcTxt=$('#vc-txt'),vcMic=$('#vc-mic');
+$('#vcopen').onclick=()=>{if(!SR){sys('Voz indisponível neste navegador (use o Chrome).');return;}vc.classList.add('on');vcTxt.textContent='Toque no microfone e fale.';};
+$('#vc-x').onclick=()=>{vc.classList.remove('on');setState();};
+if(SR){const vr=new (window.SpeechRecognition||window.webkitSpeechRecognition)();vr.lang='pt-BR';vr.interimResults=false;
+  vcMic.onclick=()=>{try{vcMic.classList.add('rec');setState('listening');vcTxt.textContent='ouvindo...';vr.start();}catch(e){vcMic.classList.remove('rec');}};
+  vr.onresult=async e=>{const t=e.results[0][0].transcript;vcMic.classList.remove('rec');vcTxt.textContent='"'+t+'"';setState('thinking');
+    try{const r=await fetch('/api/chat',{method:'POST',headers:H(),body:JSON.stringify({message:t,thread})});const j=await r.json();
+      vcTxt.textContent=j.reply||'(sem resposta)';speak(j.reply,true);loadPanel();}catch(x){vcTxt.textContent='Sem conexão com a E.V.';}finally{setState();}};
+  vr.onerror=e=>{vcMic.classList.remove('rec');setState();if(e.error==='not-allowed'||e.error==='service-not-allowed')vcTxt.textContent='O microfone precisa de HTTPS (ou localhost). Configure o HTTPS pra falar por aqui.';};
+  vr.onend=()=>vcMic.classList.remove('rec');}
 setInterval(()=>{$('#s-clock').textContent=new Date().toTimeString().slice(0,8);},1000);
 (async()=>{try{COMMANDS=(await (await fetch('/api/commands',{headers:H()})).json()).commands;}catch(e){}
   scopeEl.textContent='Conversa · '+thread;await loadFolders();await loadHistory();loadPanel();})();
@@ -386,7 +432,38 @@ def create_app(config: Config, brain: Brain | None = None):
     async def cmd(request: Request):
         _check(request.headers.get("authorization"))
         data = await _body(request)
-        return {"reply": run_command(data.get("command") or "")}
+        command = (data.get("command") or "").strip()
+        reply = run_command(command)
+        conv = _conv(data.get("thread"))  # persist so it shows in the folder history
+        memory.add_message(conv, "user", "/" + command)
+        memory.add_message(conv, "model", reply)
+        return {"reply": reply}
+
+    @app.post("/api/threads/delete")
+    async def threads_delete(request: Request):
+        _check(request.headers.get("authorization"))
+        name = ((await _body(request)).get("name") or "").strip().lower()
+        if name and name != "geral":
+            fs = _folders()
+            if name in fs:
+                fs.remove(name)
+                memory.set_setting("web_folders", json.dumps(fs))
+            memory.clear_conversation(_conv(name))
+        return {"threads": _folders()}
+
+    @app.post("/api/threads/rename")
+    async def threads_rename(request: Request):
+        _check(request.headers.get("authorization"))
+        data = await _body(request)
+        old = (data.get("old") or "").strip().lower()
+        new = (data.get("new") or "").strip().lower().replace(" ", "-")
+        if old and new and old != "geral" and old != new:
+            fs = _folders()
+            if old in fs and new not in fs:
+                fs[fs.index(old)] = new
+                memory.set_setting("web_folders", json.dumps(fs))
+                memory.rename_conversation(_conv(old), _conv(new))
+        return {"threads": _folders()}
 
     @app.get("/api/panel")
     async def panel(request: Request):

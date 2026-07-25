@@ -135,5 +135,7 @@ def transcribe_groq(
     resp = client.audio.transcriptions.create(
         model=model,
         file=(filename, audio),
+        language="pt",       # força português — sem isso o Whisper erra palavras BR
+        temperature=0.0,
     )
     return (resp.text or "").strip()
