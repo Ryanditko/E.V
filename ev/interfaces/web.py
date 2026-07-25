@@ -160,8 +160,10 @@ body.hide-left.hide-right #app{grid-template-columns:1fr}
 .cal-cell:hover{border-color:var(--line-2)}.cal-cell.empty{background:transparent;border:none;cursor:default}
 .cal-cell.today{border-color:var(--fg)}
 .cal-num{font-family:var(--mono);font-size:12px;color:var(--muted);margin-bottom:5px}.cal-cell.today .cal-num{color:var(--fg);font-weight:600}
-.cal-ev{font-size:11px;background:var(--elev);border-radius:5px;padding:2px 5px;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.cal-more{font-family:var(--mono);font-size:10px;color:var(--subtle)}
+.cal-ev{font-size:11px;background:var(--elev);border-radius:5px;padding:2px 5px;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;border:1px solid transparent}
+.cal-ev:hover{border-color:var(--line-2);background:var(--panel)}
+.cal-more{font-family:var(--mono);font-size:10px;color:var(--subtle);cursor:pointer}
+.cal-more:hover{color:var(--fg)}
 .kb-add{max-width:720px;display:flex;flex-direction:column;gap:14px;margin-bottom:22px}
 #kb-text{min-height:84px}
 #expchart{max-width:720px;margin-bottom:10px}
@@ -527,13 +529,15 @@ function confirmDialog(msg){return new Promise(res=>{const m=$('#modal');m.textC
   const bar=el('div','mbar');const c=el('button','mbtn2','Cancelar');c.onclick=()=>{m.classList.remove('on');res(false);};
   const s=el('button','mbtn','Confirmar');s.onclick=()=>{m.classList.remove('on');res(true);};
   bar.appendChild(c);bar.appendChild(s);card.appendChild(bar);m.appendChild(card);m.classList.add('on');setTimeout(()=>s.focus(),50);});}
-function openForm(title,fields,onSave){const m=$('#modal');m.textContent='';const card=el('div','mcard');card.appendChild(el('div','mtitle',title));
+function openForm(title,fields,onSave,onDelete){const m=$('#modal');m.textContent='';const card=el('div','mcard');card.appendChild(el('div','mtitle',title));
   const inp={};fields.forEach(fd=>{const w=el('div','mfield');w.appendChild(el('label','mlabel',fd.label));
     let i;if(fd.type==='textarea'){i=document.createElement('textarea');}else{i=document.createElement('input');i.type=fd.type==='password'?'password':'text';}
     i.className='minput';i.value=fd.value||'';if(fd.placeholder)i.placeholder=fd.placeholder;
     if(fd.options&&fd.options.length){const dl=document.createElement('datalist');dl.id='dl_'+fd.key;fd.options.forEach(o=>{const op=document.createElement('option');op.value=o;dl.appendChild(op);});w.appendChild(dl);i.setAttribute('list','dl_'+fd.key);}
     w.appendChild(i);card.appendChild(w);inp[fd.key]=i;});
-  const bar=el('div','mbar');const c=el('button','mbtn2','Cancelar');c.onclick=()=>m.classList.remove('on');
+  const bar=el('div','mbar');
+  if(onDelete){const d=el('button','mbtn2','Apagar');d.style.marginRight='auto';d.onclick=()=>{m.classList.remove('on');onDelete();};bar.appendChild(d);}
+  const c=el('button','mbtn2','Cancelar');c.onclick=()=>m.classList.remove('on');
   const s=el('button','mbtn','Salvar');s.onclick=()=>{const v={};Object.keys(inp).forEach(k=>v[k]=inp[k].value.trim());m.classList.remove('on');onSave(v);};
   bar.appendChild(c);bar.appendChild(s);card.appendChild(bar);m.appendChild(card);m.classList.add('on');
   setTimeout(()=>{const f=inp[fields[0].key];f.focus();if(f.select)f.select();},60);}
@@ -750,12 +754,28 @@ async function loadCal(){const now=new Date();if(calY==null){calY=now.getFullYea
   const tn=new Date(),tstr=ymd(tn.getFullYear(),tn.getMonth(),tn.getDate());
   for(let i=0;i<first;i++)grid.appendChild(el('div','cal-cell empty'));
   for(let d=1;d<=days;d++){const ds=ymd(calY,calM,d);const cell=el('div','cal-cell'+(ds===tstr?' today':''));
-    cell.appendChild(el('div','cal-num',String(d)));const list=byDay[ds]||[];
-    list.slice(0,3).forEach(r=>{const ev=el('div','cal-ev',r.when_iso.slice(11,16)+' '+r.text);ev.title=r.text;cell.appendChild(ev);});
-    if(list.length>3)cell.appendChild(el('div','cal-more','+'+(list.length-3)+' mais'));
+    cell.appendChild(el('div','cal-num',String(d)));const list=(byDay[ds]||[]).slice().sort((a,b)=>a.when_iso.localeCompare(b.when_iso));
+    list.slice(0,3).forEach(r=>{const ev=el('div','cal-ev',r.when_iso.slice(11,16)+' '+r.text);ev.title=r.text;ev.onclick=e=>{e.stopPropagation();calEdit(r);};cell.appendChild(ev);});
+    if(list.length>3){const mo=el('div','cal-more','+'+(list.length-3)+' mais');mo.onclick=e=>{e.stopPropagation();calList(ds,list);};cell.appendChild(mo);}
     cell.onclick=()=>calAdd(ds);grid.appendChild(cell);}}
-function calAdd(ds){openForm('Novo lembrete · '+ds.split('-').reverse().join('/'),[{key:'text',label:'Lembrar de',placeholder:'...'},{key:'time',label:'Hora',value:'09:00'}],async v=>{
+function calFmtDay(ds){return ds.split('-').reverse().join('/');}
+function calAdd(ds){openForm('Novo evento · '+calFmtDay(ds),[{key:'text',label:'Evento',placeholder:'...'},{key:'time',label:'Hora',value:'09:00'}],async v=>{
   if(!v.text)return;await fetch('/api/reminders',{method:'POST',headers:H(),body:JSON.stringify({text:v.text,when:ds+'T'+(v.time||'09:00')})});loadCal();loadPanel();});}
+function calEdit(r){const ds=r.when_iso.slice(0,10),tm=r.when_iso.slice(11,16)||'09:00';
+  openForm('Editar evento',[
+    {key:'text',label:'Evento',value:r.text},
+    {key:'date',label:'Data (AAAA-MM-DD)',value:ds},
+    {key:'time',label:'Hora',value:tm}],
+  async v=>{if(!v.text)return;await fetch('/api/reminders/update',{method:'POST',headers:H(),body:JSON.stringify({id:r.id,text:v.text,when:(v.date||ds)+'T'+(v.time||'09:00')})});loadCal();loadRem();loadPanel();},
+  async()=>{if(await confirmDialog('Apagar este evento?')){await fetch('/api/reminders/delete',{method:'POST',headers:H(),body:JSON.stringify({id:r.id})});loadCal();loadRem();loadPanel();}});}
+function calList(ds,list){const m=$('#modal');m.textContent='';const card=el('div','mcard');
+  card.appendChild(el('div','mtitle','Eventos · '+calFmtDay(ds)));
+  list.forEach(r=>{const row=el('label','mrow');row.style.cursor='pointer';
+    row.appendChild(el('span','',r.when_iso.slice(11,16)+' · '+r.text));
+    row.onclick=()=>{m.classList.remove('on');calEdit(r);};card.appendChild(row);});
+  const bar=el('div','mbar');const c=el('button','mbtn2','Fechar');c.onclick=()=>m.classList.remove('on');
+  const add=el('button','mbtn','Novo evento');add.onclick=()=>{m.classList.remove('on');calAdd(ds);};
+  bar.appendChild(c);bar.appendChild(add);card.appendChild(bar);m.appendChild(card);m.classList.add('on');}
 $('#cal-prev').onclick=()=>{calM--;if(calM<0){calM=11;calY--;}loadCal();};
 $('#cal-next').onclick=()=>{calM++;if(calM>11){calM=0;calY++;}loadCal();};
 async function recDel(url,id,reload){await fetch(url,{method:'POST',headers:H(),body:JSON.stringify({id})});reload();loadPanel();}
