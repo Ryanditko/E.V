@@ -72,13 +72,13 @@ body.listening .core .dot{animation:pulse 1s infinite}@keyframes pulse{50%{trans
 /* voice console overlay */
 #vc{position:fixed;inset:0;z-index:20;background:radial-gradient(80% 60% at 50% 30%,#111,#060606 80%);display:none;flex-direction:column;align-items:center;justify-content:center;gap:26px}
 #vc.on{display:flex}
-#vc .bigcore{width:220px;height:220px;position:relative}
-#vc .bigcore .ring{position:absolute;border-radius:50%;border:1px solid var(--line-2)}
-#vc .bigcore .r1{inset:0}#vc .bigcore .r2{inset:26px;border-color:var(--line)}#vc .bigcore .r3{inset:60px;border-color:var(--line-2)}
-#vc .bigcore .arc{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,transparent 0 66%,rgba(244,243,241,.95) 84%,transparent 100%);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1px));mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1px));animation:spin 8s linear infinite}
-#vc .bigcore .bdot{position:absolute;inset:0;margin:auto;width:14px;height:14px;border-radius:50%;background:var(--fg);box-shadow:0 0 40px 10px rgba(244,243,241,.4)}
-body.listening #vc .bigcore .arc{animation-duration:1.6s}
-body.listening #vc .bigcore .bdot{animation:pulse .9s infinite}
+.bigcore{width:220px;height:220px;position:relative}
+.bigcore .ring{position:absolute;border-radius:50%;border:1px solid var(--line-2)}
+.bigcore .r1{inset:0}.bigcore .r2{inset:26px;border-color:var(--line)}.bigcore .r3{inset:60px;border-color:var(--line-2)}
+.bigcore .arc{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,transparent 0 66%,rgba(244,243,241,.95) 84%,transparent 100%);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1px));mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1px));animation:spin 8s linear infinite}
+.bigcore .bdot{position:absolute;inset:0;margin:auto;width:14px;height:14px;border-radius:50%;background:var(--fg);box-shadow:0 0 40px 10px rgba(244,243,241,.4)}
+body.listening .bigcore .arc{animation-duration:1.6s}
+body.listening .bigcore .bdot{animation:pulse .9s infinite}
 #vc-txt{font-family:var(--disp);font-size:22px;text-align:center;max-width:640px;padding:0 24px;line-height:1.4;min-height:60px}
 #vc-sub{font-family:var(--mono);font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--subtle)}
 #vc-actions{display:flex;gap:12px}
@@ -86,6 +86,24 @@ body.listening #vc .bigcore .bdot{animation:pulse .9s infinite}
 .vcbtn:hover{border-color:var(--fg);transform:translateY(-2px)}
 .vcbtn.rec{background:var(--fg);color:var(--ink);border:none;animation:pulse 1.1s infinite}
 #vc-x{position:absolute;top:20px;right:24px;font-family:var(--mono);font-size:12px;letter-spacing:.1em;color:var(--muted);background:none;border:1px solid var(--line);border-radius:999px;padding:8px 14px;cursor:pointer}
+/* pomodoro focus overlay */
+#pomo{position:fixed;inset:0;z-index:24;background:radial-gradient(80% 60% at 50% 32%,#111,#050505 82%);display:none;flex-direction:column;align-items:center;justify-content:center;gap:20px}
+#pomo.on{display:flex}
+#pomo .bigcore{width:210px;height:210px}
+#pomo.run .bigcore .arc{animation-duration:2.4s}
+#pomo-timebox{display:flex;flex-direction:column;align-items:center;gap:6px}
+#pomo-time{font-family:var(--mono);font-weight:600;font-size:60px;letter-spacing:.02em;line-height:1}
+#pomo-label{font-family:var(--mono);font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--muted)}
+#pomo-ctl{display:flex;gap:10px;align-items:center}
+#pomo-ctl button{font-family:var(--mono);font-size:13px;color:var(--fg);background:var(--elev);border:1px solid var(--line);border-radius:10px;padding:11px 15px;cursor:pointer;transition:.15s}
+#pomo-ctl button:hover{border-color:var(--line-2)}
+#pomo-toggle{width:62px!important;height:62px;border-radius:50%!important;font-size:20px!important;background:var(--fg)!important;color:var(--ink)!important;border:none!important}
+#pomo-presets{display:flex;gap:8px}
+#pomo-presets button{font-family:var(--mono);font-size:11px;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:8px 14px;cursor:pointer}
+#pomo-presets button:hover{color:var(--fg);border-color:var(--line-2)}
+#pomo-pip{margin-top:4px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:var(--muted);background:none;border:1px solid var(--line);border-radius:999px;padding:9px 16px;cursor:pointer}
+#pomo-pip:hover{color:var(--fg);border-color:var(--line-2)}
+#pomo-x{position:absolute;top:20px;right:24px;font-family:var(--mono);font-size:12px;letter-spacing:.1em;color:var(--muted);background:none;border:1px solid var(--line);border-radius:999px;padding:8px 14px;cursor:pointer}
 .sysbox{margin-top:auto;display:flex;flex-direction:column;gap:7px;border-top:1px solid var(--line);padding-top:12px}
 .kv{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px}
 .kv span{color:var(--subtle)}.kv b{font-weight:500}
@@ -233,6 +251,14 @@ select{width:100%;font-family:var(--mono);font-size:12px;background:var(--surfac
   <div id="vc-sub">voz ao vivo · português</div>
   <div id="vc-actions"><button class="vcbtn" id="vc-mic">🎙</button></div>
 </div>
+<div id="pomo">
+  <button id="pomo-x">FECHAR</button>
+  <div class="bigcore"><div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div><div class="arc"></div><div class="bdot"></div></div>
+  <div id="pomo-timebox"><div id="pomo-time">25:00</div><div id="pomo-label">Foco</div></div>
+  <div id="pomo-ctl"><button data-m="-5">−5</button><button id="pomo-toggle">▶</button><button data-m="5">+5</button><button id="pomo-reset">reset</button></div>
+  <div id="pomo-presets"><button data-set="15">15 min</button><button data-set="25">25 min</button><button data-set="50">50 min</button></div>
+  <button id="pomo-pip">⧉ minimizar (picture-in-picture)</button>
+</div>
 <div id="modal"></div>
 <script>
 let token=localStorage.getItem('ev_token');
@@ -283,7 +309,9 @@ async function send(msg){if(!msg)return;you(msg);const p=thinking();setState('th
     if(r.status===401){p.remove();sys('Token inválido — recarregue e informe o token certo.');localStorage.removeItem('ev_token');return;}
     const j=await r.json();p.remove();ev(j.reply);speak(j.reply);loadPanel();
   }catch(e){p.remove();sys('Sem conexão com a E.V. — '+e);}finally{setState();}}
-async function runCmd(cmd,btn,e){if(btn)ripple(btn,e);const p=thinking();setState('thinking');
+async function runCmd(cmd,btn,e){const nm=cmd.trim().replace(/^\//,'').split(/\s+/)[0].toLowerCase();
+  if(nm==='foco'){if(btn)ripple(btn,e);openPomo(parseInt((cmd.match(/\d+/)||[25])[0])||25);return;}
+  if(btn)ripple(btn,e);const p=thinking();setState('thinking');
   try{const r=await fetch('/api/cmd',{method:'POST',headers:H(),body:JSON.stringify({command:cmd,thread})});
     const j=await r.json();
     if(/^\/?limpar(chat)?\b/.test(cmd.trim())){log.textContent='';sys(j.reply);}
@@ -302,7 +330,7 @@ function renderStats(){const box=$('#stats');box.textContent='';config.stats.for
   num.appendChild(document.createTextNode(_counts[k]!=null?_counts[k]:'0'));s.appendChild(lbl);s.appendChild(num);box.appendChild(s);});window.lucide&&lucide.createIcons();}
 function renderActs(){const box=$('#acts');box.textContent='';config.actions.forEach(cmd=>{const m=CAT[cmd]||[cmd,'chevron-right'];
   const b=el('button','act');b.appendChild(ficon(m[1]));b.appendChild(document.createTextNode(m[0]));
-  b.onclick=e=>{if(cmd==='foco')startFoco(25,e,b);else runCmd(cmd,b,e);};box.appendChild(b);});window.lucide&&lucide.createIcons();}
+  b.onclick=e=>{if(cmd==='foco')openPomo(25);else runCmd(cmd,b,e);};box.appendChild(b);});window.lucide&&lucide.createIcons();}
 async function loadPanel(){try{const r=await fetch('/api/panel',{headers:H()});if(!r.ok)return;_counts=await r.json();
   renderStats();$('#s-prov').textContent=_counts.provider;$('#s-model').textContent=_counts.model;$('#prov').value=_counts.provider;}catch(e){}}
 async function loadConfig(){try{config=await (await fetch('/api/config',{headers:H()})).json();}catch(e){}renderActs();}
@@ -317,11 +345,27 @@ function openPicker(title,sub,items,selected,onSave){const m=$('#modal');m.textC
   m.appendChild(card);m.classList.add('on');}
 $('#edit-acts').onclick=()=>openPicker('Ações rápidas','Escolha os atalhos do painel.',Object.keys(CAT).map(k=>({key:k,label:CAT[k][0]})),config.actions,async l=>{config.actions=l;await saveConfig();renderActs();});
 $('#edit-stats').onclick=()=>openPicker('Sistema','Escolha os indicadores exibidos.',Object.keys(SM).map(k=>({key:k,label:SM[k][0]})),config.stats,async l=>{config.stats=l;await saveConfig();renderStats();});
-let focoTimer=null;
-function startFoco(mins,e,b){if(b)ripple(b,e);if(focoTimer)clearInterval(focoTimer);let rem=mins*60;
-  const line=sys('Pomodoro '+mins+':00');const tick=()=>{const mm=String(Math.floor(Math.max(0,rem)/60)).padStart(2,'0'),ss=String(Math.max(0,rem)%60).padStart(2,'0');
-    line.textContent=rem>0?('Pomodoro · '+mm+':'+ss+' restantes'):'Pomodoro concluído — hora da pausa.';};tick();
-  focoTimer=setInterval(()=>{rem--;tick();if(rem<0){clearInterval(focoTimer);speak('Foco concluído, hora da pausa.',true);}},1000);}
+const PT=$('#pomo-time'),PL=$('#pomo-label'),PG=$('#pomo-toggle'),PBOX=$('#pomo-timebox'),PW=$('#pomo');
+let pomo={rem:1500,total:1500,run:false,timer:null};
+function pfmt(){const s=Math.max(0,pomo.rem);return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');}
+function prender(){PT.textContent=pfmt();PG.textContent=pomo.run?'⏸':'▶';PW.classList.toggle('run',pomo.run);}
+function ptick(){if(!pomo.run)return;pomo.rem--;if(pomo.rem<=0){pomo.rem=0;pstop();PL.textContent='Pausa!';speak('Foco concluído, hora da pausa.',true);}prender();}
+function pstart(){if(pomo.timer)clearInterval(pomo.timer);pomo.run=true;pomo.timer=setInterval(ptick,1000);prender();}
+function pstop(){pomo.run=false;if(pomo.timer){clearInterval(pomo.timer);pomo.timer=null;}prender();}
+function openPomo(mins){mins=mins||25;pomo.total=mins*60;pomo.rem=mins*60;PL.textContent='Foco';PW.classList.add('on');pstart();}
+$('#pomo-x').onclick=()=>{pstop();PW.classList.remove('on');};
+PG.onclick=()=>pomo.run?pstop():pstart();
+$('#pomo-reset').onclick=()=>{pomo.rem=pomo.total;prender();};
+document.querySelectorAll('#pomo-ctl [data-m]').forEach(b=>b.onclick=()=>{pomo.rem=Math.max(30,pomo.rem+parseInt(b.dataset.m)*60);pomo.total=Math.max(pomo.total,pomo.rem);prender();});
+document.querySelectorAll('#pomo-presets [data-set]').forEach(b=>b.onclick=()=>openPomo(parseInt(b.dataset.set)));
+let pipWin=null;
+$('#pomo-pip').onclick=async()=>{if(!window.documentPictureInPicture){sys('Picture-in-Picture de janela não é suportado neste navegador (use Chrome/Edge recentes).');return;}
+  try{pipWin=await documentPictureInPicture.requestWindow({width:240,height:150});
+    document.querySelectorAll('style').forEach(n=>pipWin.document.head.appendChild(n.cloneNode(true)));
+    pipWin.document.body.style.cssText='margin:0;background:#0a0a0a;color:#f4f3f1;display:flex;align-items:center;justify-content:center;height:100vh;cursor:pointer';
+    pipWin.document.body.appendChild(PBOX);pipWin.document.body.onclick=()=>pomo.run?pstop():pstart();
+    pipWin.addEventListener('pagehide',()=>{PW.insertBefore(PBOX,$('#pomo-ctl'));pipWin=null;});
+  }catch(e){sys('Não consegui abrir o PiP: '+e);}};
 
 // folders
 async function loadFolders(){try{const r=await fetch('/api/threads',{headers:H()});const d=await r.json();
