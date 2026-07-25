@@ -112,6 +112,23 @@ def test_config_actions_customizable(tmp_path):
     assert d["actions"] == ["foco", "clima"]  # e.g. added Pomodoro, removed others
 
 
+def test_nested_folders(tmp_path):
+    client, _ = _client(tmp_path)
+    client.post("/api/threads", json={"name": "projeto-x", "parent": "work"}, headers=_auth())
+    out = client.get("/api/threads", headers=_auth()).json()["threads"]
+    assert "work/projeto-x" in out
+    # deleting the parent removes the subfolder too
+    out = client.post("/api/threads/delete", json={"name": "work"}, headers=_auth()).json()["threads"]
+    assert "work" not in out and "work/projeto-x" not in out
+
+
+def test_rename_folder_moves_descendants(tmp_path):
+    client, _ = _client(tmp_path)
+    client.post("/api/threads", json={"name": "sub", "parent": "personal"}, headers=_auth())
+    out = client.post("/api/threads/rename", json={"old": "personal", "new": "pessoal"}, headers=_auth()).json()["threads"]
+    assert "pessoal" in out and "pessoal/sub" in out and "personal" not in out
+
+
 def test_geral_folder_protected(tmp_path):
     client, _ = _client(tmp_path)
     out = client.post("/api/threads/delete", json={"name": "geral"}, headers=_auth()).json()

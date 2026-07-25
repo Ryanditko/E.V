@@ -287,17 +287,24 @@ function startFoco(mins,e,b){if(b)ripple(b,e);if(focoTimer)clearInterval(focoTim
 // folders
 async function loadFolders(){try{const r=await fetch('/api/threads',{headers:H()});const d=await r.json();
   const box=$('#folders');box.textContent='';
-  d.threads.forEach(name=>{const f=el('div','folder'+(name===thread?' on':''));
-    f.appendChild(el('span','fi','▚'));const nm=el('span','fn',name);nm.style.flex='1';f.appendChild(nm);
-    if(name!=='geral'){const x=el('span','fx','✕');x.title='apagar';x.onclick=e=>{e.stopPropagation();delFolder(name);};f.appendChild(x);}
-    f.onclick=()=>switchThread(name);f.ondblclick=()=>renameFolder(name);box.appendChild(f);});
+  d.threads.slice().sort().forEach(path=>{const seg=path.split('/');const depth=seg.length-1;const label=seg[seg.length-1];
+    const f=el('div','folder'+(path===thread?' on':''));f.style.paddingLeft=(11+depth*15)+'px';
+    f.appendChild(el('span','fi',depth?'└':'▚'));const nm=el('span','fn',label);nm.style.flex='1';f.appendChild(nm);
+    const add=el('span','fx','+');add.title='subpasta';add.onclick=e=>{e.stopPropagation();childFolder(path);};f.appendChild(add);
+    if(path!=='geral'){const x=el('span','fx','✕');x.title='apagar';x.onclick=e=>{e.stopPropagation();delFolder(path);};f.appendChild(x);}
+    f.onclick=()=>switchThread(path);f.ondblclick=()=>renameFolder(path);box.appendChild(f);});
 }catch(e){}}
-async function delFolder(name){if(!confirm('Apagar a pasta "'+name+'" e a conversa dela? Não dá pra desfazer.'))return;
-  await fetch('/api/threads/delete',{method:'POST',headers:H(),body:JSON.stringify({name})});
-  if(thread===name)await switchThread('geral');else loadFolders();}
-async function renameFolder(name){if(name==='geral')return;const nv=(prompt('Novo nome para "'+name+'":',name)||'').trim().toLowerCase().replace(/\s+/g,'-');
-  if(!nv||nv===name)return;await fetch('/api/threads/rename',{method:'POST',headers:H(),body:JSON.stringify({old:name,new:nv})});
-  if(thread===name){thread=nv;localStorage.setItem('ev_thread',nv);}await switchThread(thread);}
+async function childFolder(parent){const name=(prompt('Nome da subpasta dentro de "'+parent+'":')||'').trim().toLowerCase().replace(/\s+/g,'-').replace(/\//g,'-');
+  if(!name)return;await fetch('/api/threads',{method:'POST',headers:H(),body:JSON.stringify({name,parent})});await switchThread(parent+'/'+name);}
+async function delFolder(path){if(!confirm('Apagar "'+path+'" (e subpastas/conversas)? Não dá pra desfazer.'))return;
+  await fetch('/api/threads/delete',{method:'POST',headers:H(),body:JSON.stringify({name:path})});
+  if(thread===path||thread.startsWith(path+'/'))await switchThread('geral');else loadFolders();}
+async function renameFolder(path){if(path==='geral')return;const seg=path.split('/');const leaf=seg[seg.length-1];
+  const nv=(prompt('Novo nome para "'+leaf+'":',leaf)||'').trim().toLowerCase().replace(/\s+/g,'-').replace(/\//g,'-');if(!nv||nv===leaf)return;
+  await fetch('/api/threads/rename',{method:'POST',headers:H(),body:JSON.stringify({old:path,new:nv})});
+  const np=(seg.slice(0,-1).join('/')?seg.slice(0,-1).join('/')+'/':'')+nv;
+  if(thread===path||thread.startsWith(path+'/')){thread=thread.replace(path,np);localStorage.setItem('ev_thread',thread);}
+  await switchThread(thread);}
 async function switchThread(name){thread=name;localStorage.setItem('ev_thread',name);scopeEl.textContent='Conversa · '+name;
   loadFolders();log.textContent='';await loadHistory();}
 async function loadHistory(){try{const r=await fetch('/api/history?thread='+encodeURIComponent(thread),{headers:H()});const d=await r.json();
@@ -444,11 +451,14 @@ def create_app(config: Config, brain: Brain | None = None):
     @app.post("/api/threads")
     async def threads_post(request: Request):
         _check(request.headers.get("authorization"))
-        name = ((await _body(request)).get("name") or "").strip().lower()
+        data = await _body(request)
+        name = (data.get("name") or "").strip().lower().replace(" ", "-").replace("/", "-")
+        parent = (data.get("parent") or "").strip().lower()
         if name:
+            path = f"{parent}/{name}" if parent else name
             fs = _folders()
-            if name not in fs:
-                fs.append(name)
+            if path not in fs:
+                fs.append(path)
                 memory.set_setting("web_folders", json.dumps(fs))
         return {"threads": _folders()}
 
@@ -488,10 +498,12 @@ def create_app(config: Config, brain: Brain | None = None):
         name = ((await _body(request)).get("name") or "").strip().lower()
         if name and name != "geral":
             fs = _folders()
-            if name in fs:
-                fs.remove(name)
-                memory.set_setting("web_folders", json.dumps(fs))
-            memory.clear_conversation(_conv(name))
+            victims = [f for f in fs if f == name or f.startswith(name + "/")]
+            if victims:
+                memory.set_setting(
+                    "web_folders", json.dumps([f for f in fs if f not in victims]))
+                for v in victims:  # drop the folder and its subfolders' conversations
+                    memory.clear_conversation(_conv(v))
         return {"threads": _folders()}
 
     @app.post("/api/threads/rename")
@@ -499,13 +511,21 @@ def create_app(config: Config, brain: Brain | None = None):
         _check(request.headers.get("authorization"))
         data = await _body(request)
         old = (data.get("old") or "").strip().lower()
-        new = (data.get("new") or "").strip().lower().replace(" ", "-")
-        if old and new and old != "geral" and old != new:
+        new = (data.get("new") or "").strip().lower().replace(" ", "-").replace("/", "-")
+        if old and new and old != "geral":
+            parent = old.rsplit("/", 1)[0] if "/" in old else ""
+            newpath = f"{parent}/{new}" if parent else new
             fs = _folders()
-            if old in fs and new not in fs:
-                fs[fs.index(old)] = new
-                memory.set_setting("web_folders", json.dumps(fs))
-                memory.rename_conversation(_conv(old), _conv(new))
+            if old in fs and newpath not in fs:
+                out = []
+                for f in fs:  # rename the folder AND all its descendants
+                    if f == old or f.startswith(old + "/"):
+                        nf = newpath + f[len(old):]
+                        memory.rename_conversation(_conv(f), _conv(nf))
+                        out.append(nf)
+                    else:
+                        out.append(f)
+                memory.set_setting("web_folders", json.dumps(out))
         return {"threads": _folders()}
 
     _DEF_ACTIONS = ["buscar", "noticias", "clima", "relatorio", "status", "semana"]
