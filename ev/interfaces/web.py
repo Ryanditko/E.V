@@ -178,6 +178,8 @@ body.hide-left.hide-right #app{grid-template-columns:1fr}
 .tv-form input{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:12px 15px;color:var(--fg);font:inherit;font-size:15px}
 .tv-form #task-text{flex:1}.tv-form #task-cat{width:140px;flex:none;font-family:var(--mono);font-size:13px}
 .tv-form input:focus{outline:none;border-color:var(--line-2)}
+.tv-form select{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:12px 15px;color:var(--fg);font:inherit;font-size:13px;font-family:var(--mono);flex:none;cursor:pointer}
+.tv-form select:focus{outline:none;border-color:var(--line-2)}
 .tv-cat{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--subtle);margin:20px 0 9px}
 .tv-row{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;background:var(--surface);max-width:720px;transition:border-color .15s}
 .tv-row:hover{border-color:var(--line-2)}.tv-row .txt{flex:1;line-height:1.4}
@@ -255,6 +257,7 @@ select{width:100%;font-family:var(--mono);font-size:12px;background:var(--surfac
 .mfield{margin-bottom:13px}.mlabel{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
 .minput{width:100%;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:11px 13px;color:var(--fg);font:inherit;font-size:14px}
 .minput:focus{outline:none;border-color:var(--line-2)}
+select.minput{cursor:pointer}
 textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-height:1.45}
 .mbar{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
 .mbtn{background:var(--fg);color:var(--ink);border:none;border-radius:10px;padding:9px 16px;cursor:pointer;font-weight:500}
@@ -305,6 +308,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
       <form id="taskform" class="tv-form">
         <input id="task-text" placeholder="Nova tarefa..." autocomplete="off">
         <input id="task-cat" placeholder="categoria" value="geral" autocomplete="off">
+        <select id="task-recur" title="Repetir"><option value="">Uma vez</option><option value="daily">Diário</option><option value="weekly">Semanal</option><option value="monthly">Mensal</option></select>
         <button class="mbtn" type="submit">Adicionar</button>
       </form>
       <input class="tv-search" id="tasks-search" placeholder="Buscar tarefas..." autocomplete="off">
@@ -331,7 +335,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
     </div>
     <div id="remview">
       <div class="tv-h">Lembretes</div>
-      <form id="remform" class="tv-form"><input id="rem-text" placeholder="Lembrar de..."><input id="rem-when" type="datetime-local" style="flex:none"><button class="mbtn" type="submit">Criar</button></form>
+      <form id="remform" class="tv-form"><input id="rem-text" placeholder="Lembrar de..."><input id="rem-when" type="datetime-local" style="flex:none"><select id="rem-recur" title="Repetir"><option value="">Uma vez</option><option value="daily">Diário</option><option value="weekly">Semanal</option><option value="monthly">Mensal</option></select><button class="mbtn" type="submit">Criar</button></form>
       <input class="tv-search" id="rem-search" placeholder="Buscar lembretes..." autocomplete="off">
       <div class="tv-cat">Em aberto</div>
       <div id="remlist"></div>
@@ -498,6 +502,8 @@ f.onsubmit=e=>{e.preventDefault();if(slash.style.display==='block'&&slSel>=0){pi
 
 const CAT={tarefas:['Tarefas','list-checks'],lembretes:['Lembretes','alarm-clock'],gastos:['Gastos','wallet'],memorias:['Memórias','brain'],kb:['Base','book-open'],buscar:['Buscar web','search'],noticias:['Notícias','newspaper'],clima:['Clima','cloud-sun'],relatorio:['Relatório','bar-chart-3'],status:['Status','activity'],semana:['Semana','calendar-days'],foco:['Pomodoro','timer'],procurar:['Procurar','file-search'],calendario:['Agenda','calendar'],habitos:['Hábitos','repeat'],diario:['Diário','notebook-pen'],orcamentos:['Orçamentos','piggy-bank'],assinaturas:['Assinaturas','credit-card'],dados:['Meus dados','database'],insights:['Insights','sparkles'],quiz:['Quiz','graduation-cap']};
 const SM={tasks:['Tarefas','list-checks','tarefas'],reminders:['Lembretes','alarm-clock','lembretes'],expenses:['Gastos · mês','wallet','gastos'],memories:['Memórias','brain','memorias'],kb:['Base','book-open','kb'],links:['Links','link','links'],habits:['Hábitos','repeat','habitos'],journal:['Diário','notebook-pen','diario'],subscriptions:['Assinaturas','credit-card','assinaturas'],budgets:['Orçamentos','piggy-bank','orcamentos'],watches:['Monitores','radar','monitores']};
+const RECUR=[{v:'',l:'Uma vez'},{v:'daily',l:'Diário'},{v:'weekly',l:'Semanal'},{v:'monthly',l:'Mensal'}];
+const RECUR_LBL={daily:'repete diário',weekly:'repete semanal',monthly:'repete mensal'};
 let config={actions:['buscar','noticias','clima','relatorio','status','semana'],stats:['tasks','reminders','expenses','memories','kb']};let _counts={};
 function renderStats(){const box=$('#stats');box.textContent='';config.stats.forEach(k=>{const m=SM[k];if(!m)return;
   const VMAP={tasks:'tasks',reminders:'rem',expenses:'exp',memories:'mem',kb:'kb',links:'lnk',habits:'hab',journal:'jou',subscriptions:'sub',budgets:'orc',watches:'mon'};
@@ -531,7 +537,10 @@ function confirmDialog(msg){return new Promise(res=>{const m=$('#modal');m.textC
   bar.appendChild(c);bar.appendChild(s);card.appendChild(bar);m.appendChild(card);m.classList.add('on');setTimeout(()=>s.focus(),50);});}
 function openForm(title,fields,onSave,onDelete){const m=$('#modal');m.textContent='';const card=el('div','mcard');card.appendChild(el('div','mtitle',title));
   const inp={};fields.forEach(fd=>{const w=el('div','mfield');w.appendChild(el('label','mlabel',fd.label));
-    let i;if(fd.type==='textarea'){i=document.createElement('textarea');}else{i=document.createElement('input');i.type=fd.type==='password'?'password':'text';}
+    let i;
+    if(fd.type==='textarea'){i=document.createElement('textarea');}
+    else if(fd.select){i=document.createElement('select');fd.select.forEach(o=>{const op=document.createElement('option');op.value=o.v;op.textContent=o.l;i.appendChild(op);});}
+    else{i=document.createElement('input');i.type=fd.type==='password'?'password':'text';}
     i.className='minput';i.value=fd.value||'';if(fd.placeholder)i.placeholder=fd.placeholder;
     if(fd.options&&fd.options.length){const dl=document.createElement('datalist');dl.id='dl_'+fd.key;fd.options.forEach(o=>{const op=document.createElement('option');op.value=o;dl.appendChild(op);});w.appendChild(dl);i.setAttribute('list','dl_'+fd.key);}
     w.appendChild(i);card.appendChild(w);inp[fd.key]=i;});
@@ -759,14 +768,19 @@ async function loadCal(){const now=new Date();if(calY==null){calY=now.getFullYea
     if(list.length>3){const mo=el('div','cal-more','+'+(list.length-3)+' mais');mo.onclick=e=>{e.stopPropagation();calList(ds,list);};cell.appendChild(mo);}
     cell.onclick=()=>calAdd(ds);grid.appendChild(cell);}}
 function calFmtDay(ds){return ds.split('-').reverse().join('/');}
-function calAdd(ds){openForm('Novo evento · '+calFmtDay(ds),[{key:'text',label:'Evento',placeholder:'...'},{key:'time',label:'Hora',value:'09:00'}],async v=>{
-  if(!v.text)return;await fetch('/api/reminders',{method:'POST',headers:H(),body:JSON.stringify({text:v.text,when:ds+'T'+(v.time||'09:00')})});loadCal();loadPanel();});}
+function calAdd(ds){openForm('Novo evento · '+calFmtDay(ds),[
+    {key:'text',label:'Evento',placeholder:'...'},
+    {key:'time',label:'Hora',value:'09:00'},
+    {key:'recur',label:'Repetir',select:RECUR,value:''}],
+  async v=>{
+  if(!v.text)return;await fetch('/api/reminders',{method:'POST',headers:H(),body:JSON.stringify({text:v.text,when:ds+'T'+(v.time||'09:00'),recur:v.recur})});loadCal();loadRem();loadPanel();});}
 function calEdit(r){const ds=r.when_iso.slice(0,10),tm=r.when_iso.slice(11,16)||'09:00';
   openForm('Editar evento',[
     {key:'text',label:'Evento',value:r.text},
     {key:'date',label:'Data (AAAA-MM-DD)',value:ds},
-    {key:'time',label:'Hora',value:tm}],
-  async v=>{if(!v.text)return;await fetch('/api/reminders/update',{method:'POST',headers:H(),body:JSON.stringify({id:r.id,text:v.text,when:(v.date||ds)+'T'+(v.time||'09:00')})});loadCal();loadRem();loadPanel();},
+    {key:'time',label:'Hora',value:tm},
+    {key:'recur',label:'Repetir',select:RECUR,value:r.recur||''}],
+  async v=>{if(!v.text)return;await fetch('/api/reminders/update',{method:'POST',headers:H(),body:JSON.stringify({id:r.id,text:v.text,when:(v.date||ds)+'T'+(v.time||'09:00'),recur:v.recur})});loadCal();loadRem();loadPanel();},
   async()=>{if(await confirmDialog('Apagar este evento?')){await fetch('/api/reminders/delete',{method:'POST',headers:H(),body:JSON.stringify({id:r.id})});loadCal();loadRem();loadPanel();}});}
 function calList(ds,list){const m=$('#modal');m.textContent='';const card=el('div','mcard');
   card.appendChild(el('div','mtitle','Eventos · '+calFmtDay(ds)));
@@ -802,16 +816,20 @@ $('#expform').onsubmit=async e=>{e.preventDefault();const amount=$('#exp-amt').v
   $('#exp-amt').value='';$('#exp-desc').value='';loadExp();loadPanel();};
 async function loadRem(){try{const items=(await (await fetch('/api/reminders',{headers:H()})).json()).items||[];const box=$('#remlist');box.textContent='';
   if(!items.length){box.appendChild(el('div','tv-empty','Nenhum lembrete em aberto.'));return;}
-  items.forEach(r=>{const row=el('div','tv-row');const t=el('div','txt');t.appendChild(el('div','',r.text));if(r.when_iso)t.appendChild(subline(r.when_iso.replace('T',' ').slice(0,16)+(r.recur?(' · '+r.recur):'')));
+  items.forEach(r=>{const row=el('div','tv-row');const t=el('div','txt');t.appendChild(el('div','',r.text));
+    const meta=(r.when_iso?r.when_iso.replace('T',' ').slice(0,16):'')+(r.recur?((r.when_iso?' · ':'')+'repete '+recurShort(r.recur)):'');
+    if(meta)t.appendChild(subline(meta));
     const ed=el('button','tv-ic');ed.title='editar';ed.appendChild(ficon('pencil'));ed.onclick=()=>editRem(r);
     const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));dl.onclick=async ()=>{if(await confirmDialog('Cancelar este lembrete?'))recDel('/api/reminders/delete',r.id,loadRem);};
     row.appendChild(t);row.appendChild(ed);row.appendChild(dl);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
+function recurShort(r){return {daily:'diário',weekly:'semanal',monthly:'mensal'}[r]||r;}
 function editRem(r){openForm('Editar lembrete',[
   {key:'text',label:'Lembrar de',value:r.text},
-  {key:'when',label:'Quando (AAAA-MM-DDTHH:MM)',value:r.when_iso||''}],
-  async v=>{if(!v.text)return;await fetch('/api/reminders/update',{method:'POST',headers:H(),body:JSON.stringify({id:r.id,text:v.text,when:v.when})});loadRem();loadCal();loadPanel();});}
+  {key:'when',label:'Quando (AAAA-MM-DDTHH:MM)',value:r.when_iso||''},
+  {key:'recur',label:'Repetir',select:RECUR,value:r.recur||''}],
+  async v=>{if(!v.text)return;await fetch('/api/reminders/update',{method:'POST',headers:H(),body:JSON.stringify({id:r.id,text:v.text,when:v.when,recur:v.recur})});loadRem();loadCal();loadPanel();});}
 $('#remform').onsubmit=async e=>{e.preventDefault();const text=$('#rem-text').value.trim();if(!text)return;
-  await fetch('/api/reminders',{method:'POST',headers:H(),body:JSON.stringify({text,when:$('#rem-when').value||''})});$('#rem-text').value='';$('#rem-when').value='';loadRem();loadPanel();};
+  await fetch('/api/reminders',{method:'POST',headers:H(),body:JSON.stringify({text,when:$('#rem-when').value||'',recur:$('#rem-recur').value})});$('#rem-text').value='';$('#rem-when').value='';$('#rem-recur').value='';loadRem();loadPanel();};
 async function loadMem(){try{const items=(await (await fetch('/api/facts',{headers:H()})).json()).items||[];const box=$('#memlist');box.textContent='';
   if(!items.length){box.appendChild(el('div','tv-empty','Nenhuma memória ainda.'));return;}
   items.forEach(f=>{const row=el('div','tv-row');row.appendChild(el('div','txt',f.fact));
@@ -863,7 +881,8 @@ async function loadTasks(){try{const d=await (await fetch('/api/tasks',{headers:
     box.appendChild(chd);
     g[cat].forEach(t=>{const row=el('div','tv-row');row.draggable=true;row.ondragstart=e=>e.dataTransfer.setData('text/plain',String(t.id));
       const done=el('button','tv-ic');done.title='concluir';done.appendChild(ficon('check'));done.onclick=()=>taskAction('complete',t.id);
-      const txt=el('div','txt');const parts=t.text.split(/\s+(?=\d+[.)]\s)/);if(parts.length>1)parts.forEach(p=>txt.appendChild(el('div','',p)));else txt.textContent=t.text;
+      const txt=el('div','txt');const parts=t.text.split(/\s+(?=\d+[.)]\s)/);if(parts.length>1)parts.forEach(p=>txt.appendChild(el('div','',p)));else txt.appendChild(el('div','',t.text));
+      if(t.recur)txt.appendChild(subline(RECUR_LBL[t.recur]||('repete '+t.recur)));
       const ed=el('button','tv-ic');ed.title='editar';ed.appendChild(ficon('pencil'));ed.onclick=()=>editTask(t);
       const dl=el('button','tv-ic');dl.title='apagar';dl.appendChild(ficon('trash-2'));dl.onclick=async ()=>{if(await confirmDialog('Apagar esta tarefa?'))taskAction('delete',t.id);};
       row.appendChild(done);row.appendChild(txt);row.appendChild(ed);row.appendChild(dl);box.appendChild(row);});});
@@ -871,10 +890,11 @@ async function loadTasks(){try{const d=await (await fetch('/api/tasks',{headers:
 async function taskAction(op,id){await fetch('/api/tasks/'+op,{method:'POST',headers:H(),body:JSON.stringify({id})});loadTasks();loadPanel();}
 function editTask(t){openForm('Editar tarefa',[
   {key:'text',label:'Descrição',value:t.text,type:'textarea'},
-  {key:'category',label:'Categoria',value:t.category,options:window._cats||[],placeholder:'ex: faculdade'}],
-  async v=>{if(!v.text)return;await fetch('/api/tasks/update',{method:'POST',headers:H(),body:JSON.stringify({id:t.id,text:v.text,category:v.category||t.category})});loadTasks();loadPanel();});}
-$('#taskform').onsubmit=async e=>{e.preventDefault();const text=$('#task-text').value.trim();const cat=$('#task-cat').value.trim()||'geral';
-  if(!text)return;await fetch('/api/tasks',{method:'POST',headers:H(),body:JSON.stringify({text,category:cat})});$('#task-text').value='';loadTasks();loadPanel();};
+  {key:'category',label:'Categoria',value:t.category,options:window._cats||[],placeholder:'ex: faculdade'},
+  {key:'recur',label:'Repetir (regenera ao concluir)',select:RECUR,value:t.recur||''}],
+  async v=>{if(!v.text)return;await fetch('/api/tasks/update',{method:'POST',headers:H(),body:JSON.stringify({id:t.id,text:v.text,category:v.category||t.category,recur:v.recur})});loadTasks();loadPanel();});}
+$('#taskform').onsubmit=async e=>{e.preventDefault();const text=$('#task-text').value.trim();const cat=$('#task-cat').value.trim()||'geral';const recur=$('#task-recur').value;
+  if(!text)return;await fetch('/api/tasks',{method:'POST',headers:H(),body:JSON.stringify({text,category:cat,recur})});$('#task-text').value='';$('#task-recur').value='';loadTasks();loadPanel();};
 // per-tab search filter
 function filterRows(box,q){if(!box)return;q=(q||'').trim().toLowerCase();let cur=null,shown=0;
   [...box.children].forEach(k=>{
@@ -934,6 +954,14 @@ def create_app(config: Config, brain: Brain | None = None):
             return await request.json()
         except Exception:
             return {}
+
+    def _recurval(v, allow_clear=False):
+        """Normalize a recurrence value to 'daily'/'weekly'/'monthly'. Returns
+        None (skip) for invalid/absent, or '' to clear when allow_clear."""
+        v = (v or "").strip()
+        if v in ("daily", "weekly", "monthly"):
+            return v
+        return "" if allow_clear else None
 
     def _folders():
         raw = memory.get_setting("web_folders")
@@ -1230,16 +1258,18 @@ def create_app(config: Config, brain: Brain | None = None):
         text = (data.get("text") or "").strip()
         cat = (data.get("category") or "geral").strip() or "geral"
         if text:
-            memory.add_task(owner, text, cat)
+            memory.add_task(owner, text, cat, recur=_recurval(data.get("recur")))
         return {"tasks": memory.open_tasks(owner)}
 
     @app.post("/api/tasks/update")
     async def tasks_update(request: Request):
         _check(request.headers.get("authorization"))
         data = await _body(request)
+        recur = _recurval(data.get("recur"), allow_clear=True) if "recur" in data else None
         memory.update_task(owner, int(data.get("id") or 0),
                            text=(data.get("text") or None),
-                           category=(data.get("category") or None))
+                           category=(data.get("category") or None),
+                           recur=recur)
         return {"tasks": memory.open_tasks(owner)}
 
     @app.post("/api/tasks/complete")
@@ -1373,7 +1403,7 @@ def create_app(config: Config, brain: Brain | None = None):
         text = (d.get("text") or "").strip()
         when = (d.get("when") or "").strip() or None
         if text:
-            memory.add_reminder(owner, text, when)
+            memory.add_reminder(owner, text, when, _recurval(d.get("recur")))
         return {"ok": bool(text)}
 
     @app.post("/api/reminders/delete")
@@ -1615,8 +1645,9 @@ def create_app(config: Config, brain: Brain | None = None):
     async def rem_update(request: Request):
         _check(request.headers.get("authorization"))
         d = await _body(request)
+        recur = _recurval(d.get("recur"), allow_clear=True) if "recur" in d else None
         memory.update_reminder(owner, int(d.get("id") or 0), text=(d.get("text") or None),
-                               when_iso=(d.get("when") or None))
+                               when_iso=(d.get("when") or None), recur=recur)
         return {"ok": True}
 
     @app.post("/api/facts/update")

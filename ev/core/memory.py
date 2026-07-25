@@ -195,6 +195,8 @@ class Memory:
             )
         if "done_at" not in task_cols:
             self._conn.execute("ALTER TABLE tasks ADD COLUMN done_at TEXT")
+        if "recur" not in task_cols:
+            self._conn.execute("ALTER TABLE tasks ADD COLUMN recur TEXT")
         self._conn.commit()
 
     @staticmethod
@@ -441,10 +443,11 @@ class Memory:
 
     # --- tasks (to-do list) -------------------------------------------------
 
-    def add_task(self, user_id: str, text: str, category: str = "geral") -> int:
+    def add_task(self, user_id: str, text: str, category: str = "geral",
+                 recur: str | None = None) -> int:
         cur = self._conn.execute(
-            "INSERT INTO tasks (user_id, text, category, created) VALUES (?, ?, ?, ?)",
-            (user_id, text, category, self._now()),
+            "INSERT INTO tasks (user_id, text, category, recur, created) VALUES (?, ?, ?, ?, ?)",
+            (user_id, text, category, recur or None, self._now()),
         )
         self._conn.commit()
         return int(cur.lastrowid)
@@ -452,25 +455,39 @@ class Memory:
     def open_tasks(self, user_id: str, category: str | None = None) -> list[dict]:
         if category:
             rows = self._conn.execute(
-                "SELECT id, text, category FROM tasks "
+                "SELECT id, text, category, recur FROM tasks "
                 "WHERE user_id = ? AND done = 0 AND category = ? ORDER BY id",
                 (user_id, category),
             ).fetchall()
         else:
             rows = self._conn.execute(
-                "SELECT id, text, category FROM tasks "
+                "SELECT id, text, category, recur FROM tasks "
                 "WHERE user_id = ? AND done = 0 ORDER BY category, id",
                 (user_id,),
             ).fetchall()
         return [dict(r) for r in rows]
 
     def complete_task(self, user_id: str, task_id: int) -> bool:
-        cur = self._conn.execute(
-            "UPDATE tasks SET done = 1, done_at = ? WHERE id = ? AND user_id = ? AND done = 0",
-            (self._now(), task_id, user_id),
+        row = self._conn.execute(
+            "SELECT text, category, recur FROM tasks "
+            "WHERE id = ? AND user_id = ? AND done = 0",
+            (task_id, user_id),
+        ).fetchone()
+        if not row:
+            return False
+        self._conn.execute(
+            "UPDATE tasks SET done = 1, done_at = ? WHERE id = ?",
+            (self._now(), task_id),
         )
+        # Recurring task: regenerate a fresh open copy so it comes back.
+        if (row["recur"] or "") in ("daily", "weekly", "monthly"):
+            self._conn.execute(
+                "INSERT INTO tasks (user_id, text, category, recur, created) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (user_id, row["text"], row["category"], row["recur"], self._now()),
+            )
         self._conn.commit()
-        return cur.rowcount > 0
+        return True
 
     def delete_task(self, user_id: str, task_id: int) -> bool:
         cur = self._conn.execute(
@@ -480,12 +497,14 @@ class Memory:
         return cur.rowcount > 0
 
     def update_task(self, user_id: str, task_id: int, text: str | None = None,
-                    category: str | None = None) -> bool:
+                    category: str | None = None, recur: str | None = None) -> bool:
         sets, params = [], []
         if text is not None:
             sets.append("text = ?"); params.append(text)
         if category is not None:
             sets.append("category = ?"); params.append(category)
+        if recur is not None:
+            sets.append("recur = ?"); params.append(recur or None)
         if not sets:
             return False
         params += [task_id, user_id]
@@ -511,8 +530,8 @@ class Memory:
     def update_expense(self, u, i, amount=None, description=None, category=None):
         return self._update("expenses", u, i, {"amount": amount, "description": description, "category": category})
 
-    def update_reminder(self, u, i, text=None, when_iso=None):
-        return self._update("reminders", u, i, {"text": text, "when_iso": when_iso})
+    def update_reminder(self, u, i, text=None, when_iso=None, recur=None):
+        return self._update("reminders", u, i, {"text": text, "when_iso": when_iso, "recur": recur})
 
     def update_fact(self, u, i, fact):
         return self._update("facts", u, i, {"fact": fact})

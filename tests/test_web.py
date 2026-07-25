@@ -355,6 +355,61 @@ def test_panel_extended_counts(tmp_path):
     assert p["subscriptions"] == 1 and p["budgets"] == 1 and p["watches"] == 1
 
 
+def test_recurring_task_regenerates_on_complete(tmp_path):
+    client, _ = _client(tmp_path)
+    client.post("/api/tasks", json={"text": "treino", "category": "saude", "recur": "daily"}, headers=_auth())
+    t = client.get("/api/tasks", headers=_auth()).json()["tasks"][0]
+    assert t["recur"] == "daily"
+    client.post("/api/tasks/complete", json={"id": t["id"]}, headers=_auth())
+    tasks = client.get("/api/tasks", headers=_auth()).json()["tasks"]
+    # a fresh open copy comes back, keeping text + recurrence, with a new id
+    assert len(tasks) == 1 and tasks[0]["text"] == "treino"
+    assert tasks[0]["recur"] == "daily" and tasks[0]["id"] != t["id"]
+
+
+def test_non_recurring_task_does_not_regenerate(tmp_path):
+    client, _ = _client(tmp_path)
+    client.post("/api/tasks", json={"text": "pagar boleto"}, headers=_auth())
+    t = client.get("/api/tasks", headers=_auth()).json()["tasks"][0]
+    assert t["recur"] is None
+    client.post("/api/tasks/complete", json={"id": t["id"]}, headers=_auth())
+    assert client.get("/api/tasks", headers=_auth()).json()["tasks"] == []
+
+
+def test_task_recur_update_and_invalid_ignored(tmp_path):
+    client, _ = _client(tmp_path)
+    client.post("/api/tasks", json={"text": "x"}, headers=_auth())
+    t = client.get("/api/tasks", headers=_auth()).json()["tasks"][0]
+    # set recurrence
+    client.post("/api/tasks/update", json={"id": t["id"], "recur": "weekly"}, headers=_auth())
+    assert client.get("/api/tasks", headers=_auth()).json()["tasks"][0]["recur"] == "weekly"
+    # clear it
+    client.post("/api/tasks/update", json={"id": t["id"], "recur": ""}, headers=_auth())
+    assert client.get("/api/tasks", headers=_auth()).json()["tasks"][0]["recur"] is None
+    # invalid value is rejected (treated as clear on update)
+    client.post("/api/tasks/update", json={"id": t["id"], "recur": "hourly"}, headers=_auth())
+    assert client.get("/api/tasks", headers=_auth()).json()["tasks"][0]["recur"] is None
+    # a category-only update (drag-drop) must NOT wipe an existing recurrence
+    client.post("/api/tasks/update", json={"id": t["id"], "recur": "monthly"}, headers=_auth())
+    client.post("/api/tasks/update", json={"id": t["id"], "category": "nova"}, headers=_auth())
+    row = client.get("/api/tasks", headers=_auth()).json()["tasks"][0]
+    assert row["category"] == "nova" and row["recur"] == "monthly"
+
+
+def test_reminder_recurrence_create_update(tmp_path):
+    client, _ = _client(tmp_path)
+    client.post("/api/reminders", json={"text": "backup", "when": "2026-08-01T09:00", "recur": "weekly"}, headers=_auth())
+    r = client.get("/api/reminders", headers=_auth()).json()["items"][0]
+    assert r["recur"] == "weekly"
+    # clear recurrence via update
+    client.post("/api/reminders/update", json={"id": r["id"], "recur": ""}, headers=_auth())
+    assert not client.get("/api/reminders", headers=_auth()).json()["items"][0]["recur"]
+    # invalid recur on create is ignored (one-off)
+    client.post("/api/reminders", json={"text": "once", "when": "2026-08-02T09:00", "recur": "yearly"}, headers=_auth())
+    items = {i["text"]: i for i in client.get("/api/reminders", headers=_auth()).json()["items"]}
+    assert not items["once"]["recur"]
+
+
 def test_geral_folder_protected(tmp_path):
     client, _ = _client(tmp_path)
     out = client.post("/api/threads/delete", json={"name": "geral"}, headers=_auth()).json()
