@@ -108,7 +108,8 @@ body.listening .bigcore .bdot{animation:pulse .9s infinite}
 #pomo-ctl{display:flex;gap:10px;align-items:center}
 #pomo-ctl button{font-family:var(--mono);font-size:13px;color:var(--fg);background:var(--elev);border:1px solid var(--line);border-radius:10px;padding:11px 15px;cursor:pointer;transition:.15s}
 #pomo-ctl button:hover{border-color:var(--line-2)}
-#pomo-toggle{width:62px!important;height:62px;border-radius:50%!important;font-size:20px!important;background:var(--fg)!important;color:var(--ink)!important;border:none!important}
+#pomo-toggle{width:62px!important;height:62px;border-radius:50%!important;font-size:20px!important;background:var(--fg)!important;color:var(--ink)!important;border:none!important;display:grid;place-items:center}
+#pomo-toggle svg{width:24px;height:24px}
 #pomo-presets{display:flex;gap:8px}
 #pomo-presets button{font-family:var(--mono);font-size:11px;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:8px 14px;cursor:pointer}
 #pomo-presets button:hover{color:var(--fg);border-color:var(--line-2)}
@@ -128,6 +129,13 @@ body.listening .bigcore .bdot{animation:pulse .9s infinite}
 .topbar .eyebrow{flex:1;margin:0}
 .tbtn{font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:var(--muted);border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 12px;cursor:pointer}
 .tbtn.on{color:var(--ink);background:var(--fg);border-color:var(--fg)}
+.tbtn.ico{padding:7px 9px;display:inline-flex;align-items:center}.tbtn.ico svg{width:15px;height:15px}
+.tbtn.ic-txt{display:inline-flex;align-items:center;gap:6px}.tbtn.ic-txt svg{width:14px;height:14px}
+.icon svg{width:20px;height:20px}.mg{display:inline-flex}.vcbtn svg{width:28px;height:28px}
+body.hide-left #left{display:none}body.hide-right #right{display:none}
+body.hide-left #app{grid-template-columns:1fr 272px}
+body.hide-right #app{grid-template-columns:238px 1fr}
+body.hide-left.hide-right #app{grid-template-columns:1fr}
 .tabs{display:flex;gap:3px;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:3px}
 .tab{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--muted);border:none;background:transparent;border-radius:8px;padding:7px 13px;cursor:pointer}
 .tab.on{background:var(--fg);color:var(--ink)}
@@ -264,16 +272,18 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
   </aside>
   <main id="center">
     <div class="topbar">
+      <button class="tbtn ico" id="tgl-left" title="Ocultar/mostrar pastas"><i data-lucide="panel-left"></i></button>
       <div class="tabs"><button class="tab on" data-view="chat">Conversa</button><button class="tab" data-view="tasks">Tarefas</button><button class="tab" data-view="exp">Gastos</button><button class="tab" data-view="rem">Lembretes</button><button class="tab" data-view="cal">Agenda</button><button class="tab" data-view="mem">Memórias</button><button class="tab" data-view="kb">Base</button></div>
       <span class="eyebrow" id="scope">geral</span><span style="flex:1"></span>
-      <button class="tbtn" id="vcopen">◉ FALAR</button>
-      <button class="tbtn" id="term">TERMINAL</button><button class="tbtn on" id="voz">VOZ</button></div>
+      <button class="tbtn ic-txt" id="vcopen"><i data-lucide="mic"></i>FALAR</button>
+      <button class="tbtn" id="term">TERMINAL</button><button class="tbtn on" id="voz">VOZ</button>
+      <button class="tbtn ico" id="tgl-right" title="Ocultar/mostrar painel"><i data-lucide="panel-right"></i></button></div>
     <div id="chatview">
       <div id="log"></div>
       <form id="f"><div id="slash"></div>
-        <button type="button" class="icon mic" id="mic" title="Falar"><span class="mg">🎙</span><span class="wave"><b></b><b></b><b></b><b></b></span></button>
+        <button type="button" class="icon mic" id="mic" title="Falar"><span class="mg"><i data-lucide="mic"></i></span><span class="wave"><b></b><b></b><b></b><b></b></span></button>
         <div class="field"><input id="txt" placeholder="Fala com a E.V.  ·  digite / para comandos" autocomplete="off"></div>
-        <button class="icon send" id="send" title="Enviar">➤</button></form>
+        <button class="icon send" id="send" title="Enviar"><i data-lucide="arrow-up"></i></button></form>
     </div>
     <div id="taskview">
       <div class="tv-h">Tarefas</div>
@@ -337,13 +347,13 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
   <div class="bigcore"><div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div><div class="arc"></div><div class="bdot"></div></div>
   <div id="vc-txt">Toque no microfone e fale.</div>
   <div id="vc-sub">voz ao vivo · português</div>
-  <div id="vc-actions"><button class="vcbtn" id="vc-mic">🎙</button></div>
+  <div id="vc-actions"><button class="vcbtn" id="vc-mic"><i data-lucide="mic"></i></button></div>
 </div>
 <div id="pomo">
   <button id="pomo-x">FECHAR</button>
   <div class="bigcore"><div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div><div class="arc"></div><div class="bdot"></div></div>
   <div id="pomo-timebox"><div id="pomo-time">25:00</div><div id="pomo-label">Foco</div></div>
-  <div id="pomo-ctl"><button data-m="-5">−5</button><button id="pomo-toggle">▶</button><button data-m="5">+5</button><button id="pomo-reset">reset</button></div>
+  <div id="pomo-ctl"><button data-m="-5">−5</button><button id="pomo-toggle"><i data-lucide="play"></i></button><button data-m="5">+5</button><button id="pomo-reset">reset</button></div>
   <div id="pomo-presets"><button data-set="15">15 min</button><button data-set="25">25 min</button><button data-set="50">50 min</button></div>
   <button id="pomo-pip">⧉ minimizar</button>
 </div>
@@ -367,6 +377,12 @@ function setState(s){document.body.classList.remove('listening','thinking');if(s
 vozBtn.classList.toggle('on',voiceOn);
 vozBtn.onclick=()=>{voiceOn=!voiceOn;localStorage.setItem('ev_voice',voiceOn?'on':'off');vozBtn.classList.toggle('on',voiceOn);};
 termBtn.onclick=()=>{document.body.classList.toggle('term');termBtn.classList.toggle('on',document.body.classList.contains('term'));};
+// hide/show side panels (focus mode), persisted
+if(localStorage.getItem('ev_hl'))document.body.classList.add('hide-left');
+if(localStorage.getItem('ev_hr'))document.body.classList.add('hide-right');
+$('#tgl-left').onclick=()=>{document.body.classList.toggle('hide-left');localStorage.setItem('ev_hl',document.body.classList.contains('hide-left')?'1':'');$('#tgl-left').classList.toggle('on',document.body.classList.contains('hide-left'));};
+$('#tgl-right').onclick=()=>{document.body.classList.toggle('hide-right');localStorage.setItem('ev_hr',document.body.classList.contains('hide-right')?'1':'');$('#tgl-right').classList.toggle('on',document.body.classList.contains('hide-right'));};
+$('#tgl-left').classList.toggle('on',document.body.classList.contains('hide-left'));$('#tgl-right').classList.toggle('on',document.body.classList.contains('hide-right'));
 
 function el(t,c,x){const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e;}
 const HASEMO=/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{2190}-\u{21FF}\u{2300}-\u{23FF}\u{20E3}]/u;
@@ -452,14 +468,15 @@ $('#edit-stats').onclick=()=>openPicker('Sistema','Escolha os indicadores exibid
 const PT=$('#pomo-time'),PL=$('#pomo-label'),PG=$('#pomo-toggle'),PBOX=$('#pomo-timebox'),PW=$('#pomo');
 let pomo={rem:1500,total:1500,brk:300,phase:'focus',run:false,timer:null};
 function pfmt(){const s=Math.max(0,pomo.rem);return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');}
-function prender(){PT.textContent=pfmt();PG.textContent=pomo.run?'⏸':'▶';PW.classList.toggle('run',pomo.run);PW.classList.toggle('brk',pomo.phase==='break');}
+function pIcon(){PG.innerHTML='';PG.appendChild(ficon(pomo.run?'pause':'play'));window.lucide&&lucide.createIcons();}
+function prender(){PT.textContent=pfmt();PW.classList.toggle('run',pomo.run);PW.classList.toggle('brk',pomo.phase==='break');}
 function ptick(){if(!pomo.run)return;pomo.rem--;
   if(pomo.rem<=0){
     if(pomo.phase==='focus'){pomo.phase='break';pomo.total=pomo.brk;pomo.rem=pomo.brk;PL.textContent='Pausa';speak('Foco concluído, hora da pausa.',true);}
     else{pomo.rem=0;pstop();PL.textContent='Ciclo concluído';speak('Pausa concluída. Bora pro próximo ciclo.',true);}
   }prender();}
-function pstart(){if(pomo.timer)clearInterval(pomo.timer);pomo.run=true;pomo.timer=setInterval(ptick,1000);prender();}
-function pstop(){pomo.run=false;if(pomo.timer){clearInterval(pomo.timer);pomo.timer=null;}prender();}
+function pstart(){if(pomo.timer)clearInterval(pomo.timer);pomo.run=true;pomo.timer=setInterval(ptick,1000);prender();pIcon();}
+function pstop(){pomo.run=false;if(pomo.timer){clearInterval(pomo.timer);pomo.timer=null;}prender();pIcon();}
 function openPomo(mins,brk){mins=mins||25;brk=brk||5;pomo.phase='focus';pomo.brk=brk*60;pomo.total=mins*60;pomo.rem=mins*60;PL.textContent='Foco';PW.classList.add('on');pstart();}
 $('#pomo-x').onclick=()=>{pstop();PW.classList.remove('on');};
 PG.onclick=()=>pomo.run?pstop():pstart();
