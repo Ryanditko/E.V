@@ -104,6 +104,12 @@ body.listening .bigcore .bdot{animation:pulse .9s infinite}
 #pomo-pip{margin-top:4px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:var(--muted);background:none;border:1px solid var(--line);border-radius:999px;padding:9px 16px;cursor:pointer}
 #pomo-pip:hover{color:var(--fg);border-color:var(--line-2)}
 #pomo-x{position:absolute;top:20px;right:24px;font-family:var(--mono);font-size:12px;letter-spacing:.1em;color:var(--muted);background:none;border:1px solid var(--line);border-radius:999px;padding:8px 14px;cursor:pointer}
+#pomo-mini{position:fixed;top:20px;right:20px;z-index:26;width:186px;background:var(--panel);border:1px solid var(--line-2);border-radius:14px;box-shadow:0 20px 60px -24px #000;display:none;flex-direction:column;overflow:hidden}
+.pm-head{display:flex;align-items:center;gap:6px;padding:7px 10px;border-bottom:1px solid var(--line);cursor:move;user-select:none}
+.pm-grip{color:var(--subtle);font-size:12px;letter-spacing:-3px}
+.pm-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:2px 6px}.pm-btn:hover{color:var(--fg)}
+.pm-body{padding:16px 14px;display:flex;justify-content:center;cursor:pointer}
+#pomo-mini #pomo-time{font-size:36px}#pomo-mini #pomo-label{font-size:9px}
 .sysbox{margin-top:auto;display:flex;flex-direction:column;gap:7px;border-top:1px solid var(--line);padding-top:12px}
 .kv{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px}
 .kv span{color:var(--subtle)}.kv b{font-weight:500}
@@ -257,7 +263,11 @@ select{width:100%;font-family:var(--mono);font-size:12px;background:var(--surfac
   <div id="pomo-timebox"><div id="pomo-time">25:00</div><div id="pomo-label">Foco</div></div>
   <div id="pomo-ctl"><button data-m="-5">−5</button><button id="pomo-toggle">▶</button><button data-m="5">+5</button><button id="pomo-reset">reset</button></div>
   <div id="pomo-presets"><button data-set="15">15 min</button><button data-set="25">25 min</button><button data-set="50">50 min</button></div>
-  <button id="pomo-pip">⧉ minimizar (picture-in-picture)</button>
+  <button id="pomo-pip">⧉ minimizar</button>
+</div>
+<div id="pomo-mini">
+  <div class="pm-head"><span class="pm-grip">⋮⋮</span><span style="flex:1"></span><button class="pm-btn" id="pm-open" title="expandir">⤢</button><button class="pm-btn" id="pm-close" title="fechar">✕</button></div>
+  <div class="pm-body"></div>
 </div>
 <div id="modal"></div>
 <script>
@@ -358,14 +368,24 @@ PG.onclick=()=>pomo.run?pstop():pstart();
 $('#pomo-reset').onclick=()=>{pomo.rem=pomo.total;prender();};
 document.querySelectorAll('#pomo-ctl [data-m]').forEach(b=>b.onclick=()=>{pomo.rem=Math.max(30,pomo.rem+parseInt(b.dataset.m)*60);pomo.total=Math.max(pomo.total,pomo.rem);prender();});
 document.querySelectorAll('#pomo-presets [data-set]').forEach(b=>b.onclick=()=>openPomo(parseInt(b.dataset.set)));
-let pipWin=null;
-$('#pomo-pip').onclick=async()=>{if(!window.documentPictureInPicture){sys('Picture-in-Picture de janela não é suportado neste navegador (use Chrome/Edge recentes).');return;}
-  try{pipWin=await documentPictureInPicture.requestWindow({width:240,height:150});
+const MINI=$('#pomo-mini'),MBODY=MINI.querySelector('.pm-body');let pipWin=null;
+function restorePBOX(){if(!PW.contains(PBOX))PW.insertBefore(PBOX,$('#pomo-ctl'));}
+function minimizeInPage(){PW.classList.remove('on');MBODY.appendChild(PBOX);MINI.style.display='flex';}
+$('#pomo-pip').onclick=async()=>{
+  if(window.documentPictureInPicture){try{pipWin=await documentPictureInPicture.requestWindow({width:240,height:160});
     document.querySelectorAll('style').forEach(n=>pipWin.document.head.appendChild(n.cloneNode(true)));
     pipWin.document.body.style.cssText='margin:0;background:#0a0a0a;color:#f4f3f1;display:flex;align-items:center;justify-content:center;height:100vh;cursor:pointer';
-    pipWin.document.body.appendChild(PBOX);pipWin.document.body.onclick=()=>pomo.run?pstop():pstart();
-    pipWin.addEventListener('pagehide',()=>{PW.insertBefore(PBOX,$('#pomo-ctl'));pipWin=null;});
-  }catch(e){sys('Não consegui abrir o PiP: '+e);}};
+    pipWin.document.body.appendChild(PBOX);pipWin.document.body.onclick=()=>pomo.run?pstop():pstart();PW.classList.remove('on');
+    pipWin.addEventListener('pagehide',()=>{restorePBOX();PW.classList.add('on');pipWin=null;});return;
+  }catch(e){}}
+  minimizeInPage();}; // fallback (funciona no HTTP): janelinha flutuante na própria página
+$('#pm-open').onclick=()=>{restorePBOX();MINI.style.display='none';PW.classList.add('on');};
+$('#pm-close').onclick=()=>{pstop();MINI.style.display='none';restorePBOX();};
+MBODY.onclick=()=>pomo.run?pstop():pstart();
+(function(){let dx=0,dy=0,drag=false;const h=MINI.querySelector('.pm-head');
+  h.onmousedown=e=>{drag=true;const r=MINI.getBoundingClientRect();dx=e.clientX-r.left;dy=e.clientY-r.top;MINI.style.right='auto';e.preventDefault();};
+  window.addEventListener('mousemove',e=>{if(!drag)return;MINI.style.left=Math.max(0,e.clientX-dx)+'px';MINI.style.top=Math.max(0,e.clientY-dy)+'px';});
+  window.addEventListener('mouseup',()=>drag=false);})();
 
 // folders
 async function loadFolders(){try{const r=await fetch('/api/threads',{headers:H()});const d=await r.json();
