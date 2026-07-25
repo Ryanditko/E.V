@@ -236,6 +236,30 @@ def test_api_keys_manage(tmp_path):
     assert keys["tavily_api_key"] is True  # now set (in memory + .env)
 
 
+def test_links_habits_journal_crud(tmp_path):
+    client, _ = _client(tmp_path)
+    # links (with category)
+    client.post("/api/links", json={"name": "GitHub", "url": "https://github.com", "category": "dev"}, headers=_auth())
+    items = client.get("/api/links", headers=_auth()).json()["items"]
+    assert items and items[0]["category"] == "dev" and items[0]["url"] == "https://github.com"
+    client.post("/api/links/delete", json={"id": items[0]["id"]}, headers=_auth())
+    assert client.get("/api/links", headers=_auth()).json()["items"] == []
+    # habits
+    client.post("/api/habits", json={"name": "treino"}, headers=_auth())
+    h = client.get("/api/habits", headers=_auth()).json()["items"][0]
+    assert h["name"] == "treino" and h["done_today"] is False
+    client.post("/api/habits/done", json={"id": h["id"]}, headers=_auth())
+    assert client.get("/api/habits", headers=_auth()).json()["items"][0]["done_today"] is True
+    client.post("/api/habits/delete", json={"id": h["id"]}, headers=_auth())
+    assert client.get("/api/habits", headers=_auth()).json()["items"] == []
+    # journal
+    client.post("/api/journal", json={"text": "dia produtivo"}, headers=_auth())
+    j = client.get("/api/journal", headers=_auth()).json()["items"]
+    assert j and j[0]["text"] == "dia produtivo"
+    client.post("/api/journal/delete", json={"id": j[0]["id"]}, headers=_auth())
+    assert client.get("/api/journal", headers=_auth()).json()["items"] == []
+
+
 def test_geral_folder_protected(tmp_path):
     client, _ = _client(tmp_path)
     out = client.post("/api/threads/delete", json={"name": "geral"}, headers=_auth()).json()

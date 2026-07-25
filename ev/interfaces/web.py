@@ -142,11 +142,13 @@ body.hide-left #left{display:none}body.hide-right #right{display:none}
 body.hide-left #app{grid-template-columns:1fr 272px}
 body.hide-right #app{grid-template-columns:238px 1fr}
 body.hide-left.hide-right #app{grid-template-columns:1fr}
-.tabs{display:flex;gap:3px;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:3px}
+.tabs{display:flex;gap:3px;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:3px;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}.tab{white-space:nowrap;flex:none}
+.lnk{color:var(--fg);text-decoration:underline;text-underline-offset:2px}.lnk:hover{opacity:.75}
 .tab{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--muted);border:none;background:transparent;border-radius:8px;padding:7px 13px;cursor:pointer}
 .tab.on{background:var(--fg);color:var(--ink)}
 #chatview{flex:1;display:flex;flex-direction:column;min-height:0}
-#taskview,#kbview,#expview,#remview,#memview,#calview{flex:1;min-height:0;overflow:auto;padding:24px;display:none}
+#taskview,#kbview,#expview,#remview,#memview,#calview,#lnkview,#habview,#jouview{flex:1;min-height:0;overflow:auto;padding:24px;display:none}
 .cal-head{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:18px}
 #calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;max-width:940px;margin:0 auto}
 .cal-dow{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--subtle);text-align:center;padding:4px}
@@ -241,6 +243,7 @@ select{width:100%;font-family:var(--mono);font-size:12px;background:var(--surfac
 #modal.on{display:flex}
 .mcard{width:min(420px,92vw);max-height:80vh;overflow:auto;background:var(--panel);border:1px solid var(--line-2);border-radius:16px;padding:18px}
 .mtitle{font-family:var(--disp);font-weight:600;font-size:16px;margin-bottom:6px}.mtitle small{display:block;font-family:var(--body);font-weight:400;font-size:12px;color:var(--muted);margin-top:3px}
+.mconf{font-size:14px;color:var(--fg);line-height:1.5;margin:2px 0 4px}
 .mrow{display:flex;align-items:center;gap:10px;padding:9px 6px;border-top:1px solid var(--line);cursor:pointer;font-size:14px}
 .mrow input{width:16px;height:16px;accent-color:var(--fg)}
 .mfield{margin-bottom:13px}.mlabel{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
@@ -279,7 +282,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
   <main id="center">
     <div class="topbar">
       <button class="tbtn ico" id="tgl-left" title="Ocultar/mostrar pastas"><i data-lucide="panel-left"></i></button>
-      <div class="tabs"><button class="tab on" data-view="chat">Conversa</button><button class="tab" data-view="tasks">Tarefas</button><button class="tab" data-view="exp">Gastos</button><button class="tab" data-view="rem">Lembretes</button><button class="tab" data-view="cal">Agenda</button><button class="tab" data-view="mem">Memórias</button><button class="tab" data-view="kb">Base</button></div>
+      <div class="tabs"><button class="tab on" data-view="chat">Conversa</button><button class="tab" data-view="tasks">Tarefas</button><button class="tab" data-view="exp">Gastos</button><button class="tab" data-view="rem">Lembretes</button><button class="tab" data-view="cal">Agenda</button><button class="tab" data-view="mem">Memórias</button><button class="tab" data-view="lnk">Links</button><button class="tab" data-view="hab">Hábitos</button><button class="tab" data-view="jou">Diário</button><button class="tab" data-view="kb">Base</button></div>
       <span class="eyebrow" id="scope">geral</span><span style="flex:1"></span>
       <button class="tbtn ic-txt" id="vcopen"><i data-lucide="mic"></i>FALAR</button>
       <button class="tbtn" id="term">TERMINAL</button><button class="tbtn on" id="voz">VOZ</button>
@@ -337,6 +340,24 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
       <input class="tv-search" id="mem-search" placeholder="Buscar memórias..." autocomplete="off">
       <div class="tv-cat">O que a E.V. sabe</div>
       <div id="memlist"></div>
+    </div>
+    <div id="lnkview">
+      <div class="tv-h">Links</div>
+      <form id="lnkform" class="tv-form"><input id="lnk-name" placeholder="Nome"><input id="lnk-url" placeholder="https://..."><input id="lnk-cat" placeholder="categoria" value="geral" style="width:150px;flex:none"><button class="mbtn" type="submit">Salvar</button></form>
+      <input class="tv-search" id="lnk-search" placeholder="Buscar links..." autocomplete="off">
+      <div id="lnklist"></div>
+    </div>
+    <div id="habview">
+      <div class="tv-h">Hábitos</div>
+      <form id="habform" class="tv-form"><input id="hab-name" placeholder="Novo hábito (ex: treino)"><button class="mbtn" type="submit">Criar</button></form>
+      <input class="tv-search" id="hab-search" placeholder="Buscar hábitos..." autocomplete="off">
+      <div id="hablist"></div>
+    </div>
+    <div id="jouview">
+      <div class="tv-h">Diário</div>
+      <form id="jouform" class="tv-form"><input id="jou-text" placeholder="Como foi seu dia?"><button class="mbtn" type="submit">Registrar</button></form>
+      <input class="tv-search" id="jou-search" placeholder="Buscar no diário..." autocomplete="off">
+      <div id="joulist"></div>
     </div>
   </main>
   <aside id="right" class="rail">
@@ -408,6 +429,10 @@ const IC={'📋':'list-checks','📝':'file-pen','✅':'check-circle-2','⏰':'a
 function stripEmoji(s){return s.replace(EMOG,'').replace(/\s{2,}/g,' ').trim();}
 function iconName(s){for(const ch of s){if(IC[ch])return IC[ch];}return 'sparkles';}
 function ficon(n){const i=document.createElement('i');i.setAttribute('data-lucide',n);return i;}
+const URLRE=/(https?:\/\/[^\s)]+)/g;
+function appendLinked(parent,text){let last=0,m;URLRE.lastIndex=0;while((m=URLRE.exec(text))){if(m.index>last)parent.appendChild(document.createTextNode(text.slice(last,m.index)));
+  const a=document.createElement('a');a.href=m[0];a.target='_blank';a.rel='noopener';a.className='lnk';a.textContent=m[0];parent.appendChild(a);last=m.index+m[0].length;}
+  if(last<text.length)parent.appendChild(document.createTextNode(text.slice(last)));}
 // structured, monochrome rendering with Lucide icons (no emoji read-out)
 function renderReply(box,text){box.textContent='';const lines=(text||'').split('\n');let first=true;
   lines.forEach(ln=>{const s=ln.trim();if(!s)return;let m;
@@ -415,10 +440,10 @@ function renderReply(box,text){box.textContent='';const lines=(text||'').split('
     if((m=s.match(/^\[(.+)\]$/))){box.appendChild(el('div','cat',m[1]));return;}
     if((m=s.match(/^#(\w+)\s+(.*)$/))){const r=el('div','row');r.appendChild(el('span','id','#'+m[1]));
       const t=el('span','t');const tt=stripEmoji(m[2]);const parts=tt.split(/\s+(?=\d+[.)]\s)/);
-      if(parts.length>1)parts.forEach(p=>t.appendChild(el('div','',p)));else t.textContent=tt;
+      if(parts.length>1)parts.forEach(p=>{const dv=el('div','');appendLinked(dv,p);t.appendChild(dv);});else appendLinked(t,tt);
       r.appendChild(t);box.appendChild(r);return;}
-    if(/^(Concluir|Cancelar|Uso|Remover|Apagar):/i.test(s)||s.startsWith('/')){box.appendChild(el('div','hint',stripEmoji(s)));return;}
-    box.appendChild(el('p','',stripEmoji(s)));first=false;});
+    if(/^(Concluir|Cancelar|Uso|Remover|Apagar):/i.test(s)||s.startsWith('/')){const hh=el('div','hint');appendLinked(hh,stripEmoji(s));box.appendChild(hh);return;}
+    const pp=el('p','');appendLinked(pp,stripEmoji(s));box.appendChild(pp);first=false;});
   window.lucide&&lucide.createIcons();
 }
 function you(t){const d=el('div','msg you',t);log.appendChild(d);log.scrollTop=log.scrollHeight;}
@@ -475,6 +500,11 @@ function openPicker(title,sub,items,selected,onSave){const m=$('#modal');m.textC
   const bar=el('div','mbar');const c=el('button','mbtn2','Cancelar');c.onclick=()=>m.classList.remove('on');
   const sv=el('button','mbtn','Salvar');sv.onclick=()=>{onSave([...sel]);m.classList.remove('on');};bar.appendChild(c);bar.appendChild(sv);card.appendChild(bar);
   m.appendChild(card);m.classList.add('on');}
+function confirmDialog(msg){return new Promise(res=>{const m=$('#modal');m.textContent='';const card=el('div','mcard');
+  card.appendChild(el('div','mtitle','Confirmar'));card.appendChild(el('div','mconf',msg));
+  const bar=el('div','mbar');const c=el('button','mbtn2','Cancelar');c.onclick=()=>{m.classList.remove('on');res(false);};
+  const s=el('button','mbtn','Confirmar');s.onclick=()=>{m.classList.remove('on');res(true);};
+  bar.appendChild(c);bar.appendChild(s);card.appendChild(bar);m.appendChild(card);m.classList.add('on');setTimeout(()=>s.focus(),50);});}
 function openForm(title,fields,onSave){const m=$('#modal');m.textContent='';const card=el('div','mcard');card.appendChild(el('div','mtitle',title));
   const inp={};fields.forEach(fd=>{const w=el('div','mfield');w.appendChild(el('label','mlabel',fd.label));
     let i;if(fd.type==='textarea'){i=document.createElement('textarea');}else{i=document.createElement('input');i.type=fd.type==='password'?'password':'text';}
@@ -551,7 +581,7 @@ async function loadFolders(){try{const r=await fetch('/api/threads',{headers:H()
 function childFolder(parent){openForm('Nova subpasta em "'+parent+'"',[{key:'name',label:'Nome',placeholder:'ex: projetos'}],async v=>{
   const name=(v.name||'').toLowerCase().replace(/\s+/g,'-').replace(/\//g,'-');if(!name)return;
   await fetch('/api/threads',{method:'POST',headers:H(),body:JSON.stringify({name,parent})});await switchThread(parent+'/'+name);});}
-async function delFolder(path){if(!confirm('Apagar "'+path+'" (e subpastas/conversas)? Não dá pra desfazer.'))return;
+async function delFolder(path){if(!(await confirmDialog('Apagar "'+path+'" (e subpastas/conversas)? Não dá pra desfazer.')))return;
   await fetch('/api/threads/delete',{method:'POST',headers:H(),body:JSON.stringify({name:path})});
   if(thread===path||thread.startsWith(path+'/'))await switchThread('geral');else loadFolders();}
 function renameFolder(path){if(path==='geral')return;const seg=path.split('/');const leaf=seg[seg.length-1];
@@ -605,10 +635,33 @@ if(SR){const vr=new (window.SpeechRecognition||window.webkitSpeechRecognition)()
   vr.onend=()=>vcMic.classList.remove('rec');}
 // view tabs (Conversa / Tarefas)
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>switchView(t.dataset.view));
-const VIEWS={chat:'#chatview',tasks:'#taskview',exp:'#expview',rem:'#remview',cal:'#calview',mem:'#memview',kb:'#kbview'};
+const VIEWS={chat:'#chatview',tasks:'#taskview',exp:'#expview',rem:'#remview',cal:'#calview',mem:'#memview',lnk:'#lnkview',hab:'#habview',jou:'#jouview',kb:'#kbview'};
 function switchView(v){if(!VIEWS[v])v='chat';document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.view===v));
   Object.entries(VIEWS).forEach(([k,sel])=>{const el2=$(sel);if(el2)el2.style.display=(k===v)?(k==='chat'?'flex':'block'):'none';});
-  ({tasks:loadTasks,exp:loadExp,rem:loadRem,mem:loadMem,kb:loadKB,cal:loadCal}[v]||function(){})();}
+  ({tasks:loadTasks,exp:loadExp,rem:loadRem,mem:loadMem,kb:loadKB,cal:loadCal,lnk:loadLinks,hab:loadHabits,jou:loadJournal}[v]||function(){})();}
+async function loadLinks(){try{const items=(await (await fetch('/api/links',{headers:H()})).json()).items||[];const box=$('#lnklist');box.textContent='';
+  if(!items.length){box.appendChild(el('div','tv-empty','Nenhum link salvo.'));return;}
+  const g={};items.forEach(l=>{(g[l.category]=g[l.category]||[]).push(l);});
+  Object.keys(g).sort().forEach(cat=>{box.appendChild(el('div','tv-cat',cat));
+    g[cat].forEach(l=>{const row=el('div','tv-row');const t=el('div','txt');const a=document.createElement('a');a.href=l.url;a.target='_blank';a.rel='noopener';a.className='lnk';a.textContent=l.name;t.appendChild(a);t.appendChild(subline(l.url));
+      const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));dl.onclick=async ()=>{if(await confirmDialog('Remover link?'))recDel('/api/links/delete',l.id,loadLinks);};
+      row.appendChild(t);row.appendChild(dl);box.appendChild(row);});});window.lucide&&lucide.createIcons();}catch(e){}}
+$('#lnkform').onsubmit=async e=>{e.preventDefault();const name=$('#lnk-name').value.trim(),url=$('#lnk-url').value.trim(),cat=$('#lnk-cat').value.trim()||'geral';if(!name||!url)return;
+  await fetch('/api/links',{method:'POST',headers:H(),body:JSON.stringify({name,url,category:cat})});$('#lnk-name').value='';$('#lnk-url').value='';loadLinks();};
+async function loadHabits(){try{const items=(await (await fetch('/api/habits',{headers:H()})).json()).items||[];const box=$('#hablist');box.textContent='';
+  if(!items.length){box.appendChild(el('div','tv-empty','Nenhum hábito. Crie um acima.'));return;}
+  items.forEach(h=>{const row=el('div','tv-row');const done=el('button','tv-ic');done.title=h.done_today?'feito hoje':'marcar feito';done.appendChild(ficon(h.done_today?'check-check':'check'));if(h.done_today)done.style.color='var(--fg)';
+    done.onclick=async()=>{await fetch('/api/habits/done',{method:'POST',headers:H(),body:JSON.stringify({id:h.id})});loadHabits();};
+    const t=el('div','txt');t.appendChild(el('div','',h.name));t.appendChild(subline(h.total+' dias'+(h.done_today?' · feito hoje':'')));
+    const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));dl.onclick=async ()=>{if(await confirmDialog('Apagar hábito?'))recDel('/api/habits/delete',h.id,loadHabits);};
+    row.appendChild(done);row.appendChild(t);row.appendChild(dl);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
+$('#habform').onsubmit=async e=>{e.preventDefault();const name=$('#hab-name').value.trim();if(!name)return;await fetch('/api/habits',{method:'POST',headers:H(),body:JSON.stringify({name})});$('#hab-name').value='';loadHabits();};
+async function loadJournal(){try{const items=(await (await fetch('/api/journal',{headers:H()})).json()).items||[];const box=$('#joulist');box.textContent='';
+  if(!items.length){box.appendChild(el('div','tv-empty','Diário vazio.'));return;}
+  items.slice().reverse().forEach(j=>{const row=el('div','tv-row');const t=el('div','txt');t.appendChild(el('div','',j.text));if(j.created)t.appendChild(subline(j.created.slice(0,10)));
+    const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));dl.onclick=async ()=>{if(await confirmDialog('Apagar entrada?'))recDel('/api/journal/delete',j.id,loadJournal);};
+    row.appendChild(t);row.appendChild(dl);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
+$('#jouform').onsubmit=async e=>{e.preventDefault();const text=$('#jou-text').value.trim();if(!text)return;await fetch('/api/journal',{method:'POST',headers:H(),body:JSON.stringify({text})});$('#jou-text').value='';loadJournal();};
 let calY=null,calM=null;
 function ymd(y,m,d){return y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');}
 async function loadCal(){const now=new Date();if(calY==null){calY=now.getFullYear();calM=now.getMonth();}
@@ -639,7 +692,7 @@ async function loadExp(){try{const items=(await (await fetch('/api/expenses',{he
   const box=$('#explist');box.textContent='';if(!items.length){box.appendChild(el('div','tv-empty','Nenhum gasto registrado.'));return;}
   items.slice().reverse().forEach(x=>{const row=el('div','tv-row');const t=el('div','txt');t.appendChild(el('div','',x.description));t.appendChild(subline(x.category+' · '+((x.created||'').slice(0,10))));
     const val=el('div','');val.style.cssText='font-family:var(--mono);font-weight:600';val.textContent='R$'+x.amount.toFixed(0);
-    const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));dl.onclick=()=>{if(confirm('Apagar este gasto?'))recDel('/api/expenses/delete',x.id,loadExp);};
+    const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));dl.onclick=async ()=>{if(await confirmDialog('Apagar este gasto?'))recDel('/api/expenses/delete',x.id,loadExp);};
     row.appendChild(t);row.appendChild(val);row.appendChild(dl);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
 $('#expform').onsubmit=async e=>{e.preventDefault();const amount=$('#exp-amt').value.trim();if(!amount)return;
   await fetch('/api/expenses',{method:'POST',headers:H(),body:JSON.stringify({amount,description:$('#exp-desc').value.trim(),category:$('#exp-cat').value.trim()||'geral'})});
@@ -647,22 +700,23 @@ $('#expform').onsubmit=async e=>{e.preventDefault();const amount=$('#exp-amt').v
 async function loadRem(){try{const items=(await (await fetch('/api/reminders',{headers:H()})).json()).items||[];const box=$('#remlist');box.textContent='';
   if(!items.length){box.appendChild(el('div','tv-empty','Nenhum lembrete em aberto.'));return;}
   items.forEach(r=>{const row=el('div','tv-row');const t=el('div','txt');t.appendChild(el('div','',r.text));if(r.when_iso)t.appendChild(subline(r.when_iso.replace('T',' ').slice(0,16)+(r.recur?(' · '+r.recur):'')));
-    const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));dl.onclick=()=>{if(confirm('Cancelar este lembrete?'))recDel('/api/reminders/delete',r.id,loadRem);};
+    const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));dl.onclick=async ()=>{if(await confirmDialog('Cancelar este lembrete?'))recDel('/api/reminders/delete',r.id,loadRem);};
     row.appendChild(t);row.appendChild(dl);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
 $('#remform').onsubmit=async e=>{e.preventDefault();const text=$('#rem-text').value.trim();if(!text)return;
   await fetch('/api/reminders',{method:'POST',headers:H(),body:JSON.stringify({text,when:$('#rem-when').value||''})});$('#rem-text').value='';$('#rem-when').value='';loadRem();loadPanel();};
 async function loadMem(){try{const items=(await (await fetch('/api/facts',{headers:H()})).json()).items||[];const box=$('#memlist');box.textContent='';
   if(!items.length){box.appendChild(el('div','tv-empty','Nenhuma memória ainda.'));return;}
   items.forEach(f=>{const row=el('div','tv-row');row.appendChild(el('div','txt',f.fact));
-    const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));dl.onclick=()=>{if(confirm('Apagar esta memória?'))recDel('/api/facts/delete',f.id,loadMem);};
+    const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));dl.onclick=async ()=>{if(await confirmDialog('Apagar esta memória?'))recDel('/api/facts/delete',f.id,loadMem);};
     row.appendChild(dl);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
 $('#memform').onsubmit=async e=>{e.preventDefault();const text=$('#mem-text').value.trim();if(!text)return;
   await fetch('/api/facts',{method:'POST',headers:H(),body:JSON.stringify({text})});$('#mem-text').value='';loadMem();loadPanel();};
 async function loadKB(){try{const d=await (await fetch('/api/kb',{headers:H()})).json();const box=$('#kblist');box.textContent='';
   if(!d.sources||!d.sources.length){box.appendChild(el('div','tv-empty','Nada na base ainda. Adicione uma URL, arquivo ou texto acima.'));return;}
-  d.sources.forEach(s=>{const row=el('div','tv-row');const t=el('div','txt');t.appendChild(el('div','',s.source));
+  d.sources.forEach(s=>{const row=el('div','tv-row');const t=el('div','txt');
+    if(/^https?:\/\//.test(s.source)){const a=document.createElement('a');a.href=s.source;a.target='_blank';a.rel='noopener';a.className='lnk';a.textContent=s.source;t.appendChild(a);}else t.appendChild(el('div','',s.source));
     const sub=el('div','');sub.style.cssText='color:var(--subtle);font-family:var(--mono);font-size:11px;margin-top:2px';sub.textContent=s.chunks+' trechos';t.appendChild(sub);
-    const dl=el('button','tv-ic');dl.title='remover';dl.appendChild(ficon('trash-2'));dl.onclick=()=>{if(confirm('Remover "'+s.source+'" da base?'))kbDel(s.source);};
+    const dl=el('button','tv-ic');dl.title='remover';dl.appendChild(ficon('trash-2'));dl.onclick=async ()=>{if(await confirmDialog('Remover "'+s.source+'" da base?'))kbDel(s.source);};
     row.appendChild(t);row.appendChild(dl);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
 async function kbDel(source){await fetch('/api/kb/delete',{method:'POST',headers:H(),body:JSON.stringify({source})});loadKB();loadPanel();}
 $('#kb-urlf').onsubmit=e=>{e.preventDefault();const url=$('#kb-url').value.trim();if(!url)return;
@@ -691,7 +745,7 @@ async function loadTasks(){try{const d=await (await fetch('/api/tasks',{headers:
       const done=el('button','tv-ic');done.title='concluir';done.appendChild(ficon('check'));done.onclick=()=>taskAction('complete',t.id);
       const txt=el('div','txt');const parts=t.text.split(/\s+(?=\d+[.)]\s)/);if(parts.length>1)parts.forEach(p=>txt.appendChild(el('div','',p)));else txt.textContent=t.text;
       const ed=el('button','tv-ic');ed.title='editar';ed.appendChild(ficon('pencil'));ed.onclick=()=>editTask(t);
-      const dl=el('button','tv-ic');dl.title='apagar';dl.appendChild(ficon('trash-2'));dl.onclick=()=>{if(confirm('Apagar esta tarefa?'))taskAction('delete',t.id);};
+      const dl=el('button','tv-ic');dl.title='apagar';dl.appendChild(ficon('trash-2'));dl.onclick=async ()=>{if(await confirmDialog('Apagar esta tarefa?'))taskAction('delete',t.id);};
       row.appendChild(done);row.appendChild(txt);row.appendChild(ed);row.appendChild(dl);box.appendChild(row);});});
   window.lucide&&lucide.createIcons();}catch(e){}}
 async function taskAction(op,id){await fetch('/api/tasks/'+op,{method:'POST',headers:H(),body:JSON.stringify({id})});loadTasks();loadPanel();}
@@ -707,10 +761,10 @@ function filterRows(box,q){if(!box)return;q=(q||'').trim().toLowerCase();let cur
     if(k.classList.contains('tv-cat')){if(cur)cur.style.display=shown?'':'none';cur=k;shown=0;}
     else if(k.classList.contains('tv-row')){const m=k.textContent.toLowerCase().includes(q);k.style.display=m?'':'none';if(m)shown++;}
   });if(cur)cur.style.display=shown?'':'none';}
-[['tasks-search','tasklist'],['exp-search','explist'],['rem-search','remlist'],['mem-search','memlist'],['kb-search','kblist']].forEach(p=>{const inp=document.getElementById(p[0]);if(inp)inp.oninput=()=>filterRows(document.getElementById(p[1]),inp.value);});
+[['tasks-search','tasklist'],['exp-search','explist'],['rem-search','remlist'],['mem-search','memlist'],['kb-search','kblist'],['lnk-search','lnklist'],['hab-search','hablist'],['jou-search','joulist']].forEach(p=>{const inp=document.getElementById(p[0]);if(inp)inp.oninput=()=>filterRows(document.getElementById(p[1]),inp.value);});
 // command palette (Ctrl/Cmd+K)
 const CK=$('#cmdk'),CKI=$('#ck-input'),CKL=$('#ck-list');let ckItems=[],ckSel=0;
-function ckBuild(){const nav=[['Conversa',()=>switchView('chat')],['Tarefas',()=>switchView('tasks')],['Gastos',()=>switchView('exp')],['Lembretes',()=>switchView('rem')],['Agenda',()=>switchView('cal')],['Memórias',()=>switchView('mem')],['Base',()=>switchView('kb')],['Pomodoro',()=>openPomo(25)],['Voz ao vivo',()=>$('#vcopen').click()],['Chaves de API',()=>openKeys()]];
+function ckBuild(){const nav=[['Conversa',()=>switchView('chat')],['Tarefas',()=>switchView('tasks')],['Gastos',()=>switchView('exp')],['Lembretes',()=>switchView('rem')],['Agenda',()=>switchView('cal')],['Memórias',()=>switchView('mem')],['Links',()=>switchView('lnk')],['Hábitos',()=>switchView('hab')],['Diário',()=>switchView('jou')],['Base',()=>switchView('kb')],['Pomodoro',()=>openPomo(25)],['Voz ao vivo',()=>$('#vcopen').click()],['Chaves de API',()=>openKeys()]];
   return nav.map(n=>({k:'ir',label:n[0],desc:'abrir',run:n[1]})).concat((COMMANDS||[]).map(c=>({k:'/'+c.name,label:c.name,desc:c.desc,run:()=>runCmd(c.name)})));}
 function ckRender(q){ckItems=ckBuild().filter(i=>(i.label+' '+i.k+' '+i.desc).toLowerCase().includes((q||'').toLowerCase())).slice(0,40);ckSel=0;CKL.textContent='';
   ckItems.forEach((i,ix)=>{const r=el('div','ck-item'+(ix===0?' sel':''));r.appendChild(el('span','ck-k',i.k));r.appendChild(el('span','',i.label));r.appendChild(el('span','ck-d',i.desc||''));r.onclick=()=>{ckClose();i.run();};CKL.appendChild(r);});}
@@ -1260,6 +1314,81 @@ def create_app(config: Config, brain: Brain | None = None):
                 except Exception:
                     pass
         return {"ok": bool(changed), "changed": changed, "keys": _keys_state()}
+
+    # --- Links / Habits / Journal CRUD -------------------------------------
+    @app.get("/api/links")
+    async def links_list(request: Request):
+        _check(request.headers.get("authorization"))
+        return {"items": memory.list_links(owner)}
+
+    @app.post("/api/links")
+    async def links_create(request: Request):
+        _check(request.headers.get("authorization"))
+        d = await _body(request)
+        name = (d.get("name") or "").strip()
+        url = (d.get("url") or "").strip()
+        cat = (d.get("category") or "geral").strip() or "geral"
+        if name and url:
+            memory.add_link(owner, cat, name, url)
+        return {"ok": bool(name and url)}
+
+    @app.post("/api/links/delete")
+    async def links_del(request: Request):
+        _check(request.headers.get("authorization"))
+        memory.delete_link(owner, int((await _body(request)).get("id") or 0))
+        return {"ok": True}
+
+    @app.get("/api/habits")
+    async def habits_list(request: Request):
+        _check(request.headers.get("authorization"))
+        from datetime import date
+        today = date.today().isoformat()
+        out = []
+        for h in memory.list_habits(owner):
+            days = memory.habit_days(h["id"])
+            out.append({"id": h["id"], "name": h["name"],
+                        "done_today": today in days, "total": len(days)})
+        return {"items": out}
+
+    @app.post("/api/habits")
+    async def habits_create(request: Request):
+        _check(request.headers.get("authorization"))
+        name = ((await _body(request)).get("name") or "").strip()
+        if name:
+            memory.add_habit(owner, name)
+        return {"ok": bool(name)}
+
+    @app.post("/api/habits/done")
+    async def habits_done(request: Request):
+        _check(request.headers.get("authorization"))
+        from datetime import date
+        memory.log_habit(int((await _body(request)).get("id") or 0), date.today().isoformat())
+        return {"ok": True}
+
+    @app.post("/api/habits/delete")
+    async def habits_del(request: Request):
+        _check(request.headers.get("authorization"))
+        memory.delete_habit(owner, int((await _body(request)).get("id") or 0))
+        return {"ok": True}
+
+    @app.get("/api/journal")
+    async def journal_list(request: Request):
+        _check(request.headers.get("authorization"))
+        return {"items": memory.recent_journal(owner, 60)}
+
+    @app.post("/api/journal")
+    async def journal_create(request: Request):
+        _check(request.headers.get("authorization"))
+        text = ((await _body(request)).get("text") or "").strip()
+        if text:
+            memory.add_journal(owner, text)
+        return {"ok": bool(text)}
+
+    @app.post("/api/journal/delete")
+    async def journal_del(request: Request):
+        _check(request.headers.get("authorization"))
+        memory.delete_journal(owner, int((await _body(request)).get("id") or 0))
+        return {"ok": True}
 
     @app.get("/api/panel")
     async def panel(request: Request):
