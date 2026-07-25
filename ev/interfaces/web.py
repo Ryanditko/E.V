@@ -724,16 +724,19 @@ window.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key.toLowerCa
 setInterval(()=>{$('#s-clock').textContent=new Date().toTimeString().slice(0,8);},1000);
 const GREETING='Bem-vindo de volta, Ryan. Sistemas online, tudo pronto pra você.';
 async function validate(tok){try{return (await fetch('/api/panel',{headers:{'Authorization':'Bearer '+tok}})).status===200;}catch(e){return false;}}
-async function welcome(){$('#welcome-txt').textContent=GREETING;$('#welcome').classList.add('on');
-  try{const r=await fetch('/api/greeting',{headers:H()});if(r.ok){const b=await r.blob();if(b.size>0)new Audio(URL.createObjectURL(b)).play().catch(()=>{});}}catch(e){}
-  await new Promise(r=>setTimeout(r,3400));$('#welcome').classList.remove('on');}
+function welcome(){$('#welcome-txt').textContent=GREETING;$('#welcome').classList.add('on');window.lucide&&lucide.createIcons();
+  fetch('/api/greeting',{headers:H()}).then(r=>r.ok?r.blob():null).then(b=>{if(b&&b.size>0)new Audio(URL.createObjectURL(b)).play().catch(()=>{});}).catch(()=>{});
+  setTimeout(()=>$('#welcome').classList.remove('on'),3200);}
 async function startApp(){try{COMMANDS=(await (await fetch('/api/commands',{headers:H()})).json()).commands;}catch(e){}
   scopeEl.textContent='Conversa · '+thread;await loadFolders();await loadHistory();await loadConfig();loadPanel();window.lucide&&lucide.createIcons();}
-async function doLogin(){const inp=$('#login-token');let tok=token||(inp?inp.value.trim():'');if(!tok){$('#login-err').textContent='Informe o token.';if(inp)inp.style.display='block';return;}
+function enter(){$('#login').classList.remove('on');startApp();welcome();}
+async function doLogin(){const inp=$('#login-token');const tok=((inp&&inp.value.trim())||token);if(!tok){$('#login-err').textContent='Informe o token.';if(inp)inp.style.display='block';return;}
   $('#login-err').textContent='verificando...';if(!(await validate(tok))){$('#login-err').textContent='Token inválido.';token='';localStorage.removeItem('ev_token');if(inp)inp.style.display='block';return;}
-  token=tok;localStorage.setItem('ev_token',tok);$('#login').classList.remove('on');await welcome();startApp();}
-(function(){const inp=$('#login-token');if(token&&inp)inp.style.display='none';$('#login').classList.add('on');window.lucide&&lucide.createIcons();
-  $('#login-btn').onclick=doLogin;if(inp)inp.addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});setTimeout(()=>{$('#login-btn').focus();},50);})();
+  token=tok;localStorage.setItem('ev_token',tok);enter();}
+(async function boot(){
+  if(token && await validate(token)){enter();return;}          // já logado -> entra direto
+  token='';const inp=$('#login-token');if(inp)inp.style.display='block';$('#login').classList.add('on');window.lucide&&lucide.createIcons();
+  $('#login-btn').onclick=doLogin;if(inp)inp.addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});setTimeout(()=>{$('#login-btn').focus();},60);})();
 </script></body></html>"""
 
 
