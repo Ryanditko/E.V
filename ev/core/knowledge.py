@@ -53,13 +53,15 @@ def extract_text(data: bytes, filename: str) -> str:
 
 
 def ingest_file(
-    data: bytes, filename: str, config, memory: Memory, user_id: str
+    data: bytes, filename: str, config, memory: Memory, user_id: str,
+    source: str | None = None,
 ) -> tuple[int, bool]:
-    """Extract text from a supported file and ingest it. Returns (stored, truncated)."""
+    """Extract text from a supported file and ingest it under `source` (a friendly
+    name) or the filename. Returns (stored, truncated)."""
     text = extract_text(data, filename)
     if not text.strip():
         return 0, False
-    return ingest_text(text, filename, config, memory, user_id)
+    return ingest_text(text, source or filename, config, memory, user_id)
 
 
 def _chunk(text: str, size: int = _CHUNK_CHARS) -> list[str]:
@@ -111,9 +113,10 @@ def _html_to_text(html: str) -> str:
 
 
 def ingest_url(
-    url: str, config, memory: Memory, user_id: str
+    url: str, config, memory: Memory, user_id: str, source: str | None = None
 ) -> tuple[int, bool]:
-    """Fetch a web page, extract its text and ingest it. Returns (stored, truncated)."""
+    """Fetch a web page, extract its text and ingest it under `source` (a friendly
+    name) or the URL. Returns (stored, truncated)."""
     import httpx
 
     resp = httpx.get(
@@ -124,4 +127,4 @@ def ingest_url(
     text = _html_to_text(resp.text)
     if not text:
         return 0, False
-    return ingest_text(text, url, config, memory, user_id)
+    return ingest_text(text, source or url, config, memory, user_id)

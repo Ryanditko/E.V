@@ -116,6 +116,12 @@ body.listening .bigcore .bdot{animation:pulse .9s infinite}
 #pomo-pip{margin-top:4px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:var(--muted);background:none;border:1px solid var(--line);border-radius:999px;padding:9px 16px;cursor:pointer}
 #pomo-pip:hover{color:var(--fg);border-color:var(--line-2)}
 #pomo-x{position:absolute;top:20px;right:24px;font-family:var(--mono);font-size:12px;letter-spacing:.1em;color:var(--muted);background:none;border:1px solid var(--line);border-radius:999px;padding:8px 14px;cursor:pointer}
+#login,#welcome{position:fixed;inset:0;z-index:50;background:radial-gradient(80% 60% at 50% 30%,#111,#050505 82%);display:none;flex-direction:column;align-items:center;justify-content:center;gap:22px}
+#login.on,#welcome.on{display:flex}
+#login-token{background:var(--surface);border:1px solid var(--line-2);border-radius:12px;padding:13px 18px;color:var(--fg);font:inherit;font-size:15px;width:min(320px,80vw);text-align:center;outline:none}
+#login-token:focus{border-color:var(--fg)}
+#login-btn{min-width:170px}#login-err{font-family:var(--mono);font-size:12px;color:var(--muted);min-height:16px}
+#welcome-txt{font-family:var(--disp);font-size:26px;text-align:center;max-width:600px;padding:0 24px;line-height:1.4;animation:rise .5s}
 #pomo-mini{position:fixed;top:20px;right:20px;z-index:26;width:186px;background:var(--panel);border:1px solid var(--line-2);border-radius:14px;box-shadow:0 20px 60px -24px #000;display:none;flex-direction:column;overflow:hidden}
 .pm-head{display:flex;align-items:center;gap:6px;padding:7px 10px;border-bottom:1px solid var(--line);cursor:move;user-select:none}
 .pm-grip{color:var(--subtle);font-size:12px;letter-spacing:-3px}
@@ -363,9 +369,19 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
 </div>
 <div id="modal"></div>
 <div id="cmdk"><div class="ck-card"><input id="ck-input" placeholder="Buscar ação ou comando...  (Esc pra fechar)" autocomplete="off"><div id="ck-list"></div></div></div>
+<div id="login">
+  <div class="bigcore"><div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div><div class="arc"></div><div class="bdot"></div></div>
+  <div class="brand" style="text-align:center"><div class="name" style="font-size:38px">E.V.</div><div class="eyebrow">Personal Intelligence</div></div>
+  <input id="login-token" type="password" placeholder="Token de acesso" autocomplete="off">
+  <button id="login-btn" class="mbtn">Entrar</button>
+  <div id="login-err"></div>
+</div>
+<div id="welcome">
+  <div class="bigcore"><div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div><div class="arc"></div><div class="bdot"></div></div>
+  <div id="welcome-txt"></div>
+</div>
 <script>
-let token=localStorage.getItem('ev_token');
-if(!token){token=prompt('Token de acesso da E.V.:')||'';localStorage.setItem('ev_token',token);}
+let token=localStorage.getItem('ev_token')||'';
 let voiceOn=localStorage.getItem('ev_voice')!=='off';
 let thread=localStorage.getItem('ev_thread')||'geral';
 let COMMANDS=[];
@@ -643,13 +659,19 @@ async function loadKB(){try{const d=await (await fetch('/api/kb',{headers:H()}))
     const dl=el('button','tv-ic');dl.title='remover';dl.appendChild(ficon('trash-2'));dl.onclick=()=>{if(confirm('Remover "'+s.source+'" da base?'))kbDel(s.source);};
     row.appendChild(t);row.appendChild(dl);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
 async function kbDel(source){await fetch('/api/kb/delete',{method:'POST',headers:H(),body:JSON.stringify({source})});loadKB();loadPanel();}
-$('#kb-urlf').onsubmit=async e=>{e.preventDefault();const url=$('#kb-url').value.trim();if(!url)return;$('#kb-fmsg').textContent='indexando...';
-  const j=await (await fetch('/api/kb/url',{method:'POST',headers:H(),body:JSON.stringify({url})})).json();$('#kb-fmsg').textContent=j.msg||'';$('#kb-url').value='';loadKB();loadPanel();};
+$('#kb-urlf').onsubmit=e=>{e.preventDefault();const url=$('#kb-url').value.trim();if(!url)return;
+  const def=url.replace(/^https?:\/\//,'').replace(/\/$/,'').slice(0,50);
+  openForm('Indexar página',[{key:'name',label:'Nome (pra identificar)',value:def},{key:'url',label:'URL',value:url}],async v=>{
+    if(!v.url)return;$('#kb-fmsg').textContent='indexando...';
+    const j=await (await fetch('/api/kb/url',{method:'POST',headers:H(),body:JSON.stringify({url:v.url,name:v.name})})).json();
+    $('#kb-fmsg').textContent=j.msg||'';$('#kb-url').value='';loadKB();loadPanel();});};
 $('#kb-textf').onsubmit=async e=>{e.preventDefault();const title=$('#kb-title').value.trim()||'Nota';const text=$('#kb-text').value.trim();if(!text)return;$('#kb-fmsg').textContent='indexando...';
   const j=await (await fetch('/api/kb/text',{method:'POST',headers:H(),body:JSON.stringify({title,text})})).json();$('#kb-fmsg').textContent=j.msg||'';$('#kb-title').value='';$('#kb-text').value='';loadKB();loadPanel();};
-$('#kb-file').onchange=async e=>{const f=e.target.files[0];if(!f)return;$('#kb-fmsg').textContent='enviando '+f.name+'...';const fd=new FormData();fd.append('file',f);
-  try{const j=await (await fetch('/api/kb/upload',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd})).json();$('#kb-fmsg').textContent=j.msg||'ok';}catch(x){$('#kb-fmsg').textContent='erro no upload';}
-  e.target.value='';loadKB();loadPanel();};
+$('#kb-file').onchange=e=>{const f=e.target.files[0];if(!f)return;e.target.value='';
+  openForm('Nomear arquivo',[{key:'name',label:'Nome (pra identificar)',value:f.name}],async v=>{
+    $('#kb-fmsg').textContent='enviando...';const fd=new FormData();fd.append('file',f);if(v.name)fd.append('title',v.name);
+    try{const j=await (await fetch('/api/kb/upload',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd})).json();$('#kb-fmsg').textContent=j.msg||'ok';}catch(x){$('#kb-fmsg').textContent='erro no upload';}
+    loadKB();loadPanel();});};
 async function loadTasks(){try{const d=await (await fetch('/api/tasks',{headers:H()})).json();const box=$('#tasklist');box.textContent='';
   window._cats=[...new Set((d.tasks||[]).map(t=>t.category))];
   const g={};(d.tasks||[]).forEach(t=>{(g[t.category]=g[t.category]||[]).push(t);});
@@ -694,9 +716,18 @@ CKI.addEventListener('keydown',e=>{if(e.key==='ArrowDown'){e.preventDefault();ck
 CK.onclick=e=>{if(e.target===CK)ckClose();};
 window.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();CK.classList.contains('on')?ckClose():ckOpen();}});
 setInterval(()=>{$('#s-clock').textContent=new Date().toTimeString().slice(0,8);},1000);
-(async()=>{try{COMMANDS=(await (await fetch('/api/commands',{headers:H()})).json()).commands;}catch(e){}
-  scopeEl.textContent='Conversa · '+thread;await loadFolders();await loadHistory();await loadConfig();loadPanel();
-  window.lucide&&lucide.createIcons();})();
+const GREETING='Bem-vindo de volta, Ryan. Sistemas online, tudo pronto pra você.';
+async function validate(tok){try{return (await fetch('/api/panel',{headers:{'Authorization':'Bearer '+tok}})).status===200;}catch(e){return false;}}
+async function welcome(){$('#welcome-txt').textContent=GREETING;$('#welcome').classList.add('on');
+  try{const r=await fetch('/api/greeting',{headers:H()});if(r.ok){const b=await r.blob();if(b.size>0)new Audio(URL.createObjectURL(b)).play().catch(()=>{});}}catch(e){}
+  await new Promise(r=>setTimeout(r,3400));$('#welcome').classList.remove('on');}
+async function startApp(){try{COMMANDS=(await (await fetch('/api/commands',{headers:H()})).json()).commands;}catch(e){}
+  scopeEl.textContent='Conversa · '+thread;await loadFolders();await loadHistory();await loadConfig();loadPanel();window.lucide&&lucide.createIcons();}
+async function doLogin(){const inp=$('#login-token');let tok=token||(inp?inp.value.trim():'');if(!tok){$('#login-err').textContent='Informe o token.';if(inp)inp.style.display='block';return;}
+  $('#login-err').textContent='verificando...';if(!(await validate(tok))){$('#login-err').textContent='Token inválido.';token='';localStorage.removeItem('ev_token');if(inp)inp.style.display='block';return;}
+  token=tok;localStorage.setItem('ev_token',tok);$('#login').classList.remove('on');await welcome();startApp();}
+(function(){const inp=$('#login-token');if(token&&inp)inp.style.display='none';$('#login').classList.add('on');window.lucide&&lucide.createIcons();
+  $('#login-btn').onclick=doLogin;if(inp)inp.addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});setTimeout(()=>{$('#login-btn').focus();},50);})();
 </script></body></html>"""
 
 
@@ -838,6 +869,23 @@ def create_app(config: Config, brain: Brain | None = None):
     @app.get("/favicon.ico")
     async def favicon_ico():
         return Response(content=_FAVICON, media_type="image/svg+xml")
+
+    _greet = []  # cache the welcome audio (edge-tts, no LLM) for the server's life
+
+    @app.get("/api/greeting")
+    async def greeting(request: Request):
+        from fastapi import Response as R
+        _check(request.headers.get("authorization"))
+        if not _greet:
+            phrase = "Bem-vindo de volta, Ryan. Sistemas online, tudo pronto pra você."
+            try:
+                mp3 = await voice_mod.synthesize(
+                    phrase, config.voice, rate=config.voice_rate,
+                    pitch=config.voice_pitch, fixes=config.voice_fixes)
+                _greet.append(mp3)
+            except Exception:
+                _greet.append(b"")
+        return R(content=_greet[0], media_type="audio/mpeg")
 
     @app.get("/api/health")
     async def health_ep():
@@ -1032,12 +1080,14 @@ def create_app(config: Config, brain: Brain | None = None):
     @app.post("/api/kb/url")
     async def kb_url(request: Request):
         _check(request.headers.get("authorization"))
-        url = ((await _body(request)).get("url") or "").strip()
+        d = await _body(request)
+        url = (d.get("url") or "").strip()
+        name = (d.get("name") or "").strip() or None
         if not url.lower().startswith("http"):
             return {"ok": False, "msg": "Informe uma URL válida (http...)."}
         try:
             stored, trunc = await asyncio.to_thread(
-                knowledge.ingest_url, url, config, memory, owner)
+                knowledge.ingest_url, url, config, memory, owner, name)
             msg = f"{stored} trechos indexados" + (" (parcial)" if trunc else "") if stored else "Não achei texto útil."
             return {"ok": stored > 0, "msg": msg, "sources": memory.list_sources(owner)}
         except Exception as e:
@@ -1064,14 +1114,16 @@ def create_app(config: Config, brain: Brain | None = None):
         f = form.get("file")
         if not isinstance(f, UploadFile):
             return {"ok": False, "msg": "Nenhum arquivo enviado."}
-        name = f.filename or "arquivo"
-        if not name.lower().endswith(knowledge.READABLE_EXTS):
+        fname = f.filename or "arquivo"
+        if not fname.lower().endswith(knowledge.READABLE_EXTS):
             return {"ok": False, "msg": "Só PDF, Word (.docx) ou texto (.txt/.md)."}
+        title = (form.get("title") or "").strip() or None
         data = await f.read()
         try:
             stored, trunc = await asyncio.to_thread(
-                knowledge.ingest_file, data, name, config, memory, owner)
-            msg = f"'{name}': {stored} trechos" if stored else "Sem texto extraível."
+                knowledge.ingest_file, data, fname, config, memory, owner, title)
+            label = title or fname
+            msg = f"'{label}': {stored} trechos" if stored else "Sem texto extraível."
             return {"ok": stored > 0, "msg": msg, "sources": memory.list_sources(owner)}
         except Exception as e:
             return {"ok": False, "msg": str(e)[:120]}
