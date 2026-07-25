@@ -122,9 +122,16 @@ body.listening .bigcore .bdot{animation:pulse .9s infinite}
 .tab{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--muted);border:none;background:transparent;border-radius:8px;padding:7px 13px;cursor:pointer}
 .tab.on{background:var(--fg);color:var(--ink)}
 #chatview{flex:1;display:flex;flex-direction:column;min-height:0}
-#taskview,#kbview{flex:1;min-height:0;overflow:auto;padding:24px;display:none}
+#taskview,#kbview,#expview,#remview,#memview{flex:1;min-height:0;overflow:auto;padding:24px;display:none}
 .kb-add{max-width:720px;display:flex;flex-direction:column;gap:14px;margin-bottom:22px}
 #kb-text{min-height:84px}
+#expchart{max-width:720px;margin-bottom:10px}
+.bar-row{display:flex;align-items:center;gap:10px;margin-bottom:7px}
+.bar-lbl{width:120px;color:var(--muted);font-family:var(--mono);font-size:12px;text-align:right;flex:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar-track{flex:1;height:10px;background:var(--surface);border-radius:6px;overflow:hidden}
+.bar-fill{height:100%;background:var(--fg);border-radius:6px;transition:width .5s}
+.bar-val{width:80px;font-family:var(--mono);font-size:12px;flex:none}
+.tv-cat.drop{color:var(--fg);background:var(--elev);border-radius:6px}
 .tv-h{font-family:var(--disp);font-weight:600;font-size:22px;margin-bottom:18px}
 .tv-form{display:flex;gap:8px;margin-bottom:22px;max-width:720px}
 .tv-form input{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:12px 15px;color:var(--fg);font:inherit;font-size:15px}
@@ -208,6 +215,15 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
 .mbar{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
 .mbtn{background:var(--fg);color:var(--ink);border:none;border-radius:10px;padding:9px 16px;cursor:pointer;font-weight:500}
 .mbtn2{background:var(--surface);color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:9px 16px;cursor:pointer}
+#cmdk{position:fixed;inset:0;z-index:40;background:rgba(4,4,4,.6);display:none;align-items:flex-start;justify-content:center;padding-top:12vh}
+#cmdk.on{display:flex}
+.ck-card{width:min(560px,92vw);background:var(--panel);border:1px solid var(--line-2);border-radius:16px;box-shadow:0 30px 80px -30px #000;overflow:hidden}
+#ck-input{width:100%;background:transparent;border:none;border-bottom:1px solid var(--line);color:var(--fg);font:inherit;font-size:16px;padding:16px 18px;outline:none}
+#ck-list{max-height:52vh;overflow:auto}
+.ck-item{display:flex;gap:12px;align-items:center;padding:11px 18px;cursor:pointer;font-size:14px;border-top:1px solid var(--line)}
+.ck-item:first-child{border-top:none}.ck-item.sel,.ck-item:hover{background:var(--elev)}
+.ck-item .ck-k{font-family:var(--mono);font-size:12px;color:var(--muted);min-width:104px}
+.ck-item .ck-d{color:var(--subtle);font-size:12px;margin-left:auto}
 @media(max-width:980px){#app{grid-template-columns:1fr}.rail{display:none}#slash{left:18px;right:18px}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important}}
 </style></head><body>
@@ -227,7 +243,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
   </aside>
   <main id="center">
     <div class="topbar">
-      <div class="tabs"><button class="tab on" data-view="chat">Conversa</button><button class="tab" data-view="tasks">Tarefas</button><button class="tab" data-view="kb">Base</button></div>
+      <div class="tabs"><button class="tab on" data-view="chat">Conversa</button><button class="tab" data-view="tasks">Tarefas</button><button class="tab" data-view="exp">Gastos</button><button class="tab" data-view="rem">Lembretes</button><button class="tab" data-view="mem">Memórias</button><button class="tab" data-view="kb">Base</button></div>
       <span class="eyebrow" id="scope">geral</span><span style="flex:1"></span>
       <button class="tbtn" id="vcopen">◉ FALAR</button>
       <button class="tbtn" id="term">TERMINAL</button><button class="tbtn on" id="voz">VOZ</button></div>
@@ -256,6 +272,25 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
       </div>
       <div class="tv-cat">Documentos indexados</div>
       <div id="kblist"></div>
+    </div>
+    <div id="expview">
+      <div class="tv-h">Gastos</div>
+      <form id="expform" class="tv-form"><input id="exp-amt" placeholder="Valor" style="width:110px;flex:none"><input id="exp-desc" placeholder="Descrição"><input id="exp-cat" placeholder="categoria" value="geral" style="width:140px;flex:none"><button class="mbtn" type="submit">Registrar</button></form>
+      <div id="expchart"></div>
+      <div class="tv-cat">Últimos 60 dias</div>
+      <div id="explist"></div>
+    </div>
+    <div id="remview">
+      <div class="tv-h">Lembretes</div>
+      <form id="remform" class="tv-form"><input id="rem-text" placeholder="Lembrar de..."><input id="rem-when" type="datetime-local" style="flex:none"><button class="mbtn" type="submit">Criar</button></form>
+      <div class="tv-cat">Em aberto</div>
+      <div id="remlist"></div>
+    </div>
+    <div id="memview">
+      <div class="tv-h">Memórias</div>
+      <form id="memform" class="tv-form"><input id="mem-text" placeholder="Algo que a E.V. deve lembrar sobre você..."><button class="mbtn" type="submit">Salvar</button></form>
+      <div class="tv-cat">O que a E.V. sabe</div>
+      <div id="memlist"></div>
     </div>
   </main>
   <aside id="right" class="rail">
@@ -287,6 +322,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
   <div class="pm-body"></div>
 </div>
 <div id="modal"></div>
+<div id="cmdk"><div class="ck-card"><input id="ck-input" placeholder="Buscar ação ou comando...  (Esc pra fechar)" autocomplete="off"><div id="ck-list"></div></div></div>
 <script>
 let token=localStorage.getItem('ev_token');
 if(!token){token=prompt('Token de acesso da E.V.:')||'';localStorage.setItem('ev_token',token);}
@@ -352,7 +388,8 @@ const CAT={tarefas:['Tarefas','list-checks'],lembretes:['Lembretes','alarm-clock
 const SM={tasks:['Tarefas','list-checks','tarefas'],reminders:['Lembretes','alarm-clock','lembretes'],expenses:['Gastos · mês','wallet','gastos'],memories:['Memórias','brain','memorias'],kb:['Base','book-open','kb']};
 let config={actions:['buscar','noticias','clima','relatorio','status','semana'],stats:['tasks','reminders','expenses','memories','kb']};let _counts={};
 function renderStats(){const box=$('#stats');box.textContent='';config.stats.forEach(k=>{const m=SM[k];if(!m)return;
-  const s=el('div','stat');s.onclick=()=>{if(k==='tasks')switchView('tasks');else if(k==='kb')switchView('kb');else runCmd(m[2]);};const lbl=el('span','lbl');lbl.appendChild(ficon(m[1]));lbl.appendChild(document.createTextNode(m[0]));
+  const VMAP={tasks:'tasks',reminders:'rem',expenses:'exp',memories:'mem',kb:'kb'};
+  const s=el('div','stat');s.onclick=()=>{if(VMAP[k])switchView(VMAP[k]);else runCmd(m[2]);};const lbl=el('span','lbl');lbl.appendChild(ficon(m[1]));lbl.appendChild(document.createTextNode(m[0]));
   const num=el('span','num');if(k==='expenses'){const rs=el('span','','R$');rs.style.cssText='font-size:12px;color:var(--subtle);margin-right:2px';num.appendChild(rs);}
   num.appendChild(document.createTextNode(_counts[k]!=null?_counts[k]:'0'));s.appendChild(lbl);s.appendChild(num);box.appendChild(s);});window.lucide&&lucide.createIcons();}
 function renderActs(){const box=$('#acts');box.textContent='';config.actions.forEach(cmd=>{const m=CAT[cmd]||[cmd,'chevron-right'];
@@ -499,9 +536,39 @@ if(SR){const vr=new (window.SpeechRecognition||window.webkitSpeechRecognition)()
   vr.onend=()=>vcMic.classList.remove('rec');}
 // view tabs (Conversa / Tarefas)
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>switchView(t.dataset.view));
-function switchView(v){document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.view===v));
-  $('#chatview').style.display=v==='chat'?'flex':'none';$('#taskview').style.display=v==='tasks'?'block':'none';$('#kbview').style.display=v==='kb'?'block':'none';
-  if(v==='tasks')loadTasks();if(v==='kb')loadKB();}
+const VIEWS={chat:'#chatview',tasks:'#taskview',exp:'#expview',rem:'#remview',mem:'#memview',kb:'#kbview'};
+function switchView(v){if(!VIEWS[v])v='chat';document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.view===v));
+  Object.entries(VIEWS).forEach(([k,sel])=>{const el2=$(sel);if(el2)el2.style.display=(k===v)?(k==='chat'?'flex':'block'):'none';});
+  ({tasks:loadTasks,exp:loadExp,rem:loadRem,mem:loadMem,kb:loadKB}[v]||function(){})();}
+async function recDel(url,id,reload){await fetch(url,{method:'POST',headers:H(),body:JSON.stringify({id})});reload();loadPanel();}
+function subline(txt){const d=el('div','',txt);d.style.cssText='color:var(--subtle);font-family:var(--mono);font-size:11px;margin-top:2px';return d;}
+async function loadExp(){try{const items=(await (await fetch('/api/expenses',{headers:H()})).json()).items||[];
+  const by={};let tot=0;items.forEach(x=>{by[x.category]=(by[x.category]||0)+x.amount;tot+=x.amount;});
+  const ch=$('#expchart');ch.textContent='';const cats=Object.entries(by).sort((a,b)=>b[1]-a[1]);const mx=Math.max(1,...cats.map(c=>c[1]));
+  cats.forEach(([c,v])=>{const row=el('div','bar-row');row.appendChild(el('div','bar-lbl',c));const tr=el('div','bar-track');const fl=el('div','bar-fill');fl.style.width=(v/mx*100)+'%';tr.appendChild(fl);row.appendChild(tr);row.appendChild(el('div','bar-val','R$'+v.toFixed(0)));ch.appendChild(row);});
+  if(cats.length)ch.appendChild(el('div','tv-empty','Total (60d): R$'+tot.toFixed(2)));
+  const box=$('#explist');box.textContent='';if(!items.length){box.appendChild(el('div','tv-empty','Nenhum gasto registrado.'));return;}
+  items.slice().reverse().forEach(x=>{const row=el('div','tv-row');const t=el('div','txt');t.appendChild(el('div','',x.description));t.appendChild(subline(x.category+' · '+((x.created||'').slice(0,10))));
+    const val=el('div','');val.style.cssText='font-family:var(--mono);font-weight:600';val.textContent='R$'+x.amount.toFixed(0);
+    const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));dl.onclick=()=>{if(confirm('Apagar este gasto?'))recDel('/api/expenses/delete',x.id,loadExp);};
+    row.appendChild(t);row.appendChild(val);row.appendChild(dl);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
+$('#expform').onsubmit=async e=>{e.preventDefault();const amount=$('#exp-amt').value.trim();if(!amount)return;
+  await fetch('/api/expenses',{method:'POST',headers:H(),body:JSON.stringify({amount,description:$('#exp-desc').value.trim(),category:$('#exp-cat').value.trim()||'geral'})});
+  $('#exp-amt').value='';$('#exp-desc').value='';loadExp();loadPanel();};
+async function loadRem(){try{const items=(await (await fetch('/api/reminders',{headers:H()})).json()).items||[];const box=$('#remlist');box.textContent='';
+  if(!items.length){box.appendChild(el('div','tv-empty','Nenhum lembrete em aberto.'));return;}
+  items.forEach(r=>{const row=el('div','tv-row');const t=el('div','txt');t.appendChild(el('div','',r.text));if(r.when_iso)t.appendChild(subline(r.when_iso.replace('T',' ').slice(0,16)+(r.recur?(' · '+r.recur):'')));
+    const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));dl.onclick=()=>{if(confirm('Cancelar este lembrete?'))recDel('/api/reminders/delete',r.id,loadRem);};
+    row.appendChild(t);row.appendChild(dl);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
+$('#remform').onsubmit=async e=>{e.preventDefault();const text=$('#rem-text').value.trim();if(!text)return;
+  await fetch('/api/reminders',{method:'POST',headers:H(),body:JSON.stringify({text,when:$('#rem-when').value||''})});$('#rem-text').value='';$('#rem-when').value='';loadRem();loadPanel();};
+async function loadMem(){try{const items=(await (await fetch('/api/facts',{headers:H()})).json()).items||[];const box=$('#memlist');box.textContent='';
+  if(!items.length){box.appendChild(el('div','tv-empty','Nenhuma memória ainda.'));return;}
+  items.forEach(f=>{const row=el('div','tv-row');row.appendChild(el('div','txt',f.fact));
+    const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));dl.onclick=()=>{if(confirm('Apagar esta memória?'))recDel('/api/facts/delete',f.id,loadMem);};
+    row.appendChild(dl);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
+$('#memform').onsubmit=async e=>{e.preventDefault();const text=$('#mem-text').value.trim();if(!text)return;
+  await fetch('/api/facts',{method:'POST',headers:H(),body:JSON.stringify({text})});$('#mem-text').value='';loadMem();loadPanel();};
 async function loadKB(){try{const d=await (await fetch('/api/kb',{headers:H()})).json();const box=$('#kblist');box.textContent='';
   if(!d.sources||!d.sources.length){box.appendChild(el('div','tv-empty','Nada na base ainda. Adicione uma URL, arquivo ou texto acima.'));return;}
   d.sources.forEach(s=>{const row=el('div','tv-row');const t=el('div','txt');t.appendChild(el('div','',s.source));
@@ -520,8 +587,12 @@ async function loadTasks(){try{const d=await (await fetch('/api/tasks',{headers:
   window._cats=[...new Set((d.tasks||[]).map(t=>t.category))];
   const g={};(d.tasks||[]).forEach(t=>{(g[t.category]=g[t.category]||[]).push(t);});
   if(!d.tasks||!d.tasks.length){box.appendChild(el('div','tv-empty','Nenhuma tarefa em aberto. Crie uma acima.'));return;}
-  Object.keys(g).sort().forEach(cat=>{box.appendChild(el('div','tv-cat',cat));
-    g[cat].forEach(t=>{const row=el('div','tv-row');
+  Object.keys(g).sort().forEach(cat=>{const chd=el('div','tv-cat',cat);
+    chd.ondragover=e=>{e.preventDefault();chd.classList.add('drop');};chd.ondragleave=()=>chd.classList.remove('drop');
+    chd.ondrop=async e=>{e.preventDefault();chd.classList.remove('drop');const id=e.dataTransfer.getData('text/plain');
+      if(id){await fetch('/api/tasks/update',{method:'POST',headers:H(),body:JSON.stringify({id:+id,category:cat})});loadTasks();loadPanel();}};
+    box.appendChild(chd);
+    g[cat].forEach(t=>{const row=el('div','tv-row');row.draggable=true;row.ondragstart=e=>e.dataTransfer.setData('text/plain',String(t.id));
       const done=el('button','tv-ic');done.title='concluir';done.appendChild(ficon('check'));done.onclick=()=>taskAction('complete',t.id);
       const txt=el('div','txt');const parts=t.text.split(/\s+(?=\d+[.)]\s)/);if(parts.length>1)parts.forEach(p=>txt.appendChild(el('div','',p)));else txt.textContent=t.text;
       const ed=el('button','tv-ic');ed.title='editar';ed.appendChild(ficon('pencil'));ed.onclick=()=>editTask(t);
@@ -535,6 +606,19 @@ function editTask(t){openForm('Editar tarefa',[
   async v=>{if(!v.text)return;await fetch('/api/tasks/update',{method:'POST',headers:H(),body:JSON.stringify({id:t.id,text:v.text,category:v.category||t.category})});loadTasks();loadPanel();});}
 $('#taskform').onsubmit=async e=>{e.preventDefault();const text=$('#task-text').value.trim();const cat=$('#task-cat').value.trim()||'geral';
   if(!text)return;await fetch('/api/tasks',{method:'POST',headers:H(),body:JSON.stringify({text,category:cat})});$('#task-text').value='';loadTasks();loadPanel();};
+// command palette (Ctrl/Cmd+K)
+const CK=$('#cmdk'),CKI=$('#ck-input'),CKL=$('#ck-list');let ckItems=[],ckSel=0;
+function ckBuild(){const nav=[['Conversa',()=>switchView('chat')],['Tarefas',()=>switchView('tasks')],['Gastos',()=>switchView('exp')],['Lembretes',()=>switchView('rem')],['Memórias',()=>switchView('mem')],['Base',()=>switchView('kb')],['Pomodoro',()=>openPomo(25)],['Voz ao vivo',()=>$('#vcopen').click()]];
+  return nav.map(n=>({k:'ir',label:n[0],desc:'abrir',run:n[1]})).concat((COMMANDS||[]).map(c=>({k:'/'+c.name,label:c.name,desc:c.desc,run:()=>runCmd(c.name)})));}
+function ckRender(q){ckItems=ckBuild().filter(i=>(i.label+' '+i.k+' '+i.desc).toLowerCase().includes((q||'').toLowerCase())).slice(0,40);ckSel=0;CKL.textContent='';
+  ckItems.forEach((i,ix)=>{const r=el('div','ck-item'+(ix===0?' sel':''));r.appendChild(el('span','ck-k',i.k));r.appendChild(el('span','',i.label));r.appendChild(el('span','ck-d',i.desc||''));r.onclick=()=>{ckClose();i.run();};CKL.appendChild(r);});}
+function ckOpen(){CK.classList.add('on');CKI.value='';ckRender('');setTimeout(()=>CKI.focus(),40);}
+function ckClose(){CK.classList.remove('on');}
+CKI.addEventListener('input',()=>ckRender(CKI.value));
+CKI.addEventListener('keydown',e=>{if(e.key==='ArrowDown'){e.preventDefault();ckSel=Math.min(ckItems.length-1,ckSel+1);}else if(e.key==='ArrowUp'){e.preventDefault();ckSel=Math.max(0,ckSel-1);}else if(e.key==='Enter'){e.preventDefault();const it=ckItems[ckSel];if(it){ckClose();it.run();}return;}else if(e.key==='Escape'){ckClose();return;}else return;
+  [...CKL.children].forEach((c,i)=>c.classList.toggle('sel',i===ckSel));CKL.children[ckSel]&&CKL.children[ckSel].scrollIntoView({block:'nearest'});});
+CK.onclick=e=>{if(e.target===CK)ckClose();};
+window.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();CK.classList.contains('on')?ckClose():ckOpen();}});
 setInterval(()=>{$('#s-clock').textContent=new Date().toTimeString().slice(0,8);},1000);
 (async()=>{try{COMMANDS=(await (await fetch('/api/commands',{headers:H()})).json()).commands;}catch(e){}
   scopeEl.textContent='Conversa · '+thread;await loadFolders();await loadHistory();await loadConfig();loadPanel();
@@ -886,6 +970,72 @@ def create_app(config: Config, brain: Brain | None = None):
         source = ((await _body(request)).get("source") or "").strip()
         n = memory.delete_source(owner, source) if source else 0
         return {"ok": n > 0, "sources": memory.list_sources(owner)}
+
+    # --- Expenses / Reminders / Memories CRUD ------------------------------
+    @app.get("/api/expenses")
+    async def exp_list(request: Request):
+        _check(request.headers.get("authorization"))
+        from datetime import datetime, timedelta, timezone
+        since = (datetime.now(timezone.utc) - timedelta(days=60)).isoformat()
+        return {"items": memory.expenses_since(owner, since)}
+
+    @app.post("/api/expenses")
+    async def exp_create(request: Request):
+        _check(request.headers.get("authorization"))
+        d = await _body(request)
+        try:
+            amount = float(str(d.get("amount", "")).replace(",", "."))
+        except Exception:
+            return {"ok": False}
+        memory.add_expense(owner, amount, (d.get("description") or "").strip() or "gasto",
+                           (d.get("category") or "geral").strip() or "geral")
+        return {"ok": True}
+
+    @app.post("/api/expenses/delete")
+    async def exp_del(request: Request):
+        _check(request.headers.get("authorization"))
+        memory.delete_expense(owner, int((await _body(request)).get("id") or 0))
+        return {"ok": True}
+
+    @app.get("/api/reminders")
+    async def rem_list(request: Request):
+        _check(request.headers.get("authorization"))
+        return {"items": memory.open_reminders(owner)}
+
+    @app.post("/api/reminders")
+    async def rem_create(request: Request):
+        _check(request.headers.get("authorization"))
+        d = await _body(request)
+        text = (d.get("text") or "").strip()
+        when = (d.get("when") or "").strip() or None
+        if text:
+            memory.add_reminder(owner, text, when)
+        return {"ok": bool(text)}
+
+    @app.post("/api/reminders/delete")
+    async def rem_del(request: Request):
+        _check(request.headers.get("authorization"))
+        memory.cancel_reminder(owner, int((await _body(request)).get("id") or 0))
+        return {"ok": True}
+
+    @app.get("/api/facts")
+    async def fact_list(request: Request):
+        _check(request.headers.get("authorization"))
+        return {"items": memory.list_facts(owner)}
+
+    @app.post("/api/facts")
+    async def fact_create(request: Request):
+        _check(request.headers.get("authorization"))
+        text = ((await _body(request)).get("text") or "").strip()
+        if text:
+            memory.add_fact(owner, text)
+        return {"ok": bool(text)}
+
+    @app.post("/api/facts/delete")
+    async def fact_del(request: Request):
+        _check(request.headers.get("authorization"))
+        memory.delete_fact(owner, int((await _body(request)).get("id") or 0))
+        return {"ok": True}
 
     @app.get("/api/panel")
     async def panel(request: Request):

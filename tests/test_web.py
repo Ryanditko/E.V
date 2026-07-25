@@ -172,6 +172,29 @@ def test_kb_endpoints(tmp_path):
     assert client.post("/api/kb/delete", json={"source": "x"}, headers=_auth()).json()["ok"] is False
 
 
+def test_expenses_crud(tmp_path):
+    client, _ = _client(tmp_path)
+    client.post("/api/expenses", json={"amount": "50,5", "description": "mercado", "category": "casa"}, headers=_auth())
+    items = client.get("/api/expenses", headers=_auth()).json()["items"]
+    assert len(items) == 1 and items[0]["amount"] == 50.5
+    client.post("/api/expenses/delete", json={"id": items[0]["id"]}, headers=_auth())
+    assert client.get("/api/expenses", headers=_auth()).json()["items"] == []
+
+
+def test_reminders_and_facts_crud(tmp_path):
+    client, _ = _client(tmp_path)
+    client.post("/api/reminders", json={"text": "pagar conta", "when": "2026-08-01T09:00"}, headers=_auth())
+    rem = client.get("/api/reminders", headers=_auth()).json()["items"]
+    assert rem and rem[0]["text"] == "pagar conta"
+    client.post("/api/reminders/delete", json={"id": rem[0]["id"]}, headers=_auth())
+    assert client.get("/api/reminders", headers=_auth()).json()["items"] == []
+    client.post("/api/facts", json={"text": "gosto de café"}, headers=_auth())
+    fs = client.get("/api/facts", headers=_auth()).json()["items"]
+    assert fs and fs[0]["fact"] == "gosto de café"
+    client.post("/api/facts/delete", json={"id": fs[0]["id"]}, headers=_auth())
+    assert client.get("/api/facts", headers=_auth()).json()["items"] == []
+
+
 def test_geral_folder_protected(tmp_path):
     client, _ = _client(tmp_path)
     out = client.post("/api/threads/delete", json={"name": "geral"}, headers=_auth()).json()
