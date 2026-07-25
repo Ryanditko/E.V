@@ -19,6 +19,10 @@ class _FakeBrain:
     async def ask(self, system, prompt):
         return "resposta de teste"
 
+    async def transcribe(self, audio, mime):
+        self.last_audio = (audio, mime)
+        return "texto transcrito"
+
     def pop_documents(self):
         return []
 
@@ -408,6 +412,30 @@ def test_reminder_recurrence_create_update(tmp_path):
     client.post("/api/reminders", json={"text": "once", "when": "2026-08-02T09:00", "recur": "yearly"}, headers=_auth())
     items = {i["text"]: i for i in client.get("/api/reminders", headers=_auth()).json()["items"]}
     assert not items["once"]["recur"]
+
+
+def test_stt_transcribes_uploaded_audio(tmp_path):
+    client, brain = _client(tmp_path)
+    r = client.post("/api/stt", headers=_auth(),
+                    files={"audio": ("rec.webm", b"\x1a\x45\xdf\xa3fake", "audio/webm")})
+    assert r.status_code == 200 and r.json()["text"] == "texto transcrito"
+    assert brain.last_audio[1] == "audio/webm"
+
+
+def test_stt_rejects_empty(tmp_path):
+    client, _ = _client(tmp_path)
+    # no file part
+    assert client.post("/api/stt", headers=_auth(), data={}).status_code == 400
+
+
+def test_kb_upload_recognizes_multipart_file(tmp_path):
+    # Regression: fastapi.UploadFile != starlette.UploadFile, so the old
+    # isinstance() check silently rejected every upload. A wrong-extension file
+    # must now reach the type check (proving the file was parsed), not "no file".
+    client, _ = _client(tmp_path)
+    r = client.post("/api/kb/upload", headers=_auth(),
+                    files={"file": ("x.exe", b"MZ", "application/octet-stream")}).json()
+    assert r["ok"] is False and "PDF" in r["msg"]
 
 
 def test_geral_folder_protected(tmp_path):

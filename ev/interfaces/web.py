@@ -485,7 +485,6 @@ function ripple(b,e){const r=el('span','ripple');const q=b.getBoundingClientRect
 let _audio=null,_audioMsg=false;
 function unlockAudio(){if(!_audio)_audio=new Audio();try{_audio.play().catch(()=>{});}catch(e){}}
 window.addEventListener('pointerdown',unlockAudio,{once:true});
-function srMsg(err){return {'not-allowed':'Permissão do microfone negada. Toque no ícone de cadeado/site na barra de endereço e habilite o microfone para ev.taild3b231.ts.net.','service-not-allowed':'Permissão do microfone bloqueada nas configurações do navegador.','no-speech':'Não ouvi nada — fale mais perto do microfone e tente de novo.','audio-capture':'Nenhum microfone detectado no aparelho.','network':'Falha de rede no reconhecimento de voz (ele usa um serviço online). Tente de novo.','aborted':''}[err]||('Erro no microfone: '+err);}
 async function speak(t,force){if((!voiceOn&&!force)||!t)return;try{const r=await fetch('/api/tts',{method:'POST',headers:H(),body:JSON.stringify({text:t})});if(!r.ok)return;const url=URL.createObjectURL(await r.blob());if(!_audio)_audio=new Audio();_audio.src=url;await _audio.play().catch(()=>{if(!_audioMsg){_audioMsg=true;sys('O navegador bloqueou o áudio automático. Toque uma vez na tela e a E.V. volta a falar.');}});}catch(e){}}
 
 async function send(msg){if(!msg)return;you(msg);const p=thinking();setState('thinking');
@@ -653,26 +652,49 @@ txt.addEventListener('keydown',e=>{if(slash.style.display!=='block')return;
   else if(e.key==='Escape'){hideSlash();return;}else if(e.key==='Tab'){e.preventDefault();pickSlash();return;}else return;
   [...slash.children].forEach((c,i)=>c.classList.toggle('sel',i===slSel));slash.children[slSel].scrollIntoView({block:'nearest'});});
 
-// voice input (needs HTTPS/localhost)
-const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-if(SR){const rec=new SR();rec.lang='pt-BR';rec.interimResults=false;
-  micBtn.onclick=e=>{ripple(micBtn,e);try{micBtn.classList.add('on');setState('listening');rec.start();}catch(x){micBtn.classList.remove('on');setState();}};
-  rec.onresult=e=>{micBtn.classList.remove('on');send(e.results[0][0].transcript);};
-  rec.onerror=e=>{micBtn.classList.remove('on');setState();const m=srMsg(e.error);if(m)sys(m);};
-  rec.onend=()=>{micBtn.classList.remove('on');if(document.body.classList.contains('listening'))setState();};
-}else micBtn.onclick=()=>sys('Reconhecimento de voz indisponível (use o Chrome).');
+// voice input — grava com MediaRecorder e transcreve no servidor (Whisper).
+// Funciona em qualquer navegador (Firefox, Chrome, Safari), não só Chrome.
+const RECOK=!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia&&window.MediaRecorder);
+let _mrec=null,_mstream=null,_mchunks=[],_recActive=false;
+function micErrMsg(e){const n=(e&&e.name)||'';return {'NotAllowedError':'Permissão do microfone negada. Toque no ícone de cadeado/site na barra de endereço e habilite o microfone para este site.','NotFoundError':'Nenhum microfone encontrado no aparelho.','NotReadableError':'O microfone está sendo usado por outro app. Feche-o e tente de novo.','SecurityError':'O microfone exige HTTPS.'}[n]||('Não consegui acessar o microfone: '+((e&&e.message)||e));}
+async function startRec(onBlob){
+  try{_mstream=await navigator.mediaDevices.getUserMedia({audio:true});}catch(e){return e;}
+  _mchunks=[];const mr=new MediaRecorder(_mstream);
+  mr.ondataavailable=e=>{if(e.data&&e.data.size)_mchunks.push(e.data);};
+  mr.onstop=()=>{if(_mstream){_mstream.getTracks().forEach(t=>t.stop());_mstream=null;}
+    const blob=new Blob(_mchunks,{type:mr.mimeType||'audio/webm'});_recActive=false;onBlob(blob);};
+  mr.start();_mrec=mr;_recActive=true;return true;
+}
+function stopRec(){if(_mrec&&_mrec.state!=='inactive')_mrec.stop();_recActive=false;}
+async function sttBlob(blob){const ext=(blob.type||'').includes('mp4')?'mp4':(blob.type||'').includes('ogg')?'ogg':'webm';
+  const fd=new FormData();fd.append('audio',blob,'rec.'+ext);
+  const r=await fetch('/api/stt',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd});
+  if(!r.ok)throw new Error('stt '+r.status);return ((await r.json()).text||'').trim();}
+// botão de microfone no chat
+micBtn.onclick=async e=>{ripple(micBtn,e);
+  if(!RECOK){sys('Gravação de áudio indisponível neste navegador.');return;}
+  if(_recActive){stopRec();return;}
+  micBtn.classList.add('on');setState('listening');
+  const res=await startRec(async blob=>{micBtn.classList.remove('on');setState('thinking');
+    try{const t=await sttBlob(blob);if(t)send(t);else sys('Não entendi o áudio — fale mais perto e tente de novo.');}
+    catch(x){sys('Falha ao transcrever o áudio. Tente de novo.');}finally{setState();}});
+  if(res!==true){micBtn.classList.remove('on');setState();sys(micErrMsg(res));}};
 
 // live voice console
 const vc=$('#vc'),vcTxt=$('#vc-txt'),vcMic=$('#vc-mic');
-$('#vcopen').onclick=()=>{if(!SR){sys('Voz indisponível neste navegador (use o Chrome).');return;}vc.classList.add('on');vcTxt.textContent='Toque no microfone e fale.';$('#vc-sub').textContent='pasta: '+thread+' · a conversa fica salva aqui';};
-$('#vc-x').onclick=()=>{vc.classList.remove('on');setState();};
-if(SR){const vr=new (window.SpeechRecognition||window.webkitSpeechRecognition)();vr.lang='pt-BR';vr.interimResults=false;
-  vcMic.onclick=()=>{try{vcMic.classList.add('rec');setState('listening');vcTxt.textContent='ouvindo...';vr.start();}catch(e){vcMic.classList.remove('rec');}};
-  vr.onresult=async e=>{const t=e.results[0][0].transcript;vcMic.classList.remove('rec');vcTxt.textContent='"'+t+'"';setState('thinking');
-    try{const r=await fetch('/api/chat',{method:'POST',headers:H(),body:JSON.stringify({message:t,thread})});const j=await r.json();
-      vcTxt.textContent=j.reply||'(sem resposta)';speak(j.reply,true);loadPanel();}catch(x){vcTxt.textContent='Sem conexão com a E.V.';}finally{setState();}};
-  vr.onerror=e=>{vcMic.classList.remove('rec');setState();vcTxt.textContent=srMsg(e.error)||'Não consegui ouvir. Toque no microfone e fale de novo.';};
-  vr.onend=()=>vcMic.classList.remove('rec');}
+$('#vcopen').onclick=()=>{if(!RECOK){sys('Gravação de áudio indisponível neste navegador.');return;}vc.classList.add('on');vcTxt.textContent='Toque no microfone e fale. Toque de novo para enviar.';$('#vc-sub').textContent='pasta: '+thread+' · a conversa fica salva aqui';};
+$('#vc-x').onclick=()=>{if(_recActive)stopRec();vc.classList.remove('on');setState();};
+vcMic.onclick=async()=>{
+  if(!RECOK){vcTxt.textContent='Gravação de áudio indisponível neste navegador.';return;}
+  if(_recActive){stopRec();vcTxt.textContent='transcrevendo...';return;}
+  vcMic.classList.add('rec');setState('listening');vcTxt.textContent='ouvindo... (toque de novo para enviar)';
+  const res=await startRec(async blob=>{vcMic.classList.remove('rec');setState('thinking');vcTxt.textContent='transcrevendo...';
+    try{const t=await sttBlob(blob);if(!t){vcTxt.textContent='Não entendi. Toque no microfone e fale de novo.';setState();return;}
+      vcTxt.textContent='"'+t+'"';
+      const r=await fetch('/api/chat',{method:'POST',headers:H(),body:JSON.stringify({message:t,thread})});const j=await r.json();
+      vcTxt.textContent=j.reply||'(sem resposta)';speak(j.reply,true);loadPanel();
+    }catch(x){vcTxt.textContent='Falha ao processar o áudio. Tente de novo.';}finally{setState();}});
+  if(res!==true){vcMic.classList.remove('rec');setState();vcTxt.textContent=micErrMsg(res);}};
 // view tabs (Conversa / Tarefas)
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>switchView(t.dataset.view));
 const VIEWS={chat:'#chatview',tasks:'#taskview',exp:'#expview',rem:'#remview',cal:'#calview',mem:'#memview',lnk:'#lnkview',hab:'#habview',jou:'#jouview',sub:'#subview',orc:'#orcview',mon:'#monview',kb:'#kbview'};
@@ -1348,11 +1370,10 @@ def create_app(config: Config, brain: Brain | None = None):
 
     @app.post("/api/kb/upload")
     async def kb_upload(request: Request):
-        from fastapi import UploadFile
         _check(request.headers.get("authorization"))
         form = await request.form()
         f = form.get("file")
-        if not isinstance(f, UploadFile):
+        if f is None or isinstance(f, str) or not hasattr(f, "read"):
             return {"ok": False, "msg": "Nenhum arquivo enviado."}
         fname = f.filename or "arquivo"
         if not fname.lower().endswith(knowledge.READABLE_EXTS):
@@ -1759,6 +1780,19 @@ def create_app(config: Config, brain: Brain | None = None):
             pitch=config.voice_pitch, fixes=config.voice_fixes,
         )
         return Response(content=mp3, media_type="audio/mpeg")
+
+    @app.post("/api/stt")
+    async def stt(request: Request):
+        _check(request.headers.get("authorization"))
+        form = await request.form()
+        f = form.get("audio")
+        if f is None or isinstance(f, str) or not hasattr(f, "read"):
+            raise HTTPException(status_code=400, detail="no audio")
+        data = await f.read()
+        if not data:
+            raise HTTPException(status_code=400, detail="empty audio")
+        text = await brain.transcribe(data, f.content_type or "audio/webm")
+        return {"text": (text or "").strip()}
 
     return app
 

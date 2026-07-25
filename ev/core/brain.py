@@ -855,11 +855,19 @@ class Brain:
         """Transcribe audio via Groq Whisper (for the fallback path)."""
         if not self._config.groq_api_key:
             return None
+        # Whisper detects the format from the filename extension — derive it from
+        # the MIME so browser recordings (webm/mp4) and Telegram voice (ogg) work.
+        ext = {
+            "audio/webm": "webm", "audio/ogg": "ogg", "audio/mp4": "mp4",
+            "audio/mpeg": "mp3", "audio/wav": "wav", "audio/x-wav": "wav",
+            "audio/x-m4a": "m4a", "audio/m4a": "m4a", "audio/aac": "m4a",
+        }.get((audio_mime or "").split(";")[0].strip(), "ogg")
         try:
             return providers.transcribe_groq(
                 api_key=self._config.groq_api_key,
                 model=self._config.groq_whisper_model,
                 audio=audio,
+                filename=f"audio.{ext}",
             )
         except Exception as exc:
             log.warning("Transcription (Groq Whisper) failed (%s).", exc)
