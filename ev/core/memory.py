@@ -191,6 +191,15 @@ class Memory:
                 data     BLOB NOT NULL,
                 created  TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS activity (
+                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id  TEXT NOT NULL,
+                action   TEXT NOT NULL,   -- e.g. 'task.done', 'expense.new'
+                label    TEXT NOT NULL,   -- human text (the item's name)
+                category TEXT,            -- category / workspace, when it has one
+                created  TEXT NOT NULL
+            );
             """
         )
         # Migrations for older DBs.
@@ -216,6 +225,45 @@ class Memory:
     @staticmethod
     def _now() -> str:
         return datetime.now(timezone.utc).isoformat()
+
+    # --- activity log (CRUD tracking, shared by Telegram + web) -------------
+
+    def log_activity(self, user_id: str, action: str, label: str,
+                     category: str | None = None) -> None:
+        try:
+            self._conn.execute(
+                "INSERT INTO activity (user_id, action, label, category, created) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (user_id, action, (label or "")[:200], category, self._now()),
+            )
+            self._conn.commit()
+        except sqlite3.Error:
+            pass  # tracking must never break the actual operation
+
+    def list_activity(self, user_id: str, category: str | None = None,
+                      limit: int = 300) -> list[dict]:
+        if category:
+            rows = self._conn.execute(
+                "SELECT action, label, category, created FROM activity "
+                "WHERE user_id = ? AND category = ? ORDER BY id DESC LIMIT ?",
+                (user_id, category, limit),
+            ).fetchall()
+        else:
+            rows = self._conn.execute(
+                "SELECT action, label, category, created FROM activity "
+                "WHERE user_id = ? ORDER BY id DESC LIMIT ?",
+                (user_id, limit),
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+    def activity_categories(self, user_id: str) -> list[str]:
+        rows = self._conn.execute(
+            "SELECT DISTINCT category FROM activity "
+            "WHERE user_id = ? AND category IS NOT NULL AND category != '' "
+            "ORDER BY category",
+            (user_id,),
+        ).fetchall()
+        return [r["category"] for r in rows]
 
     # --- conversation history ----------------------------------------------
 
@@ -411,6 +459,7 @@ class Memory:
             (user_id, text, when_iso, recur, self._now()),
         )
         self._conn.commit()
+        self.log_activity(user_id, "reminder.new", text)
         return int(cur.lastrowid)
 
     def open_reminders(self, user_id: str) -> list[dict]:
@@ -434,10 +483,15 @@ class Memory:
         return [dict(r) for r in rows]
 
     def mark_reminder_done(self, reminder_id: int) -> None:
+        row = self._conn.execute(
+            "SELECT user_id, text FROM reminders WHERE id = ?", (reminder_id,)
+        ).fetchone()
         self._conn.execute(
             "UPDATE reminders SET done = 1 WHERE id = ?", (reminder_id,)
         )
         self._conn.commit()
+        if row:
+            self.log_activity(row["user_id"], "reminder.done", row["text"])
 
     def reschedule_reminder(self, reminder_id: int, new_when_iso: str) -> None:
         """Move a (recurring) reminder to its next occurrence, keeping it open."""
@@ -448,11 +502,17 @@ class Memory:
         self._conn.commit()
 
     def cancel_reminder(self, user_id: str, reminder_id: int) -> bool:
+        row = self._conn.execute(
+            "SELECT text FROM reminders WHERE id = ? AND user_id = ? AND done = 0",
+            (reminder_id, user_id),
+        ).fetchone()
         cur = self._conn.execute(
             "UPDATE reminders SET done = 1 WHERE id = ? AND user_id = ? AND done = 0",
             (reminder_id, user_id),
         )
         self._conn.commit()
+        if cur.rowcount and row:
+            self.log_activity(user_id, "reminder.cancel", row["text"])
         return cur.rowcount > 0
 
     # --- tasks (to-do list) -------------------------------------------------
@@ -492,6 +552,7 @@ class Memory:
             (user_id, text, category, recur or None, due or None, self._now()),
         )
         self._conn.commit()
+        self.log_activity(user_id, "task.new", text, category)
         return int(cur.lastrowid)
 
     def open_tasks(self, user_id: str, category: str | None = None) -> list[dict]:
@@ -546,6 +607,7 @@ class Memory:
                 (self._next_due(row["due"], recur), task_id),
             )
             self._conn.commit()
+            self.log_activity(user_id, "task.done", row["text"], row["category"])
             return True
         # Recurring without a due date: regenerate a fresh open copy so it returns.
         if recur in ("daily", "weekly", "monthly"):
@@ -559,6 +621,7 @@ class Memory:
                 (user_id, row["text"], row["category"], recur, self._now()),
             )
             self._conn.commit()
+            self.log_activity(user_id, "task.done", row["text"], row["category"])
             return True
         # Plain one-off task.
         self._conn.execute(
@@ -566,13 +629,20 @@ class Memory:
             (self._now(), task_id),
         )
         self._conn.commit()
+        self.log_activity(user_id, "task.done", row["text"], row["category"])
         return True
 
     def delete_task(self, user_id: str, task_id: int) -> bool:
+        row = self._conn.execute(
+            "SELECT text, category FROM tasks WHERE id = ? AND user_id = ?",
+            (task_id, user_id),
+        ).fetchone()
         cur = self._conn.execute(
             "DELETE FROM tasks WHERE id = ? AND user_id = ?", (task_id, user_id)
         )
         self._conn.commit()
+        if cur.rowcount and row:
+            self.log_activity(user_id, "task.del", row["text"], row["category"])
         return cur.rowcount > 0
 
     def update_task(self, user_id: str, task_id: int, text: str | None = None,
@@ -766,6 +836,7 @@ class Memory:
             (user_id, amount, description, category, self._now()),
         )
         self._conn.commit()
+        self.log_activity(user_id, "expense.new", f"{description} (R$ {amount:.0f})", category)
         return int(cur.lastrowid)
 
     def expenses_since(self, user_id: str, since_iso: str) -> list[dict]:
@@ -785,10 +856,16 @@ class Memory:
         return [dict(r) for r in rows]
 
     def delete_expense(self, user_id: str, expense_id: int) -> bool:
+        row = self._conn.execute(
+            "SELECT description, category FROM expenses WHERE id = ? AND user_id = ?",
+            (expense_id, user_id),
+        ).fetchone()
         cur = self._conn.execute(
             "DELETE FROM expenses WHERE id = ? AND user_id = ?", (expense_id, user_id)
         )
         self._conn.commit()
+        if cur.rowcount and row:
+            self.log_activity(user_id, "expense.del", row["description"], row["category"])
         return cur.rowcount > 0
 
     def category_total_since(self, user_id: str, category: str, since_iso: str) -> float:
@@ -881,6 +958,11 @@ class Memory:
             "INSERT INTO habit_logs (habit_id, day) VALUES (?, ?)", (habit_id, day)
         )
         self._conn.commit()
+        h = self._conn.execute(
+            "SELECT user_id, name FROM habits WHERE id = ?", (habit_id,)
+        ).fetchone()
+        if h:
+            self.log_activity(h["user_id"], "habit.done", h["name"])
         return True
 
     def delete_habit(self, user_id: str, habit_id: int) -> bool:
