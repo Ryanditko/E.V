@@ -588,6 +588,18 @@ $('#tgl-left').onclick=()=>{if(mob()){document.body.classList.remove('m-right');
 $('#tgl-right').onclick=()=>{if(mob()){document.body.classList.remove('m-left');document.body.classList.toggle('m-right');return;}document.body.classList.toggle('hide-right');localStorage.setItem('ev_hr',document.body.classList.contains('hide-right')?'1':'');$('#tgl-right').classList.toggle('on',document.body.classList.contains('hide-right'));};
 $('#tgl-left').classList.toggle('on',document.body.classList.contains('hide-left'));$('#tgl-right').classList.toggle('on',document.body.classList.contains('hide-right'));
 $('#mbackdrop').onclick=()=>document.body.classList.remove('m-left','m-right');
+// mobile: open/close the side panels by swiping from the screen edges
+(function(){let sx=0,sy=0,edge=0,track=false;
+  addEventListener('touchstart',e=>{if(!mob()||e.touches.length!==1)return;const t=e.touches[0];sx=t.clientX;sy=t.clientY;
+    const open=document.body.classList.contains('m-left')||document.body.classList.contains('m-right');
+    edge = sx<30?1 : sx>innerWidth-30?-1 : open?9 : 0; track=edge!==0;},{passive:true});
+  addEventListener('touchend',e=>{if(!track)return;track=false;const t=e.changedTouches[0];const dx=t.clientX-sx,dy=t.clientY-sy;
+    if(Math.abs(dx)<45||Math.abs(dy)>Math.abs(dx))return;   // needs a clear horizontal swipe
+    const cl=document.body.classList;
+    if(cl.contains('m-left')||cl.contains('m-right')){if((cl.contains('m-left')&&dx<0)||(cl.contains('m-right')&&dx>0))cl.remove('m-left','m-right');return;}
+    if(edge===1&&dx>0){cl.remove('m-right');cl.add('m-left');}
+    else if(edge===-1&&dx<0){cl.remove('m-left');cl.add('m-right');}
+  },{passive:true});})();
 
 function el(t,c,x){const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e;}
 const HASEMO=/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{2190}-\u{21FF}\u{2300}-\u{23FF}\u{20E3}]/u;
