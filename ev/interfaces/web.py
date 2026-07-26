@@ -174,8 +174,16 @@ body.hide-left.hide-right #app{grid-template-columns:1fr}
 .tabs::-webkit-scrollbar{display:none}.tab{white-space:nowrap;flex:none}
 .topbar{gap:8px}
 @media(max-width:1180px){.topbar #scope{display:none}}
-@media(max-width:1000px){#term{display:none}}
-@media(max-width:760px){#vcopen span{display:none}.tbtn.ic-txt{padding:7px 9px}}
+/* When space gets tight (small window OR browser zoom), swap the 14-tab strip
+   for a compact picker and shrink the labelled buttons to icons — the header
+   never overflows or gets cut. */
+@media(max-width:1100px){
+  .tabs{display:none}
+  .mnav{display:block;flex:1 1 auto;min-width:70px}
+  #gsearch{display:none}
+  .tbtn.ic-txt span{display:none}
+  .tbtn.ic-txt{padding:9px 10px}
+}
 .lnk{color:var(--fg);text-decoration:underline;text-underline-offset:2px}.lnk:hover{opacity:.75}
 .tab{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--muted);border:none;background:transparent;border-radius:8px;padding:7px 13px;cursor:pointer}
 .tab.on{background:var(--fg);color:var(--ink)}
@@ -247,14 +255,23 @@ body.term .msg.you{color:var(--fg)}body.term .msg.you::before{content:"ryan@ev ~
 body.term .msg.ev::before{content:"» ";color:var(--subtle)}
 body.term .msg .h,body.term .msg .cat,body.term .row{all:unset;display:block}
 body.term .row .id{background:transparent;color:var(--muted);padding:0 6px 0 0}
-form{display:flex;align-items:center;gap:10px;padding:14px 18px;border-top:1px solid var(--line);position:relative}
-.field{flex:1;display:flex;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:2px 6px 2px 16px;transition:.2s}
+form{display:flex;align-items:center;gap:10px;padding:14px 18px;border-top:1px solid var(--line);position:relative;min-width:0}
+.field{flex:1;min-width:0;display:flex;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:2px 6px 2px 16px;transition:.2s}
 .field:focus-within{border-color:var(--line-2);box-shadow:0 0 0 4px rgba(244,243,241,.05)}
-#txt{flex:1;background:transparent;border:none;outline:none;color:var(--fg);font-family:var(--body);font-size:15px;padding:11px 0}
+#txt{flex:1;min-width:0;background:transparent;border:none;outline:none;color:var(--fg);font-family:var(--body);font-size:15px;padding:11px 0}
 body.term #txt{font-family:var(--mono)}
+body.term form{background:#060606}
+body.term .field{background:#0a0a0a;border-color:#1c1c1c;border-radius:8px}
+body.term .field:focus-within{border-color:#2a2a2a}
+body.term #txt::placeholder{color:#4a4a4a}
 .icon{width:44px;height:44px;flex:none;display:grid;place-items:center;border-radius:12px;border:1px solid var(--line);background:var(--elev);color:var(--fg);cursor:pointer;position:relative;overflow:hidden;transition:.14s}
 .icon:hover{transform:translateY(-1px);border-color:var(--line-2)}.icon:active{transform:scale(.95)}
 .icon.send{background:var(--fg);color:var(--ink);border:none}.icon.mic.on{background:var(--fg);color:var(--ink);border:none}
+#imgprev{display:none;align-items:center;gap:12px;padding:9px 18px;border-top:1px solid var(--line);background:var(--surface)}
+#imgprev img{width:48px;height:48px;object-fit:cover;border-radius:9px;border:1px solid var(--line)}
+#imgprev .ip-name{flex:1;min-width:0;font-size:12px;color:var(--muted);font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#imgprev .ip-x{background:var(--elev);border:1px solid var(--line);color:var(--fg);width:30px;height:30px;flex:none;border-radius:8px;cursor:pointer;font-size:17px;line-height:1}
+.msg-img{max-width:230px;max-height:230px;border-radius:11px;display:block}
 .wave{display:none;align-items:flex-end;gap:2px;height:16px}.icon.mic.on .mg{display:none}.icon.mic.on .wave{display:flex}
 .wave b{width:2.5px;height:5px;background:var(--ink);border-radius:2px;animation:wv .9s infinite}
 .wave b:nth-child(2){animation-delay:.12s}.wave b:nth-child(3){animation-delay:.24s}.wave b:nth-child(4){animation-delay:.36s}
@@ -314,9 +331,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
   #right{right:0;transform:translateX(106%);border-left:1px solid var(--line)}
   body.m-left #left,body.m-right #right{transform:translateX(0);box-shadow:0 0 60px rgba(0,0,0,.7)}
   body.m-left #mbackdrop,body.m-right #mbackdrop{display:block;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:55}
-  .topbar{padding:11px 12px;gap:6px}
-  #term,#voz,#gsearch,.tabs{display:none}   /* declutter: picker replaces the tab strip */
-  .mnav{display:block;flex:1 1 auto;min-width:0}
+  .topbar{padding:11px 12px;gap:5px}
   #slash{left:14px;right:14px}
   #taskview,#kbview,#expview,#remview,#memview,#calview,#lnkview,#habview,#jouview,#subview,#orcview,#monview,#actview{padding:16px 14px}
   #log{padding:14px 14px}
@@ -353,11 +368,13 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
       <select id="mnav" class="mnav" title="Ir para"><option value="chat">Conversa</option><option value="tasks">Tarefas</option><option value="exp">Gastos</option><option value="rem">Lembretes</option><option value="cal">Agenda</option><option value="mem">Memórias</option><option value="lnk">Links</option><option value="hab">Hábitos</option><option value="jou">Diário</option><option value="sub">Assinaturas</option><option value="orc">Orçamentos</option><option value="mon">Monitores</option><option value="act">Histórico</option><option value="kb">Base</option></select>
       <span class="eyebrow" id="scope">geral</span><span style="flex:1"></span>
       <button class="tbtn ico" id="gsearch" title="Buscar em tudo"><i data-lucide="search"></i></button>
-      <button class="tbtn ic-txt" id="vcopen"><i data-lucide="mic"></i>FALAR</button>
-      <button class="tbtn" id="term">TERMINAL</button><button class="tbtn on" id="voz">VOZ</button>
+      <button class="tbtn ic-txt" id="vcopen" title="Falar"><i data-lucide="mic"></i><span>FALAR</span></button>
+      <button class="tbtn ic-txt" id="term" title="Modo terminal"><i data-lucide="square-terminal"></i><span>TERMINAL</span></button>
+      <button class="tbtn ic-txt on" id="voz" title="Voz da E.V."><i data-lucide="volume-2"></i><span>VOZ</span></button>
       <button class="tbtn ico" id="tgl-right" title="Ocultar/mostrar painel"><i data-lucide="panel-right"></i></button></div>
     <div id="chatview">
       <div id="log"></div>
+      <div id="imgprev"></div>
       <form id="f"><div id="slash"></div>
         <button type="button" class="icon mic" id="mic" title="Falar"><span class="mg"><i data-lucide="mic"></i></span><span class="wave"><b></b><b></b><b></b><b></b></span></button>
         <button type="button" class="icon" id="imgbtn" title="Enviar imagem"><i data-lucide="image"></i></button>
@@ -583,7 +600,9 @@ async function runCmd(cmd,btn,e){const nm=cmd.trim().replace(/^\//,'').split(/\s
     else{p.remove();ev(j.reply);}
     loadPanel();}catch(err){p.remove();sys('Erro — '+err);}finally{setState();}}
 f.onsubmit=e=>{e.preventDefault();if(slash.style.display==='block'&&slSel>=0){pickSlash();return;}
-  ripple($('#send'));const m=txt.value.trim();txt.value='';hideSlash();
+  ripple($('#send'));const m=txt.value.trim();
+  if(_pendingImg){const img=_pendingImg;setPendingImg(null);txt.value='';hideSlash();sendImage(img,m);return;}
+  txt.value='';hideSlash();if(!m)return;
   if(m.startsWith('/'))runCmd(m.slice(1));else send(m);};
 
 const CAT={tarefas:['Tarefas','list-checks'],lembretes:['Lembretes','alarm-clock'],gastos:['Gastos','wallet'],memorias:['Memórias','brain'],kb:['Base','book-open'],buscar:['Buscar web','search'],noticias:['Notícias','newspaper'],clima:['Clima','cloud-sun'],relatorio:['Relatório','bar-chart-3'],status:['Status','activity'],semana:['Semana','calendar-days'],foco:['Pomodoro','timer'],procurar:['Procurar','file-search'],calendario:['Agenda','calendar'],habitos:['Hábitos','repeat'],diario:['Diário','notebook-pen'],orcamentos:['Orçamentos','piggy-bank'],assinaturas:['Assinaturas','credit-card'],dados:['Meus dados','database'],insights:['Insights','sparkles'],quiz:['Quiz','graduation-cap']};
@@ -682,6 +701,10 @@ async function loadFolders(){try{const r=await fetch('/api/threads',{headers:H()
     const f=el('div','folder'+(path===thread?' on':''));f.style.paddingLeft=(11+depth*15)+'px';
     f.appendChild(el('span','fi',depth?'└':'▚'));const nm=el('span','fn',label);nm.style.flex='1';f.appendChild(nm);
     const add=el('span','fx','+');add.title='subpasta';add.onclick=e=>{e.stopPropagation();childFolder(path);};f.appendChild(add);
+    if(depth>0){const up=el('span','fx','↑');up.title='mover para a raiz';up.onclick=async e=>{e.stopPropagation();
+      await fetch('/api/threads/move',{method:'POST',headers:H(),body:JSON.stringify({path,parent:''})});
+      if(thread===path||thread.startsWith(path+'/')){thread=thread.replace(path,label);localStorage.setItem('ev_thread',thread);}
+      await switchThread(thread);};f.appendChild(up);}
     if(path!=='geral'){const x=el('span','fx','✕');x.title='apagar';x.onclick=e=>{e.stopPropagation();delFolder(path);};f.appendChild(x);}
     f.onclick=()=>switchThread(path);f.ondblclick=()=>renameFolder(path);
     f.draggable=true;
@@ -1124,16 +1147,22 @@ async function pollTick(){try{
 let _pollTimer=null;
 function startPoll(){if(_pollTimer)return;_pollTimer=setInterval(pollTick,45000);pollTick();}
 // --- Batch C: image in chat, global search, undo ---
-async function sendImage(file,prompt){if(!file)return;you((prompt?prompt+' · ':'')+'(imagem enviada)');const p=thinking();setState('thinking');
-  try{const fd=new FormData();fd.append('image',file);if(prompt)fd.append('text',prompt);fd.append('thread',thread);
+function youImg(caption,url){const d=el('div','msg you');const img=document.createElement('img');img.className='msg-img';img.src=url;d.appendChild(img);if(caption){const c=el('div','',caption);c.style.marginTop='6px';d.appendChild(c);}log.appendChild(d);log.scrollTop=log.scrollHeight;}
+let _pendingImg=null;
+function setPendingImg(f){_pendingImg=f;const p=$('#imgprev');p.innerHTML='';if(!f){p.style.display='none';return;}
+  const img=document.createElement('img');img.src=URL.createObjectURL(f);
+  const x=el('button','ip-x','×');x.title='remover';x.onclick=()=>setPendingImg(null);
+  p.appendChild(img);p.appendChild(el('span','ip-name',f.name+' — escreva algo (opcional) e envie'));p.appendChild(x);p.style.display='flex';if(txt)txt.focus();}
+async function sendImage(file,caption){if(!file)return;youImg(caption,URL.createObjectURL(file));const p=thinking();setState('thinking');
+  try{const fd=new FormData();fd.append('image',file);if(caption)fd.append('text',caption);fd.append('thread',thread);
     const j=await (await fetch('/api/vision',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd})).json();
     p.remove();ev(j.reply||'(sem resposta)');speak(j.reply);}catch(e){p.remove();sys('Falha ao enviar a imagem.');}finally{setState();}}
 $('#imgbtn').onclick=()=>$('#imgfile').click();
-$('#imgfile').onchange=e=>{const f=e.target.files[0];if(f){sendImage(f,txt.value.trim());txt.value='';}e.target.value='';};
+$('#imgfile').onchange=e=>{const f=e.target.files[0];if(f)setPendingImg(f);e.target.value='';};
 (function(){const cv=$('#chatview');if(!cv)return;
   ['dragover','dragenter'].forEach(n=>cv.addEventListener(n,e=>{e.preventDefault();cv.classList.add('drag');}));
   ['dragleave','drop'].forEach(n=>cv.addEventListener(n,e=>{e.preventDefault();cv.classList.remove('drag');}));
-  cv.addEventListener('drop',e=>{const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];if(f&&f.type.startsWith('image/'))sendImage(f,txt.value.trim());});})();
+  cv.addEventListener('drop',e=>{const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];if(f&&f.type.startsWith('image/'))setPendingImg(f);});})();
 $('#gsearch').onclick=()=>openForm('Buscar em tudo',[{key:'q',label:'Buscar',placeholder:'tarefas, gastos, memórias, base...'}],v=>{if(!v.q)return;switchView('chat');runCmd('procurar '+v.q);});
 function toastUndo(msg,onUndo){let t=document.getElementById('_toast');if(!t){t=el('div','');t.id='_toast';t.style.cssText='position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:var(--elev);border:1px solid var(--line-2);color:var(--fg);padding:11px 17px;border-radius:11px;font-size:13px;z-index:9999;box-shadow:0 8px 30px rgba(0,0,0,.45);display:flex;align-items:center;gap:14px;transition:opacity .3s';document.body.appendChild(t);}
   t.textContent='';t.appendChild(document.createTextNode(msg));const b=el('button','','Desfazer');b.style.cssText='background:none;border:none;color:var(--fg);font:inherit;font-weight:700;cursor:pointer;text-decoration:underline';b.onclick=()=>{clearTimeout(t._h);t.style.opacity='0';onUndo();};t.appendChild(b);
