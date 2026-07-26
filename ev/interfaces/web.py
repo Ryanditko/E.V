@@ -1215,7 +1215,12 @@ async function pollTick(){try{
   if(!modalOpen&&!typing&&curView&&_VLOAD[curView])_VLOAD[curView]();
 }catch(e){}}
 let _pollTimer=null;
-function startPoll(){if(_pollTimer)return;_pollTimer=setInterval(pollTick,45000);pollTick();}
+function startPoll(){if(_pollTimer)return;_pollTimer=setInterval(pollTick,90000);pollTick();}  // fallback; SSE drives instant updates
+let _es=null;
+function startEvents(){try{if(_es)_es.close();
+  _es=new EventSource('/api/events?k='+encodeURIComponent(token));
+  _es.onmessage=()=>pollTick();   // any DB change (incl. from Telegram) -> refresh now
+}catch(e){}}
 // --- Batch C: image in chat, global search, undo ---
 function youImg(caption,url){const d=el('div','msg you');const img=document.createElement('img');img.className='msg-img';img.src=url;d.appendChild(img);if(caption){const c=el('div','',caption);c.style.marginTop='6px';d.appendChild(c);}log.appendChild(d);log.scrollTop=log.scrollHeight;}
 let _pendingImg=null;
@@ -1241,7 +1246,7 @@ async function delU(delUrl,delBody,recUrl,recBody,reload,label){await fetch(delU
   toastUndo((label||'Item')+' apagado',async()=>{await fetch(recUrl,{method:'POST',headers:H(),body:JSON.stringify(recBody)});reload();loadPanel();});}
 async function startApp(){try{COMMANDS=(await (await fetch('/api/commands',{headers:H()})).json()).commands;}catch(e){}
   scopeEl.textContent='Conversa · '+thread;await loadFolders();await loadHistory();await loadConfig();loadPanel();
-  initPWA();startPoll();window.lucide&&lucide.createIcons();}
+  initPWA();startPoll();startEvents();window.lucide&&lucide.createIcons();}
 function enter(){$('#login').classList.remove('on');startApp();welcome();}
 async function doLogin(){const inp=$('#login-token');const tok=((inp&&inp.value.trim())||token);if(!tok){$('#login-err').textContent='Informe o token.';if(inp)inp.style.display='block';return;}
   $('#login-err').textContent='verificando...';if(!(await validate(tok))){$('#login-err').textContent='Token inválido.';token='';localStorage.removeItem('ev_token');if(inp)inp.style.display='block';return;}
@@ -1630,6 +1635,42 @@ def create_app(config: Config, brain: Brain | None = None):
         cat = request.query_params.get("category") or None
         return {"items": memory.list_activity(owner, cat),
                 "categories": memory.activity_categories(owner)}
+
+    @app.get("/api/events")
+    async def events(request: Request):
+        # SSE — the browser's EventSource can't set headers, so the token comes as
+        # a query param. Streams a tick whenever the DB is changed by ANY process
+        # (e.g. the Telegram bot), so the web reflects it near-instantly.
+        tok = request.query_params.get("k", "")
+        if not config.web_token or not hmac.compare_digest(tok, config.web_token):
+            raise HTTPException(status_code=401, detail="unauthorized")
+        from fastapi.responses import StreamingResponse
+        import sqlite3 as _sq
+
+        async def gen():
+            conn = _sq.connect(config.db_path, check_same_thread=False)
+
+            def _rev():
+                return conn.execute("PRAGMA data_version").fetchone()[0]
+            try:
+                last = _rev()   # fast read, no thread hop needed
+                yield "retry: 4000\n\ndata: ready\n\n"
+                while True:
+                    await asyncio.sleep(2)
+                    try:
+                        dv = _rev()
+                    except Exception:
+                        continue
+                    if dv != last:
+                        last = dv
+                        yield f"data: {dv}\n\n"
+                    else:
+                        yield ": ping\n\n"   # keepalive; also detects client disconnect
+            finally:
+                conn.close()
+        return StreamingResponse(gen(), media_type="text/event-stream",
+                                 headers={"Cache-Control": "no-cache",
+                                          "X-Accel-Buffering": "no"})
 
     @app.post("/api/tasks")
     async def tasks_create(request: Request):
