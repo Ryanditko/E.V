@@ -34,8 +34,13 @@ class Memory:
     def __init__(self, db_path: Path) -> None:
         # check_same_thread=False because the bot is async and may touch the DB
         # from different tasks. Writes here are short and serialized.
-        self._conn = sqlite3.connect(db_path, check_same_thread=False)
-        self._conn.row_factory = sqlite3.Row
+        # Optional encryption at rest: if EV_DB_KEY is set (64-hex) AND sqlcipher3
+        # is installed, the DB is opened encrypted (SQLCipher). Otherwise plain
+        # SQLite — so tests/CI and a fresh install work unchanged.
+        import os
+        key = os.getenv("EV_DB_KEY", "").strip()
+        self._conn, self._row = self._connect(db_path, key)
+        self._conn.row_factory = self._row
         # WAL + busy_timeout so the Telegram (`ev`) and web (`ev-web`) processes
         # can share this one file safely: WAL lets readers and one writer work
         # concurrently, and busy_timeout makes a write wait for the lock instead
@@ -44,9 +49,24 @@ class Memory:
             self._conn.execute("PRAGMA journal_mode=WAL")
             self._conn.execute("PRAGMA busy_timeout=5000")
             self._conn.execute("PRAGMA synchronous=NORMAL")
-        except sqlite3.Error:
+        except Exception:
             pass
         self._init_schema()
+
+    @staticmethod
+    def _connect(db_path, key):
+        """Return (connection, row_factory). Encrypted via SQLCipher when a key is
+        set and sqlcipher3 is available; falls back to plain SQLite otherwise."""
+        if key:
+            try:
+                from sqlcipher3 import dbapi2 as sq
+                conn = sq.connect(str(db_path), check_same_thread=False)
+                conn.execute(f"PRAGMA key = \"x'{key}'\"")
+                conn.execute("SELECT count(*) FROM sqlite_master").fetchone()  # verify key
+                return conn, sq.Row
+            except Exception:
+                pass  # sqlcipher missing or wrong key -> fall back to plaintext
+        return sqlite3.connect(str(db_path), check_same_thread=False), sqlite3.Row
 
     def _init_schema(self) -> None:
         self._conn.executescript(
