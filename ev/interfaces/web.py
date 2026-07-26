@@ -207,15 +207,14 @@ body.listening .bigcore .bdot{animation:pulse .9s infinite}
   body.hide-right #app{grid-template-columns:238px 1fr}
   body.hide-left.hide-right #app{grid-template-columns:1fr}
 }
-.tabs{display:flex;gap:3px;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:3px;overflow-x:auto;scrollbar-width:none;min-width:0;flex:1 1 0;-webkit-mask-image:linear-gradient(90deg,#000 90%,transparent);mask-image:linear-gradient(90deg,#000 90%,transparent)}
+.tabs{display:flex;gap:3px;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:3px;overflow-x:auto;scrollbar-width:none;min-width:0;flex:0 1 auto}
 .mnav{display:none;background:var(--surface);border:1px solid var(--line);border-radius:10px;color:var(--fg);font:inherit;font-size:14px;padding:10px 12px;font-family:var(--mono);cursor:pointer}
 .tabs::-webkit-scrollbar{display:none}.tab{white-space:nowrap;flex:none}
 .topbar{gap:8px}
 @media(max-width:1180px){.topbar #scope{display:none}}
-/* When space gets tight (small window OR browser zoom), swap the 14-tab strip
-   for a compact picker and shrink the labelled buttons to icons — the header
-   never overflows or gets cut. */
-@media(max-width:1100px){
+/* Desktop/tablet keep the scrollable tab strip. Only on phones (<=760px) swap
+   it for the compact picker and shrink the labelled buttons to icons. */
+@media(max-width:760px){
   .tabs{display:none}
   .mnav{display:block;flex:1 1 auto;min-width:70px}
   #gsearch{display:none}
