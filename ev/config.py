@@ -74,6 +74,11 @@ class Config:
     web_token: str      # bearer token for the web interface (empty disables it)
     web_host: str       # host to bind the web server
     web_port: int       # port for the web server
+    web_base_url: str   # public https base (for OAuth redirects), e.g. https://ev.x.ts.net
+    google_login_client: str   # OAuth "Web" client id for "login with Google"
+    google_login_secret: str
+    github_login_client: str   # OAuth app client id for "login with GitHub"
+    github_login_secret: str
     db_path: Path
 
     @property
@@ -201,5 +206,10 @@ class Config:
             web_token=os.getenv("EV_WEB_TOKEN", "").strip(),
             web_host=os.getenv("EV_WEB_HOST", "0.0.0.0").strip(),
             web_port=_get_int("EV_WEB_PORT", 8000),
+            web_base_url=os.getenv("EV_WEB_BASE_URL", "").strip().rstrip("/"),
+            google_login_client=os.getenv("EV_GOOGLE_LOGIN_CLIENT", "").strip(),
+            google_login_secret=os.getenv("EV_GOOGLE_LOGIN_SECRET", "").strip(),
+            github_login_client=os.getenv("EV_GITHUB_LOGIN_CLIENT", "").strip(),
+            github_login_secret=os.getenv("EV_GITHUB_LOGIN_SECRET", "").strip(),
             db_path=_PROJECT_ROOT / "ev_memory.db",
         )

@@ -144,6 +144,9 @@ body.listening .bigcore .bdot{animation:pulse .9s infinite}
 #login-token{background:var(--surface);border:1px solid var(--line-2);border-radius:12px;padding:13px 18px;color:var(--fg);font:inherit;font-size:15px;width:min(320px,80vw);text-align:center;outline:none}
 #login-token:focus{border-color:var(--fg)}
 #login-btn{min-width:170px}#login-err{font-family:var(--mono);font-size:12px;color:var(--muted);min-height:16px}
+.login-or{display:flex;align-items:center;gap:10px;width:100%;max-width:230px;color:var(--muted);font-size:12px;font-family:var(--mono)}
+.login-or span{flex:1;height:1px;background:var(--line)}
+.login-oauth{min-width:230px;text-align:center;text-decoration:none;display:inline-flex;justify-content:center;gap:8px}
 #welcome-txt{font-family:var(--disp);font-size:26px;text-align:center;max-width:600px;padding:0 24px;line-height:1.4;animation:rise .5s}
 #pomo-mini{position:fixed;top:20px;right:20px;z-index:26;width:186px;background:var(--panel);border:1px solid var(--line-2);border-radius:14px;box-shadow:0 20px 60px -24px #000;display:none;flex-direction:column;overflow:hidden}
 .pm-head{display:flex;align-items:center;gap:6px;padding:7px 10px;border-bottom:1px solid var(--line);cursor:move;user-select:none}
@@ -452,6 +455,9 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
   <div class="brand" style="text-align:center"><div class="name" style="font-size:38px">E.V.</div><div class="eyebrow">Personal Intelligence</div></div>
   <input id="login-token" type="password" placeholder="Token de acesso" autocomplete="off">
   <button id="login-btn" class="mbtn">Entrar</button>
+  <div class="login-or"><span></span>ou<span></span></div>
+  <a id="login-google" class="mbtn2 login-oauth" href="/auth/google">Entrar com Google</a>
+  <a id="login-github" class="mbtn2 login-oauth" href="/auth/github">Entrar com GitHub</a>
   <div id="login-err"></div>
 </div>
 <div id="welcome">
@@ -2016,6 +2022,126 @@ def create_app(config: Config, brain: Brain | None = None):
             return {"ok": True}
         except Exception as exc:
             return {"ok": False, "msg": str(exc)}
+
+    # --- OAuth login (Google / GitHub) -------------------------------------
+    import secrets as _secrets
+    from fastapi.responses import RedirectResponse
+    _oauth_states: set[str] = set()
+
+    def _base_url(request: Request) -> str:
+        return config.web_base_url or str(request.base_url).rstrip("/")
+
+    def _login_ok_html() -> HTMLResponse:
+        # Passed the identity check: hand the app token to this browser and enter.
+        return HTMLResponse(
+            "<!doctype html><meta charset=utf-8><title>E.V.</title>"
+            "<script>localStorage.setItem('ev_token'," + json.dumps(config.web_token)
+            + ");location.replace('/');</script>"
+            "<p style='font:14px system-ui;color:#888;padding:24px'>Entrando…</p>")
+
+    def _login_denied_html(msg: str) -> HTMLResponse:
+        return HTMLResponse(
+            "<!doctype html><meta charset=utf-8><title>E.V.</title>"
+            "<div style='font:15px system-ui;color:#f4f3f1;background:#0a0a0a;"
+            "height:100vh;display:flex;flex-direction:column;align-items:center;"
+            "justify-content:center;gap:16px;text-align:center;padding:24px'>"
+            "<p>" + msg + "</p><a href='/' style='color:#8ab4f8'>voltar</a></div>",
+            status_code=403)
+
+    @app.get("/auth/google")
+    async def auth_google(request: Request):
+        if not config.google_login_client:
+            return _login_denied_html("Login com Google não configurado.")
+        from urllib.parse import urlencode
+        state = _secrets.token_urlsafe(16); _oauth_states.add(state)
+        params = urlencode({
+            "client_id": config.google_login_client,
+            "redirect_uri": _base_url(request) + "/auth/google/callback",
+            "response_type": "code", "scope": "openid email profile",
+            "access_type": "online", "state": state, "prompt": "select_account",
+        })
+        return RedirectResponse("https://accounts.google.com/o/oauth2/v2/auth?" + params)
+
+    @app.get("/auth/google/callback")
+    async def auth_google_cb(request: Request):
+        import httpx
+        code = request.query_params.get("code")
+        state = request.query_params.get("state")
+        if not code or state not in _oauth_states:
+            return _login_denied_html("Sessão de login inválida. Tente de novo.")
+        _oauth_states.discard(state)
+        redirect = _base_url(request) + "/auth/google/callback"
+
+        def _work():
+            tok = httpx.post("https://oauth2.googleapis.com/token", data={
+                "code": code, "client_id": config.google_login_client,
+                "client_secret": config.google_login_secret,
+                "redirect_uri": redirect, "grant_type": "authorization_code",
+            }, timeout=15).json()
+            at = tok.get("access_token")
+            info = httpx.get("https://www.googleapis.com/oauth2/v2/userinfo",
+                             headers={"Authorization": "Bearer " + (at or "")},
+                             timeout=15).json()
+            return (info.get("email") or "").lower()
+        try:
+            email = await asyncio.to_thread(_work)
+        except Exception as exc:
+            return _login_denied_html(f"Falha no login Google: {exc}")
+        if not email:
+            return _login_denied_html("Não consegui obter seu email do Google.")
+        allowed = memory.get_setting("login_google_email")
+        if not allowed:
+            memory.set_setting("login_google_email", email)  # pin the first login
+        elif email != allowed:
+            return _login_denied_html("Esta conta Google não tem acesso a esta E.V.")
+        return _login_ok_html()
+
+    @app.get("/auth/github")
+    async def auth_github(request: Request):
+        if not config.github_login_client:
+            return _login_denied_html("Login com GitHub não configurado.")
+        from urllib.parse import urlencode
+        state = _secrets.token_urlsafe(16); _oauth_states.add(state)
+        params = urlencode({
+            "client_id": config.github_login_client,
+            "redirect_uri": _base_url(request) + "/auth/github/callback",
+            "scope": "read:user", "state": state,
+        })
+        return RedirectResponse("https://github.com/login/oauth/authorize?" + params)
+
+    @app.get("/auth/github/callback")
+    async def auth_github_cb(request: Request):
+        import httpx
+        code = request.query_params.get("code")
+        state = request.query_params.get("state")
+        if not code or state not in _oauth_states:
+            return _login_denied_html("Sessão de login inválida. Tente de novo.")
+        _oauth_states.discard(state)
+        redirect = _base_url(request) + "/auth/github/callback"
+
+        def _work():
+            tok = httpx.post("https://github.com/login/oauth/access_token", data={
+                "client_id": config.github_login_client,
+                "client_secret": config.github_login_secret,
+                "code": code, "redirect_uri": redirect,
+            }, headers={"Accept": "application/json"}, timeout=15).json()
+            at = tok.get("access_token")
+            u = httpx.get("https://api.github.com/user", headers={
+                "Authorization": "Bearer " + (at or ""),
+                "Accept": "application/vnd.github+json"}, timeout=15).json()
+            return u.get("login") or ""
+        try:
+            login = await asyncio.to_thread(_work)
+        except Exception as exc:
+            return _login_denied_html(f"Falha no login GitHub: {exc}")
+        if not login:
+            return _login_denied_html("Não consegui obter seu usuário do GitHub.")
+        allowed = memory.get_setting("login_github_user")
+        if not allowed:
+            memory.set_setting("login_github_user", login)  # pin the first login
+        elif login.lower() != allowed.lower():
+            return _login_denied_html("Este usuário GitHub não tem acesso a esta E.V.")
+        return _login_ok_html()
 
     return app
 

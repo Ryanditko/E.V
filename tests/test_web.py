@@ -41,6 +41,8 @@ def _client(tmp_path):
         tavily_api_key="", brave_api_key="", ollama_enabled=False,
         groq_model="g", openrouter_model="o", ollama_model="l",
         google_ready=lambda: False, google_authorized=lambda account=None: False,
+        web_base_url="", google_login_client="", google_login_secret="",
+        github_login_client="", github_login_secret="",
     )
     brain = _FakeBrain()
     return TestClient(create_app(cfg, brain=brain)), brain
@@ -448,6 +450,15 @@ def test_notify_endpoint_validates(tmp_path):
     client, _ = _client(tmp_path)
     r = client.post("/api/notify", headers=_auth(), json={"text": ""}).json()
     assert r["ok"] is False
+
+
+def test_oauth_login_disabled_when_unconfigured(tmp_path):
+    client, _ = _client(tmp_path)  # fake config has no OAuth client ids
+    for path in ("/auth/google", "/auth/github"):
+        r = client.get(path, follow_redirects=False)
+        assert r.status_code == 403 and "não configurado" in r.text
+    # a bad callback (no code/state) is rejected, not crashed
+    assert client.get("/auth/google/callback").status_code == 403
 
 
 def test_gcal_endpoints_guarded(tmp_path):
