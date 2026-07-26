@@ -36,6 +36,16 @@ class Memory:
         # from different tasks. Writes here are short and serialized.
         self._conn = sqlite3.connect(db_path, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
+        # WAL + busy_timeout so the Telegram (`ev`) and web (`ev-web`) processes
+        # can share this one file safely: WAL lets readers and one writer work
+        # concurrently, and busy_timeout makes a write wait for the lock instead
+        # of failing immediately with "database is locked".
+        try:
+            self._conn.execute("PRAGMA journal_mode=WAL")
+            self._conn.execute("PRAGMA busy_timeout=5000")
+            self._conn.execute("PRAGMA synchronous=NORMAL")
+        except sqlite3.Error:
+            pass
         self._init_schema()
 
     def _init_schema(self) -> None:
