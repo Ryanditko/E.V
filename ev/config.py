@@ -79,6 +79,9 @@ class Config:
     google_login_secret: str
     github_login_client: str   # OAuth app client id for "login with GitHub"
     github_login_secret: str
+    vapid_public: str          # Web Push (VAPID) public key — sent to the browser
+    vapid_private: str         # Web Push private key (server signs pushes)
+    vapid_subject: str         # VAPID claims subject (mailto:...)
     db_path: Path
 
     @property
@@ -211,5 +214,8 @@ class Config:
             google_login_secret=os.getenv("EV_GOOGLE_LOGIN_SECRET", "").strip(),
             github_login_client=os.getenv("EV_GITHUB_LOGIN_CLIENT", "").strip(),
             github_login_secret=os.getenv("EV_GITHUB_LOGIN_SECRET", "").strip(),
+            vapid_public=os.getenv("VAPID_PUBLIC", "").strip(),
+            vapid_private=os.getenv("VAPID_PRIVATE", "").strip(),
+            vapid_subject=os.getenv("VAPID_SUBJECT", "mailto:ev@example.com").strip(),
             db_path=_PROJECT_ROOT / "ev_memory.db",
         )

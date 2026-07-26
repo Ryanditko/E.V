@@ -200,6 +200,12 @@ class Memory:
                 category TEXT,            -- category / workspace, when it has one
                 created  TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS push_subs (
+                endpoint TEXT PRIMARY KEY,
+                sub      TEXT NOT NULL,   -- full Web Push subscription JSON
+                created  TEXT NOT NULL
+            );
             """
         )
         # Migrations for older DBs.
@@ -255,6 +261,23 @@ class Memory:
                 (user_id, limit),
             ).fetchall()
         return [dict(r) for r in rows]
+
+    # --- web push subscriptions --------------------------------------------
+
+    def add_push_sub(self, endpoint: str, sub_json: str) -> None:
+        self._conn.execute(
+            "INSERT OR REPLACE INTO push_subs (endpoint, sub, created) VALUES (?, ?, ?)",
+            (endpoint, sub_json, self._now()),
+        )
+        self._conn.commit()
+
+    def list_push_subs(self) -> list[dict]:
+        rows = self._conn.execute("SELECT endpoint, sub FROM push_subs").fetchall()
+        return [dict(r) for r in rows]
+
+    def delete_push_sub(self, endpoint: str) -> None:
+        self._conn.execute("DELETE FROM push_subs WHERE endpoint = ?", (endpoint,))
+        self._conn.commit()
 
     def activity_categories(self, user_id: str) -> list[str]:
         rows = self._conn.execute(

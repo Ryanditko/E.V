@@ -2137,6 +2137,14 @@ class TelegramInterface:
                         app.bot, int(r["user_id"]),
                         f"⏰ Lembrete: {r['text']}", self._reminder_kb(sid),
                     )
+                    # also push to the web app (works even when it's closed)
+                    try:
+                        from ..providers import push
+                        await asyncio.to_thread(
+                            push.send_push, self._config, self._memory,
+                            "⏰ Lembrete", r["text"], "/")
+                    except Exception:
+                        pass
                     self._advance_reminder(r, due, now)
                     log.info("Delivered reminder #%s", r["id"])
                 except Exception:

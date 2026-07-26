@@ -41,5 +41,8 @@ python-multipart>=0.0.9
 # PWA app icons (rendered as PNG) for the installable web app
 pillow>=10.0.0
 
+# Web Push notifications (reminders with the app closed)
+pywebpush>=1.14.0
+
 # Tests (dev)
 pytest>=8.0.0

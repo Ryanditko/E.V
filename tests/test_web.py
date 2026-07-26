@@ -43,6 +43,7 @@ def _client(tmp_path):
         google_ready=lambda: False, google_authorized=lambda account=None: False,
         web_base_url="", google_login_client="", google_login_secret="",
         github_login_client="", github_login_secret="",
+        vapid_public="", vapid_private="", vapid_subject="mailto:x@x.com",
     )
     brain = _FakeBrain()
     return TestClient(create_app(cfg, brain=brain)), brain
@@ -497,6 +498,18 @@ def test_gcal_endpoints_guarded(tmp_path):
     # create/delete validate input before touching Google
     assert client.post("/api/gcal/create", headers=_auth(), json={"summary": "", "start": ""}).json()["ok"] is False
     assert client.post("/api/gcal/delete", headers=_auth(), json={"id": ""}).json()["ok"] is False
+
+
+def test_push_subscribe_and_key(tmp_path):
+    client, _ = _client(tmp_path)
+    assert client.get("/api/push/key", headers=_auth()).json()["key"] == ""  # from fake cfg
+    sub = {"endpoint": "https://push.example/abc", "keys": {"p256dh": "k", "auth": "a"}}
+    assert client.post("/api/push/subscribe", headers=_auth(), json=sub).json()["ok"] is True
+    from ev.core.memory import Memory
+    m = Memory(tmp_path / "t.db")
+    assert m.list_push_subs() and m.list_push_subs()[0]["endpoint"] == sub["endpoint"]
+    # no VAPID keys configured -> test push sends 0, no crash
+    assert client.post("/api/push/test", headers=_auth()).json()["sent"] == 0
 
 
 def test_activity_history(tmp_path):

@@ -43,11 +43,20 @@ self.addEventListener('activate', e => e.waitUntil((async () => {
   await self.clients.claim();
 })()));
 self.addEventListener('fetch', e => {});  // pass-through; presence enables install
+self.addEventListener('push', e => {
+  let d = {title:'E.V.', body:''};
+  try { d = e.data.json(); } catch(_) { if (e.data) d.body = e.data.text(); }
+  e.waitUntil(self.registration.showNotification(d.title || 'E.V.', {
+    body: d.body || '', icon: '/icon-192.png', badge: '/icon-192.png',
+    tag: d.body || 'ev', data: { url: d.url || '/' }
+  }));
+});
 self.addEventListener('notificationclick', e => {
   e.notification.close();
+  const url = (e.notification.data && e.notification.data.url) || '/';
   e.waitUntil(clients.matchAll({type:'window', includeUncontrolled:true}).then(cs => {
     for (const c of cs) { if ('focus' in c) return c.focus(); }
-    if (clients.openWindow) return clients.openWindow('/');
+    if (clients.openWindow) return clients.openWindow(url);
   }));
 });
 """
@@ -529,6 +538,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
     <div class="eyebrow">Provedor de IA</div>
     <select id="prov"><option>auto</option><option>gemini</option><option>groq</option><option>openrouter</option><option>ollama</option></select>
     <button class="act" id="btn-keys" style="margin-top:12px;width:100%"><i data-lucide="key-round"></i>Chaves de API</button>
+    <button class="act" id="btn-push" style="margin-top:8px;width:100%"><i data-lucide="bell"></i>Testar notificação</button>
   </aside>
 </div>
 <div id="mbackdrop"></div>
@@ -684,6 +694,9 @@ async function openKeys(){let d;try{d=await (await fetch('/api/keys',{headers:H(
   openForm('Chaves de API',fields,async v=>{const body={};Object.keys(v).forEach(k=>{if(v[k])body[k]=v[k];});
     if(Object.keys(body).length){const r=await (await fetch('/api/keys',{method:'POST',headers:H(),body:JSON.stringify(body)})).json();sys('Chaves atualizadas: '+(r.changed||[]).join(', '));loadPanel();}});}
 $('#btn-keys').onclick=openKeys;
+$('#btn-push').onclick=async()=>{try{if('Notification' in window&&Notification.permission!=='granted'){const p=await Notification.requestPermission();if(p!=='granted'){toast('Permita as notificações primeiro.');return;}}
+  await subscribePush();const j=await (await fetch('/api/push/test',{method:'POST',headers:H()})).json();
+  toast(j.sent?'Notificação enviada ('+j.sent+' aparelho'+(j.sent>1?'s':'')+').':'Nenhum aparelho inscrito ainda — recarregue e permita notificações.');}catch(e){toast('Falha ao testar notificação.');}};
 function openPicker(title,sub,items,selected,onSave){const m=$('#modal');m.textContent='';const card=el('div','mcard');
   const tt=el('div','mtitle',title);tt.appendChild(el('small','',sub));card.appendChild(tt);const sel=new Set(selected);
   items.forEach(it=>{const row=el('label','mrow');const cb=document.createElement('input');cb.type='checkbox';cb.checked=sel.has(it.key);
@@ -1192,9 +1205,20 @@ function welcome(){$('#welcome-txt').textContent=GREETING;$('#welcome').classLis
 // --- PWA + notifications + live sync (Lote A) ---
 async function initPWA(){
   try{if('serviceWorker' in navigator)await navigator.serviceWorker.register('/sw.js');}catch(e){}
+  if('Notification' in window&&Notification.permission==='granted')subscribePush();
   // ask for notification permission on the first tap (a gesture — browsers require it)
-  window.addEventListener('pointerdown',()=>{try{if('Notification' in window&&Notification.permission==='default')Notification.requestPermission();}catch(e){}},{once:true});
+  window.addEventListener('pointerdown',()=>{try{if('Notification' in window&&Notification.permission==='default')Notification.requestPermission().then(p=>{if(p==='granted')subscribePush();});}catch(e){}},{once:true});
 }
+function urlB64ToUint8(b){const pad='='.repeat((4-b.length%4)%4);const s=(b+pad).replace(/-/g,'+').replace(/_/g,'/');const raw=atob(s);return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)));}
+async function subscribePush(){try{
+  if(!('serviceWorker' in navigator)||!('PushManager' in window))return;
+  if(Notification.permission!=='granted')return;
+  const reg=await navigator.serviceWorker.ready;
+  let sub=await reg.pushManager.getSubscription();
+  if(!sub){const k=await (await fetch('/api/push/key',{headers:H()})).json();if(!k.key)return;
+    sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlB64ToUint8(k.key)});}
+  await fetch('/api/push/subscribe',{method:'POST',headers:H(),body:JSON.stringify(sub)});
+}catch(e){}}
 let _notified=new Set();try{_notified=new Set(JSON.parse(localStorage.getItem('ev_notified')||'[]'));}catch(e){}
 function _saveNotified(){try{localStorage.setItem('ev_notified',JSON.stringify([..._notified].slice(-200)));}catch(e){}}
 function notify(title,body){try{
@@ -1671,6 +1695,37 @@ def create_app(config: Config, brain: Brain | None = None):
         return StreamingResponse(gen(), media_type="text/event-stream",
                                  headers={"Cache-Control": "no-cache",
                                           "X-Accel-Buffering": "no"})
+
+    @app.get("/api/push/key")
+    async def push_key(request: Request):
+        _check(request.headers.get("authorization"))
+        return {"key": config.vapid_public}
+
+    @app.post("/api/push/subscribe")
+    async def push_subscribe(request: Request):
+        _check(request.headers.get("authorization"))
+        d = await _body(request)
+        ep = d.get("endpoint")
+        if not ep:
+            return {"ok": False}
+        memory.add_push_sub(ep, json.dumps(d))
+        return {"ok": True}
+
+    @app.post("/api/push/unsubscribe")
+    async def push_unsubscribe(request: Request):
+        _check(request.headers.get("authorization"))
+        ep = (await _body(request)).get("endpoint")
+        if ep:
+            memory.delete_push_sub(ep)
+        return {"ok": True}
+
+    @app.post("/api/push/test")
+    async def push_test(request: Request):
+        _check(request.headers.get("authorization"))
+        from ..providers import push
+        n = await asyncio.to_thread(push.send_push, config, memory,
+                                    "E.V.", "Notificação de teste funcionando.", "/")
+        return {"ok": n > 0, "sent": n}
 
     @app.post("/api/tasks")
     async def tasks_create(request: Request):
