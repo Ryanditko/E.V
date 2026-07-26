@@ -725,7 +725,7 @@ function ptick(){if(!pomo.run)return;pomo.rem--;
   }prender();}
 function pstart(){if(pomo.timer)clearInterval(pomo.timer);pomo.run=true;pomo.timer=setInterval(ptick,1000);prender();pIcon();}
 function pstop(){pomo.run=false;if(pomo.timer){clearInterval(pomo.timer);pomo.timer=null;}prender();pIcon();}
-function openPomo(mins,brk){mins=mins||25;brk=brk||5;pomo.phase='focus';pomo.brk=brk*60;pomo.total=mins*60;pomo.rem=mins*60;PL.textContent='Foco';PW.classList.add('on');pstart();}
+function openPomo(mins,brk){mins=mins||25;brk=brk||5;pomo.phase='focus';pomo.brk=brk*60;pomo.total=mins*60;pomo.rem=mins*60;PL.textContent='Foco';PW.classList.add('on');pstart();speak('Iniciando o foco. '+mins+' minutos, vamos nessa, Ryan.',true);}
 $('#pomo-x').onclick=()=>{pstop();PW.classList.remove('on');};
 PG.onclick=()=>pomo.run?pstop():pstart();
 $('#pomo-reset').onclick=()=>{pomo.rem=pomo.total;prender();};
