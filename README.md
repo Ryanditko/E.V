@@ -1,6 +1,6 @@
 <div align="center">
 
-# ⚡ E.V.
+# E.V.
 
 ### A personal AI assistant with a voice, a memory, and a will to never go quiet.
 
@@ -18,7 +18,7 @@ hands — loyal, warm, playful, and always on your side.
 ![Tests](https://img.shields.io/badge/tests-133%20passing-2e7d32)
 [![Deploy](https://github.com/Ryanditko/E.V/actions/workflows/deploy.yml/badge.svg)](https://github.com/Ryanditko/E.V/actions/workflows/deploy.yml)
 
-**[Features](#-what-she-does) · [Architecture](#-architecture) · [Web console](#-the-web-console) · [Quick start](#-quick-start) · [Deploy 24/7](#-run-her-24-7) · [Docs](#-documentation)**
+**[Features](#what-she-does) · [Architecture](#architecture) · [Web console](#the-web-console) · [Quick start](#quick-start) · [Deploy 24/7](#run-her-24-7) · [Docs](#documentation)**
 
 </div>
 
@@ -29,7 +29,7 @@ hands — loyal, warm, playful, and always on your side.
 
 ---
 
-## 🚪 Two doors, one mind
+## Two doors, one mind
 
 E.V. cleanly separates **what she is** (a reusable brain + memory) from **how you reach
 her** (swappable interfaces). Every door drives the exact same brain, so a task you
@@ -44,40 +44,40 @@ is recalled on the phone.
 
 ---
 
-## ✨ What she does
+## What she does
 
 **Conversation & voice**
 - Natural chat with a warm, witty personality; **voice in and out** (she speaks with a
-  natural pt-BR voice via `edge-tts`, and transcribes your audio with **Groq Whisper**).
+ natural pt-BR voice via `edge-tts`, and transcribes your audio with **Groq Whisper**).
 - Multi-provider brain that **never goes silent** — Gemini → Groq → OpenRouter → local
-  Ollama; if one is rate-limited, the next answers.
+ Ollama; if one is rate-limited, the next answers.
 
 **Memory & knowledge**
 - **Real long-term memory** with semantic (vector) recall across conversations.
 - **Knowledge base (RAG)** — drop a PDF/Word/web page; she indexes it and answers grounded
-  in it, with the original file available to open or download.
+ in it, with the original file available to open or download.
 - **Vision / OCR** — send a photo (a bill, a screenshot) and she reads it.
 
 **Life, organized**
 - Tasks (with **due dates + rolling recurrence**), reminders & a calendar (**daily/weekly/
-  monthly recurrence**), expenses with budgets & alerts, habits with streaks, journal,
-  links by category, subscriptions, and web/price monitors — full CRUD on every one.
+ monthly recurrence**), expenses with budgets & alerts, habits with streaks, journal,
+ links by category, subscriptions, and web/price monitors — full CRUD on every one.
 - **Daily briefing**, weekly review, monthly financial report, proactive check-ins,
-  weather & news, Pomodoro, and AI insights.
+ weather & news, Pomodoro, and AI insights.
 
 **Real tools & reach**
 - Web search (**Tavily → Brave → DuckDuckGo**), web-page indexing, document generation
-  (PDF/Word), and — with setup — **Google Calendar & Gmail**.
+ (PDF/Word), and — with setup — **Google Calendar & Gmail**.
 - **Hands-free**: she can *run* any command herself (create/edit/delete) from chat or voice.
 - **Owner-locked** to you (`EV_OWNER_ID`) and works in Telegram topic groups on mention.
 
 **Runs like a product**
 - **CI/CD** (test-gated auto-deploy), **systemd** services, a **watchdog** that restarts
-  and alerts, daily DB backups, and **private HTTPS** with zero open ports.
+ and alerts, daily DB backups, and **private HTTPS** with zero open ports.
 
 ---
 
-## 🧠 Architecture
+## Architecture
 
 One core, many doors. New interfaces reuse the brain unchanged.
 
@@ -156,20 +156,20 @@ sequenceDiagram
 
 ---
 
-## 🖥️ The web console
+## The web console
 
 A self-contained single-page **JARVIS-style monochrome console** (no build step) served by
 FastAPI, backed by the same brain and data as Telegram.
 
 - **Chat** with structured rendering, slash-command autocomplete and a `⌘/Ctrl-K` palette.
 - **Voice** — she reads replies aloud, and takes voice input by recording audio and
-  transcribing it **server-side with Whisper**, so it works in **any browser** (Firefox,
-  Chrome, Safari), not just Chrome.
+ transcribing it **server-side with Whisper**, so it works in **any browser** (Firefox,
+ Chrome, Safari), not just Chrome.
 - **CRUD tabs** for Tasks, Expenses, Reminders, Calendar, Memories, Links, Habits, Journal,
-  Subscriptions, Budgets and Monitors — create / **edit** / delete, per-tab search,
-  recurrence, drag-and-drop, clickable links, PDF/Word open & download.
+ Subscriptions, Budgets and Monitors — create / **edit** / delete, per-tab search,
+ recurrence, drag-and-drop, clickable links, PDF/Word open & download.
 - Customizable quick-actions & system panels, Pomodoro, API-key manager, in-app modals,
-  fully responsive.
+ fully responsive.
 
 **Private HTTPS, no open ports.** It's exposed over **Tailscale Serve** at
 `https://ev.<tailnet>.ts.net` — a valid TLS cert, reachable **only** from your own
@@ -180,7 +180,7 @@ More: **[docs/WEB.md](docs/WEB.md)**.
 
 ---
 
-## 🤖 AI providers (all free tiers)
+## AI providers (all free tiers)
 
 | Role | Provider | Model | Why |
 |------|----------|-------|-----|
@@ -195,7 +195,7 @@ Switch or force a provider at runtime with `/provedor` and `/modelo`.
 
 ---
 
-## ⌨️ Commands (deterministic, no LLM, zero tokens)
+## ⌨ Commands (deterministic, no LLM, zero tokens)
 
 Type `/` for autocomplete, or `/menu` for a button UI. A taste:
 
@@ -216,7 +216,7 @@ Time formats: `10m`, `2h`, `1d`, `hoje 18:00`, `amanhã 09:00`, `25/12 14:30`.
 
 ---
 
-## 🚀 Quick start
+## Quick start
 
 > Full first-machine walkthrough (every key, Google auth, deploy): **[docs/SETUP.md](docs/SETUP.md)**.
 
@@ -247,28 +247,28 @@ Every variable and cost is in **[docs/KEYS.md](docs/KEYS.md)**. The essentials:
 
 ---
 
-## ☁️ Run her 24/7
+## Run her 24/7
 
 She's built to run like a product:
 
 - **One-command deploy** — `bash deploy.sh` ships code + keys to the VM and restarts.
 - **CI/CD** — push to `main` runs the **pytest gate**, then auto-deploys and restarts both
-  services (`.github/workflows/deploy.yml`).
+ services (`.github/workflows/deploy.yml`).
 - **systemd** — `ev` (Telegram) and `ev-web` (web) auto-start on boot, restart on crash.
 - **Watchdog** — every ~15 min, checks both services, restarts if down, alerts you on
-  Telegram; also warns on low disk/memory (`.github/workflows/watchdog.yml`).
+ Telegram; also warns on low disk/memory (`.github/workflows/watchdog.yml`).
 - **Backups** — the DB is sent to you on Telegram (weekly + first run).
 - **Fresh VM** — `bash deploy/setup_vm.sh` installs both services in one go.
 
 Hosting options — pick a machine that stays on:
 
 - **Free, your hardware:** Android via Termux (**[docs/TERMUX.md](docs/TERMUX.md)**) · your
-  PC as a service (**[docs/SELF_HOST.md](docs/SELF_HOST.md)**).
+ PC as a service (**[docs/SELF_HOST.md](docs/SELF_HOST.md)**).
 - **Cloud, always on:** Oracle Always Free (**[docs/DEPLOY.md](docs/DEPLOY.md)**).
 
 ---
 
-## 📁 Project structure
+## Project structure
 
 ```
 E.V/
@@ -302,7 +302,7 @@ E.V/
 
 ---
 
-## 🧪 Testing
+## Testing
 
 ```bash
 ./.venv/bin/python -m pytest -q      # 133 passing
@@ -312,7 +312,7 @@ CI runs the suite as a **gate before every deploy** — a red test never ships.
 
 ---
 
-## 📚 Documentation
+## Documentation
 
 | Doc | What's inside |
 |-----|---------------|
@@ -330,16 +330,16 @@ CI runs the suite as a **gate before every deploy** — a red test never ships.
 
 ---
 
-## 🔒 Security
+## Security
 
 - **Owner-locked** to your Telegram ID; the web is behind a bearer token **and** your
-  private Tailscale — not on the public internet, with plain HTTP closed.
+ private Tailscale — not on the public internet, with plain HTTP closed.
 - Secrets live only in the VM `.env` (git-ignored) and GitHub Actions secrets — never in
-  the repo. The watchdog reads the Telegram token from the VM, so no token leaves it.
+ the repo. The watchdog reads the Telegram token from the VM, so no token leaves it.
 
 ---
 
-## 🛠️ Built with
+## Built with
 
 `Python 3` · `FastAPI` + `uvicorn` · `python-telegram-bot` · `SQLite` · `edge-tts` ·
 `Groq Whisper` · `Google Gemini` · `Groq` · `OpenRouter` · `Ollama` · `pypdf` ·
@@ -348,7 +348,7 @@ CI runs the suite as a **gate before every deploy** — a red test never ships.
 
 ---
 
-## 🗺️ Roadmap
+## Roadmap
 
 - [x] Voice & text chat, multi-provider fallback, warm personality
 - [x] Long-term + semantic memory, knowledge base (RAG), vision/OCR
