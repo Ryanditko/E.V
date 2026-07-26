@@ -294,6 +294,11 @@ body.listening .bigcore .bdot{animation:pulse .9s infinite}
 .msg .sub:first-child{margin-top:0}
 .msg .sub svg{width:15px;height:15px;color:var(--subtle);flex:none}
 .msg .sep{height:1px;background:var(--line);margin:9px 0;border:none}
+.mchips{display:flex;flex-wrap:wrap;gap:7px;margin:3px 0 10px}
+.mchip{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:12px;color:var(--fg);background:var(--elev);border:1px solid var(--line);border-radius:999px;padding:6px 12px;cursor:pointer;position:relative;overflow:hidden;transition:background .15s,border-color .15s,color .15s}
+.mchip:hover,.mchip:active{background:var(--fg);color:var(--ink);border-color:var(--fg)}
+.mchip svg{width:14px;height:14px}.mchip:hover svg{color:var(--ink)}
+body.term .mchip{border-radius:4px}
 body.term .msg code{background:transparent;border:none;padding:0}
 body.term .msg .mdh,body.term .msg .bul,body.term .msg .sub{all:unset;display:block}
 body.term .msg .sub{font-weight:700}
@@ -689,7 +694,42 @@ async function send(msg){if(!msg)return;you(msg);const p=thinking();setState('th
     while(true){const{done,value}=await reader.read();if(done)break;full+=dec.decode(value,{stream:true});renderReply(bubble,full);log.scrollTop=log.scrollHeight;}
     speak(full);loadPanel();
   }catch(e){p.remove();sys('Sem conexão com a E.V. — '+e);}finally{setState();}}
+// interactive /menu — tappable chips grouped by area (like the Telegram button menu)
+const MENU=[
+  {h:'Ver',gi:'eye',items:[
+    {c:'/tarefas',l:'Tarefas',i:'list-checks'},{c:'/lembretes',l:'Lembretes',i:'alarm-clock'},
+    {c:'/gastos',l:'Gastos',i:'wallet'},{c:'/calendario',l:'Agenda',i:'calendar'},
+    {c:'/habitos',l:'Hábitos',i:'repeat'},{c:'/diario',l:'Diário',i:'notebook-pen'},
+    {c:'/memorias',l:'Memórias',i:'brain'},{c:'/links',l:'Links',i:'link'},
+    {c:'/relatorio',l:'Relatório',i:'bar-chart-3'},{c:'/semana',l:'Semana',i:'calendar-days'},
+    {c:'/status',l:'Status',i:'activity'},{c:'/dados',l:'Meus dados',i:'database'}]},
+  {h:'Criar',gi:'plus-circle',items:[
+    {c:'/tarefa',l:'Tarefa',i:'plus',fill:1},{c:'/lembrete',l:'Lembrete',i:'alarm-clock',fill:1},
+    {c:'/gasto',l:'Gasto',i:'wallet',fill:1},{c:'/evento',l:'Evento',i:'calendar-plus',fill:1},
+    {c:'/email',l:'E-mail',i:'mail',fill:1},{c:'/link',l:'Link',i:'link',fill:1},
+    {c:'/kb',l:'Nota na base',i:'book-open',fill:1}]},
+  {h:'Ferramentas',gi:'wand-2',items:[
+    {c:'/foco',l:'Pomodoro',i:'timer',pomo:1},{c:'/buscar',l:'Buscar web',i:'search',fill:1},
+    {c:'/procurar',l:'Procurar',i:'file-search',fill:1},{c:'/resumir',l:'Resumir link',i:'link',fill:1},
+    {c:'/noticias',l:'Notícias',i:'newspaper'},{c:'/clima',l:'Clima',i:'cloud-sun',fill:1},
+    {c:'/quiz',l:'Quiz',i:'graduation-cap'}]},
+  {h:'Ajustes',gi:'settings',items:[
+    {c:'/provedor',l:'Provedor',i:'server',fill:1},{c:'/modelo',l:'Modelo',i:'cpu'},
+    {c:'/silenciar',l:'Silenciar',i:'bell-off',fill:1},{c:'/ajuda',l:'Ajuda',i:'help-circle'}]},
+];
+function showMenu(){const d=el('div','msg ev');
+  const h=el('span','h');h.appendChild(ficon('layout-grid'));h.appendChild(document.createTextNode('Menu — toque para abrir ou preencher'));d.appendChild(h);
+  MENU.forEach(g=>{const sub=el('div','sub');sub.appendChild(ficon(g.gi));const sp=el('span','');sp.textContent=g.h;sub.appendChild(sp);d.appendChild(sub);
+    const wrap=el('div','mchips');
+    g.items.forEach(it=>{const b=el('button','mchip');b.type='button';b.appendChild(ficon(it.i));b.appendChild(document.createTextNode(it.l));
+      b.onclick=(ev)=>{if(it.fill){ripple(b,ev);txt.value=it.c+' ';txt.focus();return;}
+        if(it.pomo){ripple(b,ev);openPomo();return;}
+        runCmd(it.c,b,ev);};
+      wrap.appendChild(b);});
+    d.appendChild(wrap);});
+  log.appendChild(d);log.scrollTop=log.scrollHeight;window.lucide&&lucide.createIcons();}
 async function runCmd(cmd,btn,e){const nm=cmd.trim().replace(/^\//,'').split(/\s+/)[0].toLowerCase();
+  if(nm==='menu'){if(btn)ripple(btn,e);showMenu();return;}
   if(nm==='foco'){if(btn)ripple(btn,e);const n=cmd.match(/\d+/g)||[];openPomo(parseInt(n[0])||25,parseInt(n[1])||5);return;}
   if(btn)ripple(btn,e);const p=thinking();setState('thinking');
   try{const r=await fetch('/api/cmd',{method:'POST',headers:H(),body:JSON.stringify({command:cmd,thread})});
