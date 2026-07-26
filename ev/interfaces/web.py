@@ -272,6 +272,10 @@ body.term #txt::placeholder{color:#4a4a4a}
 #imgprev .ip-name{flex:1;min-width:0;font-size:12px;color:var(--muted);font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #imgprev .ip-x{background:var(--elev);border:1px solid var(--line);color:var(--fg);width:30px;height:30px;flex:none;border-radius:8px;cursor:pointer;font-size:17px;line-height:1}
 .msg-img{max-width:230px;max-height:230px;border-radius:11px;display:block}
+#audprev{display:none;align-items:center;gap:10px;padding:9px 18px;border-top:1px solid var(--line);background:var(--surface)}
+#audprev .ap-info{flex:1;min-width:0;font-size:12.5px;color:var(--muted);font-family:var(--mono)}
+#audprev button{border-radius:9px;cursor:pointer;font:inherit;font-size:13px;padding:8px 12px;border:1px solid var(--line);background:var(--elev);color:var(--fg)}
+#audprev .ap-send{background:var(--fg);color:var(--ink);border:none;font-weight:600}
 .wave{display:none;align-items:flex-end;gap:2px;height:16px}.icon.mic.on .mg{display:none}.icon.mic.on .wave{display:flex}
 .wave b{width:2.5px;height:5px;background:var(--ink);border-radius:2px;animation:wv .9s infinite}
 .wave b:nth-child(2){animation-delay:.12s}.wave b:nth-child(3){animation-delay:.24s}.wave b:nth-child(4){animation-delay:.36s}
@@ -374,6 +378,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
       <button class="tbtn ico" id="tgl-right" title="Ocultar/mostrar painel"><i data-lucide="panel-right"></i></button></div>
     <div id="chatview">
       <div id="log"></div>
+      <div id="audprev"></div>
       <div id="imgprev"></div>
       <form id="f"><div id="slash"></div>
         <button type="button" class="icon mic" id="mic" title="Falar"><span class="mg"><i data-lucide="mic"></i></span><span class="wave"><b></b><b></b><b></b><b></b></span></button>
@@ -777,13 +782,21 @@ async function sttBlob(blob){const ext=(blob.type||'').includes('mp4')?'mp4':(bl
   const r=await fetch('/api/stt',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd});
   if(!r.ok)throw new Error('stt '+r.status);return ((await r.json()).text||'').trim();}
 // botão de microfone no chat
+let _audA=null;
+function audioConfirm(blob){const p=$('#audprev');p.innerHTML='';if(!blob||!blob.size){p.style.display='none';return;}
+  if(_audA){try{_audA.pause();}catch(e){}}_audA=new Audio(URL.createObjectURL(blob));
+  const play=el('button','ap-play','▶ ouvir');play.onclick=()=>{try{_audA.currentTime=0;_audA.play();}catch(e){}};
+  const info=el('span','ap-info','Áudio gravado — confira antes de enviar (transcrever custa tokens).');
+  const cancel=el('button','ap-cancel','Cancelar');cancel.onclick=()=>{p.style.display='none';if(_audA){try{_audA.pause();}catch(e){}}};
+  const sendb=el('button','ap-send','Enviar');sendb.onclick=async()=>{p.style.display='none';setState('thinking');
+    try{const t=await sttBlob(blob);if(t)send(t);else sys('Não entendi o áudio — fale mais perto e tente de novo.');}
+    catch(x){sys('Falha ao transcrever o áudio. Tente de novo.');}finally{setState();}};
+  p.appendChild(play);p.appendChild(info);p.appendChild(cancel);p.appendChild(sendb);p.style.display='flex';}
 micBtn.onclick=async e=>{ripple(micBtn,e);
   if(!RECOK){sys('Gravação de áudio indisponível neste navegador.');return;}
   if(_recActive){stopRec();return;}
-  micBtn.classList.add('on');setState('listening');
-  const res=await startRec(async blob=>{micBtn.classList.remove('on');setState('thinking');
-    try{const t=await sttBlob(blob);if(t)send(t);else sys('Não entendi o áudio — fale mais perto e tente de novo.');}
-    catch(x){sys('Falha ao transcrever o áudio. Tente de novo.');}finally{setState();}});
+  $('#audprev').style.display='none';micBtn.classList.add('on');setState('listening');
+  const res=await startRec(blob=>{micBtn.classList.remove('on');setState();audioConfirm(blob);});
   if(res!==true){micBtn.classList.remove('on');setState();sys(micErrMsg(res));}};
 
 // live voice console
