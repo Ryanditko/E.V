@@ -154,6 +154,8 @@ body.hide-left.hide-right #app{grid-template-columns:1fr}
 #chatview{flex:1;display:flex;flex-direction:column;min-height:0}
 #taskview,#kbview,#expview,#remview,#memview,#calview,#lnkview,#habview,#jouview,#subview,#orcview,#monview{flex:1;min-height:0;overflow:auto;padding:24px;display:none}
 .cal-head{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:18px}
+.cal-send{display:flex;gap:8px;justify-content:center;margin:-6px 0 16px;flex-wrap:wrap}
+.cal-send .mbtn2{display:inline-flex;align-items:center;gap:7px}
 #calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;max-width:940px;margin:0 auto}
 .cal-dow{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--subtle);text-align:center;padding:4px}
 .cal-cell{min-height:94px;border:1px solid var(--line);border-radius:10px;padding:7px;background:var(--surface);cursor:pointer;transition:border-color .15s;overflow:hidden}
@@ -343,6 +345,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
     </div>
     <div id="calview">
       <div class="cal-head"><button class="tbtn" id="cal-prev">‹</button><div class="tv-h" id="cal-title" style="margin:0;min-width:200px;text-align:center"></div><button class="tbtn" id="cal-next">›</button></div>
+      <div class="cal-send"><button class="mbtn2" id="cal-email">Enviar email</button><button class="mbtn2" id="cal-msg">Mensagem no Telegram</button></div>
       <div id="calgrid"></div>
     </div>
     <div id="memview">
@@ -819,6 +822,24 @@ function calList(ds,list){const m=$('#modal');m.textContent='';const card=el('di
   bar.appendChild(c);bar.appendChild(add);card.appendChild(bar);m.appendChild(card);m.classList.add('on');}
 $('#cal-prev').onclick=()=>{calM--;if(calM<0){calM=11;calY--;}loadCal();};
 $('#cal-next').onclick=()=>{calM++;if(calM>11){calM=0;calY++;}loadCal();};
+function toast(msg){let t=document.getElementById('_toast');if(!t){t=el('div','');t.id='_toast';t.style.cssText='position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:var(--elev);border:1px solid var(--line-2);color:var(--fg);padding:11px 17px;border-radius:11px;font-size:13px;z-index:9999;box-shadow:0 8px 30px rgba(0,0,0,.45);max-width:82vw;text-align:center;transition:opacity .3s';document.body.appendChild(t);}
+  t.textContent=msg;t.style.opacity='1';clearTimeout(t._h);t._h=setTimeout(()=>{t.style.opacity='0';},4000);}
+function openEmail(){openForm('Enviar email',[
+  {key:'to',label:'Para',placeholder:'fulano@email.com'},
+  {key:'subject',label:'Assunto'},
+  {key:'body',label:'Mensagem',type:'textarea'}],
+  async v=>{if(!v.to||!v.body){toast('Preencha destinatário e mensagem.');return;}
+    toast('Enviando email...');
+    try{const j=await (await fetch('/api/email',{method:'POST',headers:H(),body:JSON.stringify({to:v.to,subject:v.subject,body:v.body})})).json();
+      toast(j.msg||(j.ok?'Email enviado.':'Falha ao enviar.'));}catch(e){toast('Sem conexão ao enviar o email.');}});}
+function openMsg(){openForm('Mensagem no meu Telegram',[
+  {key:'text',label:'Mensagem',type:'textarea',placeholder:'texto que chega no seu Telegram'}],
+  async v=>{if(!v.text)return;
+    try{const j=await (await fetch('/api/notify',{method:'POST',headers:H(),body:JSON.stringify({text:v.text})})).json();
+      toast(j.msg||(j.ok?'Mensagem enviada.':'Falha ao enviar.'));}catch(e){toast('Sem conexão ao enviar a mensagem.');}});}
+$('#cal-email').onclick=()=>openEmail();
+$('#cal-msg').onclick=()=>openMsg();
+$('#cal-email').prepend(ficon('mail'));$('#cal-msg').prepend(ficon('send'));window.lucide&&lucide.createIcons();
 async function recDel(url,id,reload){await fetch(url,{method:'POST',headers:H(),body:JSON.stringify({id})});reload();loadPanel();}
 function subline(txt){const d=el('div','',txt);d.style.cssText='color:var(--subtle);font-family:var(--mono);font-size:11px;margin-top:2px';return d;}
 async function loadExp(){try{const items=(await (await fetch('/api/expenses',{headers:H()})).json()).items||[];
@@ -1793,6 +1814,49 @@ def create_app(config: Config, brain: Brain | None = None):
             raise HTTPException(status_code=400, detail="empty audio")
         text = await brain.transcribe(data, f.content_type or "audio/webm")
         return {"text": (text or "").strip()}
+
+    @app.post("/api/email")
+    async def api_email(request: Request):
+        _check(request.headers.get("authorization"))
+        from ..providers import tools
+        d = await _body(request)
+        to = (d.get("to") or "").strip()
+        subject = (d.get("subject") or "").strip()
+        body = (d.get("body") or "").strip()
+        if not to or not body:
+            return {"ok": False, "msg": "Preencha destinatário e mensagem."}
+        account = (d.get("account") or "").strip() or config.default_account
+        try:
+            msg = await asyncio.to_thread(
+                tools.send_email, config, account, to, subject, body
+            )
+            return {"ok": True, "msg": msg}
+        except Exception as exc:
+            return {"ok": False, "msg": f"Falha ao enviar o email: {exc}"}
+
+    @app.post("/api/notify")
+    async def api_notify(request: Request):
+        """Send a message to the owner's own Telegram (a note to yourself)."""
+        _check(request.headers.get("authorization"))
+        text = ((await _body(request)).get("text") or "").strip()
+        if not text:
+            return {"ok": False, "msg": "Mensagem vazia."}
+        if not config.telegram_token or config.owner_id is None:
+            return {"ok": False, "msg": "Telegram não está configurado."}
+        import httpx
+
+        def _send():
+            return httpx.post(
+                f"https://api.telegram.org/bot{config.telegram_token}/sendMessage",
+                data={"chat_id": config.owner_id, "text": text}, timeout=15,
+            )
+        try:
+            r = await asyncio.to_thread(_send)
+            if r.status_code == 200:
+                return {"ok": True, "msg": "Mensagem enviada ao seu Telegram."}
+            return {"ok": False, "msg": f"Falha ao enviar (HTTP {r.status_code})."}
+        except Exception as exc:
+            return {"ok": False, "msg": f"Falha ao enviar: {exc}"}
 
     return app
 

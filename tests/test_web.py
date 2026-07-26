@@ -438,6 +438,18 @@ def test_kb_upload_recognizes_multipart_file(tmp_path):
     assert r["ok"] is False and "PDF" in r["msg"]
 
 
+def test_email_endpoint_validates(tmp_path):
+    client, _ = _client(tmp_path)
+    r = client.post("/api/email", headers=_auth(), json={"to": "", "body": ""}).json()
+    assert r["ok"] is False and "destinat" in r["msg"].lower()
+
+
+def test_notify_endpoint_validates(tmp_path):
+    client, _ = _client(tmp_path)
+    r = client.post("/api/notify", headers=_auth(), json={"text": ""}).json()
+    assert r["ok"] is False
+
+
 def test_geral_folder_protected(tmp_path):
     client, _ = _client(tmp_path)
     out = client.post("/api/threads/delete", json={"name": "geral"}, headers=_auth()).json()
