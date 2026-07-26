@@ -108,6 +108,19 @@ def test_month_bounds_are_utc_iso(tmp_path):
     assert start < end and len(label) == 7  # 'MM/YYYY'
 
 
+def test_edit_by_name_expense_and_reminder(tmp_path):
+    c = _commands(tmp_path)
+    c.gasto("u", "50 mercado #casa")
+    out = c.gastoeditar("u", "mercado | 65 mercado grande #lazer")
+    assert "atualizado" in out
+    e = c._memory.expenses_since("u", "2000-01-01")[0]
+    assert e["amount"] == 65.0 and e["description"] == "mercado grande" and e["category"] == "lazer"
+    c.lembrete("u", "amanhã 09:00 pagar conta")
+    assert "atualizado" in c.lembreteeditar("u", "pagar conta | pagar aluguel")
+    assert c._memory.open_reminders("u")[0]["text"] == "pagar aluguel"
+    assert "não achei" in c.gastoeditar("u", "inexistente | 10").lower()
+
+
 def test_delete_by_name_across_types(tmp_path):
     c = _commands(tmp_path)
     c.gasto("u", "50 mercado #casa")

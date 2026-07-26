@@ -604,10 +604,12 @@ class Brain:
                 "OU nome, ex 'comprar leite'), 'tarefarm' (apagar por id/nome), "
                 "'tarefaeditar' (args '<nome/id> | <novo texto> [#cat]'). Também: lembrete, "
                 "lembretes, rotina, cancelar, calendario, lembrar, memorias, esquecer, "
-                "gasto, gastos, gastorm (apaga gasto por id OU descrição), orcamento, "
+                "gasto, gastos, gastorm (apaga gasto por id OU descrição), gastoeditar "
+                "(edita gasto por nome: '<nome/id> | <valor> [descrição] [#cat]'), orcamento, "
                 "orcamentos, orcamentorm, relatorio, habito, feito (por nome), habitos, "
                 "habitorm (por nome), diario, diariorm, link, links, linkrm (por id OU nome), "
-                "cancelar (lembrete por id OU texto), esquecer (memória por id OU conteúdo), "
+                "cancelar (lembrete por id OU texto), lembreteeditar (edita lembrete por nome: "
+                "'<nome/id> | <novo texto> [| <novo tempo>]'), esquecer (memória por id OU conteúdo), "
                 "procurar, buscar, noticias, clima, kb, kbrm, kbweb, semana, vigiar, vigias, "
                 "vigiarm, assinatura, assinaturas, assinaturarm, agenda, evento, email.",
                 {

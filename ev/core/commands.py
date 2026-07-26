@@ -189,6 +189,7 @@ class Commands:
             "lembretes": lambda u, a: self.lembretes(u),
             "rotina": lambda u, a: self.rotina(u, a),
             "cancelar": lambda u, a: self.cancelar(u, a),
+            "lembreteeditar": lambda u, a: self.lembreteeditar(u, a),
             "calendario": lambda u, a: self.calendario(u),
             "lembrar": lambda u, a: self.lembrar(u, a),
             "memorias": lambda u, a: self.memorias(u),
@@ -196,6 +197,7 @@ class Commands:
             "gasto": lambda u, a: self.gasto(u, a),
             "gastos": lambda u, a: self.gastos(u),
             "gastorm": lambda u, a: self.gastorm(u, a),
+            "gastoeditar": lambda u, a: self.gastoeditar(u, a),
             "orcamento": lambda u, a: self.orcamento(u, a),
             "orcamentos": lambda u, a: self.orcamentos(u),
             "orcamentorm": lambda u, a: self.orcamentorm(u, a),
@@ -368,6 +370,26 @@ class Commands:
         self._memory.cancel_reminder(user_id, it["id"])
         return f"Lembrete \"{it['text']}\" cancelado."
 
+    def lembreteeditar(self, user_id: str, argstr: str) -> str:
+        """Edit a reminder by id or name: '<nome/id> | <novo texto> [| <novo tempo>]'."""
+        alvo, _, resto = argstr.partition("|")
+        it, err = self._pick(self._memory.open_reminders(user_id), alvo, "text", "o lembrete")
+        if err:
+            return err
+        novo, _, quando = resto.partition("|")
+        novo = novo.strip()
+        when_iso = None
+        quando = quando.strip()
+        if quando:
+            dt = parse_when(quando, self._now())
+            if dt:
+                when_iso = dt.isoformat()
+        if not novo and not when_iso:
+            return "Uso: lembreteeditar <nome ou id> | <novo texto> [| <novo tempo>]"
+        self._memory.update_reminder(user_id, it["id"], text=(novo or None), when_iso=when_iso)
+        extra = f" (para {when_iso.replace('T', ' ')[:16]})" if when_iso else ""
+        return f"Lembrete atualizado: \"{novo or it['text']}\"{extra}"
+
     def lembretes(self, user_id: str) -> str:
         items = self._memory.open_reminders(user_id)
         if not items:
@@ -538,6 +560,41 @@ class Commands:
             return err
         self._memory.delete_expense(user_id, it["id"])
         return f"Gasto \"{it['description']}\" (R$ {it['amount']:.2f}) apagado."
+
+    def gastoeditar(self, user_id: str, argstr: str) -> str:
+        """Edit an expense by id or name: '<nome/id> | <valor> [descrição] [#cat]'."""
+        alvo, _, resto = argstr.partition("|")
+        since = (datetime.now(timezone.utc) - timedelta(days=120)).isoformat()
+        it, err = self._pick(self._memory.expenses_since(user_id, since),
+                             alvo, "description", "o gasto")
+        if err:
+            return err
+        toks = resto.split()
+        if not toks:
+            return "Uso: gastoeditar <nome ou id> | <novo valor> [descrição] [#cat]"
+        cat = next((t[1:] for t in toks if t.startswith("#") and len(t) > 1), None)
+        toks = [t for t in toks if not t.startswith("#")]
+        amount = None
+        if toks:
+            first = toks[0].replace(",", ".")
+            try:
+                amount = float(first)
+                toks = toks[1:]
+            except ValueError:
+                pass
+        desc = " ".join(toks).strip() or None
+        if amount is None and desc is None and cat is None:
+            return "Nada pra mudar. Ex: gastoeditar mercado | 60 pão #casa"
+        self._memory.update_expense(user_id, it["id"], amount=amount,
+                                    description=desc, category=cat)
+        parts = []
+        if amount is not None:
+            parts.append(f"R$ {amount:.2f}")
+        if desc:
+            parts.append(desc)
+        if cat:
+            parts.append(f"#{cat}")
+        return f"Gasto \"{it['description']}\" atualizado: " + " · ".join(parts)
 
     def relatorio(self, user_id: str, offset: int = 0) -> str:
         """Financial report for a calendar month, by category vs budget.
