@@ -165,10 +165,15 @@ body.listening .bigcore .bdot{animation:pulse .9s infinite}
 .tbtn.ico{padding:7px 9px;display:inline-flex;align-items:center}.tbtn.ico svg{width:15px;height:15px}
 .tbtn.ic-txt{display:inline-flex;align-items:center;gap:6px}.tbtn.ic-txt svg{width:14px;height:14px}
 .icon svg{width:20px;height:20px}.mg{display:inline-flex}.vcbtn svg{width:28px;height:28px}
-body.hide-left #left{display:none}body.hide-right #right{display:none}
-body.hide-left #app{grid-template-columns:1fr 272px}
-body.hide-right #app{grid-template-columns:238px 1fr}
-body.hide-left.hide-right #app{grid-template-columns:1fr}
+/* desktop-only panel hiding — must NOT apply on mobile, where the panels are
+   slide-in drawers (otherwise a persisted hide-* forces display:none and the
+   drawer can never open). */
+@media(min-width:981px){
+  body.hide-left #left{display:none}body.hide-right #right{display:none}
+  body.hide-left #app{grid-template-columns:1fr 272px}
+  body.hide-right #app{grid-template-columns:238px 1fr}
+  body.hide-left.hide-right #app{grid-template-columns:1fr}
+}
 .tabs{display:flex;gap:3px;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:3px;overflow-x:auto;scrollbar-width:none;min-width:0;flex:0 1 auto}
 .mnav{display:none;background:var(--surface);border:1px solid var(--line);border-radius:10px;color:var(--fg);font:inherit;font-size:14px;padding:10px 12px;font-family:var(--mono);cursor:pointer}
 .tabs::-webkit-scrollbar{display:none}.tab{white-space:nowrap;flex:none}
