@@ -108,6 +108,20 @@ def test_month_bounds_are_utc_iso(tmp_path):
     assert start < end and len(label) == 7  # 'MM/YYYY'
 
 
+def test_delete_by_name_across_types(tmp_path):
+    c = _commands(tmp_path)
+    c.gasto("u", "50 mercado #casa")
+    assert "apagado" in c.gastorm("u", "mercado")
+    c.lembrete("u", "10m tomar remédio")
+    assert "cancelado" in c.cancelar("u", "remédio")
+    c.lembrar("u", "gosto de café")
+    assert "Esqueci" in c.esquecer("u", "café")
+    c.link("u", "dev | github | http://x")
+    assert "removido" in c.linkrm("u", "github")
+    # name that doesn't exist -> friendly message, not a crash
+    assert "não achei" in c.gastorm("u", "inexistente").lower()
+
+
 def test_task_crud_by_name(tmp_path):
     c = _commands(tmp_path)
     c.tarefa("u", "comprar leite #mercado")

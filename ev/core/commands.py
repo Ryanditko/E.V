@@ -362,11 +362,11 @@ class Commands:
         return "\n".join(lines)
 
     def cancelar(self, user_id: str, argstr: str) -> str:
-        arg = argstr.strip()
-        if not arg.isdigit():
-            return "Uso: /cancelar <id>. Veja os ids em /lembretes."
-        ok = self._memory.cancel_reminder(user_id, int(arg))
-        return f"Lembrete #{arg} cancelado." if ok else f"Não achei o lembrete #{arg} em aberto."
+        it, err = self._pick(self._memory.open_reminders(user_id), argstr, "text", "o lembrete")
+        if err:
+            return err
+        self._memory.cancel_reminder(user_id, it["id"])
+        return f"Lembrete \"{it['text']}\" cancelado."
 
     def lembretes(self, user_id: str) -> str:
         items = self._memory.open_reminders(user_id)
@@ -531,11 +531,13 @@ class Commands:
         return "\n".join(lines)
 
     def gastorm(self, user_id: str, argstr: str) -> str:
-        arg = argstr.strip()
-        if not arg.isdigit():
-            return "Uso: /gastorm <id>. Veja os ids em /gastos."
-        ok = self._memory.delete_expense(user_id, int(arg))
-        return f"Gasto #{arg} apagado." if ok else f"Não achei o gasto #{arg}."
+        since = (datetime.now(timezone.utc) - timedelta(days=120)).isoformat()
+        it, err = self._pick(self._memory.expenses_since(user_id, since),
+                             argstr, "description", "o gasto")
+        if err:
+            return err
+        self._memory.delete_expense(user_id, it["id"])
+        return f"Gasto \"{it['description']}\" (R$ {it['amount']:.2f}) apagado."
 
     def relatorio(self, user_id: str, offset: int = 0) -> str:
         """Financial report for a calendar month, by category vs budget.
@@ -796,6 +798,27 @@ class Commands:
         self._memory.complete_task(user_id, t["id"])
         return f"Tarefa \"{t['text']}\" concluída!"
 
+    @staticmethod
+    def _pick(items, arg, textkey, label):
+        """Find one item by id or by a case-insensitive substring of `textkey`.
+        Returns (item|None, error_msg|None). Lets voice/chat act by name."""
+        arg = (arg or "").strip().lstrip("#")
+        if arg.isdigit():
+            for it in items:
+                if it.get("id") == int(arg):
+                    return it, None
+            return None, f"Não achei {label} #{arg}."
+        if not arg:
+            return None, f"Preciso do nome ou número ({label})."
+        low = arg.lower()
+        matches = [it for it in items if low in str(it.get(textkey, "")).lower()]
+        if not matches:
+            return None, f"Não achei {label} com \"{arg}\"."
+        if len(matches) > 1:
+            opts = ", ".join(f"#{it['id']} {str(it.get(textkey, ''))[:30]}" for it in matches[:6])
+            return None, f"Achei mais de um parecido: {opts}. Qual? (me diz o número)"
+        return matches[0], None
+
     def _resolve_task(self, user_id: str, arg: str):
         """Find one open task by id or name; returns (task|None, error_msg|None)."""
         arg = arg.strip().lstrip("#")
@@ -861,11 +884,11 @@ class Commands:
         return "\n".join(lines)
 
     def esquecer(self, user_id: str, argstr: str) -> str:
-        arg = argstr.strip()
-        if not arg.isdigit():
-            return "Uso: /esquecer <id>. Veja os ids em /memorias."
-        ok = self._memory.delete_fact(user_id, int(arg))
-        return f"Esqueci a memória #{arg}." if ok else f"Não achei a memória #{arg}."
+        it, err = self._pick(self._memory.list_facts(user_id), argstr, "fact", "a memória")
+        if err:
+            return err
+        self._memory.delete_fact(user_id, it["id"])
+        return f"Esqueci: \"{it['fact']}\"."
 
     # --- daily briefing -----------------------------------------------------
 
@@ -946,11 +969,11 @@ class Commands:
         return "\n".join(lines)
 
     def linkrm(self, user_id: str, argstr: str) -> str:
-        arg = argstr.strip()
-        if not arg.isdigit():
-            return "Uso: /linkrm <id>. Veja os ids em /links."
-        ok = self._memory.delete_link(user_id, int(arg))
-        return f"Link #{arg} removido." if ok else f"Não achei o link #{arg}."
+        it, err = self._pick(self._memory.list_links(user_id), argstr, "name", "o link")
+        if err:
+            return err
+        self._memory.delete_link(user_id, it["id"])
+        return f"Link \"{it['name']}\" removido."
 
     # --- knowledge base -----------------------------------------------------
 

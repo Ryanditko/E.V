@@ -604,8 +604,10 @@ class Brain:
                 "OU nome, ex 'comprar leite'), 'tarefarm' (apagar por id/nome), "
                 "'tarefaeditar' (args '<nome/id> | <novo texto> [#cat]'). Também: lembrete, "
                 "lembretes, rotina, cancelar, calendario, lembrar, memorias, esquecer, "
-                "gasto, gastos, gastorm, orcamento, orcamentos, orcamentorm, relatorio, "
-                "habito, feito, habitos, habitorm, diario, diariorm, link, links, linkrm, "
+                "gasto, gastos, gastorm (apaga gasto por id OU descrição), orcamento, "
+                "orcamentos, orcamentorm, relatorio, habito, feito (por nome), habitos, "
+                "habitorm (por nome), diario, diariorm, link, links, linkrm (por id OU nome), "
+                "cancelar (lembrete por id OU texto), esquecer (memória por id OU conteúdo), "
                 "procurar, buscar, noticias, clima, kb, kbrm, kbweb, semana, vigiar, vigias, "
                 "vigiarm, assinatura, assinaturas, assinaturarm, agenda, evento, email.",
                 {
