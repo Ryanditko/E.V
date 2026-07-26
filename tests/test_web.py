@@ -499,6 +499,20 @@ def test_gcal_endpoints_guarded(tmp_path):
     assert client.post("/api/gcal/delete", headers=_auth(), json={"id": ""}).json()["ok"] is False
 
 
+def test_activity_history(tmp_path):
+    client, _ = _client(tmp_path)
+    client.post("/api/tasks", json={"text": "estudar", "category": "faculdade"}, headers=_auth())
+    t = client.get("/api/tasks", headers=_auth()).json()["tasks"][0]
+    client.post("/api/tasks/complete", json={"id": t["id"]}, headers=_auth())
+    d = client.get("/api/activity", headers=_auth()).json()
+    actions = [a["action"] for a in d["items"]]
+    assert "task.new" in actions and "task.done" in actions
+    assert "faculdade" in d["categories"]
+    # category filter
+    only = client.get("/api/activity?category=faculdade", headers=_auth()).json()["items"]
+    assert only and all(a["category"] == "faculdade" for a in only)
+
+
 def test_pwa_manifest_and_service_worker(tmp_path):
     client, _ = _client(tmp_path)
     m = client.get("/manifest.webmanifest")

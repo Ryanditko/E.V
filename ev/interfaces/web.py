@@ -68,8 +68,9 @@ _PAGE = r"""<!doctype html><html lang="pt-br"><head><meta charset="utf-8">
   --line:rgba(244,243,241,.10);--line-2:rgba(244,243,241,.20);
   --disp:'Space Grotesk',sans-serif;--body:'Inter',sans-serif;--mono:'JetBrains Mono',monospace;
 }
-*{box-sizing:border-box}html,body{height:100%}
+*{box-sizing:border-box}html,body{height:100%;max-width:100%;overflow-x:hidden}
 body{margin:0;background:var(--ink);color:var(--fg);font-family:var(--body);-webkit-font-smoothing:antialiased;overflow:hidden}
+.topbar{min-width:0}#center{overflow:hidden}
 *{scrollbar-width:thin;scrollbar-color:#242424 transparent}
 ::-webkit-scrollbar{width:10px;height:10px}
 ::-webkit-scrollbar-track{background:transparent}
@@ -304,7 +305,30 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
 .ck-item:first-child{border-top:none}.ck-item.sel,.ck-item:hover{background:var(--elev)}
 .ck-item .ck-k{font-family:var(--mono);font-size:12px;color:var(--muted);min-width:104px}
 .ck-item .ck-d{color:var(--subtle);font-size:12px;margin-left:auto}
-@media(max-width:980px){#app{grid-template-columns:1fr}.rail{display:none}#slash{left:18px;right:18px}}
+#mbackdrop{display:none}
+@media(max-width:980px){
+  #app{grid-template-columns:1fr!important}
+  #left,#right{position:fixed;top:0;bottom:0;width:min(86vw,320px);z-index:60;background:var(--ink);overflow:auto;transition:transform .25s ease}
+  #left{left:0;transform:translateX(-106%);border-right:1px solid var(--line)}
+  #right{right:0;transform:translateX(106%);border-left:1px solid var(--line)}
+  body.m-left #left,body.m-right #right{transform:translateX(0);box-shadow:0 0 60px rgba(0,0,0,.7)}
+  body.m-left #mbackdrop,body.m-right #mbackdrop{display:block;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:55}
+  .topbar{padding:11px 12px;gap:6px}
+  #term,#voz{display:none}
+  .tabs{flex:1 1 auto}
+  #slash{left:14px;right:14px}
+  #taskview,#kbview,#expview,#remview,#memview,#calview,#lnkview,#habview,#jouview,#subview,#orcview,#monview,#actview{padding:16px 14px}
+  #log{padding:14px 14px}
+  .msg{max-width:92%!important}
+  #calgrid{gap:3px}.cal-cell{min-height:62px;padding:4px}
+}
+@media(max-width:520px){
+  .topbar{padding:9px 10px;gap:5px}
+  .tab{padding:6px 10px;font-size:10px}
+  .icon{width:40px;height:40px}
+  .tv-h{font-size:19px}
+  .cal-ev{font-size:10px}
+}
 @media(prefers-reduced-motion:reduce){*{animation:none!important}}
 </style></head><body>
 <div id="app">
@@ -324,7 +348,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
   <main id="center">
     <div class="topbar">
       <button class="tbtn ico" id="tgl-left" title="Ocultar/mostrar pastas"><i data-lucide="panel-left"></i></button>
-      <div class="tabs"><button class="tab on" data-view="chat">Conversa</button><button class="tab" data-view="tasks">Tarefas</button><button class="tab" data-view="exp">Gastos</button><button class="tab" data-view="rem">Lembretes</button><button class="tab" data-view="cal">Agenda</button><button class="tab" data-view="mem">Memórias</button><button class="tab" data-view="lnk">Links</button><button class="tab" data-view="hab">Hábitos</button><button class="tab" data-view="jou">Diário</button><button class="tab" data-view="sub">Assinaturas</button><button class="tab" data-view="orc">Orçamentos</button><button class="tab" data-view="mon">Monitores</button><button class="tab" data-view="kb">Base</button></div>
+      <div class="tabs"><button class="tab on" data-view="chat">Conversa</button><button class="tab" data-view="tasks">Tarefas</button><button class="tab" data-view="exp">Gastos</button><button class="tab" data-view="rem">Lembretes</button><button class="tab" data-view="cal">Agenda</button><button class="tab" data-view="mem">Memórias</button><button class="tab" data-view="lnk">Links</button><button class="tab" data-view="hab">Hábitos</button><button class="tab" data-view="jou">Diário</button><button class="tab" data-view="sub">Assinaturas</button><button class="tab" data-view="orc">Orçamentos</button><button class="tab" data-view="mon">Monitores</button><button class="tab" data-view="act">Histórico</button><button class="tab" data-view="kb">Base</button></div>
       <span class="eyebrow" id="scope">geral</span><span style="flex:1"></span>
       <button class="tbtn ico" id="gsearch" title="Buscar em tudo"><i data-lucide="search"></i></button>
       <button class="tbtn ic-txt" id="vcopen"><i data-lucide="mic"></i>FALAR</button>
@@ -425,6 +449,14 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
       <input class="tv-search" id="mon-search" placeholder="Buscar monitores..." autocomplete="off">
       <div id="monlist"></div>
     </div>
+    <div id="actview">
+      <div class="tv-h">Histórico de atividade</div>
+      <div class="tv-form" style="align-items:center">
+        <select id="act-cat" class="tv-search" style="max-width:260px"><option value="">Todas as categorias</option></select>
+      </div>
+      <input class="tv-search" id="act-search" placeholder="Buscar no histórico..." autocomplete="off">
+      <div id="actlist"></div>
+    </div>
   </main>
   <aside id="right" class="rail">
     <div class="eyebrow">Sistema <span class="mini" id="edit-stats">editar</span></div>
@@ -436,6 +468,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
     <button class="act" id="btn-keys" style="margin-top:12px;width:100%"><i data-lucide="key-round"></i>Chaves de API</button>
   </aside>
 </div>
+<div id="mbackdrop"></div>
 <div id="vc">
   <button id="vc-x">FECHAR</button>
   <div class="bigcore"><div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div><div class="arc"></div><div class="bdot"></div></div>
@@ -486,11 +519,13 @@ vozBtn.classList.toggle('on',voiceOn);
 vozBtn.onclick=()=>{voiceOn=!voiceOn;localStorage.setItem('ev_voice',voiceOn?'on':'off');vozBtn.classList.toggle('on',voiceOn);};
 termBtn.onclick=()=>{document.body.classList.toggle('term');termBtn.classList.toggle('on',document.body.classList.contains('term'));};
 // hide/show side panels (focus mode), persisted
+function mob(){return window.matchMedia('(max-width:980px)').matches;}
 if(localStorage.getItem('ev_hl'))document.body.classList.add('hide-left');
 if(localStorage.getItem('ev_hr'))document.body.classList.add('hide-right');
-$('#tgl-left').onclick=()=>{document.body.classList.toggle('hide-left');localStorage.setItem('ev_hl',document.body.classList.contains('hide-left')?'1':'');$('#tgl-left').classList.toggle('on',document.body.classList.contains('hide-left'));};
-$('#tgl-right').onclick=()=>{document.body.classList.toggle('hide-right');localStorage.setItem('ev_hr',document.body.classList.contains('hide-right')?'1':'');$('#tgl-right').classList.toggle('on',document.body.classList.contains('hide-right'));};
+$('#tgl-left').onclick=()=>{if(mob()){document.body.classList.remove('m-right');document.body.classList.toggle('m-left');return;}document.body.classList.toggle('hide-left');localStorage.setItem('ev_hl',document.body.classList.contains('hide-left')?'1':'');$('#tgl-left').classList.toggle('on',document.body.classList.contains('hide-left'));};
+$('#tgl-right').onclick=()=>{if(mob()){document.body.classList.remove('m-left');document.body.classList.toggle('m-right');return;}document.body.classList.toggle('hide-right');localStorage.setItem('ev_hr',document.body.classList.contains('hide-right')?'1':'');$('#tgl-right').classList.toggle('on',document.body.classList.contains('hide-right'));};
 $('#tgl-left').classList.toggle('on',document.body.classList.contains('hide-left'));$('#tgl-right').classList.toggle('on',document.body.classList.contains('hide-right'));
+$('#mbackdrop').onclick=()=>document.body.classList.remove('m-left','m-right');
 
 function el(t,c,x){const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e;}
 const HASEMO=/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{2190}-\u{21FF}\u{2300}-\u{23FF}\u{20E3}]/u;
@@ -675,6 +710,7 @@ function renameFolder(path){if(path==='geral')return;const seg=path.split('/');c
     if(thread===path||thread.startsWith(path+'/')){thread=thread.replace(path,np);localStorage.setItem('ev_thread',thread);}
     await switchThread(thread);});}
 async function switchThread(name){thread=name;localStorage.setItem('ev_thread',name);scopeEl.textContent='Conversa · '+name;
+  document.body.classList.remove('m-left','m-right');
   loadFolders();log.textContent='';await loadHistory();}
 async function loadHistory(){try{const r=await fetch('/api/history?thread='+encodeURIComponent(thread),{headers:H()});const d=await r.json();
   if(!d.messages.length){sys('Pasta "'+thread+'" — comece a conversa.');return;}
@@ -745,10 +781,24 @@ let _vcCont=false;
 $('#vc-cont').onclick=()=>{_vcCont=!_vcCont;$('#vc-cont').innerHTML='';$('#vc-cont').appendChild(ficon('infinity'));$('#vc-cont').appendChild(document.createTextNode(' Modo contínuo: '+(_vcCont?'on':'off')));window.lucide&&lucide.createIcons();if(_vcCont&&!_recActive)vcMic.click();};
 // view tabs (Conversa / Tarefas)
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>switchView(t.dataset.view));
-const VIEWS={chat:'#chatview',tasks:'#taskview',exp:'#expview',rem:'#remview',cal:'#calview',mem:'#memview',lnk:'#lnkview',hab:'#habview',jou:'#jouview',sub:'#subview',orc:'#orcview',mon:'#monview',kb:'#kbview'};
+const VIEWS={chat:'#chatview',tasks:'#taskview',exp:'#expview',rem:'#remview',cal:'#calview',mem:'#memview',lnk:'#lnkview',hab:'#habview',jou:'#jouview',sub:'#subview',orc:'#orcview',mon:'#monview',kb:'#kbview',act:'#actview'};
 function switchView(v){if(!VIEWS[v])v='chat';document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.view===v));
+  document.body.classList.remove('m-left','m-right');
   Object.entries(VIEWS).forEach(([k,sel])=>{const el2=$(sel);if(el2)el2.style.display=(k===v)?(k==='chat'?'flex':'block'):'none';});
-  ({tasks:loadTasks,exp:loadExp,rem:loadRem,mem:loadMem,kb:loadKB,cal:loadCal,lnk:loadLinks,hab:loadHabits,jou:loadJournal,sub:loadSub,orc:loadOrc,mon:loadMon}[v]||function(){})();}
+  ({tasks:loadTasks,exp:loadExp,rem:loadRem,mem:loadMem,kb:loadKB,cal:loadCal,lnk:loadLinks,hab:loadHabits,jou:loadJournal,sub:loadSub,orc:loadOrc,mon:loadMon,act:loadAct}[v]||function(){})();}
+const ACT_ICON={'task.new':['plus','tarefa criada'],'task.done':['check-check','tarefa concluída'],'task.del':['trash-2','tarefa apagada'],'reminder.new':['alarm-clock','lembrete criado'],'reminder.done':['bell-ring','lembrete disparado'],'reminder.cancel':['bell-off','lembrete cancelado'],'expense.new':['wallet','gasto adicionado'],'expense.del':['trash-2','gasto apagado'],'habit.done':['repeat','hábito feito']};
+async function loadAct(){try{const cat=$('#act-cat').value;
+  const d=await (await fetch('/api/activity'+(cat?'?category='+encodeURIComponent(cat):''),{headers:H()})).json();
+  const sel=$('#act-cat');sel.innerHTML='<option value="">Todas as categorias</option>'+(d.categories||[]).map(c=>'<option'+(c===cat?' selected':'')+'>'+c+'</option>').join('');
+  const box=$('#actlist');box.textContent='';const items=d.items||[];
+  if(!items.length){box.appendChild(el('div','tv-empty','Nada registrado ainda. Suas ações (criar, concluir, apagar) aparecem aqui — do Telegram e da web.'));return;}
+  items.forEach(a=>{const meta=ACT_ICON[a.action]||['activity',a.action];const row=el('div','tv-row');
+    const ic=el('div','tv-ic');ic.appendChild(ficon(meta[0]));ic.style.cursor='default';
+    const t=el('div','txt');t.appendChild(el('div','',meta[1]+': '+a.label));
+    const w=a.created?new Date(a.created):null;
+    const sub=((w&&!isNaN(w))?w.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'')+(a.category?' · '+a.category:'');
+    t.appendChild(subline(sub));row.appendChild(ic);row.appendChild(t);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
+$('#act-cat').onchange=()=>loadAct();
 async function loadSub(){try{const items=(await (await fetch('/api/recurring',{headers:H()})).json()).items||[];const box=$('#sublist');box.textContent='';
   if(!items.length){box.appendChild(el('div','tv-empty','Nenhuma assinatura.'));return;}
   items.forEach(x=>{const row=el('div','tv-row');const t=el('div','txt');t.appendChild(el('div','',x.description));t.appendChild(subline(x.category+' · dia '+x.day));
@@ -1022,7 +1072,7 @@ function filterRows(box,q){if(!box)return;q=(q||'').trim().toLowerCase();let cur
     if(k.classList.contains('tv-cat')){if(cur)cur.style.display=shown?'':'none';cur=k;shown=0;}
     else if(k.classList.contains('tv-row')){const m=k.textContent.toLowerCase().includes(q);k.style.display=m?'':'none';if(m)shown++;}
   });if(cur)cur.style.display=shown?'':'none';}
-[['tasks-search','tasklist'],['exp-search','explist'],['rem-search','remlist'],['mem-search','memlist'],['kb-search','kblist'],['lnk-search','lnklist'],['hab-search','hablist'],['jou-search','joulist'],['sub-search','sublist'],['orc-search','orclist'],['mon-search','monlist']].forEach(p=>{const inp=document.getElementById(p[0]);if(inp)inp.oninput=()=>filterRows(document.getElementById(p[1]),inp.value);});
+[['tasks-search','tasklist'],['exp-search','explist'],['rem-search','remlist'],['mem-search','memlist'],['kb-search','kblist'],['lnk-search','lnklist'],['hab-search','hablist'],['jou-search','joulist'],['sub-search','sublist'],['orc-search','orclist'],['mon-search','monlist'],['act-search','actlist']].forEach(p=>{const inp=document.getElementById(p[0]);if(inp)inp.oninput=()=>filterRows(document.getElementById(p[1]),inp.value);});
 // command palette (Ctrl/Cmd+K)
 const CK=$('#cmdk'),CKI=$('#ck-input'),CKL=$('#ck-list');let ckItems=[],ckSel=0;
 function ckBuild(){const nav=[['Conversa',()=>switchView('chat')],['Tarefas',()=>switchView('tasks')],['Gastos',()=>switchView('exp')],['Lembretes',()=>switchView('rem')],['Agenda',()=>switchView('cal')],['Memórias',()=>switchView('mem')],['Links',()=>switchView('lnk')],['Hábitos',()=>switchView('hab')],['Diário',()=>switchView('jou')],['Assinaturas',()=>switchView('sub')],['Orçamentos',()=>switchView('orc')],['Monitores',()=>switchView('mon')],['Base',()=>switchView('kb')],['Pomodoro',()=>openPomo(25)],['Voz ao vivo',()=>$('#vcopen').click()],['Chaves de API',()=>openKeys()]];
@@ -1055,7 +1105,7 @@ function notify(title,body){try{
   if(navigator.serviceWorker&&navigator.serviceWorker.ready){navigator.serviceWorker.ready.then(r=>r.showNotification(title,{body,icon:'/favicon.svg',badge:'/favicon.svg',tag:body})).catch(()=>{try{new Notification(title,{body});}catch(e){}});}
   else new Notification(title,{body});
 }catch(e){}}
-const _VLOAD={tasks:()=>loadTasks(),exp:()=>loadExp(),rem:()=>loadRem(),mem:()=>loadMem(),kb:()=>loadKB(),cal:()=>loadCal(),lnk:()=>loadLinks(),hab:()=>loadHabits(),jou:()=>loadJournal(),sub:()=>loadSub(),orc:()=>loadOrc(),mon:()=>loadMon()};
+const _VLOAD={tasks:()=>loadTasks(),exp:()=>loadExp(),rem:()=>loadRem(),mem:()=>loadMem(),kb:()=>loadKB(),cal:()=>loadCal(),lnk:()=>loadLinks(),hab:()=>loadHabits(),jou:()=>loadJournal(),sub:()=>loadSub(),orc:()=>loadOrc(),mon:()=>loadMon(),act:()=>loadAct()};
 async function pollTick(){try{
   const items=(await (await fetch('/api/reminders',{headers:H()})).json()).items||[];
   const now=Date.now();
@@ -1455,6 +1505,13 @@ def create_app(config: Config, brain: Brain | None = None):
         _check(request.headers.get("authorization"))
         memory.roll_due_tasks()  # keep recurring tasks rolled to their next occurrence
         return {"tasks": memory.open_tasks(owner)}
+
+    @app.get("/api/activity")
+    async def activity_get(request: Request):
+        _check(request.headers.get("authorization"))
+        cat = request.query_params.get("category") or None
+        return {"items": memory.list_activity(owner, cat),
+                "categories": memory.activity_categories(owner)}
 
     @app.post("/api/tasks")
     async def tasks_create(request: Request):
