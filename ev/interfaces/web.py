@@ -187,6 +187,7 @@ body.hide-left.hide-right #app{grid-template-columns:1fr}
 .cal-num{font-family:var(--mono);font-size:12px;color:var(--muted);margin-bottom:5px}.cal-cell.today .cal-num{color:var(--fg);font-weight:600}
 .cal-ev{font-size:11px;background:var(--elev);border-radius:5px;padding:2px 5px;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;border:1px solid transparent}
 .cal-ev:hover{border-color:var(--line-2);background:var(--panel)}
+.cal-ev.g{border-left:2px solid var(--fg);background:var(--panel);opacity:.92}
 .cal-more{font-family:var(--mono);font-size:10px;color:var(--subtle);cursor:pointer}
 .cal-more:hover{color:var(--fg)}
 .kb-add{max-width:720px;display:flex;flex-direction:column;gap:14px;margin-bottom:22px}
@@ -809,6 +810,12 @@ function ymd(y,m,d){return y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padSt
 async function loadCal(){const now=new Date();if(calY==null){calY=now.getFullYear();calM=now.getMonth();}
   const items=(await (await fetch('/api/reminders',{headers:H()})).json()).items||[];
   const byDay={};items.forEach(r=>{if(r.when_iso){const d=r.when_iso.slice(0,10);(byDay[d]=byDay[d]||[]).push(r);}});
+  // merge Google Calendar events for the visible month (if authorized)
+  try{const ms=ymd(calY,calM,1),me=ymd(calM===11?calY+1:calY,(calM+1)%12,1);
+    const gj=await (await fetch('/api/gcal?start='+ms+'T00:00:00Z&end='+me+'T00:00:00Z',{headers:H()})).json();
+    (gj.events||[]).forEach(e=>{const st=e.start||'';const d=st.slice(0,10);if(!d)return;
+      (byDay[d]=byDay[d]||[]).push({when_iso:st.includes('T')?st:(d+'T00:00'),text:e.summary,_g:true,gid:e.id,link:e.link,all_day:e.all_day});});
+  }catch(e){}
   const MONTHS=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   $('#cal-title').textContent=MONTHS[calM]+' '+calY;const grid=$('#calgrid');grid.textContent='';
   ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].forEach(d=>grid.appendChild(el('div','cal-dow',d)));
@@ -817,16 +824,29 @@ async function loadCal(){const now=new Date();if(calY==null){calY=now.getFullYea
   for(let i=0;i<first;i++)grid.appendChild(el('div','cal-cell empty'));
   for(let d=1;d<=days;d++){const ds=ymd(calY,calM,d);const cell=el('div','cal-cell'+(ds===tstr?' today':''));
     cell.appendChild(el('div','cal-num',String(d)));const list=(byDay[ds]||[]).slice().sort((a,b)=>a.when_iso.localeCompare(b.when_iso));
-    list.slice(0,3).forEach(r=>{const ev=el('div','cal-ev',r.when_iso.slice(11,16)+' '+r.text);ev.title=r.text;ev.onclick=e=>{e.stopPropagation();calEdit(r);};cell.appendChild(ev);});
+    list.slice(0,3).forEach(r=>{const lbl=(r._g&&r.all_day)?'dia todo':r.when_iso.slice(11,16);const ev=el('div','cal-ev'+(r._g?' g':''),lbl+' '+r.text);ev.title=(r._g?'Google · ':'')+r.text;ev.onclick=e=>{e.stopPropagation();r._g?calGoogle(r):calEdit(r);};cell.appendChild(ev);});
     if(list.length>3){const mo=el('div','cal-more','+'+(list.length-3)+' mais');mo.onclick=e=>{e.stopPropagation();calList(ds,list);};cell.appendChild(mo);}
     cell.onclick=()=>calAdd(ds);grid.appendChild(cell);}}
 function calFmtDay(ds){return ds.split('-').reverse().join('/');}
 function calAdd(ds){openForm('Novo evento · '+calFmtDay(ds),[
     {key:'text',label:'Evento',placeholder:'...'},
     {key:'time',label:'Hora',value:'09:00'},
-    {key:'recur',label:'Repetir',select:RECUR,value:''}],
-  async v=>{
-  if(!v.text)return;await fetch('/api/reminders',{method:'POST',headers:H(),body:JSON.stringify({text:v.text,when:ds+'T'+(v.time||'09:00'),recur:v.recur})});loadCal();loadRem();loadPanel();});}
+    {key:'where',label:'Onde',select:[{v:'ev',l:'Lembrete da E.V.'},{v:'g',l:'Google Calendar'}],value:'ev'},
+    {key:'recur',label:'Repetir (só na E.V.)',select:RECUR,value:''}],
+  async v=>{if(!v.text)return;
+    if(v.where==='g'){toast('Criando no Google...');const j=await (await fetch('/api/gcal/create',{method:'POST',headers:H(),body:JSON.stringify({summary:v.text,start:ds+'T'+(v.time||'09:00')})})).json();toast(j.ok?'Evento criado no Google Calendar.':(j.msg||'Falha ao criar.'));loadCal();return;}
+    await fetch('/api/reminders',{method:'POST',headers:H(),body:JSON.stringify({text:v.text,when:ds+'T'+(v.time||'09:00'),recur:v.recur})});loadCal();loadRem();loadPanel();});}
+function calGoogle(r){const m=$('#modal');m.textContent='';const card=el('div','mcard');
+  card.appendChild(el('div','mtitle','Evento do Google'));
+  card.appendChild(el('div','mconf',r.text));
+  const when=el('div','');when.style.cssText='color:var(--subtle);font-family:var(--mono);font-size:12px;margin:4px 0 2px';
+  when.textContent=r.all_day?'dia todo':r.when_iso.replace('T',' ').slice(0,16);card.appendChild(when);
+  const bar=el('div','mbar');
+  const del=el('button','mbtn2','Apagar');del.style.marginRight='auto';del.onclick=async()=>{m.classList.remove('on');if(await confirmDialog('Apagar este evento do Google Calendar?')){const j=await (await fetch('/api/gcal/delete',{method:'POST',headers:H(),body:JSON.stringify({id:r.gid})})).json();toast(j.ok?'Evento apagado.':'Falha ao apagar.');loadCal();}};
+  bar.appendChild(del);
+  if(r.link){const op=el('button','mbtn2','Abrir no Google');op.onclick=()=>window.open(r.link,'_blank');bar.appendChild(op);}
+  const c=el('button','mbtn','Fechar');c.onclick=()=>m.classList.remove('on');bar.appendChild(c);
+  card.appendChild(bar);m.appendChild(card);m.classList.add('on');}
 function calEdit(r){const ds=r.when_iso.slice(0,10),tm=r.when_iso.slice(11,16)||'09:00';
   openForm('Editar evento',[
     {key:'text',label:'Evento',value:r.text},
@@ -838,8 +858,9 @@ function calEdit(r){const ds=r.when_iso.slice(0,10),tm=r.when_iso.slice(11,16)||
 function calList(ds,list){const m=$('#modal');m.textContent='';const card=el('div','mcard');
   card.appendChild(el('div','mtitle','Eventos · '+calFmtDay(ds)));
   list.forEach(r=>{const row=el('label','mrow');row.style.cursor='pointer';
-    row.appendChild(el('span','',r.when_iso.slice(11,16)+' · '+r.text));
-    row.onclick=()=>{m.classList.remove('on');calEdit(r);};card.appendChild(row);});
+    const lbl=(r._g&&r.all_day)?'dia todo':r.when_iso.slice(11,16);
+    row.appendChild(el('span','',lbl+' · '+(r._g?'Google · ':'')+r.text));
+    row.onclick=()=>{m.classList.remove('on');r._g?calGoogle(r):calEdit(r);};card.appendChild(row);});
   const bar=el('div','mbar');const c=el('button','mbtn2','Fechar');c.onclick=()=>m.classList.remove('on');
   const add=el('button','mbtn','Novo evento');add.onclick=()=>{m.classList.remove('on');calAdd(ds);};
   bar.appendChild(c);bar.appendChild(add);card.appendChild(bar);m.appendChild(card);m.classList.add('on');}
@@ -1926,6 +1947,75 @@ def create_app(config: Config, brain: Brain | None = None):
             return {"ok": False, "msg": f"Falha ao enviar (HTTP {r.status_code})."}
         except Exception as exc:
             return {"ok": False, "msg": f"Falha ao enviar: {exc}"}
+
+    def _tz_iso(v: str) -> str:
+        """A naive datetime-local value -> ISO with the configured tz offset."""
+        from datetime import datetime
+        try:
+            from zoneinfo import ZoneInfo
+            dt = datetime.fromisoformat(v)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=ZoneInfo(config.timezone))
+            return dt.isoformat()
+        except Exception:
+            return v
+
+    @app.get("/api/gcal")
+    async def gcal_list(request: Request):
+        _check(request.headers.get("authorization"))
+        if not config.google_ready() or not config.google_authorized():
+            return {"ok": False, "events": [], "msg": "Google não autorizado."}
+        start = request.query_params.get("start") or ""
+        end = request.query_params.get("end") or ""
+        from ..providers import tools
+        try:
+            events = await asyncio.to_thread(
+                tools.calendar_list_range, config, config.default_account, start, end)
+            return {"ok": True, "events": events}
+        except Exception as exc:
+            return {"ok": False, "events": [], "msg": str(exc)}
+
+    @app.post("/api/gcal/create")
+    async def gcal_create(request: Request):
+        _check(request.headers.get("authorization"))
+        d = await _body(request)
+        summary = (d.get("summary") or "").strip()
+        start = (d.get("start") or "").strip()
+        end = (d.get("end") or "").strip()
+        if not summary or not start:
+            return {"ok": False, "msg": "Faltou título ou início."}
+        start_iso = _tz_iso(start)
+        if end:
+            end_iso = _tz_iso(end)
+        else:
+            from datetime import datetime, timedelta
+            try:
+                end_iso = (datetime.fromisoformat(start_iso) + timedelta(hours=1)).isoformat()
+            except Exception:
+                end_iso = start_iso
+        from ..providers import tools
+        try:
+            msg = await asyncio.to_thread(
+                tools.calendar_create, config, config.default_account,
+                summary, start_iso, end_iso)
+            ok = "criei" in msg.lower() or "criado" in msg.lower() or "http" in msg.lower()
+            return {"ok": ok, "msg": msg}
+        except Exception as exc:
+            return {"ok": False, "msg": str(exc)}
+
+    @app.post("/api/gcal/delete")
+    async def gcal_delete(request: Request):
+        _check(request.headers.get("authorization"))
+        eid = ((await _body(request)).get("id") or "").strip()
+        if not eid:
+            return {"ok": False}
+        from ..providers import tools
+        try:
+            await asyncio.to_thread(
+                tools.calendar_delete, config, config.default_account, eid)
+            return {"ok": True}
+        except Exception as exc:
+            return {"ok": False, "msg": str(exc)}
 
     return app
 

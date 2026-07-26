@@ -450,6 +450,16 @@ def test_notify_endpoint_validates(tmp_path):
     assert r["ok"] is False
 
 
+def test_gcal_endpoints_guarded(tmp_path):
+    client, _ = _client(tmp_path)
+    # not authorized in the fake config -> graceful empty, no crash
+    r = client.get("/api/gcal?start=2026-07-01T00:00:00Z&end=2026-08-01T00:00:00Z", headers=_auth()).json()
+    assert r["ok"] is False and r["events"] == []
+    # create/delete validate input before touching Google
+    assert client.post("/api/gcal/create", headers=_auth(), json={"summary": "", "start": ""}).json()["ok"] is False
+    assert client.post("/api/gcal/delete", headers=_auth(), json={"id": ""}).json()["ok"] is False
+
+
 def test_pwa_manifest_and_service_worker(tmp_path):
     client, _ = _client(tmp_path)
     m = client.get("/manifest.webmanifest")
