@@ -450,6 +450,17 @@ def test_notify_endpoint_validates(tmp_path):
     assert r["ok"] is False
 
 
+def test_pwa_manifest_and_service_worker(tmp_path):
+    client, _ = _client(tmp_path)
+    m = client.get("/manifest.webmanifest")
+    assert m.status_code == 200 and "manifest" in m.headers["content-type"]
+    data = m.json()
+    assert data["name"] and data["display"] == "standalone" and data["icons"]
+    sw = client.get("/sw.js")
+    assert sw.status_code == 200 and "javascript" in sw.headers["content-type"]
+    assert "notificationclick" in sw.text and "fetch" in sw.text
+
+
 def test_geral_folder_protected(tmp_path):
     client, _ = _client(tmp_path)
     out = client.post("/api/threads/delete", json={"name": "geral"}, headers=_auth()).json()

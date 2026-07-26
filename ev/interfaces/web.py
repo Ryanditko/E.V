@@ -31,9 +31,32 @@ _FAVICON = (
     '<circle cx="32" cy="32" r="4.5" fill="#f4f3f1"/></svg>'
 )
 
+# Minimal service worker — makes the app installable (needs a fetch handler) and
+# focuses/opens the app when a notification is clicked. No caching (avoids stale UI).
+_SERVICE_WORKER = """
+self.addEventListener('install', e => self.skipWaiting());
+self.addEventListener('activate', e => self.clients.claim());
+self.addEventListener('fetch', e => {});  // pass-through; presence enables install
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  e.waitUntil(clients.matchAll({type:'window', includeUncontrolled:true}).then(cs => {
+    for (const c of cs) { if ('focus' in c) return c.focus(); }
+    if (clients.openWindow) return clients.openWindow('/');
+  }));
+});
+"""
+
+
 _PAGE = r"""<!doctype html><html lang="pt-br"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>E.V.</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#0a0a0a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="E.V.">
+<link rel="apple-touch-icon" href="/favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -974,8 +997,36 @@ async function validate(tok){try{return (await fetch('/api/panel',{headers:{'Aut
 function welcome(){$('#welcome-txt').textContent=GREETING;$('#welcome').classList.add('on');window.lucide&&lucide.createIcons();
   fetch('/api/greeting',{headers:H()}).then(r=>r.ok?r.blob():null).then(b=>{if(b&&b.size>0)new Audio(URL.createObjectURL(b)).play().catch(()=>{});}).catch(()=>{});
   setTimeout(()=>$('#welcome').classList.remove('on'),3200);}
+// --- PWA + notifications + live sync (Lote A) ---
+async function initPWA(){
+  try{if('serviceWorker' in navigator)await navigator.serviceWorker.register('/sw.js');}catch(e){}
+  // ask for notification permission on the first tap (a gesture — browsers require it)
+  window.addEventListener('pointerdown',()=>{try{if('Notification' in window&&Notification.permission==='default')Notification.requestPermission();}catch(e){}},{once:true});
+}
+let _notified=new Set();try{_notified=new Set(JSON.parse(localStorage.getItem('ev_notified')||'[]'));}catch(e){}
+function _saveNotified(){try{localStorage.setItem('ev_notified',JSON.stringify([..._notified].slice(-200)));}catch(e){}}
+function notify(title,body){try{
+  if(!('Notification' in window)||Notification.permission!=='granted')return;
+  if(navigator.serviceWorker&&navigator.serviceWorker.ready){navigator.serviceWorker.ready.then(r=>r.showNotification(title,{body,icon:'/favicon.svg',badge:'/favicon.svg',tag:body})).catch(()=>{try{new Notification(title,{body});}catch(e){}});}
+  else new Notification(title,{body});
+}catch(e){}}
+const _VLOAD={tasks:()=>loadTasks(),exp:()=>loadExp(),rem:()=>loadRem(),mem:()=>loadMem(),kb:()=>loadKB(),cal:()=>loadCal(),lnk:()=>loadLinks(),hab:()=>loadHabits(),jou:()=>loadJournal(),sub:()=>loadSub(),orc:()=>loadOrc(),mon:()=>loadMon()};
+async function pollTick(){try{
+  const items=(await (await fetch('/api/reminders',{headers:H()})).json()).items||[];
+  const now=Date.now();
+  items.forEach(r=>{if(!r.when_iso)return;const due=new Date(r.when_iso).getTime();const key=r.id+'@'+r.when_iso;
+    if(due<=now&&(now-due)<3600000&&!_notified.has(key)){_notified.add(key);_saveNotified();notify('⏰ Lembrete',r.text);}});
+  loadPanel();
+  // live sync: refresh the current data view, unless a modal is open or the user is typing
+  const modalOpen=$('#modal').classList.contains('on');
+  const typing=['INPUT','TEXTAREA','SELECT'].includes((document.activeElement||{}).tagName);
+  if(!modalOpen&&!typing){const a=document.querySelector('.tab.on');const v=a&&a.dataset.view;if(v&&_VLOAD[v])_VLOAD[v]();}
+}catch(e){}}
+let _pollTimer=null;
+function startPoll(){if(_pollTimer)return;_pollTimer=setInterval(pollTick,45000);pollTick();}
 async function startApp(){try{COMMANDS=(await (await fetch('/api/commands',{headers:H()})).json()).commands;}catch(e){}
-  scopeEl.textContent='Conversa · '+thread;await loadFolders();await loadHistory();await loadConfig();loadPanel();window.lucide&&lucide.createIcons();}
+  scopeEl.textContent='Conversa · '+thread;await loadFolders();await loadHistory();await loadConfig();loadPanel();
+  initPWA();startPoll();window.lucide&&lucide.createIcons();}
 function enter(){$('#login').classList.remove('on');startApp();welcome();}
 async function doLogin(){const inp=$('#login-token');const tok=((inp&&inp.value.trim())||token);if(!tok){$('#login-err').textContent='Informe o token.';if(inp)inp.style.display='block';return;}
   $('#login-err').textContent='verificando...';if(!(await validate(tok))){$('#login-err').textContent='Token inválido.';token='';localStorage.removeItem('ev_token');if(inp)inp.style.display='block';return;}
@@ -1133,6 +1184,24 @@ def create_app(config: Config, brain: Brain | None = None):
     @app.get("/favicon.ico")
     async def favicon_ico():
         return Response(content=_FAVICON, media_type="image/svg+xml")
+
+    @app.get("/manifest.webmanifest")
+    async def manifest():
+        data = {
+            "name": "E.V. — assistente pessoal", "short_name": "E.V.",
+            "description": "Sua assistente E.V. — chat, voz, tarefas e agenda.",
+            "start_url": "/", "scope": "/", "display": "standalone",
+            "orientation": "portrait-primary",
+            "background_color": "#0a0a0a", "theme_color": "#0a0a0a",
+            "icons": [{"src": "/favicon.svg", "sizes": "any",
+                       "type": "image/svg+xml", "purpose": "any maskable"}],
+        }
+        return Response(content=json.dumps(data),
+                        media_type="application/manifest+json")
+
+    @app.get("/sw.js")
+    async def service_worker():
+        return Response(content=_SERVICE_WORKER, media_type="application/javascript")
 
     _greet = []  # cache the welcome audio (edge-tts, no LLM) for the server's life
 
