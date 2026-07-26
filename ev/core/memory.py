@@ -1208,9 +1208,22 @@ class Memory:
     # --- backup -------------------------------------------------------------
 
     def backup(self, dest_path: Path) -> None:
-        """Consistent online backup of the whole DB to `dest_path` (SQLite API)."""
-        dest = sqlite3.connect(dest_path)
-        try:
-            self._conn.backup(dest)
-        finally:
-            dest.close()
+        """Consistent online backup of the whole DB to `dest_path`. When the DB is
+        encrypted the backup is encrypted too (same key) — so it stays private and
+        needs EV_DB_KEY to restore."""
+        import os
+        from pathlib import Path as _P
+        key = os.getenv("EV_DB_KEY", "").strip()
+        _P(dest_path).unlink(missing_ok=True)  # export/backup wants a clean target
+        if key:
+            self._conn.execute(f"ATTACH DATABASE '{dest_path}' AS bak KEY \"x'{key}'\"")
+            try:
+                self._conn.execute("SELECT sqlcipher_export('bak')")
+            finally:
+                self._conn.execute("DETACH DATABASE bak")
+        else:
+            dest = sqlite3.connect(dest_path)
+            try:
+                self._conn.backup(dest)
+            finally:
+                dest.close()

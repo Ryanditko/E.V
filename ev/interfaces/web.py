@@ -1669,10 +1669,11 @@ def create_app(config: Config, brain: Brain | None = None):
         if not config.web_token or not hmac.compare_digest(tok, config.web_token):
             raise HTTPException(status_code=401, detail="unauthorized")
         from fastapi.responses import StreamingResponse
-        import sqlite3 as _sq
+        import os as _os
 
         async def gen():
-            conn = _sq.connect(config.db_path, check_same_thread=False)
+            # same open path as Memory (handles SQLCipher when EV_DB_KEY is set)
+            conn, _row = Memory._connect(config.db_path, _os.getenv("EV_DB_KEY", "").strip())
 
             def _rev():
                 return conn.execute("PRAGMA data_version").fetchone()[0]
