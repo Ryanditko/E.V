@@ -46,6 +46,33 @@ self.addEventListener('notificationclick', e => {
 });
 """
 
+_ICON_CACHE: dict[int, bytes] = {}
+
+
+def _icon_png(size: int) -> bytes:
+    """Render the E.V. 'core' mark as a PNG (for the installable app icon)."""
+    if size in _ICON_CACHE:
+        return _ICON_CACHE[size]
+    import io
+
+    from PIL import Image, ImageDraw
+    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    d.rounded_rectangle([0, 0, size - 1, size - 1], radius=int(size * 0.22),
+                        fill=(10, 10, 10, 255))
+    cx = cy = size / 2
+    fg = (244, 243, 241)
+    w = max(2, size // 34)
+    for rr, alpha in [(0.33, 150), (0.20, 235)]:
+        rad = size * rr
+        d.ellipse([cx - rad, cy - rad, cx + rad, cy + rad], outline=fg + (alpha,), width=w)
+    dot = size * 0.075
+    d.ellipse([cx - dot, cy - dot, cx + dot, cy + dot], fill=fg + (255,))
+    buf = io.BytesIO()
+    img.save(buf, "PNG")
+    _ICON_CACHE[size] = buf.getvalue()
+    return _ICON_CACHE[size]
+
 
 _PAGE = r"""<!doctype html><html lang="pt-br"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>E.V.</title>
@@ -174,7 +201,7 @@ body.listening .bigcore .bdot{animation:pulse .9s infinite}
   body.hide-right #app{grid-template-columns:238px 1fr}
   body.hide-left.hide-right #app{grid-template-columns:1fr}
 }
-.tabs{display:flex;gap:3px;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:3px;overflow-x:auto;scrollbar-width:none;min-width:0;flex:0 1 auto}
+.tabs{display:flex;gap:3px;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:3px;overflow-x:auto;scrollbar-width:none;min-width:0;flex:1 1 0;-webkit-mask-image:linear-gradient(90deg,#000 90%,transparent);mask-image:linear-gradient(90deg,#000 90%,transparent)}
 .mnav{display:none;background:var(--surface);border:1px solid var(--line);border-radius:10px;color:var(--fg);font:inherit;font-size:14px;padding:10px 12px;font-family:var(--mono);cursor:pointer}
 .tabs::-webkit-scrollbar{display:none}.tab{white-space:nowrap;flex:none}
 .topbar{gap:8px}
@@ -375,7 +402,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
       <button class="tbtn ico" id="tgl-left" title="Ocultar/mostrar pastas"><i data-lucide="panel-left"></i></button>
       <div class="tabs"><button class="tab on" data-view="chat">Conversa</button><button class="tab" data-view="tasks">Tarefas</button><button class="tab" data-view="exp">Gastos</button><button class="tab" data-view="rem">Lembretes</button><button class="tab" data-view="cal">Agenda</button><button class="tab" data-view="mem">Memórias</button><button class="tab" data-view="lnk">Links</button><button class="tab" data-view="hab">Hábitos</button><button class="tab" data-view="jou">Diário</button><button class="tab" data-view="sub">Assinaturas</button><button class="tab" data-view="orc">Orçamentos</button><button class="tab" data-view="mon">Monitores</button><button class="tab" data-view="act">Histórico</button><button class="tab" data-view="kb">Base</button></div>
       <select id="mnav" class="mnav" title="Ir para"><option value="chat">Conversa</option><option value="tasks">Tarefas</option><option value="exp">Gastos</option><option value="rem">Lembretes</option><option value="cal">Agenda</option><option value="mem">Memórias</option><option value="lnk">Links</option><option value="hab">Hábitos</option><option value="jou">Diário</option><option value="sub">Assinaturas</option><option value="orc">Orçamentos</option><option value="mon">Monitores</option><option value="act">Histórico</option><option value="kb">Base</option></select>
-      <span class="eyebrow" id="scope">geral</span><span style="flex:1"></span>
+      <span class="eyebrow" id="scope">geral</span>
       <button class="tbtn ico" id="gsearch" title="Buscar em tudo"><i data-lucide="search"></i></button>
       <button class="tbtn ic-txt" id="vcopen" title="Falar"><i data-lucide="mic"></i><span>FALAR</span></button>
       <button class="tbtn ic-txt" id="term" title="Modo terminal"><i data-lucide="square-terminal"></i><span>TERMINAL</span></button>
@@ -1338,7 +1365,8 @@ def create_app(config: Config, brain: Brain | None = None):
 
     @app.get("/", response_class=HTMLResponse)
     async def index():
-        return _PAGE
+        # never cache the HTML shell, so updates land immediately (no stale UI)
+        return HTMLResponse(_PAGE, headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
 
     @app.get("/favicon.svg")
     async def favicon_svg():
@@ -1348,6 +1376,14 @@ def create_app(config: Config, brain: Brain | None = None):
     async def favicon_ico():
         return Response(content=_FAVICON, media_type="image/svg+xml")
 
+    @app.get("/icon-192.png")
+    async def icon192():
+        return Response(content=_icon_png(192), media_type="image/png")
+
+    @app.get("/icon-512.png")
+    async def icon512():
+        return Response(content=_icon_png(512), media_type="image/png")
+
     @app.get("/manifest.webmanifest")
     async def manifest():
         data = {
@@ -1356,8 +1392,12 @@ def create_app(config: Config, brain: Brain | None = None):
             "start_url": "/", "scope": "/", "display": "standalone",
             "orientation": "portrait-primary",
             "background_color": "#0a0a0a", "theme_color": "#0a0a0a",
-            "icons": [{"src": "/favicon.svg", "sizes": "any",
-                       "type": "image/svg+xml", "purpose": "any maskable"}],
+            "icons": [
+                {"src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+                {"src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+                {"src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+                {"src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml"},
+            ],
         }
         return Response(content=json.dumps(data),
                         media_type="application/manifest+json")
