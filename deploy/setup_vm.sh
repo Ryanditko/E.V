@@ -27,6 +27,9 @@ echo ">> Criando ambiente virtual e instalando dependências..."
 python3 -m venv .venv
 ./.venv/bin/pip install --upgrade pip
 ./.venv/bin/pip install -r requirements.txt
+# SQLCipher (encryption at rest) — kept out of requirements.txt so CI/local
+# wheels never break; only the VM needs it. Harmless if the DB isn't encrypted.
+./.venv/bin/pip install sqlcipher3-binary || echo ">> aviso: sqlcipher3-binary falhou (só necessário se EV_DB_KEY estiver setado)"
 
 echo ">> Registrando o serviço systemd..."
 sudo tee /etc/systemd/system/ev.service >/dev/null <<EOF
