@@ -33,9 +33,15 @@ _FAVICON = (
 
 # Minimal service worker — makes the app installable (needs a fetch handler) and
 # focuses/opens the app when a notification is clicked. No caching (avoids stale UI).
+# Bump the version comment to force browsers to re-install the worker. v3
 _SERVICE_WORKER = """
+// ev-sw v3 — no caching, always network
 self.addEventListener('install', e => self.skipWaiting());
-self.addEventListener('activate', e => self.clients.claim());
+self.addEventListener('activate', e => e.waitUntil((async () => {
+  const keys = await caches.keys();
+  await Promise.all(keys.map(k => caches.delete(k)));  // wipe any old caches
+  await self.clients.claim();
+})()));
 self.addEventListener('fetch', e => {});  // pass-through; presence enables install
 self.addEventListener('notificationclick', e => {
   e.notification.close();
@@ -1400,11 +1406,13 @@ def create_app(config: Config, brain: Brain | None = None):
             ],
         }
         return Response(content=json.dumps(data),
-                        media_type="application/manifest+json")
+                        media_type="application/manifest+json",
+                        headers={"Cache-Control": "no-cache"})
 
     @app.get("/sw.js")
     async def service_worker():
-        return Response(content=_SERVICE_WORKER, media_type="application/javascript")
+        return Response(content=_SERVICE_WORKER, media_type="application/javascript",
+                        headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
 
     _greet = []  # cache the welcome audio (edge-tts, no LLM) for the server's life
 
