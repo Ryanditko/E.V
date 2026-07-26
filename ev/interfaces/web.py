@@ -170,6 +170,7 @@ body.hide-left #app{grid-template-columns:1fr 272px}
 body.hide-right #app{grid-template-columns:238px 1fr}
 body.hide-left.hide-right #app{grid-template-columns:1fr}
 .tabs{display:flex;gap:3px;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:3px;overflow-x:auto;scrollbar-width:none;min-width:0;flex:0 1 auto}
+.mnav{display:none;background:var(--surface);border:1px solid var(--line);border-radius:10px;color:var(--fg);font:inherit;font-size:14px;padding:10px 12px;font-family:var(--mono);cursor:pointer}
 .tabs::-webkit-scrollbar{display:none}.tab{white-space:nowrap;flex:none}
 .topbar{gap:8px}
 @media(max-width:1180px){.topbar #scope{display:none}}
@@ -179,7 +180,7 @@ body.hide-left.hide-right #app{grid-template-columns:1fr}
 .tab{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--muted);border:none;background:transparent;border-radius:8px;padding:7px 13px;cursor:pointer}
 .tab.on{background:var(--fg);color:var(--ink)}
 #chatview{flex:1;display:flex;flex-direction:column;min-height:0}
-#taskview,#kbview,#expview,#remview,#memview,#calview,#lnkview,#habview,#jouview,#subview,#orcview,#monview{flex:1;min-height:0;overflow:auto;padding:24px;display:none}
+#taskview,#kbview,#expview,#remview,#memview,#calview,#lnkview,#habview,#jouview,#subview,#orcview,#monview,#actview{flex:1;min-height:0;overflow:auto;padding:24px;display:none}
 .cal-head{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:18px}
 .cal-send{display:flex;gap:8px;justify-content:center;margin:-6px 0 16px;flex-wrap:wrap}
 .cal-send .mbtn2{display:inline-flex;align-items:center;gap:7px}
@@ -314,8 +315,8 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
   body.m-left #left,body.m-right #right{transform:translateX(0);box-shadow:0 0 60px rgba(0,0,0,.7)}
   body.m-left #mbackdrop,body.m-right #mbackdrop{display:block;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:55}
   .topbar{padding:11px 12px;gap:6px}
-  #term,#voz{display:none}
-  .tabs{flex:1 1 auto}
+  #term,#voz,#gsearch,.tabs{display:none}   /* declutter: picker replaces the tab strip */
+  .mnav{display:block;flex:1 1 auto;min-width:0}
   #slash{left:14px;right:14px}
   #taskview,#kbview,#expview,#remview,#memview,#calview,#lnkview,#habview,#jouview,#subview,#orcview,#monview,#actview{padding:16px 14px}
   #log{padding:14px 14px}
@@ -349,6 +350,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
     <div class="topbar">
       <button class="tbtn ico" id="tgl-left" title="Ocultar/mostrar pastas"><i data-lucide="panel-left"></i></button>
       <div class="tabs"><button class="tab on" data-view="chat">Conversa</button><button class="tab" data-view="tasks">Tarefas</button><button class="tab" data-view="exp">Gastos</button><button class="tab" data-view="rem">Lembretes</button><button class="tab" data-view="cal">Agenda</button><button class="tab" data-view="mem">Memórias</button><button class="tab" data-view="lnk">Links</button><button class="tab" data-view="hab">Hábitos</button><button class="tab" data-view="jou">Diário</button><button class="tab" data-view="sub">Assinaturas</button><button class="tab" data-view="orc">Orçamentos</button><button class="tab" data-view="mon">Monitores</button><button class="tab" data-view="act">Histórico</button><button class="tab" data-view="kb">Base</button></div>
+      <select id="mnav" class="mnav" title="Ir para"><option value="chat">Conversa</option><option value="tasks">Tarefas</option><option value="exp">Gastos</option><option value="rem">Lembretes</option><option value="cal">Agenda</option><option value="mem">Memórias</option><option value="lnk">Links</option><option value="hab">Hábitos</option><option value="jou">Diário</option><option value="sub">Assinaturas</option><option value="orc">Orçamentos</option><option value="mon">Monitores</option><option value="act">Histórico</option><option value="kb">Base</option></select>
       <span class="eyebrow" id="scope">geral</span><span style="flex:1"></span>
       <button class="tbtn ico" id="gsearch" title="Buscar em tudo"><i data-lucide="search"></i></button>
       <button class="tbtn ic-txt" id="vcopen"><i data-lucide="mic"></i>FALAR</button>
@@ -781,8 +783,10 @@ let _vcCont=false;
 $('#vc-cont').onclick=()=>{_vcCont=!_vcCont;$('#vc-cont').innerHTML='';$('#vc-cont').appendChild(ficon('infinity'));$('#vc-cont').appendChild(document.createTextNode(' Modo contínuo: '+(_vcCont?'on':'off')));window.lucide&&lucide.createIcons();if(_vcCont&&!_recActive)vcMic.click();};
 // view tabs (Conversa / Tarefas)
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>switchView(t.dataset.view));
+$('#mnav').onchange=()=>switchView($('#mnav').value);
 const VIEWS={chat:'#chatview',tasks:'#taskview',exp:'#expview',rem:'#remview',cal:'#calview',mem:'#memview',lnk:'#lnkview',hab:'#habview',jou:'#jouview',sub:'#subview',orc:'#orcview',mon:'#monview',kb:'#kbview',act:'#actview'};
 function switchView(v){if(!VIEWS[v])v='chat';document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.view===v));
+  const mn=$('#mnav');if(mn&&mn.value!==v)mn.value=v;
   document.body.classList.remove('m-left','m-right');
   Object.entries(VIEWS).forEach(([k,sel])=>{const el2=$(sel);if(el2)el2.style.display=(k===v)?(k==='chat'?'flex':'block'):'none';});
   ({tasks:loadTasks,exp:loadExp,rem:loadRem,mem:loadMem,kb:loadKB,cal:loadCal,lnk:loadLinks,hab:loadHabits,jou:loadJournal,sub:loadSub,orc:loadOrc,mon:loadMon,act:loadAct}[v]||function(){})();}
