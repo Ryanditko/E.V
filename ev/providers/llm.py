@@ -12,9 +12,12 @@ via Whisper do Groq (`transcribe_groq`).
 from __future__ import annotations
 
 import json
+import logging
 from typing import Callable
 
 from openai import OpenAI
+
+log = logging.getLogger("ev.llm")
 
 GROQ_BASE_URL = "https://api.groq.com/openai/v1"
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
@@ -114,11 +117,17 @@ def chat_with_tools(
         # ...e executa cada uma, devolvendo o resultado ao modelo.
         for tc in msg.tool_calls:
             fn = tool_functions.get(tc.function.name)
+            log.info("[tools] modelo chamou %s args=%s", tc.function.name,
+                     (tc.function.arguments or "")[:300])
             try:
                 args = json.loads(tc.function.arguments or "{}")
+                if not isinstance(args, dict):
+                    args = {}
                 result = fn(**args) if fn else f"ferramenta {tc.function.name} desconhecida"
             except Exception as exc:  # não deixa uma ferramenta derrubar o turno
+                log.warning("[tools] %s falhou: %s", tc.function.name, exc)
                 result = f"erro ao executar: {exc}"
+            log.info("[tools] resultado %s: %s", tc.function.name, str(result)[:200])
             msgs.append(
                 {"role": "tool", "tool_call_id": tc.id, "content": str(result)}
             )
