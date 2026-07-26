@@ -290,8 +290,14 @@ body.listening .bigcore .bdot{animation:pulse .9s infinite}
 .msg code{font-family:var(--mono);font-size:.88em;background:var(--elev);border:1px solid var(--line);padding:1px 6px;border-radius:6px}
 .msg .mdh{font-family:var(--disp);font-weight:700;font-size:14.5px;margin:8px 0 4px;display:block}
 .msg .bul{display:flex;gap:8px;margin:2px 0}.msg .bul::before{content:"·";color:var(--subtle);flex:none}
+.msg .sub{font-family:var(--disp);font-weight:650;font-size:12.5px;letter-spacing:.02em;margin:11px 0 3px;display:flex;align-items:center;gap:7px;color:var(--fg)}
+.msg .sub:first-child{margin-top:0}
+.msg .sub svg{width:15px;height:15px;color:var(--subtle);flex:none}
+.msg .sep{height:1px;background:var(--line);margin:9px 0;border:none}
 body.term .msg code{background:transparent;border:none;padding:0}
-body.term .msg .mdh,body.term .msg .bul{all:unset;display:block}
+body.term .msg .mdh,body.term .msg .bul,body.term .msg .sub{all:unset;display:block}
+body.term .msg .sub{font-weight:700}
+body.term .msg .sep{all:unset;display:block;color:var(--subtle)}body.term .msg .sep::before{content:"─────────"}
 .msg .h{font-family:var(--disp);font-weight:600;font-size:15px;margin-bottom:8px;display:block}
 .msg .cat{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--subtle);margin:8px 0 4px}
 .row{display:flex;gap:10px;align-items:flex-start;padding:6px 0;border-top:1px solid var(--line)}
@@ -621,6 +627,9 @@ $('#mbackdrop').onclick=()=>document.body.classList.remove('m-left','m-right');
 
 function el(t,c,x){const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e;}
 const HASEMO=/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{2190}-\u{21FF}\u{2300}-\u{23FF}\u{20E3}]/u;
+// a line that LEADS with a pictographic emoji is a section header (excludes arrows/tech symbols)
+const EMOLEAD=/^\s*[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{20E3}]/u;
+const SEPRE=/^[─-╿=_·—–-]{3,}$/;
 const EMOG=/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{2190}-\u{21FF}\u{2300}-\u{23FF}️‍\u{20E3}]/gu;
 const IC={'📋':'list-checks','📝':'file-pen','✅':'check-circle-2','⏰':'alarm-clock','💰':'wallet','🧠':'brain','📄':'file-text','📰':'newspaper','☀':'sun','🌧':'cloud-rain','🩺':'activity','🔎':'search','📊':'bar-chart-3','📚':'book-open','🍅':'timer','⚠':'triangle-alert','🔕':'bell-off','🔔':'bell','🗄':'database','📅':'calendar-days','🔗':'link','📌':'pin','🌐':'globe','🎧':'headphones','📥':'download','🧽':'eraser','🧹':'trash-2','🔀':'shuffle','▶':'play','⏸':'pause','⏹':'square','💧':'droplet','🕷':'sparkles','🗓':'calendar-clock','📔':'notebook-pen','☕':'coffee'};
 function stripEmoji(s){return s.replace(EMOG,'').replace(/\s{2,}/g,' ').trim();}
@@ -644,7 +653,10 @@ function appendRich(parent,text){let last=0,m;MDRE.lastIndex=0;
 // structured, monochrome rendering with Lucide icons (no emoji read-out)
 function renderReply(box,text){box.textContent='';const lines=(text||'').split('\n');let first=true;
   lines.forEach(ln=>{const s=ln.trim();if(!s)return;let m;
-    if(first && HASEMO.test(s)){const h=el('span','h');h.appendChild(ficon(iconName(s)));h.appendChild(document.createTextNode(stripEmoji(s)));box.appendChild(h);first=false;return;}
+    if(SEPRE.test(s)){box.appendChild(el('div','sep'));return;}
+    if(EMOLEAD.test(s)){
+      if(first){const h=el('span','h');h.appendChild(ficon(iconName(s)));h.appendChild(document.createTextNode(stripEmoji(s)));box.appendChild(h);first=false;return;}
+      const sub=el('div','sub');sub.appendChild(ficon(iconName(s)));const sp=el('span','');appendRich(sp,stripEmoji(s));sub.appendChild(sp);box.appendChild(sub);return;}
     if((m=s.match(/^\[(.+)\]$/))){box.appendChild(el('div','cat',m[1]));return;}
     if((m=s.match(/^#{1,6}\s+(.+)$/))){const h=el('div','mdh');appendRich(h,stripEmoji(m[1]).replace(/\*+/g,''));box.appendChild(h);first=false;return;}
     if((m=s.match(/^[-*•]\s+(.+)$/))){const b=el('div','bul');const sp=el('span','');appendRich(sp,stripEmoji(m[1]));b.appendChild(sp);box.appendChild(b);first=false;return;}
