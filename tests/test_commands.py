@@ -108,6 +108,25 @@ def test_month_bounds_are_utc_iso(tmp_path):
     assert start < end and len(label) == 7  # 'MM/YYYY'
 
 
+def test_task_crud_by_name(tmp_path):
+    c = _commands(tmp_path)
+    c.tarefa("u", "comprar leite #mercado")
+    # complete by name (not id)
+    assert "concluída" in c.concluir("u", "comprar leite")
+    assert c._memory.open_tasks("u") == []
+    # edit by name
+    c.tarefa("u", "estudar")
+    assert "atualizada" in c.tarefaeditar("u", "estudar | estudar cálculo #faculdade")
+    t = c._memory.open_tasks("u")[0]
+    assert t["text"] == "estudar cálculo" and t["category"] == "faculdade"
+    # delete by name
+    assert "apagada" in c.tarefarm("u", "estudar")
+    assert c._memory.open_tasks("u") == []
+    # ambiguous name -> asks which
+    c.tarefa("u", "reunião manhã"); c.tarefa("u", "reunião tarde")
+    assert "mais de uma" in c.concluir("u", "reunião").lower()
+
+
 def test_watches(tmp_path):
     c = _commands(tmp_path)
     assert "criado" in c.vigiar("u", "https://exemplo.com | vaga aberta")

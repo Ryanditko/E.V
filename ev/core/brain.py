@@ -598,11 +598,15 @@ class Brain:
             fn(
                 "executar_comando",
                 "Executa QUALQUER comando da E.V. em nome do usuário (hands-free por "
-                "voz/texto): tarefa, tarefas, concluir, lembrete, lembretes, rotina, "
-                "cancelar, calendario, lembrar, memorias, esquecer, gasto, gastos, "
-                "gastorm, orcamento, orcamentos, orcamentorm, relatorio, habito, feito, "
-                "habitos, habitorm, diario, diariorm, link, links, linkrm, procurar, "
-                "buscar, noticias, clima, kb, kbrm, kbweb, semana, vigiar, vigias, "
+                "voz/texto). CRIAR/EDITAR/APAGAR/CONCLUIR sempre passa por aqui — nunca "
+                "afirme que fez sem chamar esta ferramenta. Tarefas: 'tarefa' (criar, ex "
+                "args 'comprar leite #mercado'), 'tarefas' (listar), 'concluir' (por id "
+                "OU nome, ex 'comprar leite'), 'tarefarm' (apagar por id/nome), "
+                "'tarefaeditar' (args '<nome/id> | <novo texto> [#cat]'). Também: lembrete, "
+                "lembretes, rotina, cancelar, calendario, lembrar, memorias, esquecer, "
+                "gasto, gastos, gastorm, orcamento, orcamentos, orcamentorm, relatorio, "
+                "habito, feito, habitos, habitorm, diario, diariorm, link, links, linkrm, "
+                "procurar, buscar, noticias, clima, kb, kbrm, kbweb, semana, vigiar, vigias, "
                 "vigiarm, assinatura, assinaturas, assinaturarm, agenda, evento, email.",
                 {
                     "comando": {"type": s, "description": "nome do comando, ex: 'gasto'"},
@@ -807,6 +811,7 @@ class Brain:
                     messages=messages,
                     tools=self._openai_tools(),
                     tool_functions=self._tool_callables(user_id),
+                    temperature=0.2,  # lower -> more reliable tool-calling
                 )
                 if answer:
                     log.info("Answered via Groq (%s) with tools.", cfg.groq_model)
