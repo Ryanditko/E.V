@@ -529,9 +529,13 @@ window.addEventListener('pointerdown',unlockAudio,{once:true});
 async function speak(t,force){if((!voiceOn&&!force)||!t)return;try{const r=await fetch('/api/tts',{method:'POST',headers:H(),body:JSON.stringify({text:t})});if(!r.ok)return;const url=URL.createObjectURL(await r.blob());if(!_audio)_audio=new Audio();_audio.src=url;await _audio.play().catch(()=>{if(!_audioMsg){_audioMsg=true;sys('O navegador bloqueou o áudio automático. Toque uma vez na tela e a E.V. volta a falar.');}});}catch(e){}}
 
 async function send(msg){if(!msg)return;you(msg);const p=thinking();setState('thinking');
-  try{const r=await fetch('/api/chat',{method:'POST',headers:H(),body:JSON.stringify({message:msg,thread})});
+  try{const r=await fetch('/api/chat/stream',{method:'POST',headers:H(),body:JSON.stringify({message:msg,thread})});
     if(r.status===401){p.remove();sys('Token inválido — recarregue e informe o token certo.');localStorage.removeItem('ev_token');return;}
-    const j=await r.json();p.remove();ev(j.reply);speak(j.reply);loadPanel();
+    p.remove();
+    if(!r.body){const t=await r.text();ev(t);speak(t);loadPanel();return;}          // fallback: no streaming
+    const bubble=ev('');const reader=r.body.getReader();const dec=new TextDecoder();let full='';
+    while(true){const{done,value}=await reader.read();if(done)break;full+=dec.decode(value,{stream:true});renderReply(bubble,full);log.scrollTop=log.scrollHeight;}
+    speak(full);loadPanel();
   }catch(e){p.remove();sys('Sem conexão com a E.V. — '+e);}finally{setState();}}
 async function runCmd(cmd,btn,e){const nm=cmd.trim().replace(/^\//,'').split(/\s+/)[0].toLowerCase();
   if(nm==='foco'){if(btn)ripple(btn,e);const n=cmd.match(/\d+/g)||[];openPomo(parseInt(n[0])||25,parseInt(n[1])||5);return;}
@@ -1347,6 +1351,26 @@ def create_app(config: Config, brain: Brain | None = None):
         brain.pop_documents()
         brain.pop_actions()
         return {"reply": reply}
+
+    @app.post("/api/chat/stream")
+    async def chat_stream(request: Request):
+        _check(request.headers.get("authorization"))
+        from fastapi.responses import StreamingResponse
+        import re as _re
+        data = await _body(request)
+        text = (data.get("message") or "").strip()
+        if not text:
+            return {"reply": "Manda alguma coisa que eu respondo."}
+        reply = await brain.respond(owner, conv_id=_conv(data.get("thread")), text=text)
+        brain.pop_documents()
+        brain.pop_actions()
+
+        async def gen():
+            # progressive reveal of the computed reply (live-typing feel)
+            for w in (_re.findall(r"\S+\s*", reply) or [reply]):
+                yield w
+                await asyncio.sleep(0.015)
+        return StreamingResponse(gen(), media_type="text/plain; charset=utf-8")
 
     @app.post("/api/cmd")
     async def cmd(request: Request):

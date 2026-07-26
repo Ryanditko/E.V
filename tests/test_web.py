@@ -452,6 +452,14 @@ def test_notify_endpoint_validates(tmp_path):
     assert r["ok"] is False
 
 
+def test_chat_stream(tmp_path):
+    client, _ = _client(tmp_path)
+    r = client.post("/api/chat/stream", json={"message": "oi", "thread": "geral"}, headers=_auth())
+    assert r.status_code == 200
+    assert "text/plain" in r.headers["content-type"]
+    assert "".join(r.text.split()) == "echo:oi"  # streamed word chunks reassemble
+
+
 def test_vision_endpoint(tmp_path):
     client, _ = _client(tmp_path)
     # no image -> graceful message
