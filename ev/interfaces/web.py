@@ -285,6 +285,13 @@ body.listening .bigcore .bdot{animation:pulse .9s infinite}
 .msg.ev{align-self:flex-start;background:var(--elev);border-bottom-left-radius:5px}
 .msg.sys{align-self:center;background:transparent;border:1px dashed var(--line);color:var(--muted);font-family:var(--mono);font-size:12px}
 .msg p{margin:0 0 6px}.msg p:last-child{margin:0}
+.msg strong{font-weight:700;color:var(--fg)}
+.msg em{font-style:italic}
+.msg code{font-family:var(--mono);font-size:.88em;background:var(--elev);border:1px solid var(--line);padding:1px 6px;border-radius:6px}
+.msg .mdh{font-family:var(--disp);font-weight:700;font-size:14.5px;margin:8px 0 4px;display:block}
+.msg .bul{display:flex;gap:8px;margin:2px 0}.msg .bul::before{content:"·";color:var(--subtle);flex:none}
+body.term .msg code{background:transparent;border:none;padding:0}
+body.term .msg .mdh,body.term .msg .bul{all:unset;display:block}
 .msg .h{font-family:var(--disp);font-weight:600;font-size:15px;margin-bottom:8px;display:block}
 .msg .cat{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--subtle);margin:8px 0 4px}
 .row{display:flex;gap:10px;align-items:flex-start;padding:6px 0;border-top:1px solid var(--line)}
@@ -623,17 +630,30 @@ const URLRE=/(https?:\/\/[^\s)]+)/g;
 function appendLinked(parent,text){let last=0,m;URLRE.lastIndex=0;while((m=URLRE.exec(text))){if(m.index>last)parent.appendChild(document.createTextNode(text.slice(last,m.index)));
   const a=document.createElement('a');a.href=m[0];a.target='_blank';a.rel='noopener';a.className='lnk';a.textContent=m[0];parent.appendChild(a);last=m.index+m[0].length;}
   if(last<text.length)parent.appendChild(document.createTextNode(text.slice(last)));}
+// inline markdown: **bold**, *italic*, `code`, and links — so /menu & voice replies
+// render formatted instead of showing raw ** and * characters.
+const MDRE=/\*\*([^*]+)\*\*|`([^`]+)`|\*([^*\n]+)\*|(https?:\/\/[^\s)]+)/g;
+function appendRich(parent,text){let last=0,m;MDRE.lastIndex=0;
+  while((m=MDRE.exec(text))){if(m.index>last)parent.appendChild(document.createTextNode(text.slice(last,m.index)));
+    if(m[1]!=null)parent.appendChild(el('strong',null,m[1]));
+    else if(m[2]!=null)parent.appendChild(el('code',null,m[2]));
+    else if(m[3]!=null)parent.appendChild(el('em',null,m[3]));
+    else{const a=document.createElement('a');a.href=m[4];a.target='_blank';a.rel='noopener';a.className='lnk';a.textContent=m[4];parent.appendChild(a);}
+    last=m.index+m[0].length;}
+  if(last<text.length)parent.appendChild(document.createTextNode(text.slice(last)));}
 // structured, monochrome rendering with Lucide icons (no emoji read-out)
 function renderReply(box,text){box.textContent='';const lines=(text||'').split('\n');let first=true;
   lines.forEach(ln=>{const s=ln.trim();if(!s)return;let m;
     if(first && HASEMO.test(s)){const h=el('span','h');h.appendChild(ficon(iconName(s)));h.appendChild(document.createTextNode(stripEmoji(s)));box.appendChild(h);first=false;return;}
     if((m=s.match(/^\[(.+)\]$/))){box.appendChild(el('div','cat',m[1]));return;}
+    if((m=s.match(/^#{1,6}\s+(.+)$/))){const h=el('div','mdh');appendRich(h,stripEmoji(m[1]).replace(/\*+/g,''));box.appendChild(h);first=false;return;}
+    if((m=s.match(/^[-*•]\s+(.+)$/))){const b=el('div','bul');const sp=el('span','');appendRich(sp,stripEmoji(m[1]));b.appendChild(sp);box.appendChild(b);first=false;return;}
     if((m=s.match(/^#(\w+)\s+(.*)$/))){const r=el('div','row');r.appendChild(el('span','id','#'+m[1]));
       const t=el('span','t');const tt=stripEmoji(m[2]);const parts=tt.split(/\s+(?=\d+[.)]\s)/);
-      if(parts.length>1)parts.forEach(p=>{const dv=el('div','');appendLinked(dv,p);t.appendChild(dv);});else appendLinked(t,tt);
+      if(parts.length>1)parts.forEach(p=>{const dv=el('div','');appendRich(dv,p);t.appendChild(dv);});else appendRich(t,tt);
       r.appendChild(t);box.appendChild(r);return;}
-    if(/^(Concluir|Cancelar|Uso|Remover|Apagar):/i.test(s)||s.startsWith('/')){const hh=el('div','hint');appendLinked(hh,stripEmoji(s));box.appendChild(hh);return;}
-    const pp=el('p','');appendLinked(pp,stripEmoji(s));box.appendChild(pp);first=false;});
+    if(/^(Concluir|Cancelar|Uso|Remover|Apagar):/i.test(s)||s.startsWith('/')){const hh=el('div','hint');appendRich(hh,stripEmoji(s));box.appendChild(hh);return;}
+    const pp=el('p','');appendRich(pp,stripEmoji(s));box.appendChild(pp);first=false;});
   window.lucide&&lucide.createIcons();
 }
 function you(t){const d=el('div','msg you',t);log.appendChild(d);log.scrollTop=log.scrollHeight;}
