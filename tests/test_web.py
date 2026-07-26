@@ -9,9 +9,9 @@ class _FakeBrain:
     def __init__(self):
         self.last = None
 
-    async def respond(self, owner, conv_id=None, text=None):
+    async def respond(self, owner, conv_id=None, text=None, image=None, image_mime=None):
         self.last = (owner, conv_id, text)
-        return f"echo: {text}"
+        return ("viu a imagem: " + (text or "")) if image else f"echo: {text}"
 
     def current_model(self):
         return "gemini-flash-latest"
@@ -450,6 +450,26 @@ def test_notify_endpoint_validates(tmp_path):
     client, _ = _client(tmp_path)
     r = client.post("/api/notify", headers=_auth(), json={"text": ""}).json()
     assert r["ok"] is False
+
+
+def test_vision_endpoint(tmp_path):
+    client, _ = _client(tmp_path)
+    # no image -> graceful message
+    assert "Nenhuma imagem" in client.post("/api/vision", headers=_auth(), data={}).json()["reply"]
+    # with an image -> routed to brain.respond(image=...)
+    r = client.post("/api/vision", headers=_auth(),
+                    data={"text": "o que é isso?"},
+                    files={"image": ("p.jpg", b"\xff\xd8\xff", "image/jpeg")}).json()
+    assert "viu a imagem" in r["reply"]
+
+
+def test_habits_expose_days_for_heatmap(tmp_path):
+    client, _ = _client(tmp_path)
+    client.post("/api/habits", json={"name": "treino"}, headers=_auth())
+    h = client.get("/api/habits", headers=_auth()).json()["items"][0]
+    client.post("/api/habits/done", json={"id": h["id"]}, headers=_auth())
+    h = client.get("/api/habits", headers=_auth()).json()["items"][0]
+    assert isinstance(h["days"], list) and len(h["days"]) == 1
 
 
 def test_oauth_login_disabled_when_unconfigured(tmp_path):

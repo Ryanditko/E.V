@@ -191,6 +191,10 @@ body.hide-left.hide-right #app{grid-template-columns:1fr}
 .cal-ev{font-size:11px;background:var(--elev);border-radius:5px;padding:2px 5px;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;border:1px solid transparent}
 .cal-ev:hover{border-color:var(--line-2);background:var(--panel)}
 .cal-ev.g{border-left:2px solid var(--fg);background:var(--panel);opacity:.92}
+.heat{display:flex;flex-wrap:wrap;gap:2px;margin-top:8px;max-width:340px}
+.hc{width:9px;height:9px;border-radius:2px;background:var(--surface);border:1px solid var(--line)}
+.hc.on{background:var(--fg);border-color:var(--fg)}
+#chatview.drag{outline:2px dashed var(--line-2);outline-offset:-8px}
 .cal-more{font-family:var(--mono);font-size:10px;color:var(--subtle);cursor:pointer}
 .cal-more:hover{color:var(--fg)}
 .kb-add{max-width:720px;display:flex;flex-direction:column;gap:14px;margin-bottom:22px}
@@ -322,6 +326,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
       <button class="tbtn ico" id="tgl-left" title="Ocultar/mostrar pastas"><i data-lucide="panel-left"></i></button>
       <div class="tabs"><button class="tab on" data-view="chat">Conversa</button><button class="tab" data-view="tasks">Tarefas</button><button class="tab" data-view="exp">Gastos</button><button class="tab" data-view="rem">Lembretes</button><button class="tab" data-view="cal">Agenda</button><button class="tab" data-view="mem">Memórias</button><button class="tab" data-view="lnk">Links</button><button class="tab" data-view="hab">Hábitos</button><button class="tab" data-view="jou">Diário</button><button class="tab" data-view="sub">Assinaturas</button><button class="tab" data-view="orc">Orçamentos</button><button class="tab" data-view="mon">Monitores</button><button class="tab" data-view="kb">Base</button></div>
       <span class="eyebrow" id="scope">geral</span><span style="flex:1"></span>
+      <button class="tbtn ico" id="gsearch" title="Buscar em tudo"><i data-lucide="search"></i></button>
       <button class="tbtn ic-txt" id="vcopen"><i data-lucide="mic"></i>FALAR</button>
       <button class="tbtn" id="term">TERMINAL</button><button class="tbtn on" id="voz">VOZ</button>
       <button class="tbtn ico" id="tgl-right" title="Ocultar/mostrar painel"><i data-lucide="panel-right"></i></button></div>
@@ -329,6 +334,8 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
       <div id="log"></div>
       <form id="f"><div id="slash"></div>
         <button type="button" class="icon mic" id="mic" title="Falar"><span class="mg"><i data-lucide="mic"></i></span><span class="wave"><b></b><b></b><b></b><b></b></span></button>
+        <button type="button" class="icon" id="imgbtn" title="Enviar imagem"><i data-lucide="image"></i></button>
+        <input type="file" id="imgfile" accept="image/*" style="display:none">
         <div class="field"><input id="txt" placeholder="Fala com a E.V.  ·  digite / para comandos" autocomplete="off"></div>
         <button class="icon send" id="send" title="Enviar"><i data-lucide="arrow-up"></i></button></form>
     </div>
@@ -435,6 +442,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
   <div id="vc-txt">Toque no microfone e fale.</div>
   <div id="vc-sub">voz ao vivo · português</div>
   <div id="vc-actions"><button class="vcbtn" id="vc-mic"><i data-lucide="mic"></i></button></div>
+  <button id="vc-cont" class="tbtn" style="margin-top:14px"><i data-lucide="infinity"></i> Modo contínuo: off</button>
 </div>
 <div id="pomo">
   <button id="pomo-x">FECHAR</button>
@@ -726,8 +734,11 @@ vcMic.onclick=async()=>{
       vcTxt.textContent='"'+t+'"';
       const r=await fetch('/api/chat',{method:'POST',headers:H(),body:JSON.stringify({message:t,thread})});const j=await r.json();
       vcTxt.textContent=j.reply||'(sem resposta)';speak(j.reply,true);loadPanel();
+      if(_vcCont&&vc.classList.contains('on'))setTimeout(()=>{if(!_recActive&&vc.classList.contains('on'))vcMic.click();},2200);
     }catch(x){vcTxt.textContent='Falha ao processar o áudio. Tente de novo.';}finally{setState();}});
   if(res!==true){vcMic.classList.remove('rec');setState();vcTxt.textContent=micErrMsg(res);}};
+let _vcCont=false;
+$('#vc-cont').onclick=()=>{_vcCont=!_vcCont;$('#vc-cont').innerHTML='';$('#vc-cont').appendChild(ficon('infinity'));$('#vc-cont').appendChild(document.createTextNode(' Modo contínuo: '+(_vcCont?'on':'off')));window.lucide&&lucide.createIcons();if(_vcCont&&!_recActive)vcMic.click();};
 // view tabs (Conversa / Tarefas)
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>switchView(t.dataset.view));
 const VIEWS={chat:'#chatview',tasks:'#taskview',exp:'#expview',rem:'#remview',cal:'#calview',mem:'#memview',lnk:'#lnkview',hab:'#habview',jou:'#jouview',sub:'#subview',orc:'#orcview',mon:'#monview',kb:'#kbview'};
@@ -780,7 +791,7 @@ async function loadLinks(){try{const items=(await (await fetch('/api/links',{hea
   Object.keys(g).sort().forEach(cat=>{box.appendChild(el('div','tv-cat',cat));
     g[cat].forEach(l=>{const row=el('div','tv-row');const t=el('div','txt');const a=document.createElement('a');a.href=l.url;a.target='_blank';a.rel='noopener';a.className='lnk';a.textContent=l.name;t.appendChild(a);t.appendChild(subline(l.url));
       const ed=el('button','tv-ic');ed.title='editar';ed.appendChild(ficon('pencil'));ed.onclick=()=>editLink(l);
-      const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));dl.onclick=async ()=>{if(await confirmDialog('Remover link?'))recDel('/api/links/delete',l.id,loadLinks);};
+      const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));dl.onclick=()=>delU('/api/links/delete',{id:l.id},'/api/links',{name:l.name,url:l.url,category:l.category},loadLinks,'Link');
       row.appendChild(t);row.appendChild(ed);row.appendChild(dl);box.appendChild(row);});});window.lucide&&lucide.createIcons();}catch(e){}}
 function editLink(l){openForm('Editar link',[
   {key:'name',label:'Nome',value:l.name},
@@ -793,10 +804,13 @@ async function loadHabits(){try{const items=(await (await fetch('/api/habits',{h
   if(!items.length){box.appendChild(el('div','tv-empty','Nenhum hábito. Crie um acima.'));return;}
   items.forEach(h=>{const row=el('div','tv-row');const done=el('button','tv-ic');done.title=h.done_today?'feito hoje':'marcar feito';done.appendChild(ficon(h.done_today?'check-check':'check'));if(h.done_today)done.style.color='var(--fg)';
     done.onclick=async()=>{await fetch('/api/habits/done',{method:'POST',headers:H(),body:JSON.stringify({id:h.id})});loadHabits();};
-    const t=el('div','txt');t.appendChild(el('div','',h.name));t.appendChild(subline(h.total+' dias'+(h.done_today?' · feito hoje':'')));
+    const t=el('div','txt');t.appendChild(el('div','',h.name));t.appendChild(subline(h.total+' dias'+(h.done_today?' · feito hoje':'')));t.appendChild(habHeat(h.days));
     const ed=el('button','tv-ic');ed.title='renomear';ed.appendChild(ficon('pencil'));ed.onclick=()=>editHab(h);
     const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));dl.onclick=async ()=>{if(await confirmDialog('Apagar hábito?'))recDel('/api/habits/delete',h.id,loadHabits);};
     row.appendChild(done);row.appendChild(t);row.appendChild(ed);row.appendChild(dl);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
+function habHeat(days){const set=new Set(days||[]);const wrap=el('div','heat');const today=new Date();
+  for(let i=111;i>=0;i--){const d=new Date(today);d.setDate(today.getDate()-i);const ds=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');const c=el('span','hc'+(set.has(ds)?' on':''));c.title=ds;wrap.appendChild(c);}
+  return wrap;}
 function editHab(h){openForm('Renomear hábito',[
   {key:'name',label:'Nome',value:h.name}],
   async v=>{if(!v.name)return;await fetch('/api/habits/update',{method:'POST',headers:H(),body:JSON.stringify({id:h.id,name:v.name})});loadHabits();});}
@@ -805,7 +819,7 @@ async function loadJournal(){try{const items=(await (await fetch('/api/journal',
   if(!items.length){box.appendChild(el('div','tv-empty','Diário vazio.'));return;}
   items.slice().reverse().forEach(j=>{const row=el('div','tv-row');const t=el('div','txt');t.appendChild(el('div','',j.text));if(j.created)t.appendChild(subline(j.created.slice(0,10)));
     const ed=el('button','tv-ic');ed.title='editar';ed.appendChild(ficon('pencil'));ed.onclick=()=>editJou(j);
-    const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));dl.onclick=async ()=>{if(await confirmDialog('Apagar entrada?'))recDel('/api/journal/delete',j.id,loadJournal);};
+    const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));dl.onclick=()=>delU('/api/journal/delete',{id:j.id},'/api/journal',{text:j.text},loadJournal,'Entrada');
     row.appendChild(t);row.appendChild(ed);row.appendChild(dl);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
 function editJou(j){openForm('Editar entrada',[
   {key:'text',label:'Texto',value:j.text,type:'textarea'}],
@@ -902,7 +916,7 @@ async function loadExp(){try{const items=(await (await fetch('/api/expenses',{he
   items.slice().reverse().forEach(x=>{const row=el('div','tv-row');const t=el('div','txt');t.appendChild(el('div','',x.description));t.appendChild(subline(x.category+' · '+((x.created||'').slice(0,10))));
     const val=el('div','');val.style.cssText='font-family:var(--mono);font-weight:600';val.textContent='R$'+x.amount.toFixed(0);
     const ed=el('button','tv-ic');ed.title='editar';ed.appendChild(ficon('pencil'));ed.onclick=()=>editExp(x);
-    const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));dl.onclick=async ()=>{if(await confirmDialog('Apagar este gasto?'))recDel('/api/expenses/delete',x.id,loadExp);};
+    const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));dl.onclick=()=>delU('/api/expenses/delete',{id:x.id},'/api/expenses',{amount:x.amount,description:x.description,category:x.category},loadExp,'Gasto');
     row.appendChild(t);row.appendChild(val);row.appendChild(ed);row.appendChild(dl);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
 function editExp(x){openForm('Editar gasto',[
   {key:'amount',label:'Valor (R$)',value:String(x.amount)},
@@ -918,7 +932,7 @@ async function loadRem(){try{const items=(await (await fetch('/api/reminders',{h
     const meta=(r.when_iso?r.when_iso.replace('T',' ').slice(0,16):'')+(r.recur?((r.when_iso?' · ':'')+'repete '+recurShort(r.recur)):'');
     if(meta)t.appendChild(subline(meta));
     const ed=el('button','tv-ic');ed.title='editar';ed.appendChild(ficon('pencil'));ed.onclick=()=>editRem(r);
-    const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));dl.onclick=async ()=>{if(await confirmDialog('Cancelar este lembrete?'))recDel('/api/reminders/delete',r.id,loadRem);};
+    const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));dl.onclick=()=>delU('/api/reminders/delete',{id:r.id},'/api/reminders',{text:r.text,when:r.when_iso||'',recur:r.recur||''},loadRem,'Lembrete');
     row.appendChild(t);row.appendChild(ed);row.appendChild(dl);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
 function recurShort(r){return {daily:'diário',weekly:'semanal',monthly:'mensal'}[r]||r;}
 function editRem(r){openForm('Editar lembrete',[
@@ -932,7 +946,7 @@ async function loadMem(){try{const items=(await (await fetch('/api/facts',{heade
   if(!items.length){box.appendChild(el('div','tv-empty','Nenhuma memória ainda.'));return;}
   items.forEach(f=>{const row=el('div','tv-row');row.appendChild(el('div','txt',f.fact));
     const ed=el('button','tv-ic');ed.title='editar';ed.appendChild(ficon('pencil'));ed.onclick=()=>editMem(f);
-    const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));dl.onclick=async ()=>{if(await confirmDialog('Apagar esta memória?'))recDel('/api/facts/delete',f.id,loadMem);};
+    const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));dl.onclick=()=>delU('/api/facts/delete',{id:f.id},'/api/facts',{text:f.fact},loadMem,'Memória');
     row.appendChild(ed);row.appendChild(dl);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
 function editMem(f){openForm('Editar memória',[
   {key:'text',label:'Memória',value:f.fact,type:'textarea'}],
@@ -985,7 +999,7 @@ async function loadTasks(){try{const d=await (await fetch('/api/tasks',{headers:
       if(t.due)metas.push((t.recur?'próxima ':(overdue?'atrasada · ':'vence '))+fmtDue(t.due));
       if(metas.length){const s=subline(metas.join(' · '));if(overdue&&!t.recur){s.style.color='var(--fg)';s.style.fontWeight='600';}txt.appendChild(s);}
       const ed=el('button','tv-ic');ed.title='editar';ed.appendChild(ficon('pencil'));ed.onclick=()=>editTask(t);
-      const dl=el('button','tv-ic');dl.title='apagar';dl.appendChild(ficon('trash-2'));dl.onclick=async ()=>{if(await confirmDialog('Apagar esta tarefa?'))taskAction('delete',t.id);};
+      const dl=el('button','tv-ic');dl.title='apagar';dl.appendChild(ficon('trash-2'));dl.onclick=()=>delU('/api/tasks/delete',{id:t.id},'/api/tasks',{text:t.text,category:t.category,recur:t.recur||'',due:t.due||''},loadTasks,'Tarefa');
       row.appendChild(done);row.appendChild(txt);row.appendChild(ed);row.appendChild(dl);box.appendChild(row);});});
   window.lucide&&lucide.createIcons();}catch(e){}}
 async function taskAction(op,id){await fetch('/api/tasks/'+op,{method:'POST',headers:H(),body:JSON.stringify({id})});loadTasks();loadPanel();}
@@ -1051,6 +1065,23 @@ async function pollTick(){try{
 }catch(e){}}
 let _pollTimer=null;
 function startPoll(){if(_pollTimer)return;_pollTimer=setInterval(pollTick,45000);pollTick();}
+// --- Batch C: image in chat, global search, undo ---
+async function sendImage(file,prompt){if(!file)return;you((prompt?prompt+' · ':'')+'(imagem enviada)');const p=thinking();setState('thinking');
+  try{const fd=new FormData();fd.append('image',file);if(prompt)fd.append('text',prompt);fd.append('thread',thread);
+    const j=await (await fetch('/api/vision',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd})).json();
+    p.remove();ev(j.reply||'(sem resposta)');speak(j.reply);}catch(e){p.remove();sys('Falha ao enviar a imagem.');}finally{setState();}}
+$('#imgbtn').onclick=()=>$('#imgfile').click();
+$('#imgfile').onchange=e=>{const f=e.target.files[0];if(f){sendImage(f,txt.value.trim());txt.value='';}e.target.value='';};
+(function(){const cv=$('#chatview');if(!cv)return;
+  ['dragover','dragenter'].forEach(n=>cv.addEventListener(n,e=>{e.preventDefault();cv.classList.add('drag');}));
+  ['dragleave','drop'].forEach(n=>cv.addEventListener(n,e=>{e.preventDefault();cv.classList.remove('drag');}));
+  cv.addEventListener('drop',e=>{const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];if(f&&f.type.startsWith('image/'))sendImage(f,txt.value.trim());});})();
+$('#gsearch').onclick=()=>openForm('Buscar em tudo',[{key:'q',label:'Buscar',placeholder:'tarefas, gastos, memórias, base...'}],v=>{if(!v.q)return;switchView('chat');runCmd('procurar '+v.q);});
+function toastUndo(msg,onUndo){let t=document.getElementById('_toast');if(!t){t=el('div','');t.id='_toast';t.style.cssText='position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:var(--elev);border:1px solid var(--line-2);color:var(--fg);padding:11px 17px;border-radius:11px;font-size:13px;z-index:9999;box-shadow:0 8px 30px rgba(0,0,0,.45);display:flex;align-items:center;gap:14px;transition:opacity .3s';document.body.appendChild(t);}
+  t.textContent='';t.appendChild(document.createTextNode(msg));const b=el('button','','Desfazer');b.style.cssText='background:none;border:none;color:var(--fg);font:inherit;font-weight:700;cursor:pointer;text-decoration:underline';b.onclick=()=>{clearTimeout(t._h);t.style.opacity='0';onUndo();};t.appendChild(b);
+  t.style.opacity='1';clearTimeout(t._h);t._h=setTimeout(()=>t.style.opacity='0',6000);}
+async function delU(delUrl,delBody,recUrl,recBody,reload,label){await fetch(delUrl,{method:'POST',headers:H(),body:JSON.stringify(delBody)});reload();loadPanel();
+  toastUndo((label||'Item')+' apagado',async()=>{await fetch(recUrl,{method:'POST',headers:H(),body:JSON.stringify(recBody)});reload();loadPanel();});}
 async function startApp(){try{COMMANDS=(await (await fetch('/api/commands',{headers:H()})).json()).commands;}catch(e){}
   scopeEl.textContent='Conversa · '+thread;await loadFolders();await loadHistory();await loadConfig();loadPanel();
   initPWA();startPoll();window.lucide&&lucide.createIcons();}
@@ -1665,7 +1696,8 @@ def create_app(config: Config, brain: Brain | None = None):
         for h in memory.list_habits(owner):
             days = memory.habit_days(h["id"])
             out.append({"id": h["id"], "name": h["name"],
-                        "done_today": today in days, "total": len(days)})
+                        "done_today": today in days, "total": len(days),
+                        "days": sorted(days)[-180:]})  # recent days for the heatmap
         return {"items": out}
 
     @app.post("/api/habits")
@@ -1897,6 +1929,26 @@ def create_app(config: Config, brain: Brain | None = None):
             pitch=config.voice_pitch, fixes=config.voice_fixes,
         )
         return Response(content=mp3, media_type="audio/mpeg")
+
+    @app.post("/api/vision")
+    async def vision(request: Request):
+        _check(request.headers.get("authorization"))
+        form = await request.form()
+        f = form.get("image")
+        if f is None or isinstance(f, str) or not hasattr(f, "read"):
+            return {"reply": "Nenhuma imagem enviada."}
+        data = await f.read()
+        if not data:
+            return {"reply": "Imagem vazia."}
+        prompt = (form.get("text") or "").strip() or "O que há nesta imagem?"
+        thread = (form.get("thread") or "geral").strip()
+        try:
+            reply = await brain.respond(
+                owner, conv_id=_conv(thread), text=prompt,
+                image=data, image_mime=(f.content_type or "image/jpeg"))
+        except Exception as exc:
+            return {"reply": f"Não consegui analisar a imagem: {exc}"}
+        return {"reply": reply}
 
     @app.post("/api/stt")
     async def stt(request: Request):
