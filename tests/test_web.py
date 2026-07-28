@@ -545,12 +545,15 @@ def test_geral_folder_protected(tmp_path):
 
 def test_panel_has_system_indicators(tmp_path):
     client, _ = _client(tmp_path)
+    # a tz-naive reminder time must not crash the agenda count (older rows are naive)
+    client.post("/api/reminders", json={"text": "x", "when": "2030-01-01T09:00"},
+                headers=_auth())
     d = client.get("/api/panel", headers=_auth()).json()
     # the new pinnable "Sistema" indicators must all be present
     for k in ("agenda", "activity", "disk", "ram", "uptime", "kbfiles",
               "notifs", "provider", "model"):
         assert k in d, f"missing panel key: {k}"
-    assert isinstance(d["notifs"], int)
+    assert isinstance(d["notifs"], int) and isinstance(d["agenda"], int)
 
 
 def test_notification_center(tmp_path):

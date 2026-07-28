@@ -2350,7 +2350,10 @@ def create_app(config: Config, brain: Brain | None = None):
         for r in rems:
             w = r.get("when_iso") or ""
             try:
-                if w and datetime.fromisoformat(w) <= soon:
+                dt = datetime.fromisoformat(w)
+                if dt.tzinfo is None:  # older rows may be tz-naive -> assume UTC
+                    dt = dt.replace(tzinfo=timezone.utc)
+                if dt <= soon:
                     agenda += 1
             except ValueError:
                 pass
