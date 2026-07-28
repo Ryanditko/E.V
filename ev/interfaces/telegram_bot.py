@@ -1954,6 +1954,15 @@ class TelegramInterface:
             await self._bot_send(app.bot, cfg.owner_id, text, self._quick_kb())
             log.info("Sent weekly review.")
 
+    def _log_notif(self, title: str, body: str = "") -> None:
+        """Record a proactive alert in the web notification center too."""
+        if self._config.owner_id is None:
+            return
+        try:
+            self._memory.add_notification(str(self._config.owner_id), title, body, "/")
+        except Exception:
+            log.warning("notification log failed", exc_info=True)
+
     async def _maybe_send_rain(self, app: Application) -> None:
         cfg = self._config
         if cfg.rain_hour < 0 or cfg.owner_id is None or not cfg.city:
@@ -1966,6 +1975,7 @@ class TelegramInterface:
             msg = await asyncio.to_thread(tools.rain_tomorrow, cfg.city)
             if msg:
                 await self._bot_send(app.bot, cfg.owner_id, msg, self._quick_kb())
+                self._log_notif("🌧️ Alerta de chuva", msg)
                 log.info("Sent rain alert.")
 
     async def _maybe_run_recurring(self, app: Application) -> None:
@@ -2086,6 +2096,7 @@ class TelegramInterface:
                 "/diario <texto>. E não esquece dos seus hábitos — /habitos."
             )
             await self._bot_send(app.bot, cfg.owner_id, msg, self._quick_kb())
+            self._log_notif("👋 Check-in do dia", msg)
             log.info("Sent daily check-in.")
 
     async def _maybe_send_briefing(self, app: Application) -> None:
