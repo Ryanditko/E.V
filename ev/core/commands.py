@@ -529,9 +529,13 @@ class Commands:
             spent = self._memory.category_total_since(user_id, category, since)
             pct = spent / budget * 100 if budget else 0
             if pct >= 100:
-                msg += f"\n🔴 Estourou o orçamento de {category}: R$ {spent:.2f} / R$ {budget:.2f}."
+                alert = f"Estourou o orçamento de {category}: R$ {spent:.2f} / R$ {budget:.2f}."
+                msg += f"\n🔴 {alert}"
+                self._memory.add_notification(user_id, "🔴 Orçamento estourado", alert)
             elif pct >= 80:
-                msg += f"\n🟡 Atenção: {pct:.0f}% do orçamento de {category} (R$ {spent:.2f} / R$ {budget:.2f})."
+                alert = f"{pct:.0f}% do orçamento de {category} (R$ {spent:.2f} / R$ {budget:.2f})."
+                msg += f"\n🟡 Atenção: {alert}"
+                self._memory.add_notification(user_id, "🟡 Orçamento em atenção", alert)
         return msg
 
     def gastos(self, user_id: str, argstr: str = "") -> str:

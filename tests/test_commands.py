@@ -166,6 +166,9 @@ def test_budget_alert(tmp_path):
     assert "definido" in c.orcamento("u", "comida 100")
     warn = c.gasto("u", "85 mercado #comida")  # 85% of the limit
     assert "orçamento" in warn.lower()
+    # the alert is also recorded in the notification center
+    notifs = c._memory.list_notifications("u")
+    assert notifs and "rçamento" in notifs[0]["title"]
     assert "comida" in c.orcamentos("u")
     assert "removido" in c.orcamentorm("u", "comida")
 
