@@ -2142,7 +2142,7 @@ class TelegramInterface:
                         from ..providers import push
                         await asyncio.to_thread(
                             push.send_push, self._config, self._memory,
-                            "⏰ Lembrete", r["text"], "/")
+                            "⏰ Lembrete", r["text"], "/", str(r["user_id"]))
                     except Exception:
                         pass
                     self._advance_reminder(r, due, now)

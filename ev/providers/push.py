@@ -13,8 +13,19 @@ import logging
 log = logging.getLogger("ev.push")
 
 
-def send_push(config, memory, title: str, body: str, url: str = "/") -> int:
-    """Push `{title, body}` to every stored subscription. Returns how many sent."""
+def send_push(config, memory, title: str, body: str, url: str = "/",
+              owner: str | None = None) -> int:
+    """Push `{title, body}` to every stored subscription. Returns how many sent.
+
+    When `owner` is given, the notification is also logged to the notification
+    center so it can be reviewed/dismissed later — even if no device was
+    reachable or Web Push isn't configured.
+    """
+    if owner:
+        try:
+            memory.add_notification(owner, title, body, url)
+        except Exception as exc:
+            log.warning("notification log failed: %s", exc)
     if not (config.vapid_private and config.vapid_public):
         return 0
     try:

@@ -541,3 +541,31 @@ def test_geral_folder_protected(tmp_path):
     client, _ = _client(tmp_path)
     out = client.post("/api/threads/delete", json={"name": "geral"}, headers=_auth()).json()
     assert "geral" in out["threads"]  # can't delete the home folder
+
+
+def test_panel_has_system_indicators(tmp_path):
+    client, _ = _client(tmp_path)
+    d = client.get("/api/panel", headers=_auth()).json()
+    # the new pinnable "Sistema" indicators must all be present
+    for k in ("agenda", "activity", "disk", "ram", "uptime", "kbfiles",
+              "notifs", "provider", "model"):
+        assert k in d, f"missing panel key: {k}"
+    assert isinstance(d["notifs"], int)
+
+
+def test_notification_center(tmp_path):
+    client, _ = _client(tmp_path)
+    # empty at first
+    assert client.get("/api/notifications", headers=_auth()).json() == {
+        "items": [], "unread": 0}
+    # a test push logs a notification (no VAPID -> not sent, but still recorded)
+    client.post("/api/push/test", headers=_auth())
+    d = client.get("/api/notifications", headers=_auth()).json()
+    assert d["unread"] == 1 and len(d["items"]) == 1
+    nid = d["items"][0]["id"]
+    # mark read -> unread drops
+    client.post("/api/notifications/read", json={"id": nid}, headers=_auth())
+    assert client.get("/api/notifications", headers=_auth()).json()["unread"] == 0
+    # delete -> gone
+    client.post("/api/notifications/delete", json={"id": nid}, headers=_auth())
+    assert client.get("/api/notifications", headers=_auth()).json()["items"] == []

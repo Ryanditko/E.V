@@ -299,6 +299,21 @@ body.listening .bigcore .bdot{animation:pulse .9s infinite}
 .mchip:hover,.mchip:active{background:var(--fg);color:var(--ink);border-color:var(--fg)}
 .mchip svg{width:14px;height:14px}.mchip:hover svg{color:var(--ink)}
 body.term .mchip{border-radius:4px}
+.nbadge{display:none;margin-left:auto;background:var(--fg);color:var(--ink);border-radius:999px;font-family:var(--mono);font-size:10px;font-weight:600;line-height:1;padding:3px 7px}
+.nbadge.on{display:inline-block}
+.nlist{max-height:54vh;overflow:auto;margin:6px 0 12px;display:flex;flex-direction:column;gap:7px}
+.nrow{display:flex;gap:10px;align-items:flex-start;padding:10px 11px;border:1px solid var(--line);border-radius:12px;cursor:pointer;transition:border-color .15s,background .15s}
+.nrow:hover{border-color:var(--line-2)}
+.nrow.unread{background:var(--elev);border-color:var(--line-2)}
+.nrow .nico{width:16px;height:16px;color:var(--subtle);flex:none;margin-top:2px}
+.nrow.unread .nico{color:var(--fg)}
+.ncont{flex:1;min-width:0}
+.ntitle{font-weight:600;font-size:13px;display:flex;align-items:center;gap:7px}
+.nrow.unread .ntitle::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--fg);flex:none}
+.nbody{font-size:12px;color:var(--muted);margin-top:3px;white-space:pre-wrap;word-break:break-word}
+.ntime{font-family:var(--mono);font-size:10px;color:var(--subtle);margin-top:5px;letter-spacing:.05em}
+.nx{background:none;border:none;color:var(--subtle);cursor:pointer;padding:2px;flex:none;border-radius:6px}
+.nx:hover{color:var(--fg);background:var(--line)}.nx svg{width:15px;height:15px}
 body.term .msg code{background:transparent;border:none;padding:0}
 body.term .msg .mdh,body.term .msg .bul,body.term .msg .sub{all:unset;display:block}
 body.term .msg .sub{font-weight:700}
@@ -556,7 +571,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
     <div class="eyebrow">Provedor de IA</div>
     <select id="prov"><option>auto</option><option>gemini</option><option>groq</option><option>openrouter</option><option>ollama</option></select>
     <button class="act" id="btn-keys" style="margin-top:12px;width:100%"><i data-lucide="key-round"></i>Chaves de API</button>
-    <button class="act" id="btn-push" style="margin-top:8px;width:100%"><i data-lucide="bell"></i>Testar notificação</button>
+    <button class="act" id="btn-notifs" style="margin-top:8px;width:100%"><i data-lucide="bell"></i>Notificações<span id="notif-badge" class="nbadge"></span></button>
   </aside>
 </div>
 <div id="mbackdrop"></div>
@@ -744,12 +759,12 @@ f.onsubmit=e=>{e.preventDefault();if(slash.style.display==='block'&&slSel>=0){pi
   if(m.startsWith('/'))runCmd(m.slice(1));else send(m);};
 
 const CAT={tarefas:['Tarefas','list-checks'],lembretes:['Lembretes','alarm-clock'],gastos:['Gastos','wallet'],memorias:['Memórias','brain'],kb:['Base','book-open'],buscar:['Buscar web','search'],noticias:['Notícias','newspaper'],clima:['Clima','cloud-sun'],relatorio:['Relatório','bar-chart-3'],status:['Status','activity'],semana:['Semana','calendar-days'],foco:['Pomodoro','timer'],procurar:['Procurar','file-search'],calendario:['Agenda','calendar'],habitos:['Hábitos','repeat'],diario:['Diário','notebook-pen'],orcamentos:['Orçamentos','piggy-bank'],assinaturas:['Assinaturas','credit-card'],dados:['Meus dados','database'],insights:['Insights','sparkles'],quiz:['Quiz','graduation-cap']};
-const SM={tasks:['Tarefas','list-checks','tarefas'],reminders:['Lembretes','alarm-clock','lembretes'],expenses:['Gastos · mês','wallet','gastos'],memories:['Memórias','brain','memorias'],kb:['Base','book-open','kb'],links:['Links','link','links'],habits:['Hábitos','repeat','habitos'],journal:['Diário','notebook-pen','diario'],subscriptions:['Assinaturas','credit-card','assinaturas'],budgets:['Orçamentos','piggy-bank','orcamentos'],watches:['Monitores','radar','monitores']};
+const SM={tasks:['Tarefas','list-checks','tarefas'],reminders:['Lembretes','alarm-clock','lembretes'],expenses:['Gastos · mês','wallet','gastos'],memories:['Memórias','brain','memorias'],kb:['Base','book-open','kb'],kbfiles:['Arquivos','file-text','kb'],links:['Links','link','links'],habits:['Hábitos','repeat','habitos'],journal:['Diário','notebook-pen','diario'],subscriptions:['Assinaturas','credit-card','assinaturas'],budgets:['Orçamentos','piggy-bank','orcamentos'],watches:['Monitores','radar','monitores'],agenda:['Agenda · 7d','calendar','calendario'],activity:['Histórico · 24h','history','status'],provider:['Provedor','cpu','status'],model:['Modelo','box','modelo'],disk:['Disco','hard-drive','status'],ram:['RAM','memory-stick','status'],uptime:['Uptime','clock','status']};
 const RECUR=[{v:'',l:'Uma vez'},{v:'daily',l:'Diário'},{v:'weekly',l:'Semanal'},{v:'monthly',l:'Mensal'}];
 const RECUR_LBL={daily:'repete diário',weekly:'repete semanal',monthly:'repete mensal'};
 let config={actions:['buscar','noticias','clima','relatorio','status','semana'],stats:['tasks','reminders','expenses','memories','kb']};let _counts={};
 function renderStats(){const box=$('#stats');box.textContent='';config.stats.forEach(k=>{const m=SM[k];if(!m)return;
-  const VMAP={tasks:'tasks',reminders:'rem',expenses:'exp',memories:'mem',kb:'kb',links:'lnk',habits:'hab',journal:'jou',subscriptions:'sub',budgets:'orc',watches:'mon'};
+  const VMAP={tasks:'tasks',reminders:'rem',expenses:'exp',memories:'mem',kb:'kb',kbfiles:'kb',links:'lnk',habits:'hab',journal:'jou',subscriptions:'sub',budgets:'orc',watches:'mon',agenda:'cal',activity:'act'};
   const s=el('div','stat');s.onclick=()=>{if(VMAP[k])switchView(VMAP[k]);else runCmd(m[2]);};const lbl=el('span','lbl');lbl.appendChild(ficon(m[1]));lbl.appendChild(document.createTextNode(m[0]));
   const num=el('span','num');if(k==='expenses'){const rs=el('span','','R$');rs.style.cssText='font-size:12px;color:var(--subtle);margin-right:2px';num.appendChild(rs);}
   num.appendChild(document.createTextNode(_counts[k]!=null?_counts[k]:'0'));s.appendChild(lbl);s.appendChild(num);box.appendChild(s);});window.lucide&&lucide.createIcons();}
@@ -757,7 +772,7 @@ function renderActs(){const box=$('#acts');box.textContent='';config.actions.for
   const b=el('button','act');b.appendChild(ficon(m[1]));b.appendChild(document.createTextNode(m[0]));
   b.onclick=e=>{if(cmd==='foco')openPomo(25);else runCmd(cmd,b,e);};box.appendChild(b);});window.lucide&&lucide.createIcons();}
 async function loadPanel(){try{const r=await fetch('/api/panel',{headers:H()});if(!r.ok)return;_counts=await r.json();
-  renderStats();$('#s-prov').textContent=_counts.provider;$('#s-model').textContent=_counts.model;$('#prov').value=_counts.provider;}catch(e){}}
+  renderStats();$('#s-prov').textContent=_counts.provider;$('#s-model').textContent=_counts.model;$('#prov').value=_counts.provider;updateNBadge(_counts.notifs);}catch(e){}}
 async function loadConfig(){try{config=await (await fetch('/api/config',{headers:H()})).json();}catch(e){}renderActs();}
 async function saveConfig(){try{await fetch('/api/config',{method:'POST',headers:H(),body:JSON.stringify(config)});}catch(e){}}
 $('#prov').onchange=()=>runCmd('provedor '+$('#prov').value);
@@ -766,9 +781,35 @@ async function openKeys(){let d;try{d=await (await fetch('/api/keys',{headers:H(
   openForm('Chaves de API',fields,async v=>{const body={};Object.keys(v).forEach(k=>{if(v[k])body[k]=v[k];});
     if(Object.keys(body).length){const r=await (await fetch('/api/keys',{method:'POST',headers:H(),body:JSON.stringify(body)})).json();sys('Chaves atualizadas: '+(r.changed||[]).join(', '));loadPanel();}});}
 $('#btn-keys').onclick=openKeys;
-$('#btn-push').onclick=async()=>{try{if('Notification' in window&&Notification.permission!=='granted'){const p=await Notification.requestPermission();if(p!=='granted'){toast('Permita as notificações primeiro.');return;}}
-  await subscribePush();const j=await (await fetch('/api/push/test',{method:'POST',headers:H()})).json();
-  toast(j.sent?'Notificação enviada ('+j.sent+' aparelho'+(j.sent>1?'s':'')+').':'Nenhum aparelho inscrito ainda — recarregue e permita notificações.');}catch(e){toast('Falha ao testar notificação.');}};
+function updateNBadge(n){const b=$('#notif-badge');if(!b)return;n=n||0;b.textContent=n>99?'99+':n;b.classList.toggle('on',n>0);}
+function nfmt(iso){try{const d=new Date(iso);const now=new Date();const diff=(now-d)/1000;
+  if(diff<60)return 'agora';if(diff<3600)return Math.floor(diff/60)+'min';
+  if(d.toDateString()===now.toDateString())return 'hoje '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});}catch(e){return '';}}
+async function openNotifs(){const m=$('#modal');m.textContent='';const card=el('div','mcard');
+  card.appendChild(el('div','mtitle','Notificações'));
+  const list=el('div','nlist');card.appendChild(list);
+  async function refresh(){let d;try{d=await (await fetch('/api/notifications',{headers:H()})).json();}catch(e){return;}
+    updateNBadge(d.unread);list.textContent='';
+    if(!d.items||!d.items.length){list.appendChild(el('div','tv-empty','Nenhuma notificação. Lembretes e alertas aparecem aqui.'));return;}
+    d.items.forEach(it=>{const row=el('div','nrow'+(it.read?'':' unread'));
+      const ico=ficon('bell');ico.classList.add('nico');row.appendChild(ico);
+      const c=el('div','ncont');c.appendChild(el('div','ntitle',it.title));
+      if(it.body)c.appendChild(el('div','nbody',it.body));
+      c.appendChild(el('div','ntime',nfmt(it.created)));row.appendChild(c);
+      const x=el('button','nx');x.appendChild(ficon('x'));x.title='Apagar';
+      x.onclick=async(e)=>{e.stopPropagation();await fetch('/api/notifications/delete',{method:'POST',headers:H(),body:JSON.stringify({id:it.id})});refresh();};
+      row.appendChild(x);
+      row.onclick=async()=>{if(!it.read){await fetch('/api/notifications/read',{method:'POST',headers:H(),body:JSON.stringify({id:it.id})});refresh();}};
+      list.appendChild(row);});
+    window.lucide&&lucide.createIcons();}
+  const bar=el('div','mbar');
+  const rd=el('button','mbtn2','Marcar todas lidas');rd.onclick=async()=>{await fetch('/api/notifications/read',{method:'POST',headers:H(),body:JSON.stringify({})});refresh();};
+  const cl=el('button','mbtn2','Limpar lidas');cl.onclick=async()=>{await fetch('/api/notifications/clear',{method:'POST',headers:H(),body:JSON.stringify({scope:'read'})});refresh();};
+  const ok=el('button','mbtn','Fechar');ok.onclick=()=>m.classList.remove('on');
+  bar.appendChild(rd);bar.appendChild(cl);bar.appendChild(ok);card.appendChild(bar);
+  m.appendChild(card);m.classList.add('on');refresh();}
+$('#btn-notifs').onclick=openNotifs;
 function openPicker(title,sub,items,selected,onSave){const m=$('#modal');m.textContent='';const card=el('div','mcard');
   const tt=el('div','mtitle',title);tt.appendChild(el('small','',sub));card.appendChild(tt);const sel=new Set(selected);
   items.forEach(it=>{const row=el('label','mrow');const cb=document.createElement('input');cb.type='checkbox';cb.checked=sel.has(it.key);
@@ -1358,6 +1399,8 @@ def create_app(config: Config, brain: Brain | None = None):
     from fastapi import FastAPI, HTTPException, Request, Response
     from fastapi.responses import HTMLResponse
 
+    import time as _time
+    boot = _time.monotonic()
     memory = Memory(config.db_path)
     brain = brain or Brain(config, memory)
     commands = Commands(config, memory)
@@ -1796,9 +1839,37 @@ def create_app(config: Config, brain: Brain | None = None):
     async def push_test(request: Request):
         _check(request.headers.get("authorization"))
         from ..providers import push
+        # owner passed so the test also shows up in the notification center
         n = await asyncio.to_thread(push.send_push, config, memory,
-                                    "E.V.", "Notificação de teste funcionando.", "/")
+                                    "E.V.", "Notificação de teste funcionando.", "/", owner)
         return {"ok": n > 0, "sent": n}
+
+    # --- notification center -----------------------------------------------
+    @app.get("/api/notifications")
+    async def notifs_list(request: Request):
+        _check(request.headers.get("authorization"))
+        return {"items": memory.list_notifications(owner),
+                "unread": memory.unread_notifications(owner)}
+
+    @app.post("/api/notifications/read")
+    async def notifs_read(request: Request):
+        _check(request.headers.get("authorization"))
+        nid = (await _body(request)).get("id")
+        memory.mark_notification_read(owner, int(nid) if nid else None)
+        return {"ok": True, "unread": memory.unread_notifications(owner)}
+
+    @app.post("/api/notifications/delete")
+    async def notifs_delete(request: Request):
+        _check(request.headers.get("authorization"))
+        memory.delete_notification(owner, int((await _body(request)).get("id") or 0))
+        return {"ok": True, "unread": memory.unread_notifications(owner)}
+
+    @app.post("/api/notifications/clear")
+    async def notifs_clear(request: Request):
+        _check(request.headers.get("authorization"))
+        scope = (await _body(request)).get("scope")
+        memory.clear_notifications(owner, only_read=(scope == "read"))
+        return {"ok": True, "unread": memory.unread_notifications(owner)}
 
     @app.post("/api/tasks")
     async def tasks_create(request: Request):
@@ -2270,18 +2341,47 @@ def create_app(config: Config, brain: Brain | None = None):
             "openrouter": config.openrouter_model,
             "ollama": config.ollama_model,
         }.get(prov) or brain.current_model()
+        # extra system indicators (pinnable in the "Sistema" panel)
+        from datetime import datetime, timedelta, timezone
+        now = datetime.now(timezone.utc)
+        rems = memory.open_reminders(owner)
+        soon = now + timedelta(days=7)
+        agenda = 0
+        for r in rems:
+            w = r.get("when_iso") or ""
+            try:
+                if w and datetime.fromisoformat(w) <= soon:
+                    agenda += 1
+            except ValueError:
+                pass
+        # activity in the last 24h (created is UTC ISO -> lexical compare is chronological)
+        cutoff = (now - timedelta(hours=24)).isoformat()
+        acts_24h = sum(1 for a in memory.list_activity(owner, limit=300)
+                       if (a.get("created") or "") >= cutoff)
+        rep = health.system_report(config, memory)
+        up = int(boot and (_time.monotonic() - boot) or 0)
+        uptime = (f"{up // 86400}d" if up >= 86400
+                  else f"{up // 3600}h" if up >= 3600
+                  else f"{up // 60}m")
         return {
             "tasks": len(memory.open_tasks(owner)),
-            "reminders": len(memory.open_reminders(owner)),
+            "reminders": len(rems),
             "expenses": round(sum(e.get("amount", 0) for e in exp)),
             "memories": len(memory.all_facts(owner)),
             "kb": len(memory.list_sources(owner)),
+            "kbfiles": len(memory.kb_file_sources(owner)),
             "links": len(memory.list_links(owner)),
             "habits": len(memory.list_habits(owner)),
             "journal": len(memory.recent_journal(owner, 9999)),
             "subscriptions": len(memory.list_recurring(owner)),
             "budgets": len(memory.list_budgets(owner)),
             "watches": len(memory.list_watches(owner)),
+            "agenda": agenda,
+            "activity": acts_24h,
+            "disk": (f"{rep['disk_used_pct']}%" if "disk_used_pct" in rep else "—"),
+            "ram": (f"{rep['mem_used_pct']}%" if "mem_used_pct" in rep else "—"),
+            "uptime": uptime,
+            "notifs": memory.unread_notifications(owner),
             "provider": prov,
             "model": model,
         }
