@@ -2060,6 +2060,8 @@ def create_app(config: Config, brain: Brain | None = None):
         ("openrouter_api_key", "OPENROUTER_API_KEY", "OpenRouter (fallback)"),
         ("tavily_api_key", "TAVILY_API_KEY", "Tavily (busca web)"),
         ("brave_api_key", "BRAVE_API_KEY", "Brave (busca web)"),
+        ("imap_address", "EV_IMAP_ADDRESS", "E-mail Gmail (leitura)"),
+        ("imap_password", "EV_IMAP_PASSWORD", "Senha de app Gmail (leitura)"),
     ]
 
     def _env_write(var, value):

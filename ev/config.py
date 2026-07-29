@@ -82,6 +82,8 @@ class Config:
     vapid_public: str          # Web Push (VAPID) public key — sent to the browser
     vapid_private: str         # Web Push private key (server signs pushes)
     vapid_subject: str         # VAPID claims subject (mailto:...)
+    imap_address: str          # Gmail address for reading mail via IMAP
+    imap_password: str         # Gmail "app password" (not the account password)
     db_path: Path
 
     @property
@@ -94,6 +96,10 @@ class Config:
 
     def google_ready(self) -> bool:
         return bool(self.google_oauth_client and self.google_accounts)
+
+    def imap_ready(self) -> bool:
+        """True once a Gmail address + app password are configured for reading."""
+        return bool(self.imap_address and self.imap_password)
 
     def google_authorized(self, account: str | None = None) -> bool:
         """True only if an OAuth token already exists for the account (i.e. the
@@ -217,5 +223,7 @@ class Config:
             vapid_public=os.getenv("VAPID_PUBLIC", "").strip(),
             vapid_private=os.getenv("VAPID_PRIVATE", "").strip(),
             vapid_subject=os.getenv("VAPID_SUBJECT", "mailto:ev@example.com").strip(),
+            imap_address=os.getenv("EV_IMAP_ADDRESS", "").strip(),
+            imap_password=os.getenv("EV_IMAP_PASSWORD", "").strip(),
             db_path=_PROJECT_ROOT / "ev_memory.db",
         )
