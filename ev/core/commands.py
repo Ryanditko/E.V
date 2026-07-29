@@ -982,11 +982,12 @@ class Commands:
                     self._config, self._config.default_account, max_results=5
                 )
             )
-            unread = tools_mod.inbox_summary(
-                self._config, self._config.default_account,
-                "is:unread in:inbox", max_results=5)
+
+        if self._config.imap_ready():
+            unread = tools_mod.inbox_summary(self._config, "", "", max_results=5)
             low = unread.lower()
-            if "nenhum" not in low and "não consegui" not in low:
+            if ("nenhum" not in low and "não consegui" not in low
+                    and "não configurada" not in low):
                 parts.append("\nE-mails não lidos:")
                 parts.append(unread)
 
@@ -1178,9 +1179,7 @@ class Commands:
         return tools_mod.send_email(self._config, account, to, subject, body)
 
     def emails(self, argstr: str = "") -> str:
-        if not self._google_ready():
-            return "E-mail do Google ainda não configurado. Conecte sua conta primeiro."
-        account, rest = self._resolve_account(argstr)
-        header = f"[{account}]\n" if len(self._config.google_accounts) > 1 else ""
-        query = rest.strip() or "is:unread in:inbox"
-        return header + tools_mod.inbox_summary(self._config, account, query)
+        if not self._config.imap_ready():
+            return ("Leitura de e-mail ainda não configurada. Defina EV_IMAP_ADDRESS "
+                    "e EV_IMAP_PASSWORD (senha de app do Gmail).")
+        return tools_mod.inbox_summary(self._config, "", argstr.strip())

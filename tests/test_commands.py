@@ -14,6 +14,9 @@ def _commands(tmp_path):
         gemini_api_key="x",
         embed_backend="gemini",
         embed_model="m",
+        imap_address="",
+        imap_password="",
+        imap_ready=lambda: False,
     )
     return Commands(config, Memory(tmp_path / "t.db"))
 
@@ -216,24 +219,31 @@ def test_google_disabled(tmp_path):
     c = _commands(tmp_path)
     assert "não configurada" in c.agenda()
     assert "não configurado" in c.email("a@b.com | oi | teste")
-    assert "não configurado" in c.emails()
+    # reading needs IMAP creds, not Google
+    assert "não configurada" in c.emails().lower()
 
 
 def test_inbox_summary_formatting(monkeypatch):
     from ev.providers import tools
     monkeypatch.setattr(tools, "list_emails", lambda *a, **k: [
-        {"id": "1", "from": "Banco", "subject": "Fatura", "date": "",
-         "snippet": "vence amanhã", "unread": True}])
-    out = tools.inbox_summary(None, "pessoal")
+        {"from": "Banco", "subject": "Fatura", "date": "", "snippet": "", "unread": True}])
+    out = tools.inbox_summary(None, "", "")
     assert "Fatura" in out and "Banco" in out and "#1" in out
     # empty inbox -> friendly line
     monkeypatch.setattr(tools, "list_emails", lambda *a, **k: [])
-    assert "nenhum e-mail" in tools.inbox_summary(None, "pessoal").lower()
-    # a scope/permission error -> tells the user to re-authorize
+    assert "nenhum e-mail" in tools.inbox_summary(None, "", "").lower()
+    # not-configured -> tells the user to set the IMAP creds
     def _boom(*a, **k):
-        raise RuntimeError("insufficient authentication scopes")
+        raise RuntimeError("imap-not-configured")
     monkeypatch.setattr(tools, "list_emails", _boom)
-    assert "autorizar" in tools.inbox_summary(None, "pessoal").lower()
+    assert "não configurada" in tools.inbox_summary(None, "", "").lower()
+
+
+def test_imap_query_mapping():
+    from ev.providers import tools
+    assert tools._imap_query("") == ("UNSEEN",)
+    assert tools._imap_query("is:unread") == ("UNSEEN",)
+    assert tools._imap_query("fatura") == ("TEXT", "fatura")
 
 
 def test_bad_input(tmp_path):
