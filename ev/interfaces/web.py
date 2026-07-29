@@ -717,6 +717,7 @@ const MENU=[
     {c:'/habitos',l:'Hábitos',i:'repeat'},{c:'/diario',l:'Diário',i:'notebook-pen'},
     {c:'/memorias',l:'Memórias',i:'brain'},{c:'/links',l:'Links',i:'link'},
     {c:'/relatorio',l:'Relatório',i:'bar-chart-3'},{c:'/semana',l:'Semana',i:'calendar-days'},
+    {c:'/emails',l:'E-mails',i:'mail'},
     {c:'/status',l:'Status',i:'activity'},{c:'/dados',l:'Meus dados',i:'database'}]},
   {h:'Criar',gi:'plus-circle',items:[
     {c:'/tarefa',l:'Tarefa',i:'plus',fill:1},{c:'/lembrete',l:'Lembrete',i:'alarm-clock',fill:1},

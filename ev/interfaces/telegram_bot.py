@@ -1357,6 +1357,10 @@ class TelegramInterface:
         if self._authorized(update):
             await self._cmd_out(update, self._commands.email(self._args(c)))
 
+    async def cmd_emails(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
+        if self._authorized(update):
+            await self._cmd_out(update, self._commands.emails(self._args(c)))
+
     # --- interactive menu (buttons) ----------------------------------------
 
     # Sections with a simple "list / add" shape.
@@ -2301,6 +2305,7 @@ class TelegramInterface:
         app.add_handler(CommandHandler("agenda", self.cmd_agenda))
         app.add_handler(CommandHandler("evento", self.cmd_evento))
         app.add_handler(CommandHandler("email", self.cmd_email))
+        app.add_handler(CommandHandler("emails", self.cmd_emails))
         # Document upload (PDF) -> knowledge base
         app.add_handler(MessageHandler(filters.Document.ALL, self.on_document))
         # Photo -> multimodal (Gemini vision)
