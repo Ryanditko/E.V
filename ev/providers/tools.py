@@ -423,7 +423,12 @@ def _google_service(config, account: str, api: str, version: str, allow_interact
     token_path = config.token_path_for(account)
     creds = None
     if token_path.exists():
-        creds = Credentials.from_authorized_user_file(str(token_path), _GOOGLE_SCOPES)
+        # Load with the scopes ALREADY granted in the token file (not the full
+        # _GOOGLE_SCOPES list). Otherwise adding a new scope makes refresh request
+        # a scope the token never had -> Google returns invalid_scope and breaks
+        # even the previously-working calls. New scopes take effect only after a
+        # re-authorization (authorize_google.py), which rewrites the token file.
+        creds = Credentials.from_authorized_user_file(str(token_path))
 
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
