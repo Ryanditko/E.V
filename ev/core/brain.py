@@ -447,6 +447,8 @@ class Brain:
             habitos, habitorm, diario, diariorm, link, links, linkrm, procurar,
             buscar, noticias, clima, kb, kbrm, kbweb, semana, vigiar, vigias,
             vigiarm, assinatura, assinaturas, assinaturarm, agenda, evento, email,
+            emails (ler/resumir e-mails recentes; aceita busca do Gmail como
+            argumento, ex: 'is:unread' ou 'faturas'),
             foco, silenciar, exportar, status, resumir, limparchat, dados, limpar,
             quiz, insights, modelo, documento, transcrever, ajuda, menu.
 

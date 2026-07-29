@@ -14,10 +14,11 @@ import logging
 
 log = logging.getLogger("ev.tools")
 
-# Read/write scopes for Calendar and Gmail send.
+# Read/write scopes for Calendar, plus Gmail send AND read.
 _GOOGLE_SCOPES = [
     "https://www.googleapis.com/auth/calendar",
     "https://www.googleapis.com/auth/gmail.send",
+    "https://www.googleapis.com/auth/gmail.readonly",
 ]
 
 
@@ -546,3 +547,68 @@ def send_email(config, account: str, to: str, subject: str, body: str) -> str:
     except Exception as exc:
         log.warning("send_email failed (%s)", exc)
         return f"não consegui enviar o e-mail ({exc})"
+
+
+def _clean_from(value: str) -> str:
+    """'Fulano <a@b.com>' -> 'Fulano'; bare address -> the address."""
+    value = (value or "").strip()
+    if "<" in value:
+        name = value.split("<", 1)[0].strip().strip('"')
+        return name or value.split("<", 1)[1].rstrip(">").strip()
+    return value
+
+
+def list_emails(config, account: str, query: str = "is:unread in:inbox",
+                max_results: int = 8) -> list[dict]:
+    """Return recent emails matching a Gmail search `query` (metadata only).
+
+    Each item: {id, from, subject, date, snippet, unread}. Raises on API error
+    so the caller can surface a clear message (e.g. missing read authorization).
+    """
+    service = _google_service(config, account, "gmail", "v1")
+    resp = (
+        service.users().messages()
+        .list(userId="me", q=query, maxResults=max_results)
+        .execute()
+    )
+    out: list[dict] = []
+    for ref in resp.get("messages", []):
+        msg = (
+            service.users().messages()
+            .get(userId="me", id=ref["id"], format="metadata",
+                 metadataHeaders=["From", "Subject", "Date"])
+            .execute()
+        )
+        headers = {h["name"].lower(): h["value"]
+                   for h in msg.get("payload", {}).get("headers", [])}
+        out.append({
+            "id": ref["id"],
+            "from": _clean_from(headers.get("from", "")),
+            "subject": headers.get("subject", "(sem assunto)"),
+            "date": headers.get("date", ""),
+            "snippet": (msg.get("snippet", "") or "").strip(),
+            "unread": "UNREAD" in msg.get("labelIds", []),
+        })
+    return out
+
+
+def inbox_summary(config, account: str, query: str = "is:unread in:inbox",
+                  max_results: int = 8) -> str:
+    """Human-readable summary of recent emails, formatted for chat rendering."""
+    try:
+        items = list_emails(config, account, query, max_results)
+    except Exception as exc:
+        log.warning("inbox_summary failed (%s)", exc)
+        msg = str(exc)
+        if "insufficient" in msg.lower() or "scope" in msg.lower() or "403" in msg:
+            return ("não consegui ler os e-mails — falta autorizar a leitura. "
+                    "Rode authorize_google.py de novo pra conceder o acesso de leitura.")
+        return f"não consegui ler os e-mails ({msg[:120]})"
+    if not items:
+        return "nenhum e-mail novo por aqui."
+    lines = [f"📥 E-mails ({len(items)}):", ""]
+    for i, m in enumerate(items, 1):
+        lines.append(f"#{i} {m['from']} — {m['subject']}")
+        if m["snippet"]:
+            lines.append(f"   {m['snippet'][:140]}")
+    return "\n".join(lines)
