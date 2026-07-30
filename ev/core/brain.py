@@ -586,8 +586,39 @@ class Brain:
             extra = " e guardei na base de conhecimento" if saved_kb else ""
             return f"documento '{filename}' criado{extra}; será enviado ao usuário agora"
 
+        def anotar_pessoa(nome: str, sobre: str = "", aniversario: str = "") -> str:
+            """Registra/atualiza uma pessoa importante do usuário (família, amigo,
+            colega): quem é, contexto e aniversário. Use quando ele falar de alguém
+            que vale lembrar.
+
+            Args:
+                nome: nome da pessoa.
+                sobre: nota curta (relação, contexto, preferências).
+                aniversario: data de aniversário, ex '12/03' ou '1998-03-12'.
+            """
+            self._memory.add_person(user_id, nome, sobre, aniversario)
+            return f"anotado sobre {nome}"
+
+        def sobre_pessoa(nome: str) -> str:
+            """Recupera o que o usuário já registrou sobre uma pessoa, pelo nome.
+
+            Args:
+                nome: nome (ou parte) da pessoa.
+            """
+            p = self._memory.find_person(user_id, nome)
+            if not p:
+                return f"não tenho nada registrado sobre {nome} ainda"
+            parts = [p["name"]]
+            if p.get("notes"):
+                parts.append(p["notes"])
+            if p.get("birthday"):
+                parts.append("aniversário: " + p["birthday"])
+            return " — ".join(parts)
+
         callables: dict = {
             "executar_comando": executar_comando,
+            "anotar_pessoa": anotar_pessoa,
+            "sobre_pessoa": sobre_pessoa,
             "salvar_memoria": salvar_memoria,
             "listar_memorias": listar_memorias,
             "apagar_memoria": apagar_memoria,
@@ -695,6 +726,23 @@ class Brain:
                 "Guarda um fato duradouro sobre o usuário.",
                 {"fato": {"type": s, "description": "o fato, em uma frase curta"}},
                 ["fato"],
+            ),
+            fn(
+                "anotar_pessoa",
+                "Registra/atualiza uma pessoa importante (família, amigo, colega): "
+                "quem é, contexto e aniversário.",
+                {
+                    "nome": {"type": s, "description": "nome da pessoa"},
+                    "sobre": {"type": s, "description": "nota curta (relação/contexto)"},
+                    "aniversario": {"type": s, "description": "ex '12/03' ou '1998-03-12'"},
+                },
+                ["nome"],
+            ),
+            fn(
+                "sobre_pessoa",
+                "Recupera o que o usuário registrou sobre uma pessoa, pelo nome.",
+                {"nome": {"type": s, "description": "nome (ou parte) da pessoa"}},
+                ["nome"],
             ),
             fn(
                 "criar_lembrete",
