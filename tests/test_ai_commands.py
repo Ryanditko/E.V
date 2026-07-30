@@ -22,3 +22,34 @@ def test_no_overlap_between_data_and_interface(tmp_path):
     )
     data_cmds = set(Commands(cfg, Memory(tmp_path / "t.db")).runnable())
     assert data_cmds.isdisjoint(_INTERFACE_COMMANDS)
+
+
+def test_google_tool_wrappers_pass_account(tmp_path, monkeypatch):
+    """ver_agenda / criar_evento / enviar_email must call the tools layer with the
+    account argument (a regression: they used to drop it -> TypeError at runtime)."""
+    from ev.core.brain import Brain
+    from ev.providers import tools as tools_mod
+
+    cfg = SimpleNamespace(
+        timezone="America/Sao_Paulo", google_oauth_client="client.json",
+        google_accounts=("pessoal",), default_account="pessoal",
+        gemini_api_key="x", embed_backend="gemini", embed_model="m",
+        model="gemini-flash-latest",
+        groq_api_key="", openrouter_api_key="", ollama_enabled=False,
+        tavily_api_key="", brave_api_key="", websearch_enabled=False,
+    )
+    brain = Brain(cfg, Memory(tmp_path / "t.db"))
+    calls = {}
+    monkeypatch.setattr(tools_mod, "calendar_upcoming",
+                        lambda c, acct, *a, **k: calls.update(agenda=acct) or "ok")
+    monkeypatch.setattr(tools_mod, "calendar_create",
+                        lambda c, acct, s, si, ei: calls.update(evento=(acct, s, si, ei)) or "ok")
+    monkeypatch.setattr(tools_mod, "send_email",
+                        lambda c, acct, to, subj, body: calls.update(email=(acct, to, subj, body)) or "ok")
+    fns = brain._tool_callables("u")
+    assert fns["ver_agenda"]() == "ok"
+    assert fns["criar_evento"]("Dentista", "2026-08-02T19:00", "2026-08-02T20:00") == "ok"
+    assert fns["enviar_email"]("a@b.com", "Oi", "Corpo") == "ok"
+    assert calls["agenda"] == "pessoal"
+    assert calls["evento"] == ("pessoal", "Dentista", "2026-08-02T19:00", "2026-08-02T20:00")
+    assert calls["email"] == ("pessoal", "a@b.com", "Oi", "Corpo")
