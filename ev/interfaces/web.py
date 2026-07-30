@@ -697,10 +697,11 @@ function thinking(){const d=el('div','msg ev');d.innerHTML='<span class="tp"><i>
 function ripple(b,e){const r=el('span','ripple');const q=b.getBoundingClientRect(),s=Math.max(q.width,q.height);
   r.style.width=r.style.height=s+'px';r.style.left=((e?e.clientX:q.left+q.width/2)-q.left-s/2)+'px';
   r.style.top=((e?e.clientY:q.top+q.height/2)-q.top-s/2)+'px';b.appendChild(r);setTimeout(()=>r.remove(),500);}
-let _audio=null,_audioMsg=false;
+let _audio=null,_audioMsg=false,_speaking=false;
+function stopSpeaking(){try{if(_audio){_audio.pause();_audio.currentTime=0;}}catch(e){}_speaking=false;}
 function unlockAudio(){if(!_audio)_audio=new Audio();try{_audio.play().catch(()=>{});}catch(e){}}
 window.addEventListener('pointerdown',unlockAudio,{once:true});
-async function speak(t,force){if((!voiceOn&&!force)||!t)return;try{const r=await fetch('/api/tts',{method:'POST',headers:H(),body:JSON.stringify({text:t})});if(!r.ok)return;const url=URL.createObjectURL(await r.blob());if(!_audio)_audio=new Audio();_audio.src=url;await _audio.play().catch(()=>{if(!_audioMsg){_audioMsg=true;sys('O navegador bloqueou o áudio automático. Toque uma vez na tela e a E.V. volta a falar.');}});}catch(e){}}
+async function speak(t,force){if((!voiceOn&&!force)||!t)return;try{const r=await fetch('/api/tts',{method:'POST',headers:H(),body:JSON.stringify({text:t})});if(!r.ok)return;const url=URL.createObjectURL(await r.blob());if(!_audio)_audio=new Audio();_audio.src=url;_speaking=true;_audio.onended=()=>{_speaking=false;};await _audio.play().catch(()=>{_speaking=false;if(!_audioMsg){_audioMsg=true;sys('O navegador bloqueou o áudio automático. Toque uma vez na tela e a E.V. volta a falar.');}});}catch(e){_speaking=false;}}
 
 async function send(msg){if(!msg)return;you(msg);const p=thinking();setState('thinking');
   try{const r=await fetch('/api/chat/stream',{method:'POST',headers:H(),body:JSON.stringify({message:msg,thread})});
@@ -982,7 +983,7 @@ micBtn.onclick=async e=>{ripple(micBtn,e);
 // live voice console
 const vc=$('#vc'),vcTxt=$('#vc-txt'),vcMic=$('#vc-mic');
 $('#vcopen').onclick=()=>{if(!RECOK){sys('Gravação de áudio indisponível neste navegador.');return;}vc.classList.add('on');vcTxt.textContent='Toque no microfone e fale. Toque de novo para enviar.';$('#vc-sub').textContent='pasta: '+thread+' · a conversa fica salva aqui';};
-$('#vc-x').onclick=()=>{if(_recActive)stopRec();vc.classList.remove('on');setState();};
+$('#vc-x').onclick=()=>{if(_recActive)stopRec();if(_hf){stopHF();renderHFBtn();}stopSpeaking();vc.classList.remove('on');setState();};
 vcMic.onclick=async()=>{
   if(!RECOK){vcTxt.textContent='Gravação de áudio indisponível neste navegador.';return;}
   if(_recActive){stopRec();vcTxt.textContent='transcrevendo...';return;}
@@ -992,11 +993,44 @@ vcMic.onclick=async()=>{
       vcTxt.textContent='"'+t+'"';
       const r=await fetch('/api/chat',{method:'POST',headers:H(),body:JSON.stringify({message:t,thread})});const j=await r.json();
       vcTxt.textContent=j.reply||'(sem resposta)';speak(j.reply,true);loadPanel();
-      if(_vcCont&&vc.classList.contains('on'))setTimeout(()=>{if(!_recActive&&vc.classList.contains('on'))vcMic.click();},2200);
     }catch(x){vcTxt.textContent='Falha ao processar o áudio. Tente de novo.';}finally{setState();}});
   if(res!==true){vcMic.classList.remove('rec');setState();vcTxt.textContent=micErrMsg(res);}};
-let _vcCont=false;
-$('#vc-cont').onclick=()=>{_vcCont=!_vcCont;$('#vc-cont').innerHTML='';$('#vc-cont').appendChild(ficon('infinity'));$('#vc-cont').appendChild(document.createTextNode(' Modo contínuo: '+(_vcCont?'on':'off')));window.lucide&&lucide.createIcons();if(_vcCont&&!_recActive)vcMic.click();};
+
+// --- hands-free: escuta contínua + palavra de ativação "E.V." (Web Speech API) ---
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+let _hf=false,_rec=null,_hfBusy=false;
+// aceita variações de como o STT ouve "E.V." em pt-BR (ev, eva, e vê, êvê, ei vi...)
+const WAKE=/(?:^|[\s])(e\.?\s?v[êe]?|ev[aoêe]?|êvê|ei ?vi|e ?vi)(?=[\s,.:!?-]|$)[\s,.:!?-]*/i;
+function extractCommand(t){const s=(t||'').trim();const m=s.match(WAKE);
+  if(!m)return null;return s.slice(m.index+m[0].length).trim();}
+async function processHF(text){if(_hfBusy)return;_hfBusy=true;stopSpeaking();
+  setState('thinking');vcTxt.textContent='"'+text+'"';
+  try{const r=await fetch('/api/chat',{method:'POST',headers:H(),body:JSON.stringify({message:text,thread})});
+    const j=await r.json();vcTxt.textContent=j.reply||'(sem resposta)';speak(j.reply,true);loadPanel();
+  }catch(e){vcTxt.textContent='Falha ao falar com a E.V. Tenta de novo.';}
+  finally{_hfBusy=false;setState(_hf?'listening':'');}}
+function startHF(){if(!SR){vcTxt.textContent='Mãos-livres precisa do Chrome, Edge ou Safari. No Firefox, use o microfone manual.';return false;}
+  try{_rec=new SR();}catch(e){return false;}
+  _rec.lang='pt-BR';_rec.continuous=true;_rec.interimResults=true;
+  _rec.onresult=ev=>{for(let i=ev.resultIndex;i<ev.results.length;i++){const res=ev.results[i];
+    const txt=res[0].transcript;
+    // barge-in: se a E.V. está falando e o dono a chamou de novo, cala e escuta
+    if(_speaking&&WAKE.test(txt))stopSpeaking();
+    if(!res.isFinal)continue;
+    const cmd=extractCommand(txt);
+    if(cmd===null)continue;                 // não foi chamada pela E.V.
+    if(!cmd){vcTxt.textContent='Pois não, Ryan?';speak('Pois não?',true);continue;}
+    processHF(cmd);}};
+  _rec.onerror=e=>{if(e.error==='not-allowed'||e.error==='service-not-allowed'){_hf=false;renderHFBtn();vcTxt.textContent='Permita o microfone para o modo mãos-livres.';}};
+  _rec.onend=()=>{if(_hf){try{_rec.start();}catch(e){}}};   // reinicia (o SR para sozinho)
+  try{_rec.start();}catch(e){}
+  return true;}
+function stopHF(){_hf=false;if(_rec){try{_rec.onend=null;_rec.stop();}catch(e){}_rec=null;}}
+function renderHFBtn(){const b=$('#vc-cont');b.innerHTML='';b.appendChild(ficon(_hf?'ear':'ear-off'));
+  b.appendChild(document.createTextNode(' Mãos-livres: '+(_hf?'on — diga "E.V. ..."':'off')));b.classList.toggle('on',_hf);window.lucide&&lucide.createIcons();}
+$('#vc-cont').onclick=()=>{if(!SR){vcTxt.textContent='Mãos-livres precisa do Chrome, Edge ou Safari. No Firefox, use o microfone manual.';return;}
+  if(_hf){stopHF();setState();}else{_hf=true;if(startHF()){vcTxt.textContent='Modo mãos-livres ligado. É só dizer: "E.V., ..."';setState('listening');}else{_hf=false;}}renderHFBtn();};
+renderHFBtn();
 // view tabs — customizable: pick which appear in the header (minimalist)
 const VIEW_LABELS={chat:'Conversa',tasks:'Tarefas',exp:'Gastos',rem:'Lembretes',cal:'Agenda',mem:'Memórias',lnk:'Links',hab:'Hábitos',jou:'Diário',sub:'Assinaturas',orc:'Orçamentos',mon:'Monitores',act:'Histórico',kb:'Base'};
 let curView='chat',tabsShown;try{tabsShown=JSON.parse(localStorage.getItem('ev_tabs'));}catch(e){}
