@@ -508,14 +508,28 @@ class Brain:
                 argumentos: os argumentos no mesmo formato do comando
                     (ex: '50 mercado #casa' para gasto; 'estudar #faculdade' para tarefa).
             """
-            key = (comando or "").strip().lower().lstrip("/")
+            # The model sometimes stuffs the args into `comando`
+            # (e.g. comando="tarefa comprar pão", argumentos=""). Split so the
+            # command name is just the first token and the rest becomes args.
+            raw = (comando or "").strip().lstrip("/")
+            tokens = raw.split(None, 1)
+            key = (tokens[0] if tokens else "").lower()
+            argumentos = (argumentos or "").strip()
+            if len(tokens) > 1 and not argumentos:
+                argumentos = tokens[1]
+            log.info("[executar_comando] comando=%r -> key=%r args=%r",
+                     comando, key, argumentos)
             if key in self._commands.runnable():
-                return self._commands.run(user_id, key, argumentos)  # runs now (text)
+                out = self._commands.run(user_id, key, argumentos)  # runs now (text)
+                log.info("[executar_comando] %s -> %s", key, str(out)[:160])
+                return out
             if key in _INTERFACE_COMMANDS:
                 # Needs the chat context — queue it for the interface to run.
-                self._last_actions.append({"command": key, "args": argumentos or ""})
+                self._last_actions.append({"command": key, "args": argumentos})
                 return f"ok, executando '{key}' agora"
-            return self._commands.run(user_id, key, argumentos)  # -> "não conheço"
+            out = self._commands.run(user_id, key, argumentos)  # -> "não conheço"
+            log.info("[executar_comando] unknown %r -> %s", key, str(out)[:120])
+            return out
 
         def consultar_clima(cidade: str) -> str:
             """Consulta a previsão do tempo real (hoje e próximos dias) de uma cidade.
