@@ -67,6 +67,8 @@ class TelegramInterface:
         self._pending_files: dict[str, tuple[str, str]] = {}
         # short id -> (image_bytes, mime) for photo OCR
         self._pending_images: dict[str, tuple[bytes, str]] = {}
+        # short id -> parsed expense dict, for the receipt "confirmar gasto" button
+        self._pending_expense: dict[str, dict] = {}
         # short id -> reminder text, for the snooze/done buttons on a fired reminder
         self._pending_rem: dict[str, str] = {}
         self._doc_seq = 0
@@ -835,6 +837,7 @@ class TelegramInterface:
         b = InlineKeyboardButton
         return InlineKeyboardMarkup([
             [b("📄 Extrair texto (OCR)", callback_data=f"ocr:{fid}")],
+            [b("💰 Lançar gasto", callback_data=f"receipt:{fid}")],
             [b("🏠 Menu", callback_data="nav:main"),
              b("➕ Tarefa", callback_data="task:add"),
              b("⏰ Lembrete", callback_data="rem:add")],
@@ -1488,6 +1491,20 @@ class TelegramInterface:
         if section == "ocr":
             await self._handle_ocr(q, uid, action)
             return
+        if section == "receipt":
+            await self._handle_receipt(q, uid, action)
+            return
+        if section == "expok":
+            await self._confirm_expense(q, uid, action)
+            return
+        if section == "expno":
+            self._pending_expense.pop(action, None)
+            await q.answer("Cancelado.")
+            try:
+                await q.edit_message_reply_markup(reply_markup=None)
+            except Exception:
+                pass
+            return
         if section == "export":
             if action == "menu":
                 await q.edit_message_text(
@@ -1776,6 +1793,55 @@ class TelegramInterface:
             q.message, summary or "Não consegui resumir agora, tenta de novo?",
             self._quick_kb(),
         )
+
+    async def _handle_receipt(self, q, uid: str, fid: str) -> None:
+        entry = self._pending_images.get(fid)
+        if entry is None:
+            await q.answer("Essa imagem expirou. Envia de novo, por favor.", show_alert=True)
+            return
+        image, mime = entry
+        await q.answer("Lendo o comprovante...")
+        try:
+            await q.edit_message_reply_markup(reply_markup=None)
+        except Exception:
+            pass
+        exp = await self._brain.extract_receipt(image, mime)
+        if not exp:
+            await q.message.reply_text(
+                "Não consegui identificar um valor nesse comprovante. "
+                "Você pode lançar na mão: /gasto 50 mercado #casa",
+                reply_markup=self._quick_kb(),
+            )
+            return
+        self._pending_images.pop(fid, None)
+        eid = self._stash(self._pending_expense, exp)
+        self._trim(self._pending_expense, 20)
+        b = InlineKeyboardButton
+        kb = InlineKeyboardMarkup([
+            [b(f"✅ Confirmar R$ {exp['amount']:.2f}", callback_data=f"expok:{eid}")],
+            [b("❌ Cancelar", callback_data=f"expno:{eid}")],
+        ])
+        await q.message.reply_text(
+            f"Identifiquei este gasto:\n\n"
+            f"💰 R$ {exp['amount']:.2f}\n"
+            f"📝 {exp['description']}\n"
+            f"🏷️ #{exp['category']}\n\nConfirma o lançamento?",
+            reply_markup=kb,
+        )
+
+    async def _confirm_expense(self, q, uid: str, eid: str) -> None:
+        exp = self._pending_expense.pop(eid, None)
+        if exp is None:
+            await q.answer("Esse lançamento expirou. Manda a foto de novo.", show_alert=True)
+            return
+        await q.answer("Lançando...")
+        try:
+            await q.edit_message_reply_markup(reply_markup=None)
+        except Exception:
+            pass
+        argstr = f"{exp['amount']:.2f} {exp['description']} #{exp['category']}"
+        result = self._commands.gasto(uid, argstr)
+        await q.message.reply_text(result, reply_markup=self._quick_kb())
 
     async def _handle_ocr(self, q, uid: str, fid: str) -> None:
         entry = self._pending_images.get(fid)
