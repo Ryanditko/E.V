@@ -159,6 +159,7 @@ body.speaking .core .dot{animation:pulse .6s infinite}
 body.listening .bigcore .arc{animation-duration:1.6s}body.speaking .bigcore .arc{animation-duration:1s}
 body.listening .bigcore .bdot{animation:pulse .9s infinite}body.speaking .bigcore .bdot{animation:pulse .55s infinite}
 #vc-txt{font-family:var(--disp);font-size:22px;text-align:center;max-width:640px;padding:0 24px;line-height:1.4;min-height:60px}
+#vc-txt .msg{font-family:var(--body);font-size:15px;text-align:left;max-width:min(560px,92vw);margin:0 auto;max-height:52vh;overflow:auto}
 #vc-sub{font-family:var(--mono);font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--subtle)}
 #vc-actions{display:flex;gap:12px}
 .vcbtn{width:76px;height:76px;border-radius:50%;border:1px solid var(--line-2);background:var(--elev);color:var(--fg);font-size:26px;cursor:pointer;transition:.15s}
@@ -1001,6 +1002,8 @@ micBtn.onclick=async e=>{ripple(micBtn,e);
 
 // live voice console
 const vc=$('#vc'),vcTxt=$('#vc-txt'),vcMic=$('#vc-mic');
+// mostra a resposta da voz com a MESMA formatação bonita do chat (sem ** cru)
+function vcShowReply(reply){vcTxt.innerHTML='';const b=el('div','msg ev');renderReply(b,reply||'(sem resposta)');vcTxt.appendChild(b);}
 $('#vcopen').onclick=()=>{if(!RECOK){sys('Gravação de áudio indisponível neste navegador.');return;}vc.classList.add('on');vcTxt.textContent='Toque no microfone e fale. Toque de novo para enviar.';$('#vc-sub').textContent='pasta: '+thread+' · a conversa fica salva aqui';};
 $('#vc-x').onclick=()=>{if(_recActive)stopRec();if(_hf){stopHF();renderHFBtn();}stopSpeaking();vc.classList.remove('on');setState();};
 vcMic.onclick=async()=>{
@@ -1011,7 +1014,7 @@ vcMic.onclick=async()=>{
     try{const t=await sttBlob(blob);if(!t){vcTxt.textContent='Não entendi. Toque no microfone e fale de novo.';setState();return;}
       vcTxt.textContent='"'+t+'"';
       const r=await fetch('/api/chat',{method:'POST',headers:H(),body:JSON.stringify({message:t,thread})});const j=await r.json();
-      vcTxt.textContent=j.reply||'(sem resposta)';speak(j.reply,true);loadPanel();
+      vcShowReply(j.reply);speak(j.reply,true);loadPanel();
     }catch(x){vcTxt.textContent='Falha ao processar o áudio. Tente de novo.';}finally{setState();}});
   if(res!==true){vcMic.classList.remove('rec');setState();vcTxt.textContent=micErrMsg(res);}};
 
@@ -1019,13 +1022,21 @@ vcMic.onclick=async()=>{
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 let _hf=false,_rec=null,_hfBusy=false;
 // aceita variações de como o STT ouve "E.V." em pt-BR (ev, eva, e vê, êvê, ei vi...)
-const WAKE=/(?:^|[\s])(e\.?\s?v[êe]?|ev[aoêe]?|êvê|ei ?vi|e ?vi)(?=[\s,.:!?-]|$)[\s,.:!?-]*/i;
-function extractCommand(t){const s=(t||'').trim();const m=s.match(WAKE);
-  if(!m)return null;return s.slice(m.index+m[0].length).trim();}
+// "E.V." é ouvido pelo STT de MUITAS formas (evee, yvee, eveee, evi, ivi, e vê...).
+// Normaliza cada palavra (minúsculas, sem pontuação, colapsa letras repetidas) e
+// compara com um conjunto de variações que soam como "é-vê".
+const WAKESET=new Set(['ev','eve','eva','evo','evi','yve','yvi','yv','ive','ivi','ivy','iv','aivi','evie','êvê','eev','hev','hive','evee']);
+function normTok(w){return (w||'').toLowerCase().replace(/[^a-zà-ÿ]/g,'').replace(/(.)\1+/g,'$1');}
+function extractCommand(t){let s=(t||'').trim();
+  s=s.replace(/\be[.\s]+v[êei]*(?![a-zà-ÿ])[\s.,:!?;-]*/i,' eve ');   // junta "e vê"/"e v"/"e.v."
+  const words=s.split(/\s+/).filter(Boolean);
+  for(let i=0;i<words.length;i++){if(WAKESET.has(normTok(words[i])))return words.slice(i+1).join(' ').trim();}
+  return null;}
+function hasWake(t){return extractCommand(t)!==null;}
 async function processHF(text){if(_hfBusy)return;_hfBusy=true;stopSpeaking();
   setState('thinking');vcTxt.textContent='"'+text+'"';
   try{const r=await fetch('/api/chat',{method:'POST',headers:H(),body:JSON.stringify({message:text,thread})});
-    const j=await r.json();vcTxt.textContent=j.reply||'(sem resposta)';speak(j.reply,true);loadPanel();
+    const j=await r.json();vcShowReply(j.reply);speak(j.reply,true);loadPanel();
   }catch(e){vcTxt.textContent='Falha ao falar com a E.V. Tenta de novo.';}
   finally{_hfBusy=false;setState(_hf?'listening':'');}}
 function startHF(){if(!SR){vcTxt.textContent='Mãos-livres precisa do Chrome, Edge ou Safari. No Firefox, use o microfone manual.';return false;}
@@ -1034,7 +1045,7 @@ function startHF(){if(!SR){vcTxt.textContent='Mãos-livres precisa do Chrome, Ed
   _rec.onresult=ev=>{for(let i=ev.resultIndex;i<ev.results.length;i++){const res=ev.results[i];
     const txt=res[0].transcript;
     // barge-in: se a E.V. está falando e o dono a chamou de novo, cala e escuta
-    if(_speaking&&WAKE.test(txt))stopSpeaking();
+    if(_speaking&&hasWake(txt))stopSpeaking();
     if(!res.isFinal)continue;
     const cmd=extractCommand(txt);
     if(cmd===null)continue;                 // não foi chamada pela E.V.
