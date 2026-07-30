@@ -69,6 +69,8 @@ class TelegramInterface:
         self._pending_images: dict[str, tuple[bytes, str]] = {}
         # short id -> parsed expense dict, for the receipt "confirmar gasto" button
         self._pending_expense: dict[str, dict] = {}
+        # calendar event ids already alerted (pre-event heads-up), to avoid repeats
+        self._alerted_events: set[str] = set()
         # short id -> reminder text, for the snooze/done buttons on a fired reminder
         self._pending_rem: dict[str, str] = {}
         self._doc_seq = 0
@@ -1993,6 +1995,7 @@ class TelegramInterface:
                 if not self._is_quiet():  # /silenciar mutes proactive pings
                     await self._maybe_send_briefing(app)
                     await self._maybe_send_checkin(app)
+                    await self._maybe_send_event_alerts(app)
                     await self._maybe_send_weekly(app)
                     await self._maybe_send_rain(app)
                     await self._maybe_habit_nudge(app)
@@ -2023,6 +2026,57 @@ class TelegramInterface:
                 text += "\n\n🧠 Insights:\n" + insights
             await self._bot_send(app.bot, cfg.owner_id, text, self._quick_kb())
             log.info("Sent weekly review.")
+
+    @staticmethod
+    def _alert_lead_minutes(start_iso: str, now, lead: int):
+        """Minutes until `start_iso` if it falls within (0, lead]; else None.
+        Tolerates tz-naive starts (assumes UTC)."""
+        from datetime import datetime, timezone
+        try:
+            start = datetime.fromisoformat(start_iso)
+        except (ValueError, TypeError):
+            return None
+        if start.tzinfo is None:
+            start = start.replace(tzinfo=timezone.utc)
+        mins = (start - now).total_seconds() / 60
+        if 0 <= mins <= lead:
+            return int(round(mins))
+        return None
+
+    async def _maybe_send_event_alerts(self, app: Application) -> None:
+        cfg = self._config
+        lead = getattr(cfg, "event_alert_minutes", 30)
+        if lead <= 0 or cfg.owner_id is None or not cfg.google_authorized():
+            return
+        from datetime import datetime, timedelta, timezone
+        now = datetime.now(timezone.utc)
+        try:
+            from ..providers import tools
+            events = await asyncio.to_thread(
+                tools.calendar_list_range, cfg, cfg.default_account,
+                now.isoformat(), (now + timedelta(minutes=lead)).isoformat())
+        except Exception:
+            log.warning("event alert fetch failed", exc_info=True)
+            return
+        for e in events:
+            eid = e.get("id")
+            if not eid or eid in self._alerted_events or e.get("all_day"):
+                continue
+            mins = self._alert_lead_minutes(e.get("start") or "", now, lead)
+            if mins is None:
+                continue
+            self._alerted_events.add(eid)
+            when = "agora" if mins <= 1 else f"em {mins} min"
+            msg = f'📅 "{e.get("summary", "(sem título)")}" começa {when}.'
+            await self._bot_send(app.bot, cfg.owner_id, msg, self._quick_kb())
+            try:  # persist to the web notification center + push to devices
+                from ..providers import push
+                await asyncio.to_thread(push.send_push, cfg, self._memory,
+                                        "📅 Evento chegando", msg, "/", str(cfg.owner_id))
+            except Exception:
+                pass
+        if len(self._alerted_events) > 500:  # keep the dedupe set bounded
+            self._alerted_events.clear()
 
     def _log_notif(self, title: str, body: str = "") -> None:
         """Record a proactive alert in the web notification center too."""

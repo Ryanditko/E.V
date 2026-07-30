@@ -72,3 +72,20 @@ def test_executar_comando_handles_inline_args(tmp_path):
     assert "adicionada" in ec("tarefa comprar pão #casa")   # args inside comando
     assert "adicionada" in ec("tarefa", "estudar #faculdade")  # normal form
     assert "comprar pão" in brain._commands.tarefas("u")
+
+
+def test_event_alert_lead_window():
+    from ev.interfaces.telegram_bot import TelegramInterface as TI
+    from datetime import datetime, timezone, timedelta
+    now = datetime(2026, 8, 1, 12, 0, tzinfo=timezone.utc)
+    f = TI._alert_lead_minutes
+    # 20 min ahead, lead 30 -> alert (20)
+    assert f((now + timedelta(minutes=20)).isoformat(), now, 30) == 20
+    # 45 min ahead, lead 30 -> out of window
+    assert f((now + timedelta(minutes=45)).isoformat(), now, 30) is None
+    # already started -> None
+    assert f((now - timedelta(minutes=5)).isoformat(), now, 30) is None
+    # tz-naive start is treated as UTC
+    assert f("2026-08-01T12:10:00", now, 30) == 10
+    # garbage -> None
+    assert f("nope", now, 30) is None
