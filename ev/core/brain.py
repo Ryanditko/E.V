@@ -16,7 +16,10 @@ Providers without a configured key are skipped. The brain also does RAG: it
 injects the user's most relevant knowledge-base chunks into the system prompt.
 """
 
-from __future__ import annotations
+# NOTE: intentionally NO `from __future__ import annotations` here. Gemini's
+# automatic function calling introspects the tool functions' annotations at
+# runtime; PEP 563 stringized annotations make it do isinstance(value, "str")
+# -> "isinstance() arg 2 must be a type..." and every tool call fails.
 
 import asyncio
 import logging
@@ -434,14 +437,14 @@ class Brain:
             self._memory.add_fact(user_id, fato, embedding=self._embed(fato))
             return "ok, memorizado"
 
-        def criar_lembrete(texto: str, quando: str | None = None) -> str:
+        def criar_lembrete(texto: str, quando: str = "") -> str:
             """Cria um lembrete para o usuário.
 
             Args:
                 texto: o que lembrar.
                 quando: data/hora em ISO 8601 (ex: 2026-07-22T09:00:00-03:00).
             """
-            rid = self._memory.add_reminder(user_id, texto, quando)
+            rid = self._memory.add_reminder(user_id, texto, quando or None)
             return f"lembrete #{rid} criado"
 
         def listar_lembretes() -> str:
@@ -550,7 +553,7 @@ class Brain:
 
         def criar_documento(
             conteudo: str,
-            titulo: str | None = None,
+            titulo: str = "",
             formato: str = "pdf",
             salvar_kb: bool = False,
         ) -> str:
@@ -811,6 +814,21 @@ class Brain:
             ),
         )
         self._last_provider = "gemini"
+        # Log what Gemini's automatic function calling actually did (it is otherwise
+        # opaque) — invaluable for debugging why a CRUD tool didn't run.
+        try:
+            for h in (getattr(response, "automatic_function_calling_history", None) or []):
+                for part in (getattr(h, "parts", None) or []):
+                    fc = getattr(part, "function_call", None)
+                    if fc:
+                        log.info("[gemini-afc] chamou %s args=%s", fc.name,
+                                 dict(fc.args or {}))
+                    fr = getattr(part, "function_response", None)
+                    if fr:
+                        log.info("[gemini-afc] resultado %s: %s", fr.name,
+                                 str(getattr(fr, "response", ""))[:160])
+        except Exception:
+            pass
         return (response.text or "").strip() or "…"
 
     def _build_contents(
