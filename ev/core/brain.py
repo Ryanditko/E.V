@@ -600,7 +600,7 @@ class Brain:
         if cfg.google_oauth_client:
             def ver_agenda() -> str:
                 """Lista os próximos eventos da agenda do Google do usuário."""
-                return tools_mod.calendar_upcoming(cfg)
+                return tools_mod.calendar_upcoming(cfg, cfg.default_account)
 
             def criar_evento(titulo: str, inicio: str, fim: str) -> str:
                 """Cria um evento na agenda do Google.
@@ -610,7 +610,8 @@ class Brain:
                     inicio: início em ISO 8601.
                     fim: fim em ISO 8601.
                 """
-                return tools_mod.calendar_create(cfg, titulo, inicio, fim)
+                return tools_mod.calendar_create(
+                    cfg, cfg.default_account, titulo, inicio, fim)
 
             def enviar_email(para: str, assunto: str, corpo: str) -> str:
                 """Envia um e-mail pela conta Gmail do usuário.
@@ -620,7 +621,8 @@ class Brain:
                     assunto: assunto do e-mail.
                     corpo: corpo do e-mail.
                 """
-                return tools_mod.send_email(cfg, para, assunto, corpo)
+                return tools_mod.send_email(
+                    cfg, cfg.default_account, para, assunto, corpo)
 
             callables["ver_agenda"] = ver_agenda
             callables["criar_evento"] = criar_evento
@@ -845,8 +847,10 @@ class Brain:
     # --- fallbacks: Groq -> OpenRouter --------------------------------------
 
     def _openai_messages(self, conv_id: str, new_text: str) -> list[dict]:
+        # Keep history short on the fallback path: Groq's free tier caps tokens
+        # per minute (~8k), and a long history + tool schemas blows past it (429).
         msgs: list[dict] = []
-        for m in self._memory.recent_messages(conv_id, limit=20):
+        for m in self._memory.recent_messages(conv_id, limit=8):
             role = "assistant" if m["role"] == "model" else "user"
             msgs.append({"role": role, "content": m["content"]})
         msgs.append({"role": "user", "content": new_text})
@@ -877,22 +881,40 @@ class Brain:
             except Exception as exc:
                 log.warning("Groq fallback failed (%s).", exc)
 
-        # 2) OpenRouter — plain text (final backstop, no memory).
+        # 2) OpenRouter — also WITH tools, so CRUD still works when Groq is rate
+        #    limited. Falls back to plain text if the model can't do tool-calling.
         if cfg.openrouter_api_key and only in (None, "openrouter"):
             try:
-                answer = providers.chat_openai_compat(
+                answer = providers.chat_with_tools(
                     base_url=providers.OPENROUTER_BASE_URL,
                     api_key=cfg.openrouter_api_key,
                     model=cfg.openrouter_model,
                     system=system,
                     messages=messages,
+                    tools=self._openai_tools(),
+                    tool_functions=self._tool_callables(user_id),
+                    temperature=0.2,
                 )
                 if answer:
-                    log.info("Answered via OpenRouter (%s).", cfg.openrouter_model)
+                    log.info("Answered via OpenRouter (%s) with tools.", cfg.openrouter_model)
                     self._last_provider = "openrouter"
                     return answer
             except Exception as exc:
-                log.warning("OpenRouter fallback failed (%s).", exc)
+                log.warning("OpenRouter (tools) failed (%s); trying plain text.", exc)
+                try:
+                    answer = providers.chat_openai_compat(
+                        base_url=providers.OPENROUTER_BASE_URL,
+                        api_key=cfg.openrouter_api_key,
+                        model=cfg.openrouter_model,
+                        system=system,
+                        messages=messages,
+                    )
+                    if answer:
+                        log.info("Answered via OpenRouter (%s), plain.", cfg.openrouter_model)
+                        self._last_provider = "openrouter"
+                        return answer
+                except Exception as exc2:
+                    log.warning("OpenRouter plain failed (%s).", exc2)
 
         # 3) Ollama — local model, never rate-limited (final safety net).
         if cfg.ollama_enabled and only in (None, "ollama"):
