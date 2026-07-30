@@ -184,7 +184,9 @@ class Config:
             embed_backend=os.getenv("EV_EMBED_BACKEND", "gemini").strip().lower(),
             owner_id=owner_id,
             voice_reply=_get_bool("EV_VOICE_REPLY", True),
-            voice=os.getenv("EV_VOICE", "pt-BR-FranciscaNeural").strip(),
+            # Multilingual pt-BR voice: base is Brazilian Portuguese, but it
+            # pronounces embedded foreign words (Spider-Man, deploy) correctly.
+            voice=os.getenv("EV_VOICE", "pt-BR-ThalitaMultilingualNeural").strip(),
             voice_rate=os.getenv("EV_VOICE_RATE", "+0%").strip(),
             voice_pitch=os.getenv("EV_VOICE_PITCH", "+0Hz").strip(),
             voice_fixes=tuple(
