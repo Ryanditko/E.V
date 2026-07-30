@@ -163,6 +163,13 @@ body.listening .bigcore .bdot{animation:pulse .9s infinite}
 .vcbtn:hover{border-color:var(--fg);transform:translateY(-2px)}
 .vcbtn.rec{background:var(--fg);color:var(--ink);border:none;animation:pulse 1.1s infinite}
 #vc-x{position:absolute;top:20px;right:24px;font-family:var(--mono);font-size:12px;letter-spacing:.1em;color:var(--muted);background:none;border:1px solid var(--line);border-radius:999px;padding:8px 14px;cursor:pointer}
+/* live camera overlay */
+#cam{position:fixed;inset:0;z-index:22;background:#000;display:none;flex-direction:column;align-items:center;justify-content:center}
+#cam.on{display:flex}
+#cam-video{max-width:100%;max-height:78vh;object-fit:contain;background:#000}
+#cam-hint{position:absolute;top:70px;left:0;right:0;text-align:center;font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--subtle);padding:0 20px}
+#cam-actions{position:absolute;bottom:40px;display:flex;gap:22px;align-items:center}
+#cam-x{position:absolute;top:20px;right:24px;font-family:var(--mono);font-size:12px;letter-spacing:.1em;color:var(--fg);background:rgba(0,0,0,.4);border:1px solid var(--line);border-radius:999px;padding:8px 14px;cursor:pointer;z-index:2}
 /* pomodoro focus overlay */
 #pomo{position:fixed;inset:0;z-index:24;background:radial-gradient(80% 60% at 50% 32%,#111,#050505 82%);display:none;flex-direction:column;align-items:center;justify-content:center;gap:20px}
 #pomo.on{display:flex}
@@ -466,6 +473,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
       <form id="f"><div id="slash"></div>
         <button type="button" class="icon mic" id="mic" title="Falar"><span class="mg"><i data-lucide="mic"></i></span><span class="wave"><b></b><b></b><b></b><b></b></span></button>
         <button type="button" class="icon" id="imgbtn" title="Enviar imagem"><i data-lucide="image"></i></button>
+        <button type="button" class="icon" id="cambtn" title="Câmera ao vivo"><i data-lucide="camera"></i></button>
         <input type="file" id="imgfile" accept="image/*" style="display:none">
         <div class="field"><input id="txt" placeholder="Fala com a E.V.  ·  digite / para comandos" autocomplete="off"></div>
         <button class="icon send" id="send" title="Enviar"><i data-lucide="arrow-up"></i></button></form>
@@ -584,6 +592,15 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
   <div id="vc-sub">voz ao vivo · português</div>
   <div id="vc-actions"><button class="vcbtn" id="vc-mic"><i data-lucide="mic"></i></button></div>
   <button id="vc-cont" class="tbtn" style="margin-top:14px"><i data-lucide="infinity"></i> Modo contínuo: off</button>
+</div>
+<div id="cam">
+  <button id="cam-x">FECHAR</button>
+  <video id="cam-video" autoplay playsinline muted></video>
+  <div id="cam-hint">Aponte a câmera e toque para capturar — a E.V. analisa o que vê.</div>
+  <div id="cam-actions">
+    <button class="vcbtn" id="cam-flip" title="Trocar câmera"><i data-lucide="refresh-cw"></i></button>
+    <button class="vcbtn" id="cam-shot" title="Capturar e perguntar"><i data-lucide="camera"></i></button>
+  </div>
 </div>
 <div id="pomo">
   <button id="pomo-x">FECHAR</button>
@@ -1412,10 +1429,25 @@ async function receiptFromImage(file){if(!file)return;const p=thinking();setStat
     if(ok){setPendingImg(null);switchView('chat');runCmd('gasto '+Number(j.amount).toFixed(2)+' '+j.description+' #'+j.category);}
   }catch(e){p.remove();sys('Falha ao ler o comprovante.');}finally{setState();}}
 async function sendImage(file,caption){if(!file)return;youImg(caption,URL.createObjectURL(file));const p=thinking();setState('thinking');
-  try{const fd=new FormData();fd.append('image',file);if(caption)fd.append('text',caption);fd.append('thread',thread);
+  try{const fd=new FormData();fd.append('image',file,file.name||'imagem.jpg');if(caption)fd.append('text',caption);fd.append('thread',thread);
     const j=await (await fetch('/api/vision',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd})).json();
     p.remove();ev(j.reply||'(sem resposta)');speak(j.reply);}catch(e){p.remove();sys('Falha ao enviar a imagem.');}finally{setState();}}
 $('#imgbtn').onclick=()=>$('#imgfile').click();
+// live camera — aponta e pergunta ("olha isso")
+let _camStream=null,_camFacing='environment';
+function stopCam(){if(_camStream){_camStream.getTracks().forEach(t=>t.stop());_camStream=null;}}
+async function startCam(){stopCam();
+  try{_camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:_camFacing}});$('#cam-video').srcObject=_camStream;}
+  catch(e){$('#cam-hint').textContent='Não consegui abrir a câmera: '+((e&&e.message)||e);}}
+$('#cambtn').onclick=async()=>{
+  if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)){sys('Câmera indisponível neste navegador.');return;}
+  $('#cam').classList.add('on');$('#cam-hint').textContent='Aponte a câmera e toque para capturar — a E.V. analisa o que vê.';await startCam();};
+$('#cam-x').onclick=()=>{stopCam();$('#cam').classList.remove('on');};
+$('#cam-flip').onclick=()=>{_camFacing=_camFacing==='environment'?'user':'environment';startCam();};
+$('#cam-shot').onclick=()=>{const v=$('#cam-video');if(!v||!v.videoWidth){$('#cam-hint').textContent='Espere a câmera carregar...';return;}
+  const cv=document.createElement('canvas');cv.width=v.videoWidth;cv.height=v.videoHeight;cv.getContext('2d').drawImage(v,0,0);
+  cv.toBlob(b=>{if(!b)return;const cap=(txt.value||'').trim();txt.value='';
+    stopCam();$('#cam').classList.remove('on');switchView('chat');sendImage(b,cap);},'image/jpeg',0.85);};
 $('#imgfile').onchange=e=>{const f=e.target.files[0];if(f)setPendingImg(f);e.target.value='';};
 (function(){const cv=$('#chatview');if(!cv)return;
   ['dragover','dragenter'].forEach(n=>cv.addEventListener(n,e=>{e.preventDefault();cv.classList.add('drag');}));
