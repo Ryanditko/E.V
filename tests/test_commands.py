@@ -292,3 +292,28 @@ def test_receipt_json_parsing():
     # not a receipt / zero / garbage -> None
     assert p('{"valor": 0}') is None
     assert p('sem json') is None
+
+
+def test_people_memory_and_birthdays(tmp_path):
+    c = _commands(tmp_path)
+    assert "Nenhuma pessoa" in c.pessoas("u")
+    assert "Anotado" in c.pessoa("u", "Ana | irmã, ama café | 12/03")
+    out = c.pessoas("u")
+    assert "Ana" in out and "irmã" in out and "03-12" in out
+    # view by name
+    assert "café" in c.pessoa("u", "Ana")
+    # update appends notes, keeps birthday
+    c.pessoa("u", "Ana | trabalha com design")
+    v = c.pessoa("u", "ana")
+    assert "design" in v and "café" in v
+    # birthday lookup by MM-DD
+    bd = c._memory.birthdays_on("u", "03-12")
+    assert bd and bd[0]["name"] == "Ana"
+
+
+def test_birthday_normalization(tmp_path):
+    m = _commands(tmp_path)._memory
+    assert m._norm_bday("12/03") == "03-12"       # DD/MM (Brazilian)
+    assert m._norm_bday("12/03/1998") == "1998-03-12"
+    assert m._norm_bday("1998-03-12") == "1998-03-12"
+    assert m._norm_bday("") == ""

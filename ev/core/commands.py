@@ -86,6 +86,8 @@ COMMAND_LIST = [
     ("evento", "Criar evento: /evento [conta] amanhã 15:00 Dentista"),
     ("email", "E-mail: /email [conta] fulano@x.com | Assunto | Corpo"),
     ("emails", "Ver e-mails recentes: /emails [conta] [busca]"),
+    ("pessoas", "Ver pessoas que você registrou (com aniversários)"),
+    ("pessoa", "Anotar/ver pessoa: /pessoa Ana | irmã, ama café | 12/03"),
 ]
 
 
@@ -230,6 +232,8 @@ class Commands:
             "evento": lambda u, a: self.evento(a),
             "email": lambda u, a: self.email(a),
             "emails": lambda u, a: self.emails(a),
+            "pessoa": lambda u, a: self.pessoa(u, a),
+            "pessoas": lambda u, a: self.pessoas(u),
         }
 
     def runnable(self) -> list[str]:
@@ -991,6 +995,16 @@ class Commands:
                 parts.append("\nE-mails não lidos:")
                 parts.append(unread)
 
+        try:
+            tz = ZoneInfo(self._config.timezone) if ZoneInfo else None
+            mmdd = datetime.now(tz).strftime("%m-%d")
+        except Exception:
+            mmdd = datetime.now(timezone.utc).strftime("%m-%d")
+        bdays = self._memory.birthdays_on(user_id, mmdd)
+        if bdays:
+            parts.append("\nAniversários hoje:")
+            parts += [f"- {p['name']} 🎂" for p in bdays]
+
         if len(parts) == 1:
             parts.append("Nada na lista. Dia livre — aproveita!")
 
@@ -1183,3 +1197,36 @@ class Commands:
             return ("Leitura de e-mail ainda não configurada. Defina EV_IMAP_ADDRESS "
                     "e EV_IMAP_PASSWORD (senha de app do Gmail).")
         return tools_mod.inbox_summary(self._config, "", argstr.strip())
+
+    def pessoas(self, user_id: str) -> str:
+        people = self._memory.list_people(user_id)
+        if not people:
+            return "Nenhuma pessoa registrada. Use /pessoa <nome> | <sobre> [| <aniversário>]."
+        lines = ["👥 Pessoas:"]
+        for p in people:
+            s = f"#{p['id']} {p['name']}"
+            if p.get("notes"):
+                s += f" — {p['notes']}"
+            if p.get("birthday"):
+                s += f" (🎂 {p['birthday']})"
+            lines.append(s)
+        return "\n".join(lines)
+
+    def pessoa(self, user_id: str, argstr: str) -> str:
+        parts = [p.strip() for p in (argstr or "").split("|")]
+        nome = parts[0] if parts else ""
+        if not nome:
+            return "Uso: /pessoa <nome> | <sobre> [| <aniversário>]  (ou só /pessoa <nome> pra ver)"
+        if len(parts) == 1:  # view
+            p = self._memory.find_person(user_id, nome)
+            if not p:
+                return f"Não tenho nada sobre {nome}. Adicione: /pessoa {nome} | <sobre> [| <aniversário>]"
+            out = [f"👤 {p['name']}"]
+            if p.get("notes"):
+                out.append(p["notes"])
+            if p.get("birthday"):
+                out.append(f"🎂 {p['birthday']}")
+            return "\n".join(out)
+        self._memory.add_person(user_id, nome, parts[1] if len(parts) > 1 else "",
+                                parts[2] if len(parts) > 2 else "")
+        return f"Anotado sobre {nome}."

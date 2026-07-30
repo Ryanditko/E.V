@@ -1366,6 +1366,16 @@ class TelegramInterface:
         if self._authorized(update):
             await self._cmd_out(update, self._commands.emails(self._args(c)))
 
+    async def cmd_pessoa(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
+        if self._authorized(update):
+            uid = str(update.effective_user.id)
+            await self._cmd_out(update, self._commands.pessoa(uid, self._args(c)))
+
+    async def cmd_pessoas(self, update: Update, _c: ContextTypes.DEFAULT_TYPE) -> None:
+        if self._authorized(update):
+            uid = str(update.effective_user.id)
+            await self._cmd_out(update, self._commands.pessoas(uid))
+
     # --- interactive menu (buttons) ----------------------------------------
 
     # Sections with a simple "list / add" shape.
@@ -2426,6 +2436,8 @@ class TelegramInterface:
         app.add_handler(CommandHandler("evento", self.cmd_evento))
         app.add_handler(CommandHandler("email", self.cmd_email))
         app.add_handler(CommandHandler("emails", self.cmd_emails))
+        app.add_handler(CommandHandler("pessoa", self.cmd_pessoa))
+        app.add_handler(CommandHandler("pessoas", self.cmd_pessoas))
         # Document upload (PDF) -> knowledge base
         app.add_handler(MessageHandler(filters.Document.ALL, self.on_document))
         # Photo -> multimodal (Gemini vision)
