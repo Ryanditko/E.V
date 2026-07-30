@@ -53,3 +53,22 @@ def test_google_tool_wrappers_pass_account(tmp_path, monkeypatch):
     assert calls["agenda"] == "pessoal"
     assert calls["evento"] == ("pessoal", "Dentista", "2026-08-02T19:00", "2026-08-02T20:00")
     assert calls["email"] == ("pessoal", "a@b.com", "Oi", "Corpo")
+
+
+def test_executar_comando_handles_inline_args(tmp_path):
+    """The model sometimes puts args in `comando` ("tarefa comprar pão"); that
+    must still route to the right command instead of "não conheço"."""
+    from ev.core.brain import Brain
+
+    cfg = SimpleNamespace(
+        timezone="America/Sao_Paulo", google_oauth_client="", google_accounts=(),
+        default_account="", gemini_api_key="x", embed_backend="gemini",
+        embed_model="m", model="gemini-flash-latest", groq_api_key="",
+        openrouter_api_key="", ollama_enabled=False, tavily_api_key="",
+        brave_api_key="", websearch_enabled=False,
+    )
+    brain = Brain(cfg, Memory(tmp_path / "t.db"))
+    ec = brain._tool_callables("u")["executar_comando"]
+    assert "adicionada" in ec("tarefa comprar pão #casa")   # args inside comando
+    assert "adicionada" in ec("tarefa", "estudar #faculdade")  # normal form
+    assert "comprar pão" in brain._commands.tarefas("u")
