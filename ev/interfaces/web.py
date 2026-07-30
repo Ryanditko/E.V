@@ -351,7 +351,9 @@ body.term #txt::placeholder{color:#4a4a4a}
 #imgprev{display:none;align-items:center;gap:12px;padding:9px 18px;border-top:1px solid var(--line);background:var(--surface)}
 #imgprev img{width:48px;height:48px;object-fit:cover;border-radius:9px;border:1px solid var(--line)}
 #imgprev .ip-name{flex:1;min-width:0;font-size:12px;color:var(--muted);font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#imgprev .ip-x{background:var(--elev);border:1px solid var(--line);color:var(--fg);width:30px;height:30px;flex:none;border-radius:8px;cursor:pointer;font-size:17px;line-height:1}
+#imgprev .ip-x{background:var(--elev);border:1px solid var(--line);color:var(--fg);width:30px;height:30px;flex:none;border-radius:8px;cursor:pointer;font-size:17px;line-height:1;display:inline-flex;align-items:center;justify-content:center}
+#imgprev .ip-x:hover{background:var(--fg);color:var(--ink)}
+#imgprev .ip-x svg{width:16px;height:16px}
 .msg-img{max-width:230px;max-height:230px;border-radius:11px;display:block}
 #audprev{display:none;align-items:center;gap:10px;padding:9px 18px;border-top:1px solid var(--line);background:var(--surface)}
 #audprev .ap-info{flex:1;min-width:0;font-size:12.5px;color:var(--muted);font-family:var(--mono)}
@@ -1364,8 +1366,17 @@ function youImg(caption,url){const d=el('div','msg you');const img=document.crea
 let _pendingImg=null;
 function setPendingImg(f){_pendingImg=f;const p=$('#imgprev');p.innerHTML='';if(!f){p.style.display='none';return;}
   const img=document.createElement('img');img.src=URL.createObjectURL(f);
+  const rc=el('button','ip-x');rc.title='Lançar como gasto';rc.appendChild(ficon('wallet'));rc.onclick=()=>receiptFromImage(f);
   const x=el('button','ip-x','×');x.title='remover';x.onclick=()=>setPendingImg(null);
-  p.appendChild(img);p.appendChild(el('span','ip-name',f.name+' — escreva algo (opcional) e envie'));p.appendChild(x);p.style.display='flex';if(txt)txt.focus();}
+  p.appendChild(img);p.appendChild(el('span','ip-name',f.name+' — envie, ou toque na carteira pra lançar gasto'));p.appendChild(rc);p.appendChild(x);p.style.display='flex';window.lucide&&lucide.createIcons();if(txt)txt.focus();}
+async function receiptFromImage(file){if(!file)return;const p=thinking();setState('thinking');
+  try{const fd=new FormData();fd.append('image',file);
+    const j=await (await fetch('/api/receipt',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd})).json();
+    p.remove();
+    if(!j.ok){sys(j.msg||'Não consegui identificar um valor nesse comprovante.');return;}
+    const ok=await confirmDialog('Lançar R$ '+Number(j.amount).toFixed(2)+' — '+j.description+' (#'+j.category+')?');
+    if(ok){setPendingImg(null);switchView('chat');runCmd('gasto '+Number(j.amount).toFixed(2)+' '+j.description+' #'+j.category);}
+  }catch(e){p.remove();sys('Falha ao ler o comprovante.');}finally{setState();}}
 async function sendImage(file,caption){if(!file)return;youImg(caption,URL.createObjectURL(file));const p=thinking();setState('thinking');
   try{const fd=new FormData();fd.append('image',file);if(caption)fd.append('text',caption);fd.append('thread',thread);
     const j=await (await fetch('/api/vision',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd})).json();
@@ -2423,6 +2434,25 @@ def create_app(config: Config, brain: Brain | None = None):
         except Exception as exc:
             return {"reply": f"Não consegui analisar a imagem: {exc}"}
         return {"reply": reply}
+
+    @app.post("/api/receipt")
+    async def receipt(request: Request):
+        _check(request.headers.get("authorization"))
+        form = await request.form()
+        f = form.get("image")
+        if f is None or isinstance(f, str) or not hasattr(f, "read"):
+            return {"ok": False, "msg": "Nenhuma imagem enviada."}
+        data = await f.read()
+        if not data:
+            return {"ok": False, "msg": "Imagem vazia."}
+        try:
+            exp = await brain.extract_receipt(data, f.content_type or "image/jpeg")
+        except Exception as exc:
+            return {"ok": False, "msg": f"Não consegui ler o comprovante: {exc}"}
+        if not exp:
+            return {"ok": False,
+                    "msg": "Não consegui identificar um valor nesse comprovante."}
+        return {"ok": True, **exp}
 
     @app.post("/api/stt")
     async def stt(request: Request):

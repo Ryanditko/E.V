@@ -124,6 +124,57 @@ class Brain:
         """Extract text from an image via Gemini vision (OCR)."""
         return await asyncio.to_thread(self._ocr_sync, image, mime)
 
+    async def extract_receipt(self, image: bytes, mime: str | None) -> dict | None:
+        """Read a receipt/invoice image -> {amount, description, category} or None."""
+        return await asyncio.to_thread(self._extract_receipt_sync, image, mime)
+
+    @staticmethod
+    def _parse_receipt_json(raw: str) -> dict | None:
+        """Parse the vision model's JSON reply into a validated expense dict."""
+        import json
+        import re
+        m = re.search(r"\{.*\}", raw or "", re.S)
+        if not m:
+            return None
+        try:
+            d = json.loads(m.group(0))
+        except (ValueError, TypeError):
+            return None
+        try:
+            amount = round(float(str(d.get("valor", 0)).replace(",", ".").strip()), 2)
+        except (ValueError, TypeError):
+            return None
+        if amount <= 0:
+            return None
+        desc = (str(d.get("descricao") or "").strip() or "compra")[:80]
+        cat = re.sub(r"[^a-zà-ú0-9]", "",
+                     str(d.get("categoria") or "geral").strip().lower()) or "geral"
+        return {"amount": amount, "description": desc, "category": cat}
+
+    def _extract_receipt_sync(self, image: bytes, mime: str | None) -> dict | None:
+        prompt = (
+            "Esta imagem é um comprovante, nota fiscal ou recibo. Extraia o gasto e "
+            "responda APENAS um JSON, sem texto ao redor, com as chaves: "
+            "\"valor\" (número — o TOTAL pago), "
+            "\"descricao\" (estabelecimento ou o que foi comprado, curto), "
+            "\"categoria\" (UMA palavra: mercado, comida, transporte, saude, lazer, "
+            "casa, assinatura, etc). "
+            "Se não for um comprovante ou não achar o total, responda {\"valor\": 0}."
+        )
+        try:
+            resp = self._client.models.generate_content(
+                model=self.current_model(),
+                contents=[
+                    types.Part.from_bytes(data=image, mime_type=mime or "image/jpeg"),
+                    types.Part.from_text(text=prompt),
+                ],
+                config=types.GenerateContentConfig(temperature=0.0),
+            )
+            return self._parse_receipt_json(resp.text or "")
+        except Exception as exc:
+            log.warning("receipt extraction (Gemini vision) failed (%s)", exc)
+            return None
+
     async def health_check(self) -> list[dict]:
         """Live-ping each configured provider. Returns [{name, ok, note}]."""
         return await asyncio.to_thread(self._health_check_sync)

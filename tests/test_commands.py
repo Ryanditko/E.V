@@ -279,3 +279,16 @@ def test_rotina(tmp_path):
     assert "Rotina" in out and "todo dia" in out
     assert "[todo dia]" in c.lembretes("u")
     assert "inválida" in c.rotina("u", "anual 08:00 x").lower()
+
+
+def test_receipt_json_parsing():
+    from ev.core.brain import Brain
+    p = Brain._parse_receipt_json
+    assert p('{"valor": 42.5, "descricao": "Mercado X", "categoria": "Mercado"}') == {
+        "amount": 42.5, "description": "Mercado X", "category": "mercado"}
+    # comma decimal + text around the JSON
+    r = p('claro! {"valor":"19,90","descricao":"Uber","categoria":"transporte"} pronto')
+    assert r["amount"] == 19.9 and r["category"] == "transporte"
+    # not a receipt / zero / garbage -> None
+    assert p('{"valor": 0}') is None
+    assert p('sem json') is None
