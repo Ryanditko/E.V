@@ -65,6 +65,7 @@ class Config:
     habit_nudge_hour: int    # local hour to nudge about unmarked habits; <0 disables
     monthly_report_day: int  # day of month for the financial report; <0 disables
     monthly_report_hour: int
+    event_alert_minutes: int  # heads-up lead time before a calendar event; <=0 disables
     # Tools
     websearch_enabled: bool
     brave_api_key: str   # optional: better web search than DuckDuckGo
@@ -207,6 +208,7 @@ class Config:
             habit_nudge_hour=habit_nudge_hour,
             monthly_report_day=monthly_report_day,
             monthly_report_hour=_get_int("EV_MONTHLY_REPORT_HOUR", 9),
+            event_alert_minutes=_get_int("EV_EVENT_ALERT_MINUTES", 30),
             websearch_enabled=_get_bool("EV_WEBSEARCH_ENABLED", True),
             brave_api_key=os.getenv("BRAVE_API_KEY", "").strip(),
             tavily_api_key=os.getenv("TAVILY_API_KEY", "").strip(),
