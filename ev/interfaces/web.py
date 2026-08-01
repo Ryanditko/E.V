@@ -168,13 +168,18 @@ body.speaking .core .dot{animation:pulse .6s infinite}
 /* voice console overlay */
 #vc{position:fixed;inset:0;z-index:20;background:radial-gradient(80% 60% at 50% 30%,#111,#060606 80%);display:none;flex-direction:column;align-items:center;justify-content:center;gap:26px}
 #vc.on{display:flex}
-.bigcore{width:220px;height:220px;position:relative}
+#vc-orb{position:relative;display:flex;align-items:center;justify-content:center}
+#vc-viz{position:absolute;width:480px;height:480px;max-width:92vw;max-height:92vw;pointer-events:none;opacity:0;transition:opacity .35s;filter:drop-shadow(0 0 14px var(--glow))}
+.bigcore{width:220px;height:220px;position:relative;z-index:1}
 .bigcore .ring{position:absolute;border-radius:50%;border:1px solid var(--line-2)}
 .bigcore .r1{inset:0}.bigcore .r2{inset:26px;border-color:var(--line)}.bigcore .r3{inset:60px;border-color:var(--line-2)}
 .bigcore .arc{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,transparent 0 66%,var(--accent) 84%,transparent 100%);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1px));mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1px));animation:spin 8s linear infinite}
 .bigcore .bdot{position:absolute;inset:0;margin:auto;width:14px;height:14px;border-radius:50%;background:var(--accent);box-shadow:0 0 40px 12px var(--glow)}
 body.listening .bigcore .arc{animation-duration:1.6s}body.speaking .bigcore .arc{animation-duration:1s}
 body.listening .bigcore .bdot{animation:pulse .9s infinite}body.speaking .bigcore .bdot{animation:pulse .55s infinite}
+body.speaking .bigcore .ring{animation:ringpulse 1.3s ease-in-out infinite}
+body.speaking .bigcore .r2{animation-delay:.15s}body.speaking .bigcore .r3{animation-delay:.3s}
+@keyframes ringpulse{0%,100%{transform:scale(1);border-color:var(--line-2)}50%{transform:scale(1.05);border-color:var(--accent)}}
 #vc-txt{font-family:var(--disp);font-size:22px;text-align:center;max-width:640px;padding:0 24px;line-height:1.4;min-height:60px}
 #vc-txt .msg{font-family:var(--body);font-size:15px;text-align:left;max-width:min(560px,92vw);margin:0 auto;max-height:52vh;overflow:auto}
 #vc-sub{font-family:var(--mono);font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--subtle)}
@@ -486,7 +491,8 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
       <button class="tbtn ic-txt" id="vcopen" title="Falar"><i data-lucide="mic"></i><span>FALAR</span></button>
       <button class="tbtn ic-txt" id="term" title="Modo terminal"><i data-lucide="square-terminal"></i><span>TERMINAL</span></button>
       <button class="tbtn ic-txt on" id="voz" title="Voz da E.V."><i data-lucide="volume-2"></i><span>VOZ</span></button>
-      <button class="tbtn ico" id="tgl-right" title="Ocultar/mostrar painel"><i data-lucide="panel-right"></i></button></div>
+      <button class="tbtn ico" id="tgl-right" title="Ocultar/mostrar painel"><i data-lucide="panel-right"></i></button>
+      <button class="tbtn ico" id="tgl-zen" title="Modo limpo (ocultar painéis)"><i data-lucide="minimize-2"></i></button></div>
     <div id="chatview">
       <div id="log"></div>
       <div id="audprev"></div>
@@ -608,7 +614,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
 <div id="mbackdrop"></div>
 <div id="vc">
   <button id="vc-x">FECHAR</button>
-  <div class="bigcore"><div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div><div class="arc"></div><div class="bdot"></div></div>
+  <div id="vc-orb"><canvas id="vc-viz" width="480" height="480"></canvas><div class="bigcore"><div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div><div class="arc"></div><div class="bdot"></div></div></div>
   <div id="vc-txt">Toque no microfone e fale.</div>
   <div id="vc-sub">voz ao vivo · português</div>
   <div id="vc-actions"><button class="vcbtn" id="vc-mic"><i data-lucide="mic"></i></button></div>
@@ -671,6 +677,15 @@ if(localStorage.getItem('ev_hr'))document.body.classList.add('hide-right');
 $('#tgl-left').onclick=()=>{if(mob()){document.body.classList.remove('m-right');document.body.classList.toggle('m-left');return;}document.body.classList.toggle('hide-left');localStorage.setItem('ev_hl',document.body.classList.contains('hide-left')?'1':'');$('#tgl-left').classList.toggle('on',document.body.classList.contains('hide-left'));};
 $('#tgl-right').onclick=()=>{if(mob()){document.body.classList.remove('m-left');document.body.classList.toggle('m-right');return;}document.body.classList.toggle('hide-right');localStorage.setItem('ev_hr',document.body.classList.contains('hide-right')?'1':'');$('#tgl-right').classList.toggle('on',document.body.classList.contains('hide-right'));};
 $('#tgl-left').classList.toggle('on',document.body.classList.contains('hide-left'));$('#tgl-right').classList.toggle('on',document.body.classList.contains('hide-right'));
+// modo limpo: esconde/mostra os dois painéis de uma vez
+function syncTgl(){const b=document.body,z=b.classList.contains('hide-left')&&b.classList.contains('hide-right');
+  $('#tgl-zen').classList.toggle('on',z);$('#tgl-left').classList.toggle('on',b.classList.contains('hide-left'));$('#tgl-right').classList.toggle('on',b.classList.contains('hide-right'));}
+$('#tgl-zen').onclick=()=>{const b=document.body;
+  if(mob()){b.classList.remove('m-left','m-right');return;}
+  const z=b.classList.contains('hide-left')&&b.classList.contains('hide-right');
+  b.classList.toggle('hide-left',!z);b.classList.toggle('hide-right',!z);
+  localStorage.setItem('ev_hl',!z?'1':'');localStorage.setItem('ev_hr',!z?'1':'');syncTgl();};
+syncTgl();
 $('#mbackdrop').onclick=()=>document.body.classList.remove('m-left','m-right');
 // mobile: open/close the side panels by swiping from the screen edges
 (function(){let sx=0,sy=0,edge=0,track=false;
@@ -737,9 +752,31 @@ function ripple(b,e){const r=el('span','ripple');const q=b.getBoundingClientRect
   r.style.top=((e?e.clientY:q.top+q.height/2)-q.top-s/2)+'px';b.appendChild(r);setTimeout(()=>r.remove(),500);}
 let _audio=null,_audioMsg=false,_speaking=false;
 function stopSpeaking(){try{if(_audio){_audio.pause();_audio.currentTime=0;}}catch(e){}_speaking=false;document.body.classList.remove('speaking');}
-function unlockAudio(){if(!_audio)_audio=new Audio();try{_audio.play().catch(()=>{});}catch(e){}}
+// audio-reactive visualizer for the live voice screen (Web Audio analyser on _audio)
+let _actx=null,_analyser=null,_vizData=null,_vizSrc=null;
+function ensureViz(){if(_analyser||!_audio)return;
+  try{_actx=new (window.AudioContext||window.webkitAudioContext)();
+    _vizSrc=_actx.createMediaElementSource(_audio);_analyser=_actx.createAnalyser();_analyser.fftSize=128;
+    _vizSrc.connect(_analyser);_analyser.connect(_actx.destination);
+    _vizData=new Uint8Array(_analyser.frequencyBinCount);}catch(e){_analyser=null;}}
+function resumeAudioCtx(){try{if(_actx&&_actx.state==='suspended')_actx.resume();}catch(e){}}
+function vizFrame(){requestAnimationFrame(vizFrame);
+  const cv=document.getElementById('vc-viz');if(!cv)return;
+  const open=vc&&vc.classList.contains('on');
+  cv.style.opacity=(open&&_speaking)?'1':'0';
+  const ctx=cv.getContext('2d');const W=cv.width,H=cv.height;ctx.clearRect(0,0,W,H);
+  if(!open||!_speaking||!_analyser)return;
+  _analyser.getByteFrequencyData(_vizData);
+  const cx=W/2,cy=H/2,R=Math.min(W,H)*0.24,N=_vizData.length;
+  ctx.lineWidth=3.4;ctx.lineCap='round';ctx.strokeStyle='rgba(53,200,255,.92)';
+  for(let i=0;i<N;i++){const a=(i/N)*Math.PI*2-Math.PI/2;const v=_vizData[i]/255;const len=R*0.2+v*R*0.95;
+    ctx.globalAlpha=0.3+v*0.7;
+    ctx.beginPath();ctx.moveTo(cx+Math.cos(a)*R,cy+Math.sin(a)*R);ctx.lineTo(cx+Math.cos(a)*(R+len),cy+Math.sin(a)*(R+len));ctx.stroke();}
+  ctx.globalAlpha=1;}
+requestAnimationFrame(vizFrame);
+function unlockAudio(){if(!_audio)_audio=new Audio();ensureViz();resumeAudioCtx();try{_audio.play().catch(()=>{});}catch(e){}}
 window.addEventListener('pointerdown',unlockAudio,{once:true});
-async function speak(t,force){if((!voiceOn&&!force)||!t)return;try{const r=await fetch('/api/tts',{method:'POST',headers:H(),body:JSON.stringify({text:t})});if(!r.ok)return;const url=URL.createObjectURL(await r.blob());if(!_audio)_audio=new Audio();_audio.src=url;_speaking=true;document.body.classList.add('speaking');_audio.onended=()=>{_speaking=false;document.body.classList.remove('speaking');};await _audio.play().catch(()=>{_speaking=false;document.body.classList.remove('speaking');if(!_audioMsg){_audioMsg=true;sys('O navegador bloqueou o áudio automático. Toque uma vez na tela e a E.V. volta a falar.');}});}catch(e){_speaking=false;document.body.classList.remove('speaking');}}
+async function speak(t,force){if((!voiceOn&&!force)||!t)return;try{const r=await fetch('/api/tts',{method:'POST',headers:H(),body:JSON.stringify({text:t})});if(!r.ok)return;const url=URL.createObjectURL(await r.blob());if(!_audio)_audio=new Audio();ensureViz();resumeAudioCtx();_audio.src=url;_speaking=true;document.body.classList.add('speaking');_audio.onended=()=>{_speaking=false;document.body.classList.remove('speaking');};await _audio.play().catch(()=>{_speaking=false;document.body.classList.remove('speaking');if(!_audioMsg){_audioMsg=true;sys('O navegador bloqueou o áudio automático. Toque uma vez na tela e a E.V. volta a falar.');}});}catch(e){_speaking=false;document.body.classList.remove('speaking');}}
 
 async function send(msg){if(!msg)return;you(msg);const p=thinking();setState('thinking');
   try{const r=await fetch('/api/chat/stream',{method:'POST',headers:H(),body:JSON.stringify({message:msg,thread})});
