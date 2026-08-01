@@ -290,10 +290,14 @@ body.speaking .bigcore .r2{animation-delay:.15s}body.speaking .bigcore .r3{anima
    it for the compact picker and shrink the labelled buttons to icons. */
 @media(max-width:760px){
   .tabs{display:none}
-  .mnav{display:block;flex:1 1 auto;min-width:70px}
-  #gsearch{display:none}
+  .mnav{display:block;flex:1 1 auto;min-width:60px}
+  /* declutter the phone header so the folder/panel toggles never get clipped */
+  #gsearch,#term,#tgl-zen{display:none}
   .tbtn.ic-txt span{display:none}
   .tbtn.ic-txt{padding:9px 10px}
+  .topbar{gap:6px;padding:10px 10px}
+  #tgl-left,#tgl-right,#vcopen,#voz{flex:none}
+  #tgl-right{margin-left:auto}
 }
 .lnk{color:var(--fg);text-decoration:underline;text-underline-offset:2px}.lnk:hover{opacity:.75}
 .tab{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--muted);border:none;background:transparent;border-radius:8px;padding:7px 13px;cursor:pointer;white-space:nowrap}
@@ -477,7 +481,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
 #mbackdrop{display:none}
 @media(max-width:980px){
   #app{grid-template-columns:1fr!important}
-  #left,#right{position:fixed;top:0;bottom:0;width:min(86vw,320px);z-index:60;background:var(--ink);overflow:auto;transition:transform .25s ease}
+  #left,#right{position:fixed;top:0;bottom:0;width:min(86vw,320px);z-index:60;background:var(--ink);-webkit-backdrop-filter:none;backdrop-filter:none;overflow:auto;transition:transform .25s ease}
   #left{left:0;transform:translateX(-106%);border-right:1px solid var(--line)}
   #right{right:0;transform:translateX(106%);border-left:1px solid var(--line)}
   body.m-left #left,body.m-right #right{transform:translateX(0);box-shadow:0 0 60px rgba(0,0,0,.7)}
