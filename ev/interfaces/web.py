@@ -140,14 +140,13 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:6;back
 .rail::before,.rail::after{content:"";position:absolute;width:15px;height:15px;border:1px solid var(--accent);opacity:.45;pointer-events:none;z-index:2}
 .rail::before{top:9px;left:9px;border-right:none;border-bottom:none}
 .rail::after{bottom:9px;right:9px;border-left:none;border-top:none}
-/* Firefox/Zen: desliga blur/blend/animações caras (mantém o look, sem travar) */
+/* Firefox/Zen: só o blur (backdrop-filter) e o blend travam — desligo esses e
+   MANTENHO as animações holográficas (pulso do grid + barra de scan), que são baratas. */
 .ff #left,.ff #right{-webkit-backdrop-filter:none;backdrop-filter:none;background:rgba(8,15,26,.94)}
 .ff .msg.ev,.ff #map-results,.ff #map-route{-webkit-backdrop-filter:none;backdrop-filter:none}
 .ff .msg.ev{background:var(--elev)}
 .ff #map-results{background:rgba(6,12,20,.96)}.ff #map-route{background:rgba(6,12,20,.96)}
-.ff body::after{mix-blend-mode:normal;opacity:.35}
-.ff body::before{animation:none}
-.ff #hud-scan{display:none}
+.ff body::after{mix-blend-mode:normal;opacity:.4}
 .rail{display:flex;flex-direction:column;min-height:0}
 #left{border-right:1px solid var(--line);padding:18px;gap:14px;overflow:auto}
 #right{border-left:1px solid var(--line);padding:18px;gap:12px;overflow:auto}
