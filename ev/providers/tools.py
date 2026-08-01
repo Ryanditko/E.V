@@ -543,6 +543,49 @@ def nearby_places(lat: float, lng: float, query: str, radius_m: int = 1600,
     return uniq[:limit]
 
 
+def geocode(query: str) -> dict | None:
+    """Forward-geocode an address/place to coords (OpenStreetMap/Nominatim)."""
+    import json
+    import urllib.parse
+    import urllib.request
+    url = ("https://nominatim.openstreetmap.org/search?"
+           + urllib.parse.urlencode({"q": query, "format": "json", "limit": 1}))
+    req = urllib.request.Request(url, headers={"User-Agent": "E.V.-assistant/1.0"})
+    try:
+        with urllib.request.urlopen(req, timeout=9) as r:
+            data = json.loads(r.read().decode())
+        if not data:
+            return None
+        return {"lat": float(data[0]["lat"]), "lng": float(data[0]["lon"]),
+                "name": data[0].get("display_name", "")}
+    except Exception as exc:
+        log.warning("geocode failed (%s)", exc)
+        return None
+
+
+def route(from_lat, from_lng, to_lat, to_lng, mode: str = "car") -> dict | None:
+    """Driving/walking route between two points (OSRM, free). Returns
+    {distance_m, duration_s, geometry(GeoJSON LineString)} or None."""
+    import json
+    import urllib.request
+    prof = {"foot": "routed-foot", "bike": "routed-bike"}.get(mode, "routed-car")
+    pname = {"foot": "foot", "bike": "bike"}.get(mode, "driving")
+    url = (f"https://routing.openstreetmap.de/{prof}/route/v1/{pname}/"
+           f"{from_lng},{from_lat};{to_lng},{to_lat}?overview=full&geometries=geojson")
+    req = urllib.request.Request(url, headers={"User-Agent": "E.V.-assistant/1.0"})
+    try:
+        with urllib.request.urlopen(req, timeout=13) as r:
+            data = json.loads(r.read().decode())
+        rt = (data.get("routes") or [None])[0]
+        if not rt:
+            return None
+        return {"distance": int(rt["distance"]), "duration": int(rt["duration"]),
+                "geometry": rt["geometry"]}
+    except Exception as exc:
+        log.warning("route failed (%s)", exc)
+        return None
+
+
 def maps_search_link(lat, lng, query: str) -> str:
     """Google Maps search link for `query` near coordinates."""
     import urllib.parse

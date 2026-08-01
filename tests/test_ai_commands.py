@@ -118,3 +118,8 @@ def test_location_tools(tmp_path, monkeypatch):
     # saved places surface via meus_locais
     b._memory.add_place("u", "Casa", -23.5, -46.6)
     assert "Casa" in fns["meus_locais"]()
+    # salvar_local by address (geocode mocked)
+    monkeypatch.setattr(tools, "geocode",
+                        lambda q: {"lat": -23.4, "lng": -46.5, "name": q})
+    assert "salvo" in fns["salvar_local"]("Faculdade", "Rua X, 123").lower()
+    assert any(p["name"] == "Faculdade" for p in b._memory.list_places("u"))
