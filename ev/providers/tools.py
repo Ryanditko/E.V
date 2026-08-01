@@ -477,6 +477,8 @@ _OSM_KINDS = {
     "banco": '["amenity"="bank"]', "caixa": '["amenity"="atm"]',
     "hospital": '["amenity"~"hospital|clinic"]', "saúde": '["amenity"~"hospital|clinic|pharmacy"]',
     "ônibus": '["highway"="bus_stop"]', "onibus": '["highway"="bus_stop"]',
+    "metrô": '["station"="subway"]', "metro": '["station"="subway"]',
+    "trem": '["railway"="station"]', "estação": '["railway"="station"]',
     "academia": '["leisure"="fitness_centre"]',
     "escola": '["amenity"="school"]', "hotel": '["tourism"="hotel"]',
     "estacionamento": '["amenity"="parking"]',
@@ -505,16 +507,22 @@ def nearby_places(lat: float, lng: float, query: str, radius_m: int = 1600,
     else:  # free text -> match by name
         safe = re.sub(r'["\\]', "", query.strip())[:40]
         selector = f'nwr["name"~"{safe}",i](around:{radius_m},{lat},{lng});'
-    oql = f"[out:json][timeout:20];({selector});out center {limit * 3};"
-    try:
-        data = urllib.parse.urlencode({"data": oql}).encode()
-        req = urllib.request.Request(
-            "https://overpass-api.de/api/interpreter", data=data,
-            headers={"User-Agent": "E.V.-assistant/1.0"})
-        with urllib.request.urlopen(req, timeout=25) as r:
-            res = json.loads(r.read().decode())
-    except Exception as exc:
-        log.warning("nearby_places failed (%s)", exc)
+    oql = f"[out:json][timeout:25];({selector});out center {limit * 3};"
+    data = urllib.parse.urlencode({"data": oql}).encode()
+    res = None
+    for ep in ("https://overpass-api.de/api/interpreter",
+               "https://overpass.kumi.systems/api/interpreter",
+               "https://overpass.private.coffee/api/interpreter",
+               "https://maps.mail.ru/osm/tools/overpass/api/interpreter"):
+        try:
+            req = urllib.request.Request(
+                ep, data=data, headers={"User-Agent": "E.V.-assistant/1.0"})
+            with urllib.request.urlopen(req, timeout=25) as r:
+                res = json.loads(r.read().decode())
+            break
+        except Exception as exc:
+            log.warning("nearby_places via %s failed (%s)", ep.split("/")[2], exc)
+    if res is None:
         return []
     out = []
     for e in res.get("elements", []):
