@@ -26,9 +26,9 @@ _DEFAULT_FOLDERS = ["geral", "work", "university", "personal"]
 _FAVICON = (
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
     '<rect width="64" height="64" rx="14" fill="#0a0a0a"/>'
-    '<circle cx="32" cy="32" r="21" fill="none" stroke="#f4f3f1" stroke-opacity=".22" stroke-width="2"/>'
-    '<circle cx="32" cy="32" r="12.5" fill="none" stroke="#f4f3f1" stroke-opacity=".5" stroke-width="2"/>'
-    '<circle cx="32" cy="32" r="4.5" fill="#f4f3f1"/></svg>'
+    '<circle cx="32" cy="32" r="21" fill="none" stroke="#35c8ff" stroke-opacity=".28" stroke-width="2"/>'
+    '<circle cx="32" cy="32" r="12.5" fill="none" stroke="#35c8ff" stroke-opacity=".55" stroke-width="2"/>'
+    '<circle cx="32" cy="32" r="4.5" fill="#35c8ff"/></svg>'
 )
 
 # Minimal service worker — makes the app installable (needs a fetch handler) and
@@ -93,7 +93,7 @@ _PAGE = r"""<!doctype html><html lang="pt-br"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>E.V.</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="manifest" href="/manifest.webmanifest">
-<meta name="theme-color" content="#0a0a0a">
+<meta name="theme-color" content="#04070c">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -105,34 +105,36 @@ _PAGE = r"""<!doctype html><html lang="pt-br"><head><meta charset="utf-8">
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 <style>
 :root{
-  --ink:#0a0a0a;--panel:#0d0d0d;--elev:#141414;--surface:#101010;
-  --fg:#f4f3f1;--muted:#a1a1a1;--subtle:#6b6b6b;
-  --line:rgba(244,243,241,.10);--line-2:rgba(244,243,241,.20);
+  --ink:#04070c;--panel:#070c14;--elev:#0e1b2b;--surface:#081019;
+  --fg:#d6e9fb;--muted:#7d93aa;--subtle:#44586d;
+  --accent:#35c8ff;--accent-dim:#12668f;
+  --line:rgba(93,178,255,.13);--line-2:rgba(93,178,255,.28);
+  --glow:rgba(53,200,255,.55);
   --disp:'Space Grotesk',sans-serif;--body:'Inter',sans-serif;--mono:'JetBrains Mono',monospace;
 }
 *{box-sizing:border-box}html,body{height:100%;max-width:100%;overflow-x:hidden}
 body{margin:0;background:var(--ink);color:var(--fg);font-family:var(--body);-webkit-font-smoothing:antialiased;overflow:hidden}
 .topbar{min-width:0}#center{overflow:hidden}
-*{scrollbar-width:thin;scrollbar-color:#242424 transparent}
+*{scrollbar-width:thin;scrollbar-color:#123249 transparent}
 ::-webkit-scrollbar{width:10px;height:10px}
 ::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:#202020;border-radius:8px;border:2px solid var(--ink);background-clip:padding-box}
-::-webkit-scrollbar-thumb:hover{background:#2f2f2f;background-clip:padding-box}
+::-webkit-scrollbar-thumb{background:#123249;border-radius:8px;border:2px solid var(--ink);background-clip:padding-box}
+::-webkit-scrollbar-thumb:hover{background:#1c4a6b;background-clip:padding-box}
 ::-webkit-scrollbar-corner{background:transparent}
-body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;background-image:radial-gradient(rgba(244,243,241,.04) 1px,transparent 1px);background-size:26px 26px;mask:radial-gradient(120% 90% at 50% 0%,#000,transparent 78%)}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;background-image:radial-gradient(rgba(93,178,255,.06) 1px,transparent 1px);background-size:26px 26px;mask:radial-gradient(120% 90% at 50% 0%,#000,transparent 78%)}
 #app{position:relative;z-index:1;height:100%;display:grid;grid-template-columns:238px 1fr 272px;min-height:0}
 .rail{display:flex;flex-direction:column;min-height:0}
 #left{border-right:1px solid var(--line);padding:18px;gap:14px;overflow:auto}
 #right{border-left:1px solid var(--line);padding:18px;gap:12px;overflow:auto}
 #center{min-width:0;min-height:0;display:flex;flex-direction:column}
-.brand .name{font-family:var(--disp);font-weight:700;font-size:26px;letter-spacing:.14em}
+.brand .name{font-family:var(--disp);font-weight:700;font-size:26px;letter-spacing:.14em;color:var(--accent);text-shadow:0 0 20px var(--glow)}
 .eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.26em;color:var(--subtle);text-transform:uppercase;margin:4px 2px}
 .core{width:132px;height:132px;position:relative;margin:6px auto 2px}
 .core .ring{position:absolute;border-radius:50%;border:1px solid var(--line-2)}
 .core .ring.a{inset:0}.core .ring.b{inset:18px;border-color:var(--line)}.core .ring.c{inset:40px;border-color:var(--line-2)}
-.core .arc{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,transparent 0 66%,rgba(244,243,241,.95) 84%,transparent 100%);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1px));mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1px));animation:spin 7s linear infinite}
+.core .arc{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,transparent 0 66%,var(--accent) 84%,transparent 100%);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1px));mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1px));animation:spin 7s linear infinite}
 .core .arc.two{inset:18px;animation-duration:11s;animation-direction:reverse;opacity:.5}
-.core .dot{position:absolute;inset:0;margin:auto;width:8px;height:8px;border-radius:50%;background:var(--fg);box-shadow:0 0 20px 4px rgba(244,243,241,.45)}
+.core .dot{position:absolute;inset:0;margin:auto;width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 20px 5px var(--glow)}
 @keyframes spin{to{transform:rotate(360deg)}}
 body.listening .core .arc{animation-duration:1.8s}body.thinking .core .arc{animation-duration:2.6s}
 body.speaking .core .arc{animation-duration:1.1s}
@@ -154,8 +156,8 @@ body.speaking .core .dot{animation:pulse .6s infinite}
 .bigcore{width:220px;height:220px;position:relative}
 .bigcore .ring{position:absolute;border-radius:50%;border:1px solid var(--line-2)}
 .bigcore .r1{inset:0}.bigcore .r2{inset:26px;border-color:var(--line)}.bigcore .r3{inset:60px;border-color:var(--line-2)}
-.bigcore .arc{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,transparent 0 66%,rgba(244,243,241,.95) 84%,transparent 100%);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1px));mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1px));animation:spin 8s linear infinite}
-.bigcore .bdot{position:absolute;inset:0;margin:auto;width:14px;height:14px;border-radius:50%;background:var(--fg);box-shadow:0 0 40px 10px rgba(244,243,241,.4)}
+.bigcore .arc{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,transparent 0 66%,var(--accent) 84%,transparent 100%);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1px));mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1px));animation:spin 8s linear infinite}
+.bigcore .bdot{position:absolute;inset:0;margin:auto;width:14px;height:14px;border-radius:50%;background:var(--accent);box-shadow:0 0 40px 12px var(--glow)}
 body.listening .bigcore .arc{animation-duration:1.6s}body.speaking .bigcore .arc{animation-duration:1s}
 body.listening .bigcore .bdot{animation:pulse .9s infinite}body.speaking .bigcore .bdot{animation:pulse .55s infinite}
 #vc-txt{font-family:var(--disp);font-size:22px;text-align:center;max-width:640px;padding:0 24px;line-height:1.4;min-height:60px}
@@ -348,7 +350,7 @@ body.term .msg .h,body.term .msg .cat,body.term .row{all:unset;display:block}
 body.term .row .id{background:transparent;color:var(--muted);padding:0 6px 0 0}
 form{display:flex;align-items:center;gap:10px;padding:14px 18px;border-top:1px solid var(--line);position:relative;min-width:0}
 .field{flex:1;min-width:0;display:flex;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:2px 6px 2px 16px;transition:.2s}
-.field:focus-within{border-color:var(--line-2);box-shadow:0 0 0 4px rgba(244,243,241,.05)}
+.field:focus-within{border-color:var(--accent);box-shadow:0 0 0 4px rgba(53,200,255,.10)}
 #txt{flex:1;min-width:0;background:transparent;border:none;outline:none;color:var(--fg);font-family:var(--body);font-size:15px;padding:11px 0}
 body.term #txt{font-family:var(--mono)}
 body.term form{background:#060606}
@@ -357,7 +359,7 @@ body.term .field:focus-within{border-color:#2a2a2a}
 body.term #txt::placeholder{color:#4a4a4a}
 .icon{width:44px;height:44px;flex:none;display:grid;place-items:center;border-radius:12px;border:1px solid var(--line);background:var(--elev);color:var(--fg);cursor:pointer;position:relative;overflow:hidden;transition:.14s}
 .icon:hover{transform:translateY(-1px);border-color:var(--line-2)}.icon:active{transform:scale(.95)}
-.icon.send{background:var(--fg);color:var(--ink);border:none}.icon.mic.on{background:var(--fg);color:var(--ink);border:none}
+.icon.send{background:var(--accent);color:var(--ink);border:none;box-shadow:0 0 16px -2px var(--glow)}.icon.mic.on{background:var(--accent);color:var(--ink);border:none}
 #imgprev{display:none;align-items:center;gap:12px;padding:9px 18px;border-top:1px solid var(--line);background:var(--surface)}
 #imgprev img{width:48px;height:48px;object-fit:cover;border-radius:9px;border:1px solid var(--line)}
 #imgprev .ip-name{flex:1;min-width:0;font-size:12px;color:var(--muted);font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -373,7 +375,7 @@ body.term #txt::placeholder{color:#4a4a4a}
 .wave b{width:2.5px;height:5px;background:var(--ink);border-radius:2px;animation:wv .9s infinite}
 .wave b:nth-child(2){animation-delay:.12s}.wave b:nth-child(3){animation-delay:.24s}.wave b:nth-child(4){animation-delay:.36s}
 @keyframes wv{50%{height:15px}}
-.ripple{position:absolute;border-radius:50%;background:rgba(244,243,241,.3);transform:scale(0);animation:rp .5s ease-out;pointer-events:none}
+.ripple{position:absolute;border-radius:50%;background:rgba(53,200,255,.3);transform:scale(0);animation:rp .5s ease-out;pointer-events:none}
 .icon.send .ripple{background:rgba(10,10,10,.25)}@keyframes rp{to{transform:scale(2.4);opacity:0}}
 /* slash menu */
 #slash{position:absolute;left:78px;right:78px;bottom:66px;max-height:264px;overflow:auto;background:var(--panel);border:1px solid var(--line-2);border-radius:14px;box-shadow:0 20px 60px -24px #000;display:none;z-index:5}
@@ -887,7 +889,7 @@ function minimizeInPage(){PW.classList.remove('on');MBODY.appendChild(PBOX);MINI
 $('#pomo-pip').onclick=async()=>{
   if(window.documentPictureInPicture){try{pipWin=await documentPictureInPicture.requestWindow({width:240,height:160});
     document.querySelectorAll('style').forEach(n=>pipWin.document.head.appendChild(n.cloneNode(true)));
-    pipWin.document.body.style.cssText='margin:0;background:#0a0a0a;color:#f4f3f1;display:flex;align-items:center;justify-content:center;height:100vh;cursor:pointer';
+    pipWin.document.body.style.cssText='margin:0;background:#04070c;color:#d6e9fb;display:flex;align-items:center;justify-content:center;height:100vh;cursor:pointer';
     pipWin.document.body.appendChild(PBOX);pipWin.document.body.onclick=()=>pomo.run?pstop():pstart();PW.classList.remove('on');
     pipWin.addEventListener('pagehide',()=>{restorePBOX();PW.classList.add('on');pipWin=null;});return;
   }catch(e){}}
@@ -1651,7 +1653,7 @@ def create_app(config: Config, brain: Brain | None = None):
             "description": "Sua assistente E.V. — chat, voz, tarefas e agenda.",
             "start_url": "/", "scope": "/", "display": "standalone",
             "orientation": "portrait-primary",
-            "background_color": "#0a0a0a", "theme_color": "#0a0a0a",
+            "background_color": "#04070c", "theme_color": "#04070c",
             "icons": [
                 {"src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
                 {"src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
@@ -2677,7 +2679,7 @@ def create_app(config: Config, brain: Brain | None = None):
     def _login_denied_html(msg: str) -> HTMLResponse:
         return HTMLResponse(
             "<!doctype html><meta charset=utf-8><title>E.V.</title>"
-            "<div style='font:15px system-ui;color:#f4f3f1;background:#0a0a0a;"
+            "<div style='font:15px system-ui;color:#d6e9fb;background:#04070c;"
             "height:100vh;display:flex;flex-direction:column;align-items:center;"
             "justify-content:center;gap:16px;text-align:center;padding:24px'>"
             "<p>" + msg + "</p><a href='/' style='color:#8ab4f8'>voltar</a></div>",
