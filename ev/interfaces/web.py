@@ -259,15 +259,18 @@ body.speaking .bigcore .r2{animation-delay:.15s}body.speaking .bigcore .r3{anima
 #pomo-x:hover{color:var(--accent);border-color:var(--accent)}
 #pomo-presets button:hover{color:var(--accent);border-color:var(--accent)}
 #pomo-pip:hover{color:var(--accent);border-color:var(--accent)}
-#login,#welcome{position:fixed;inset:0;z-index:50;background:radial-gradient(80% 60% at 50% 30%,#111,#050505 82%);display:none;flex-direction:column;align-items:center;justify-content:center;gap:22px}
+#login,#welcome{position:fixed;inset:0;z-index:50;background:radial-gradient(90% 70% at 50% 28%,#0b1929,#04070c 78%);display:none;flex-direction:column;align-items:center;justify-content:center;gap:22px;overflow:hidden}
 #login.on,#welcome.on{display:flex}
+#login::before,#welcome::before{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(120,200,255,.045) 0 1px,transparent 1px 3px)}
+#login::after,#welcome::after{content:"";position:absolute;inset:16px;border-radius:16px;pointer-events:none;box-shadow:inset 0 0 0 1px rgba(53,200,255,.12),inset 0 0 90px -55px var(--glow)}
+#login>*,#welcome>*{position:relative;z-index:1}
 #login-token{background:var(--surface);border:1px solid var(--line-2);border-radius:12px;padding:13px 18px;color:var(--fg);font:inherit;font-size:15px;width:min(320px,80vw);text-align:center;outline:none}
 #login-token:focus{border-color:var(--fg)}
 #login-btn{min-width:170px}#login-err{font-family:var(--mono);font-size:12px;color:var(--muted);min-height:16px}
 .login-or{display:flex;align-items:center;gap:10px;width:100%;max-width:230px;color:var(--muted);font-size:12px;font-family:var(--mono)}
 .login-or span{flex:1;height:1px;background:var(--line)}
 .login-oauth{min-width:230px;text-align:center;text-decoration:none;display:inline-flex;justify-content:center;gap:8px}
-#welcome-txt{font-family:var(--disp);font-size:26px;text-align:center;max-width:600px;padding:0 24px;line-height:1.4;animation:rise .5s}
+#welcome-txt{font-family:var(--disp);font-size:26px;text-align:center;max-width:600px;padding:0 24px;line-height:1.4;animation:rise .5s;color:#eaf4fb;text-shadow:0 0 22px rgba(53,200,255,.35)}
 #pomo-mini{position:fixed;top:20px;right:20px;z-index:26;width:186px;background:var(--panel);border:1px solid var(--line-2);border-radius:14px;box-shadow:0 20px 60px -24px #000;display:none;flex-direction:column;overflow:hidden}
 .pm-head{display:flex;align-items:center;gap:6px;padding:7px 10px;border-bottom:1px solid var(--line);cursor:move;user-select:none}
 .pm-grip{color:var(--subtle);font-size:12px;letter-spacing:-3px}
