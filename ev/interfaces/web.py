@@ -291,8 +291,9 @@ body.speaking .bigcore .r2{animation-delay:.15s}body.speaking .bigcore .r3{anima
 @media(max-width:760px){
   .tabs{display:none}
   .mnav{display:block;flex:1 1 auto;min-width:60px}
-  /* declutter the phone header so the folder/panel toggles never get clipped */
-  #gsearch,#term,#tgl-zen{display:none}
+  /* declutter the phone header so the folder/panel toggles never get clipped
+     (keep Terminal available on mobile; only drop search + clean-mode) */
+  #gsearch,#tgl-zen{display:none}
   .tbtn.ic-txt span{display:none}
   .tbtn.ic-txt{padding:9px 10px}
   .topbar{gap:6px;padding:10px 10px}
