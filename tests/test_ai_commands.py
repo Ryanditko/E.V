@@ -91,7 +91,7 @@ def test_event_alert_lead_window():
     assert f("nope", now, 30) is None
 
 
-def test_location_tools(tmp_path):
+def test_location_tools(tmp_path, monkeypatch):
     from ev.core.brain import Brain
     from ev.providers import tools
     assert "google.com/maps" in tools.maps_search_link(-23.5, -46.6, "farmácia")
@@ -107,7 +107,14 @@ def test_location_tools(tmp_path):
     # no location yet -> guidance
     assert "não sei" in fns["locais_proximos"]("farmácia").lower()
     assert "não sei" in fns["minha_localizacao"]().lower() or "ainda não" in fns["minha_localizacao"]().lower()
-    # after storing location -> maps links
+    assert "não salvou" in fns["meus_locais"]().lower()
+    # with location + mocked OSM lookup -> a real list (name + distance)
     b._memory.set_setting("loc_lat", "-23.5"); b._memory.set_setting("loc_lng", "-46.6")
-    assert "google.com/maps" in fns["locais_proximos"]("mercado")
+    monkeypatch.setattr(tools, "nearby_places", lambda *a, **k: [
+        {"name": "Drogaria X", "lat": -23.5, "lng": -46.6, "dist": 120, "kind": "pharmacy"}])
+    out = fns["locais_proximos"]("farmácia")
+    assert "Drogaria X" in out and "120" in out
     assert "-23.5" in fns["minha_localizacao"]()
+    # saved places surface via meus_locais
+    b._memory.add_place("u", "Casa", -23.5, -46.6)
+    assert "Casa" in fns["meus_locais"]()
