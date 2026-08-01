@@ -89,3 +89,25 @@ def test_event_alert_lead_window():
     assert f("2026-08-01T12:10:00", now, 30) == 10
     # garbage -> None
     assert f("nope", now, 30) is None
+
+
+def test_location_tools(tmp_path):
+    from ev.core.brain import Brain
+    from ev.providers import tools
+    assert "google.com/maps" in tools.maps_search_link(-23.5, -46.6, "farmácia")
+    cfg = SimpleNamespace(
+        timezone="America/Sao_Paulo", google_oauth_client="", google_accounts=(),
+        default_account="", gemini_api_key="x", embed_backend="gemini",
+        embed_model="m", model="gemini-flash-latest", groq_api_key="",
+        openrouter_api_key="", ollama_enabled=False, tavily_api_key="",
+        brave_api_key="", websearch_enabled=False,
+    )
+    b = Brain(cfg, Memory(tmp_path / "t.db"))
+    fns = b._tool_callables("u")
+    # no location yet -> guidance
+    assert "não sei" in fns["locais_proximos"]("farmácia").lower()
+    assert "não sei" in fns["minha_localizacao"]().lower() or "ainda não" in fns["minha_localizacao"]().lower()
+    # after storing location -> maps links
+    b._memory.set_setting("loc_lat", "-23.5"); b._memory.set_setting("loc_lng", "-46.6")
+    assert "google.com/maps" in fns["locais_proximos"]("mercado")
+    assert "-23.5" in fns["minha_localizacao"]()

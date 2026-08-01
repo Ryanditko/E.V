@@ -615,10 +615,40 @@ class Brain:
                 parts.append("aniversário: " + p["birthday"])
             return " — ".join(parts)
 
+        def minha_localizacao() -> str:
+            """Retorna a última localização conhecida do usuário (do dispositivo, via
+            o app web). Use quando ele perguntar 'onde eu estou' ou precisar do
+            contexto de local."""
+            lat = self._memory.get_setting("loc_lat")
+            lng = self._memory.get_setting("loc_lng")
+            if not (lat and lng):
+                return ("ainda não sei sua localização. Abra a aba Mapa na E.V. e "
+                        "toque em 'Onde estou' pra eu passar a saber.")
+            addr = self._memory.get_setting("loc_addr") or ""
+            link = f"https://www.google.com/maps/@{lat},{lng},16z"
+            head = f"você está em {addr} " if addr else ""
+            return f"{head}({lat}, {lng}). Ver no mapa: {link}"
+
+        def locais_proximos(tipo: str) -> str:
+            """Sugere lugares de um tipo perto da localização atual do usuário
+            (devolve um link do Google Maps já centrado onde ele está).
+
+            Args:
+                tipo: o que procurar, ex 'farmácia', 'mercado', 'restaurante'.
+            """
+            lat = self._memory.get_setting("loc_lat")
+            lng = self._memory.get_setting("loc_lng")
+            if not (lat and lng):
+                return ("não sei sua localização ainda. Abra a aba Mapa e toque em "
+                        "'Onde estou'.")
+            return f"{tipo} perto de você: {tools_mod.maps_search_link(lat, lng, tipo)}"
+
         callables: dict = {
             "executar_comando": executar_comando,
             "anotar_pessoa": anotar_pessoa,
             "sobre_pessoa": sobre_pessoa,
+            "minha_localizacao": minha_localizacao,
+            "locais_proximos": locais_proximos,
             "salvar_memoria": salvar_memoria,
             "listar_memorias": listar_memorias,
             "apagar_memoria": apagar_memoria,
@@ -743,6 +773,17 @@ class Brain:
                 "Recupera o que o usuário registrou sobre uma pessoa, pelo nome.",
                 {"nome": {"type": s, "description": "nome (ou parte) da pessoa"}},
                 ["nome"],
+            ),
+            fn(
+                "minha_localizacao",
+                "Última localização conhecida do usuário (do dispositivo). Use para "
+                "'onde estou' ou contexto de local.",
+            ),
+            fn(
+                "locais_proximos",
+                "Sugere lugares de um tipo perto do usuário (link do Google Maps).",
+                {"tipo": {"type": s, "description": "ex: farmácia, mercado, restaurante"}},
+                ["tipo"],
             ),
             fn(
                 "criar_lembrete",

@@ -103,6 +103,8 @@ _PAGE = r"""<!doctype html><html lang="pt-br"><head><meta charset="utf-8">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 :root{
   --ink:#04070c;--panel:#070c14;--elev:#0e1b2b;--surface:#081019;
@@ -171,6 +173,11 @@ body.speaking .core .dot{animation:pulse .6s infinite}
 #vc-orb{position:relative;display:flex;align-items:center;justify-content:center}
 #vc-viz{position:absolute;width:480px;height:480px;max-width:92vw;max-height:92vw;pointer-events:none;opacity:0;transition:opacity .35s;filter:drop-shadow(0 0 14px var(--glow))}
 .bigcore{width:220px;height:220px;position:relative;z-index:1}
+#mapview{display:none;padding:22px;overflow:auto}
+#map{height:min(60vh,540px);border:1px solid var(--line-2);border-radius:13px;overflow:hidden;box-shadow:0 0 40px -24px var(--glow)}
+#map .leaflet-container{background:#04070c;font-family:var(--body)}
+#map .leaflet-control-zoom a{background:var(--elev);color:var(--accent);border-color:var(--line)}
+#map .leaflet-bar{border:1px solid var(--line)}
 .bigcore .ring{position:absolute;border-radius:50%;border:1px solid var(--line-2)}
 .bigcore .r1{inset:0}.bigcore .r2{inset:26px;border-color:var(--line)}.bigcore .r3{inset:60px;border-color:var(--line-2)}
 .bigcore .arc{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,transparent 0 66%,var(--accent) 84%,transparent 100%);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1px));mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1px));animation:spin 8s linear infinite}
@@ -485,7 +492,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
     <div class="topbar">
       <button class="tbtn ico" id="tgl-left" title="Ocultar/mostrar pastas"><i data-lucide="panel-left"></i></button>
       <div class="tabs" id="tabs"></div>
-      <select id="mnav" class="mnav" title="Ir para"><option value="chat">Conversa</option><option value="tasks">Tarefas</option><option value="exp">Gastos</option><option value="rem">Lembretes</option><option value="cal">Agenda</option><option value="mem">Memórias</option><option value="lnk">Links</option><option value="hab">Hábitos</option><option value="jou">Diário</option><option value="sub">Assinaturas</option><option value="orc">Orçamentos</option><option value="mon">Monitores</option><option value="act">Histórico</option><option value="kb">Base</option></select>
+      <select id="mnav" class="mnav" title="Ir para"><option value="chat">Conversa</option><option value="tasks">Tarefas</option><option value="exp">Gastos</option><option value="rem">Lembretes</option><option value="cal">Agenda</option><option value="mem">Memórias</option><option value="lnk">Links</option><option value="hab">Hábitos</option><option value="jou">Diário</option><option value="sub">Assinaturas</option><option value="orc">Orçamentos</option><option value="mon">Monitores</option><option value="act">Histórico</option><option value="kb">Base</option><option value="map">Mapa</option></select>
       <span class="eyebrow" id="scope">geral</span>
       <button class="tbtn ico" id="gsearch" title="Buscar em tudo"><i data-lucide="search"></i></button>
       <button class="tbtn ic-txt" id="vcopen" title="Falar"><i data-lucide="mic"></i><span>FALAR</span></button>
@@ -598,6 +605,15 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
       </div>
       <input class="tv-search" id="act-search" placeholder="Buscar no histórico..." autocomplete="off">
       <div id="actlist"></div>
+    </div>
+    <div id="mapview">
+      <div class="tv-h">Mapa · você e o que tem por perto</div>
+      <div id="map-status" class="eyebrow" style="margin:0 2px 8px">toque em "Onde estou" para localizar seu dispositivo</div>
+      <div id="map-chips" class="mchips"></div>
+      <div id="map-search" class="tv-form" style="margin:6px 0 10px">
+        <input class="tv-search" id="map-q" placeholder="Buscar por perto: ex farmácia 24h, padaria..." autocomplete="off">
+      </div>
+      <div id="map"></div>
     </div>
   </main>
   <aside id="right" class="rail">
@@ -1117,7 +1133,7 @@ $('#vc-cont').onclick=()=>{if(!SR){vcTxt.textContent='Mãos-livres precisa do Ch
   if(_hf){stopHF();setState();}else{_hf=true;if(startHF()){vcTxt.textContent='Modo mãos-livres ligado. É só dizer: "E.V., ..."';setState('listening');}else{_hf=false;}}renderHFBtn();};
 renderHFBtn();
 // view tabs — customizable: pick which appear in the header (minimalist)
-const VIEW_LABELS={chat:'Conversa',tasks:'Tarefas',exp:'Gastos',rem:'Lembretes',cal:'Agenda',mem:'Memórias',lnk:'Links',hab:'Hábitos',jou:'Diário',sub:'Assinaturas',orc:'Orçamentos',mon:'Monitores',act:'Histórico',kb:'Base'};
+const VIEW_LABELS={chat:'Conversa',tasks:'Tarefas',exp:'Gastos',rem:'Lembretes',cal:'Agenda',mem:'Memórias',lnk:'Links',hab:'Hábitos',jou:'Diário',sub:'Assinaturas',orc:'Orçamentos',mon:'Monitores',act:'Histórico',kb:'Base',map:'Mapa'};
 let curView='chat',tabsShown;try{tabsShown=JSON.parse(localStorage.getItem('ev_tabs'));}catch(e){}
 if(!Array.isArray(tabsShown)||!tabsShown.length)tabsShown=['chat','tasks','exp','rem','cal'];
 function renderTabs(){const box=$('#tabs');if(!box)return;box.textContent='';
@@ -1125,12 +1141,37 @@ function renderTabs(){const box=$('#tabs');if(!box)return;box.textContent='';
   const ed=el('button','tab tab-edit','+');ed.title='Escolher abas';ed.onclick=()=>openPicker('Abas do topo','Escolha quais abas aparecem no topo.',Object.keys(VIEW_LABELS).map(k=>({key:k,label:VIEW_LABELS[k]})),tabsShown,l=>{tabsShown=l.length?l:['chat'];localStorage.setItem('ev_tabs',JSON.stringify(tabsShown));renderTabs();});box.appendChild(ed);}
 renderTabs();
 $('#mnav').onchange=()=>switchView($('#mnav').value);
-const VIEWS={chat:'#chatview',tasks:'#taskview',exp:'#expview',rem:'#remview',cal:'#calview',mem:'#memview',lnk:'#lnkview',hab:'#habview',jou:'#jouview',sub:'#subview',orc:'#orcview',mon:'#monview',kb:'#kbview',act:'#actview'};
+const VIEWS={chat:'#chatview',tasks:'#taskview',exp:'#expview',rem:'#remview',cal:'#calview',mem:'#memview',lnk:'#lnkview',hab:'#habview',jou:'#jouview',sub:'#subview',orc:'#orcview',mon:'#monview',kb:'#kbview',act:'#actview',map:'#mapview'};
 function switchView(v){if(!VIEWS[v])v='chat';curView=v;document.querySelectorAll('#tabs .tab').forEach(t=>t.classList.toggle('on',t.dataset.view===v));
   const mn=$('#mnav');if(mn&&mn.value!==v)mn.value=v;
   document.body.classList.remove('m-left','m-right');
   Object.entries(VIEWS).forEach(([k,sel])=>{const el2=$(sel);if(el2)el2.style.display=(k===v)?(k==='chat'?'flex':'block'):'none';});
-  ({tasks:loadTasks,exp:loadExp,rem:loadRem,mem:loadMem,kb:loadKB,cal:loadCal,lnk:loadLinks,hab:loadHabits,jou:loadJournal,sub:loadSub,orc:loadOrc,mon:loadMon,act:loadAct}[v]||function(){})();}
+  ({tasks:loadTasks,exp:loadExp,rem:loadRem,mem:loadMem,kb:loadKB,cal:loadCal,lnk:loadLinks,hab:loadHabits,jou:loadJournal,sub:loadSub,orc:loadOrc,mon:loadMon,act:loadAct,map:loadMap}[v]||function(){})();}
+// --- Mapa + localização (Leaflet + OSM, sem chave; tiles escuros) ---
+let _map=null,_marker=null,_loc=null;
+const MAP_CHIPS=[['Onde estou','locate-fixed'],['Farmácia','pill'],['Mercado','shopping-cart'],['Restaurante','utensils'],['Padaria','croissant'],['Café','coffee'],['Posto','fuel'],['Banco','landmark'],['Hospital','cross'],['Ônibus','bus'],['Academia','dumbbell']];
+function nearbySearch(q){const c=_loc||[-23.5505,-46.6333];
+  window.open('https://www.google.com/maps/search/'+encodeURIComponent(q)+'/@'+c[0]+','+c[1]+',15z','_blank','noopener');}
+function renderMapChips(){const box=$('#map-chips');box.textContent='';
+  MAP_CHIPS.forEach(([label,ic])=>{const b=el('button','mchip');b.type='button';b.appendChild(ficon(ic));b.appendChild(document.createTextNode(label));
+    b.onclick=(e)=>{ripple(b,e);label==='Onde estou'?locateMe():nearbySearch(label);};box.appendChild(b);});window.lucide&&lucide.createIcons();}
+function locateMe(){const st=$('#map-status');if(!navigator.geolocation){st.textContent='Geolocalização indisponível neste navegador.';return;}
+  st.textContent='Localizando seu dispositivo...';
+  navigator.geolocation.getCurrentPosition(p=>{const lat=p.coords.latitude,lng=p.coords.longitude;_loc=[lat,lng];
+    if(_map){_map.setView(_loc,15);
+      if(_marker)_marker.setLatLng(_loc);else _marker=L.circleMarker(_loc,{radius:9,weight:3,color:'#35c8ff',fillColor:'#35c8ff',fillOpacity:.65}).addTo(_map);
+      setTimeout(()=>_map.invalidateSize(),80);}
+    st.textContent='Você está aqui · toque num lugar pra buscar por perto';
+    fetch('/api/location',{method:'POST',headers:H(),body:JSON.stringify({lat,lng})}).catch(()=>{});
+  },()=>{st.textContent='Não consegui pegar sua localização — permita o acesso e tente de novo.';},{enableHighAccuracy:true,timeout:12000,maximumAge:60000});}
+function loadMap(){
+  if(!window.L){$('#map').innerHTML='<div class="tv-empty" style="padding:20px">Mapa indisponível (sem conexão com o Leaflet).</div>';return;}
+  if(!_map){_map=L.map('map',{zoomControl:true,attributionControl:false}).setView([-23.5505,-46.6333],12);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:19,subdomains:'abcd'}).addTo(_map);
+    renderMapChips();
+    const q=$('#map-q');if(q)q.addEventListener('keydown',e=>{if(e.key==='Enter'&&q.value.trim())nearbySearch(q.value.trim());});}
+  setTimeout(()=>{if(_map)_map.invalidateSize();},120);
+  if(!_loc)locateMe();}
 const ACT_ICON={'task.new':['plus','tarefa criada'],'task.done':['check-check','tarefa concluída'],'task.del':['trash-2','tarefa apagada'],'reminder.new':['alarm-clock','lembrete criado'],'reminder.done':['bell-ring','lembrete disparado'],'reminder.cancel':['bell-off','lembrete cancelado'],'expense.new':['wallet','gasto adicionado'],'expense.del':['trash-2','gasto apagado'],'habit.done':['repeat','hábito feito']};
 async function loadAct(){try{const cat=$('#act-cat').value;
   const d=await (await fetch('/api/activity'+(cat?'?category='+encodeURIComponent(cat):''),{headers:H()})).json();
@@ -2600,6 +2641,26 @@ def create_app(config: Config, brain: Brain | None = None):
         return Response(content=img["data"],
                         media_type=img["mime"] or "image/png",
                         headers={"Cache-Control": "private, max-age=86400"})
+
+    @app.post("/api/location")
+    async def set_location(request: Request):
+        _check(request.headers.get("authorization"))
+        d = await _body(request)
+        try:
+            lat, lng = float(d.get("lat")), float(d.get("lng"))
+        except (TypeError, ValueError):
+            return {"ok": False}
+        from datetime import datetime, timezone
+        memory.set_setting("loc_lat", f"{lat:.6f}")
+        memory.set_setting("loc_lng", f"{lng:.6f}")
+        memory.set_setting("loc_time", datetime.now(timezone.utc).isoformat())
+        try:  # best-effort readable address so E.V. can say where you are
+            addr = await asyncio.to_thread(tools_mod.reverse_geocode, lat, lng)
+            if addr:
+                memory.set_setting("loc_addr", addr)
+        except Exception:
+            pass
+        return {"ok": True}
 
     @app.post("/api/receipt")
     async def receipt(request: Request):

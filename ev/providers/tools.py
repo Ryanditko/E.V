@@ -449,6 +449,29 @@ def _google_service(config, account: str, api: str, version: str, allow_interact
     return build(api, version, credentials=creds, cache_discovery=False)
 
 
+def reverse_geocode(lat: float, lng: float) -> str:
+    """Best-effort human-readable address for coordinates (OpenStreetMap/Nominatim)."""
+    import json
+    import urllib.request
+    url = (f"https://nominatim.openstreetmap.org/reverse?lat={lat}&lon={lng}"
+           "&format=json&zoom=16&addressdetails=0")
+    req = urllib.request.Request(url, headers={"User-Agent": "E.V.-assistant/1.0"})
+    try:
+        with urllib.request.urlopen(req, timeout=6) as r:
+            data = json.loads(r.read().decode())
+        return (data.get("display_name") or "").strip()
+    except Exception as exc:
+        log.warning("reverse_geocode failed (%s)", exc)
+        return ""
+
+
+def maps_search_link(lat, lng, query: str) -> str:
+    """Google Maps search link for `query` near coordinates."""
+    import urllib.parse
+    return (f"https://www.google.com/maps/search/{urllib.parse.quote(query)}"
+            f"/@{lat},{lng},15z")
+
+
 def calendar_upcoming(config, account: str, max_results: int = 5) -> str:
     """List the user's upcoming Google Calendar events."""
     from datetime import datetime, timezone
