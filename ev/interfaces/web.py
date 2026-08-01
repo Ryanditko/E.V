@@ -121,14 +121,29 @@ body{margin:0;background:var(--ink);color:var(--fg);font-family:var(--body);-web
 ::-webkit-scrollbar-thumb{background:#123249;border-radius:8px;border:2px solid var(--ink);background-clip:padding-box}
 ::-webkit-scrollbar-thumb:hover{background:#1c4a6b;background-clip:padding-box}
 ::-webkit-scrollbar-corner{background:transparent}
-body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;background-image:radial-gradient(rgba(93,178,255,.06) 1px,transparent 1px);background-size:26px 26px;mask:radial-gradient(120% 90% at 50% 0%,#000,transparent 78%)}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;background-image:radial-gradient(rgba(93,178,255,.07) 1px,transparent 1px);background-size:26px 26px;mask:radial-gradient(120% 90% at 50% 0%,#000,transparent 78%);animation:gridpulse 7s ease-in-out infinite}
+@keyframes gridpulse{0%,100%{opacity:.7}50%{opacity:1}}
+/* --- camada holográfica (HUD) --- */
+body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:6;background:repeating-linear-gradient(0deg,rgba(120,200,255,.04) 0 1px,transparent 1px 3px);mix-blend-mode:screen;opacity:.6}
+#hud-scan{position:fixed;left:0;right:0;top:0;height:200px;pointer-events:none;z-index:6;background:linear-gradient(180deg,transparent,rgba(53,200,255,.05) 55%,rgba(53,200,255,.13) 84%,rgba(53,200,255,.02));transform:translateY(-260px);animation:hscan 7.5s linear infinite;will-change:transform}
+@keyframes hscan{to{transform:translateY(calc(100vh + 260px))}}
+#hud-bloom{position:fixed;inset:0;pointer-events:none;z-index:0;background:radial-gradient(70% 44% at 50% -8%,rgba(53,200,255,.12),transparent 70%)}
+@media(prefers-reduced-motion:reduce){body::before,#hud-scan{animation:none}}
 #app{position:relative;z-index:1;height:100%;display:grid;grid-template-columns:238px 1fr 272px;min-height:0}
+/* painéis de vidro + brilho interno + brackets de canto HUD */
+#left,#right{background:linear-gradient(180deg,rgba(14,27,43,.5),rgba(6,12,20,.34));-webkit-backdrop-filter:blur(9px);backdrop-filter:blur(9px)}
+#left{box-shadow:inset -1px 0 0 var(--line),inset 0 0 70px -34px var(--glow)}
+#right{box-shadow:inset 1px 0 0 var(--line),inset 0 0 70px -34px var(--glow)}
+.rail{position:relative}
+.rail::before,.rail::after{content:"";position:absolute;width:15px;height:15px;border:1px solid var(--accent);opacity:.45;pointer-events:none;z-index:2}
+.rail::before{top:9px;left:9px;border-right:none;border-bottom:none}
+.rail::after{bottom:9px;right:9px;border-left:none;border-top:none}
 .rail{display:flex;flex-direction:column;min-height:0}
 #left{border-right:1px solid var(--line);padding:18px;gap:14px;overflow:auto}
 #right{border-left:1px solid var(--line);padding:18px;gap:12px;overflow:auto}
 #center{min-width:0;min-height:0;display:flex;flex-direction:column}
 .brand .name{font-family:var(--disp);font-weight:700;font-size:26px;letter-spacing:.14em;color:var(--accent);text-shadow:0 0 20px var(--glow)}
-.eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.26em;color:var(--subtle);text-transform:uppercase;margin:4px 2px}
+.eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.26em;color:#5f9fc9;text-transform:uppercase;margin:4px 2px;text-shadow:0 0 12px rgba(53,200,255,.22)}
 .core{width:132px;height:132px;position:relative;margin:6px auto 2px}
 .core .ring{position:absolute;border-radius:50%;border:1px solid var(--line-2)}
 .core .ring.a{inset:0}.core .ring.b{inset:18px;border-color:var(--line)}.core .ring.c{inset:40px;border-color:var(--line-2)}
@@ -276,7 +291,7 @@ body.listening .bigcore .bdot{animation:pulse .9s infinite}body.speaking .bigcor
 .bar-fill{height:100%;background:var(--fg);border-radius:6px;transition:width .5s}
 .bar-val{width:80px;font-family:var(--mono);font-size:12px;flex:none}
 .tv-cat.drop{color:var(--fg);background:var(--elev);border-radius:6px}
-.tv-h{font-family:var(--disp);font-weight:600;font-size:22px;margin-bottom:18px}
+.tv-h{font-family:var(--disp);font-weight:600;font-size:22px;margin-bottom:18px;color:#eaf4fb;text-shadow:0 0 16px rgba(53,200,255,.2)}
 .tv-form{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:22px;max-width:720px}
 .tv-form input{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:12px 15px;color:var(--fg);font:inherit;font-size:15px}
 .tv-form #task-text{flex:1}.tv-form #task-cat{width:140px;flex:none;font-family:var(--mono);font-size:13px}
@@ -294,7 +309,7 @@ body.listening .bigcore .bdot{animation:pulse .9s infinite}body.speaking .bigcor
 #log{flex:1;min-height:0;overflow-y:auto;padding:20px 22px;display:flex;flex-direction:column;gap:14px}
 .msg{max-width:82%;padding:13px 16px;line-height:1.55;border:1px solid var(--line);border-radius:16px;animation:rise .32s cubic-bezier(.2,.7,.2,1)}
 .msg.you{align-self:flex-end;background:var(--fg);color:var(--ink);border:none;border-bottom-right-radius:5px;font-weight:500}
-.msg.ev{align-self:flex-start;background:var(--elev);border-bottom-left-radius:5px}
+.msg.ev{align-self:flex-start;background:linear-gradient(180deg,rgba(18,34,52,.72),rgba(10,20,32,.66));-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);border-color:var(--line-2);border-bottom-left-radius:5px;box-shadow:0 0 26px -18px var(--glow),inset 0 0 0 1px rgba(53,200,255,.06)}
 .msg.sys{align-self:center;background:transparent;border:1px dashed var(--line);color:var(--muted);font-family:var(--mono);font-size:12px}
 .msg p{margin:0 0 6px}.msg p:last-child{margin:0}
 .msg strong{font-weight:700;color:var(--fg)}
@@ -446,6 +461,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
 }
 @media(prefers-reduced-motion:reduce){*{animation:none!important}}
 </style></head><body>
+<div id="hud-bloom"></div><div id="hud-scan"></div>
 <div id="app">
   <aside id="left" class="rail">
     <div class="brand"><div class="name">E.V.</div><div class="eyebrow">Personal Intelligence</div></div>
