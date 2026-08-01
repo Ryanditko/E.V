@@ -630,6 +630,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
       <div id="map-chips" class="mchips"></div>
       <div class="tv-form" style="margin:6px 0 10px;gap:8px;flex-wrap:wrap">
         <input class="tv-search" id="map-q" placeholder="Buscar por perto: padaria, farmácia..." autocomplete="off" style="flex:1;min-width:170px">
+        <button class="mchip" id="map-fix" type="button"><i data-lucide="crosshair"></i>Corrigir localização</button>
         <button class="mchip" id="map-mine" type="button"><i data-lucide="star"></i>Meus pontos</button>
         <button class="mchip" id="map-plan" type="button"><i data-lucide="route"></i>Tempo A→B</button>
         <button class="mchip" id="map-addr" type="button"><i data-lucide="search"></i>Adicionar endereço</button>
@@ -1248,17 +1249,28 @@ function showSavedList(){const res=$('#map-results');res.innerHTML='';
     act.appendChild(go);act.appendChild(rt);row.appendChild(act);
     row.onclick=()=>{_map.setView([p.lat,p.lng],16);const mk=_savedMarkers[p.id];if(mk)mk.openPopup();};res.appendChild(row);});
   res.classList.add('on');$('#map-status').textContent=_savedPlaces.length+' ponto(s) salvo(s)';}
+let _accCircle=null,_fixMode=false;
+function setMyLocation(lat,lng,acc){_loc=[lat,lng];
+  if(_map){_map.setView(_loc,acc&&acc>1500?14:16);
+    if(_marker)_marker.setLatLng(_loc);else _marker=L.circleMarker(_loc,{radius:9,weight:3,color:'#35c8ff',fillColor:'#35c8ff',fillOpacity:.7}).addTo(_map);
+    if(_accCircle){_accCircle.remove();_accCircle=null;}
+    if(acc)_accCircle=L.circle(_loc,{radius:acc,color:'#35c8ff',weight:1,fillColor:'#35c8ff',fillOpacity:.07}).addTo(_map);
+    setTimeout(()=>_map.invalidateSize(),80);}
+  fetch('/api/location',{method:'POST',headers:H(),body:JSON.stringify({lat,lng})}).catch(()=>{});
+  if(_pendingNear){const q=_pendingNear;_pendingNear=null;showNearby(q);}
+  if(_routeFT&&!_routeFT[0])drawRouteFT(_loc,_routeFT[1],_routeFT[2]);}
 function locateMe(){const st=$('#map-status');if(!navigator.geolocation){st.textContent='Geolocalização indisponível neste navegador.';return;}
   st.textContent='Localizando seu dispositivo...';
-  navigator.geolocation.getCurrentPosition(p=>{const lat=p.coords.latitude,lng=p.coords.longitude;_loc=[lat,lng];
-    if(_map){_map.setView(_loc,15);
-      if(_marker)_marker.setLatLng(_loc);else _marker=L.circleMarker(_loc,{radius:9,weight:3,color:'#35c8ff',fillColor:'#35c8ff',fillOpacity:.7}).addTo(_map);
-      setTimeout(()=>_map.invalidateSize(),80);}
-    st.textContent='Você está aqui · toque num tipo de lugar pra ver por perto';
-    fetch('/api/location',{method:'POST',headers:H(),body:JSON.stringify({lat,lng})}).catch(()=>{});
-    if(_pendingNear){const q=_pendingNear;_pendingNear=null;showNearby(q);}
-    if(_routeFT&&!_routeFT[0])drawRouteFT(_loc,_routeFT[1],_routeFT[2]);
-  },()=>{st.textContent='Não consegui pegar sua localização — permita o acesso e tente de novo.';},{enableHighAccuracy:true,timeout:12000,maximumAge:60000});}
+  navigator.geolocation.getCurrentPosition(p=>{const acc=Math.round(p.coords.accuracy||0);
+    setMyLocation(p.coords.latitude,p.coords.longitude,acc);
+    st.textContent=acc>1500?('Localização aproximada (~'+acc+' m) — no PC costuma errar. Use "Corrigir localização" se estiver errado.'):('Você está aqui'+(acc?' (~'+acc+' m)':'')+' · toque num tipo de lugar');
+  },()=>{st.textContent='Não consegui pegar sua localização — permita o acesso e tente de novo.';},{enableHighAccuracy:true,timeout:15000,maximumAge:0});}
+async function fixLocation(){const q=prompt('Seu endereço atual (ou deixe vazio pra escolher tocando no mapa):');
+  if(q===null)return;
+  if(q.trim()){$('#map-status').textContent='Procurando "'+q+'"...';let g=null;try{g=await (await fetch('/api/geocode?q='+encodeURIComponent(q),{headers:H()})).json();}catch(e){}
+    if(!g||!g.ok){$('#map-status').textContent='Não achei esse endereço. Tenta com mais detalhe (rua, número, cidade).';return;}
+    setMyLocation(g.lat,g.lng,0);$('#map-status').textContent='Localização definida por endereço.';return;}
+  _fixMode=true;$('#map-status').textContent='Toque no mapa exatamente onde você está pra definir sua localização.';}
 function loadMap(){
   if(!window.L){$('#map').innerHTML='<div class="tv-empty" style="padding:20px">Mapa indisponível (sem conexão com o Leaflet).</div>';return;}
   if(!_map){_map=L.map('map',{zoomControl:false,attributionControl:false}).setView([-23.5505,-46.6333],12);
@@ -1268,6 +1280,7 @@ function loadMap(){
     const q=$('#map-q');if(q)q.addEventListener('keydown',e=>{if(e.key==='Enter'&&q.value.trim())showNearby(q.value.trim());});
     $('#map-add').onclick=()=>{_addMode=!_addMode;$('#map-add').classList.toggle('on',_addMode);$('#map-status').textContent=_addMode?'Modo adicionar: toque no mapa pra criar um ponto':'Você está aqui';};
     $('#map-addr').onclick=addByAddress;
+    $('#map-fix').onclick=fixLocation;
     $('#map-mine').onclick=showSavedList;
     $('#map-plan').onclick=()=>{const pl=$('#map-planner');const show=pl.style.display==='none';pl.style.display=show?'flex':'none';if(show)refreshPlanner();};
     $('#plan-go').onclick=()=>{const f=planCoord($('#plan-from').value),t=planCoord($('#plan-to').value);
@@ -1276,7 +1289,8 @@ function loadMap(){
       if($('#plan-from').value===$('#plan-to').value){$('#map-status').textContent='Escolha origem e destino diferentes.';return;}
       drawRouteFT(f,t,$('#plan-to').selectedOptions[0].textContent);};
     $('#map-ask').onclick=()=>{switchView('chat');send('E.V., o que tem de útil perto de mim agora?');};
-    _map.on('click',ev=>{if(!_addMode)return;const name=prompt('Nome do ponto (ex: Casa, Trabalho):');if(!name)return;
+    _map.on('click',ev=>{if(_fixMode){_fixMode=false;setMyLocation(ev.latlng.lat,ev.latlng.lng,0);$('#map-status').textContent='Localização definida no mapa. É daqui que as buscas e rotas vão partir.';return;}
+      if(!_addMode)return;const name=prompt('Nome do ponto (ex: Casa, Trabalho):');if(!name)return;
       fetch('/api/places',{method:'POST',headers:H(),body:JSON.stringify({name,lat:ev.latlng.lat,lng:ev.latlng.lng})}).then(r=>r.json()).then(d=>addSavedMarker({id:d.id,name,lat:ev.latlng.lat,lng:ev.latlng.lng}));
       _addMode=false;$('#map-add').classList.remove('on');$('#map-status').textContent='Ponto "'+name+'" salvo';});}
   setTimeout(()=>{if(_map)_map.invalidateSize();},120);
