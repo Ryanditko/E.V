@@ -253,6 +253,15 @@ class Memory:
                 data     BLOB NOT NULL,
                 created  TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS places (
+                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id  TEXT NOT NULL,
+                name     TEXT NOT NULL,
+                lat      REAL NOT NULL,
+                lng      REAL NOT NULL,
+                created  TEXT NOT NULL
+            );
             """
         )
         # Migrations for older DBs.
@@ -482,6 +491,26 @@ class Memory:
         row = self._conn.execute(
             "SELECT mime, data FROM chat_images WHERE id = ?", (image_id,)).fetchone()
         return {"mime": row["mime"], "data": bytes(row["data"])} if row else None
+
+    # --- saved places / points of interest --------------------------------
+
+    def add_place(self, user_id: str, name: str, lat: float, lng: float) -> int:
+        cur = self._conn.execute(
+            "INSERT INTO places (user_id, name, lat, lng, created) VALUES (?, ?, ?, ?, ?)",
+            (user_id, (name or "ponto").strip()[:80], float(lat), float(lng), self._now()))
+        self._conn.commit()
+        return int(cur.lastrowid)
+
+    def list_places(self, user_id: str) -> list[dict]:
+        rows = self._conn.execute(
+            "SELECT id, name, lat, lng FROM places WHERE user_id = ? ORDER BY id",
+            (user_id,)).fetchall()
+        return [dict(r) for r in rows]
+
+    def delete_place(self, user_id: str, place_id: int) -> None:
+        self._conn.execute("DELETE FROM places WHERE user_id = ? AND id = ?",
+                           (user_id, place_id))
+        self._conn.commit()
 
     def mark_last_user_image(self, conv_id: str, image_id: int) -> None:
         """Embed an [img:id] marker in the most recent user message so the image

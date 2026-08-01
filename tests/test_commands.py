@@ -332,3 +332,22 @@ def test_chat_image_persistence(tmp_path):
     user = [x for x in m.recent_messages(conv, 10) if x["role"] == "user"][-1]
     assert f"[img:{iid}]" in user["content"]
     assert m.get_chat_image(999999) is None
+
+
+def test_places_crud(tmp_path):
+    from ev.core.memory import Memory
+    m = Memory(tmp_path / "t.db")
+    pid = m.add_place("u", "Casa", -23.55, -46.63)
+    assert [p["name"] for p in m.list_places("u")] == ["Casa"]
+    m.add_place("u", "Trabalho", -23.56, -46.64)
+    assert len(m.list_places("u")) == 2
+    m.delete_place("u", pid)
+    assert [p["name"] for p in m.list_places("u")] == ["Trabalho"]
+
+
+def test_haversine_and_kinds(tmp_path):
+    from ev.providers import tools
+    # ~1.1 km per 0.01 deg latitude
+    d = tools._haversine_m(-23.55, -46.63, -23.56, -46.63)
+    assert 1000 < d < 1200
+    assert "farmácia" in tools._OSM_KINDS and "restaurante" in tools._OSM_KINDS

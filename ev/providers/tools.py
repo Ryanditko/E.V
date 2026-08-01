@@ -465,6 +465,84 @@ def reverse_geocode(lat: float, lng: float) -> str:
         return ""
 
 
+# Friendly place types -> OpenStreetMap tag filters (for Overpass queries).
+_OSM_KINDS = {
+    "farmácia": '["amenity"="pharmacy"]', "farmacia": '["amenity"="pharmacy"]',
+    "mercado": '["shop"~"supermarket|convenience|grocery"]',
+    "supermercado": '["shop"="supermarket"]',
+    "restaurante": '["amenity"="restaurant"]',
+    "padaria": '["shop"="bakery"]',
+    "café": '["amenity"="cafe"]', "cafe": '["amenity"="cafe"]',
+    "posto": '["amenity"="fuel"]', "gasolina": '["amenity"="fuel"]',
+    "banco": '["amenity"="bank"]', "caixa": '["amenity"="atm"]',
+    "hospital": '["amenity"~"hospital|clinic"]', "saúde": '["amenity"~"hospital|clinic|pharmacy"]',
+    "ônibus": '["highway"="bus_stop"]', "onibus": '["highway"="bus_stop"]',
+    "academia": '["leisure"="fitness_centre"]',
+    "escola": '["amenity"="school"]', "hotel": '["tourism"="hotel"]',
+    "estacionamento": '["amenity"="parking"]',
+}
+
+
+def _haversine_m(lat1, lng1, lat2, lng2) -> int:
+    from math import radians, sin, cos, asin, sqrt
+    dlat, dlng = radians(lat2 - lat1), radians(lng2 - lng1)
+    a = sin(dlat / 2) ** 2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlng / 2) ** 2
+    return int(6371000 * 2 * asin(sqrt(a)))
+
+
+def nearby_places(lat: float, lng: float, query: str, radius_m: int = 1600,
+                  limit: int = 20) -> list[dict]:
+    """Find POIs near (lat,lng) via OpenStreetMap Overpass. Returns items sorted
+    by distance: {name, lat, lng, dist, kind}. Empty list on any failure."""
+    import json
+    import urllib.parse
+    import urllib.request
+
+    q = (query or "").strip().lower()
+    flt = _OSM_KINDS.get(q)
+    if flt:
+        selector = f"nwr{flt}(around:{radius_m},{lat},{lng});"
+    else:  # free text -> match by name
+        safe = re.sub(r'["\\]', "", query.strip())[:40]
+        selector = f'nwr["name"~"{safe}",i](around:{radius_m},{lat},{lng});'
+    oql = f"[out:json][timeout:20];({selector});out center {limit * 3};"
+    try:
+        data = urllib.parse.urlencode({"data": oql}).encode()
+        req = urllib.request.Request(
+            "https://overpass-api.de/api/interpreter", data=data,
+            headers={"User-Agent": "E.V.-assistant/1.0"})
+        with urllib.request.urlopen(req, timeout=25) as r:
+            res = json.loads(r.read().decode())
+    except Exception as exc:
+        log.warning("nearby_places failed (%s)", exc)
+        return []
+    out = []
+    for e in res.get("elements", []):
+        tags = e.get("tags", {})
+        name = tags.get("name")
+        if not name:
+            continue
+        plat = e.get("lat") or (e.get("center") or {}).get("lat")
+        plng = e.get("lon") or (e.get("center") or {}).get("lon")
+        if plat is None or plng is None:
+            continue
+        out.append({
+            "name": name, "lat": plat, "lng": plng,
+            "dist": _haversine_m(lat, lng, plat, plng),
+            "kind": tags.get("amenity") or tags.get("shop") or tags.get("leisure") or "",
+        })
+    out.sort(key=lambda p: p["dist"])
+    # dedupe by name, keep nearest
+    seen, uniq = set(), []
+    for p in out:
+        k = p["name"].lower()
+        if k in seen:
+            continue
+        seen.add(k)
+        uniq.append(p)
+    return uniq[:limit]
+
+
 def maps_search_link(lat, lng, query: str) -> str:
     """Google Maps search link for `query` near coordinates."""
     import urllib.parse

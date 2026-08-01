@@ -174,10 +174,23 @@ body.speaking .core .dot{animation:pulse .6s infinite}
 #vc-viz{position:absolute;width:480px;height:480px;max-width:92vw;max-height:92vw;pointer-events:none;opacity:0;transition:opacity .35s;filter:drop-shadow(0 0 14px var(--glow))}
 .bigcore{width:220px;height:220px;position:relative;z-index:1}
 #mapview{display:none;padding:22px;overflow:auto}
-#map{height:min(60vh,540px);border:1px solid var(--line-2);border-radius:13px;overflow:hidden;box-shadow:0 0 40px -24px var(--glow)}
+#map-wrap{position:relative;height:calc(100vh - 300px);min-height:400px}
+#map{position:absolute;inset:0;border:1px solid var(--line-2);border-radius:13px;overflow:hidden;box-shadow:0 0 40px -24px var(--glow)}
 #map .leaflet-container{background:#04070c;font-family:var(--body)}
 #map .leaflet-control-zoom a{background:var(--elev);color:var(--accent);border-color:var(--line)}
 #map .leaflet-bar{border:1px solid var(--line)}
+#map .leaflet-popup-content-wrapper,#map .leaflet-popup-tip{background:var(--elev);color:var(--fg);border:1px solid var(--line-2)}
+#map .leaflet-popup-content{margin:11px 13px;font-family:var(--body)}
+.pop-n{font-weight:600;font-size:13px;margin-bottom:2px}.pop-d{font-family:var(--mono);font-size:10px;color:var(--subtle);margin-bottom:7px}
+.pop-b{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--accent);background:var(--surface);border:1px solid var(--line);border-radius:7px;padding:4px 8px;cursor:pointer;margin-right:5px}
+.pop-b:hover{background:var(--fg);color:var(--ink)}
+#map-results{position:absolute;top:12px;left:12px;width:252px;max-height:calc(100% - 24px);overflow:auto;z-index:600;background:rgba(6,12,20,.86);-webkit-backdrop-filter:blur(7px);backdrop-filter:blur(7px);border:1px solid var(--line-2);border-radius:12px;padding:8px;display:none}
+#map-results.on{display:block}
+#map-results .mr-h{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--subtle);padding:4px 6px 6px;display:flex;align-items:center;justify-content:space-between}
+#map-results .mr-h b{cursor:pointer;color:var(--muted)}
+.mres{padding:8px 9px;border-radius:8px;cursor:pointer;border-top:1px solid var(--line)}
+.mres:first-of-type{border-top:none}.mres:hover{background:var(--elev)}
+.mres .mr-n{font-size:13px;font-weight:600}.mres .mr-d{font-family:var(--mono);font-size:10px;color:var(--subtle);margin-top:2px}
 .bigcore .ring{position:absolute;border-radius:50%;border:1px solid var(--line-2)}
 .bigcore .r1{inset:0}.bigcore .r2{inset:26px;border-color:var(--line)}.bigcore .r3{inset:60px;border-color:var(--line-2)}
 .bigcore .arc{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,transparent 0 66%,var(--accent) 84%,transparent 100%);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1px));mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1px));animation:spin 8s linear infinite}
@@ -610,10 +623,12 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
       <div class="tv-h">Mapa · você e o que tem por perto</div>
       <div id="map-status" class="eyebrow" style="margin:0 2px 8px">toque em "Onde estou" para localizar seu dispositivo</div>
       <div id="map-chips" class="mchips"></div>
-      <div id="map-search" class="tv-form" style="margin:6px 0 10px">
-        <input class="tv-search" id="map-q" placeholder="Buscar por perto: ex farmácia 24h, padaria..." autocomplete="off">
+      <div class="tv-form" style="margin:6px 0 10px;gap:8px;flex-wrap:wrap">
+        <input class="tv-search" id="map-q" placeholder="Buscar por perto: padaria, farmácia..." autocomplete="off" style="flex:1;min-width:180px">
+        <button class="mchip" id="map-add" type="button"><i data-lucide="map-pin"></i>Adicionar ponto</button>
+        <button class="mchip" id="map-ask" type="button"><i data-lucide="message-circle"></i>Perguntar à E.V.</button>
       </div>
-      <div id="map"></div>
+      <div id="map-wrap"><div id="map"></div><div id="map-results"></div></div>
     </div>
   </main>
   <aside id="right" class="rail">
@@ -1147,29 +1162,62 @@ function switchView(v){if(!VIEWS[v])v='chat';curView=v;document.querySelectorAll
   document.body.classList.remove('m-left','m-right');
   Object.entries(VIEWS).forEach(([k,sel])=>{const el2=$(sel);if(el2)el2.style.display=(k===v)?(k==='chat'?'flex':'block'):'none';});
   ({tasks:loadTasks,exp:loadExp,rem:loadRem,mem:loadMem,kb:loadKB,cal:loadCal,lnk:loadLinks,hab:loadHabits,jou:loadJournal,sub:loadSub,orc:loadOrc,mon:loadMon,act:loadAct,map:loadMap}[v]||function(){})();}
-// --- Mapa + localização (Leaflet + OSM, sem chave; tiles escuros) ---
-let _map=null,_marker=null,_loc=null;
-const MAP_CHIPS=[['Onde estou','locate-fixed'],['Farmácia','pill'],['Mercado','shopping-cart'],['Restaurante','utensils'],['Padaria','croissant'],['Café','coffee'],['Posto','fuel'],['Banco','landmark'],['Hospital','cross'],['Ônibus','bus'],['Academia','dumbbell']];
-function nearbySearch(q){const c=_loc||[-23.5505,-46.6333];
-  window.open('https://www.google.com/maps/search/'+encodeURIComponent(q)+'/@'+c[0]+','+c[1]+',15z','_blank','noopener');}
+// --- Mapa + localização (Leaflet + OSM; lugares e pontos dentro da própria E.V.) ---
+let _map=null,_marker=null,_loc=null,_nearLayer=null,_savedLayer=null,_addMode=false,_pendingNear=null;
+const MAP_CHIPS=[['Onde estou','locate-fixed'],['Farmácia','pill'],['Mercado','shopping-cart'],['Restaurante','utensils'],['Padaria','croissant'],['Café','coffee'],['Posto','fuel'],['Banco','landmark'],['Hospital','cross'],['Academia','dumbbell']];
+function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function askEV(name,lat,lng){switchView('chat');send('me conta sobre "'+name+'", que fica perto de mim.');}
+function poiPopup(name,lat,lng,dist){const d=document.createElement('div');
+  d.innerHTML='<div class="pop-n">'+esc(name)+'</div>'+(dist!=null?'<div class="pop-d">~'+dist+' m de você</div>':'');
+  const ask=el('span','pop-b');ask.appendChild(ficon('message-circle'));ask.appendChild(document.createTextNode('Perguntar à E.V.'));ask.onclick=()=>askEV(name,lat,lng);
+  const rot=document.createElement('a');rot.className='pop-b';rot.href='https://www.google.com/maps/dir/?api=1&destination='+lat+','+lng;rot.target='_blank';rot.rel='noopener';rot.appendChild(ficon('navigation'));rot.appendChild(document.createTextNode('Rota'));
+  d.appendChild(ask);d.appendChild(rot);window.lucide&&lucide.createIcons();return d;}
 function renderMapChips(){const box=$('#map-chips');box.textContent='';
   MAP_CHIPS.forEach(([label,ic])=>{const b=el('button','mchip');b.type='button';b.appendChild(ficon(ic));b.appendChild(document.createTextNode(label));
-    b.onclick=(e)=>{ripple(b,e);label==='Onde estou'?locateMe():nearbySearch(label);};box.appendChild(b);});window.lucide&&lucide.createIcons();}
+    b.onclick=(e)=>{ripple(b,e);label==='Onde estou'?locateMe():showNearby(label);};box.appendChild(b);});window.lucide&&lucide.createIcons();}
+async function showNearby(query){if(!_loc){_pendingNear=query;$('#map-status').textContent='Preciso da sua localização — localizando...';locateMe();return;}
+  $('#map-status').textContent='Buscando "'+query+'" por perto...';
+  let items=[];try{const r=await fetch('/api/nearby',{method:'POST',headers:H(),body:JSON.stringify({query,lat:_loc[0],lng:_loc[1]})});items=(await r.json()).items||[];}catch(e){}
+  if(_nearLayer)_nearLayer.clearLayers();else _nearLayer=L.layerGroup().addTo(_map);
+  const res=$('#map-results');res.innerHTML='';
+  if(!items.length){$('#map-status').textContent='Não achei "'+query+'" num raio de ~1,6 km.';res.classList.remove('on');return;}
+  $('#map-status').textContent=items.length+' resultado(s) para "'+query+'"';
+  const head=el('div','mr-h');head.appendChild(document.createTextNode(query.toUpperCase()));const x=document.createElement('b');x.textContent='fechar';x.onclick=()=>{res.classList.remove('on');if(_nearLayer)_nearLayer.clearLayers();};head.appendChild(x);res.appendChild(head);
+  const bounds=[_loc];
+  items.forEach(it=>{const m=L.circleMarker([it.lat,it.lng],{radius:7,weight:2,color:'#8fe0ff',fillColor:'#35c8ff',fillOpacity:.85}).addTo(_nearLayer);
+    m.bindPopup(()=>poiPopup(it.name,it.lat,it.lng,it.dist));bounds.push([it.lat,it.lng]);
+    const row=el('div','mres');row.appendChild(el('div','mr-n',it.name));row.appendChild(el('div','mr-d','~'+it.dist+' m'));
+    row.onclick=()=>{_map.setView([it.lat,it.lng],16);m.openPopup();};res.appendChild(row);});
+  res.classList.add('on');try{_map.fitBounds(bounds,{padding:[60,60],maxZoom:16});}catch(e){}}
+function addSavedMarker(p){if(!_savedLayer)_savedLayer=L.layerGroup().addTo(_map);const m=L.marker([p.lat,p.lng]).addTo(_savedLayer);
+  m.bindPopup(()=>{const d=document.createElement('div');d.innerHTML='<div class="pop-n">'+esc(p.name)+'</div><div class="pop-d">ponto salvo</div>';
+    const ask=el('span','pop-b');ask.appendChild(ficon('message-circle'));ask.appendChild(document.createTextNode('Perguntar à E.V.'));ask.onclick=()=>askEV(p.name,p.lat,p.lng);
+    const del=el('span','pop-b');del.appendChild(ficon('trash-2'));del.appendChild(document.createTextNode('Remover'));del.onclick=async()=>{await fetch('/api/places/delete',{method:'POST',headers:H(),body:JSON.stringify({id:p.id})});m.remove();};
+    d.appendChild(ask);d.appendChild(del);window.lucide&&lucide.createIcons();return d;});}
+function loadSavedPlaces(){fetch('/api/places',{headers:H()}).then(r=>r.json()).then(d=>{
+  if(_savedLayer)_savedLayer.clearLayers();(d.items||[]).forEach(addSavedMarker);}).catch(()=>{});}
 function locateMe(){const st=$('#map-status');if(!navigator.geolocation){st.textContent='Geolocalização indisponível neste navegador.';return;}
   st.textContent='Localizando seu dispositivo...';
   navigator.geolocation.getCurrentPosition(p=>{const lat=p.coords.latitude,lng=p.coords.longitude;_loc=[lat,lng];
     if(_map){_map.setView(_loc,15);
-      if(_marker)_marker.setLatLng(_loc);else _marker=L.circleMarker(_loc,{radius:9,weight:3,color:'#35c8ff',fillColor:'#35c8ff',fillOpacity:.65}).addTo(_map);
+      if(_marker)_marker.setLatLng(_loc);else _marker=L.circleMarker(_loc,{radius:9,weight:3,color:'#35c8ff',fillColor:'#35c8ff',fillOpacity:.7}).addTo(_map);
       setTimeout(()=>_map.invalidateSize(),80);}
-    st.textContent='Você está aqui · toque num lugar pra buscar por perto';
+    st.textContent='Você está aqui · toque num tipo de lugar pra ver por perto';
     fetch('/api/location',{method:'POST',headers:H(),body:JSON.stringify({lat,lng})}).catch(()=>{});
+    if(_pendingNear){const q=_pendingNear;_pendingNear=null;showNearby(q);}
   },()=>{st.textContent='Não consegui pegar sua localização — permita o acesso e tente de novo.';},{enableHighAccuracy:true,timeout:12000,maximumAge:60000});}
 function loadMap(){
   if(!window.L){$('#map').innerHTML='<div class="tv-empty" style="padding:20px">Mapa indisponível (sem conexão com o Leaflet).</div>';return;}
-  if(!_map){_map=L.map('map',{zoomControl:true,attributionControl:false}).setView([-23.5505,-46.6333],12);
+  if(!_map){_map=L.map('map',{zoomControl:false,attributionControl:false}).setView([-23.5505,-46.6333],12);
+    L.control.zoom({position:'topright'}).addTo(_map);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:19,subdomains:'abcd'}).addTo(_map);
-    renderMapChips();
-    const q=$('#map-q');if(q)q.addEventListener('keydown',e=>{if(e.key==='Enter'&&q.value.trim())nearbySearch(q.value.trim());});}
+    renderMapChips();loadSavedPlaces();
+    const q=$('#map-q');if(q)q.addEventListener('keydown',e=>{if(e.key==='Enter'&&q.value.trim())showNearby(q.value.trim());});
+    $('#map-add').onclick=()=>{_addMode=!_addMode;$('#map-add').classList.toggle('on',_addMode);$('#map-status').textContent=_addMode?'Modo adicionar: toque no mapa pra criar um ponto':'Você está aqui';};
+    $('#map-ask').onclick=()=>{switchView('chat');send('E.V., o que tem de útil perto de mim agora?');};
+    _map.on('click',ev=>{if(!_addMode)return;const name=prompt('Nome do ponto (ex: Casa, Trabalho):');if(!name)return;
+      fetch('/api/places',{method:'POST',headers:H(),body:JSON.stringify({name,lat:ev.latlng.lat,lng:ev.latlng.lng})}).then(r=>r.json()).then(d=>addSavedMarker({id:d.id,name,lat:ev.latlng.lat,lng:ev.latlng.lng}));
+      _addMode=false;$('#map-add').classList.remove('on');$('#map-status').textContent='Ponto "'+name+'" salvo';});}
   setTimeout(()=>{if(_map)_map.invalidateSize();},120);
   if(!_loc)locateMe();}
 const ACT_ICON={'task.new':['plus','tarefa criada'],'task.done':['check-check','tarefa concluída'],'task.del':['trash-2','tarefa apagada'],'reminder.new':['alarm-clock','lembrete criado'],'reminder.done':['bell-ring','lembrete disparado'],'reminder.cancel':['bell-off','lembrete cancelado'],'expense.new':['wallet','gasto adicionado'],'expense.del':['trash-2','gasto apagado'],'habit.done':['repeat','hábito feito']};
@@ -2661,6 +2709,41 @@ def create_app(config: Config, brain: Brain | None = None):
         except Exception:
             pass
         return {"ok": True}
+
+    @app.post("/api/nearby")
+    async def nearby(request: Request):
+        _check(request.headers.get("authorization"))
+        d = await _body(request)
+        try:
+            lat, lng = float(d.get("lat")), float(d.get("lng"))
+        except (TypeError, ValueError):
+            return {"items": [], "msg": "sem localização"}
+        query = (d.get("query") or "").strip()
+        items = await asyncio.to_thread(tools_mod.nearby_places, lat, lng, query)
+        return {"items": items}
+
+    @app.get("/api/places")
+    async def places_list(request: Request):
+        _check(request.headers.get("authorization"))
+        return {"items": memory.list_places(owner)}
+
+    @app.post("/api/places")
+    async def places_add(request: Request):
+        _check(request.headers.get("authorization"))
+        d = await _body(request)
+        try:
+            lat, lng = float(d.get("lat")), float(d.get("lng"))
+        except (TypeError, ValueError):
+            return {"ok": False}
+        name = (d.get("name") or "Ponto").strip()
+        pid = memory.add_place(owner, name, lat, lng)
+        return {"ok": True, "id": pid, "items": memory.list_places(owner)}
+
+    @app.post("/api/places/delete")
+    async def places_delete(request: Request):
+        _check(request.headers.get("authorization"))
+        memory.delete_place(owner, int((await _body(request)).get("id") or 0))
+        return {"ok": True, "items": memory.list_places(owner)}
 
     @app.post("/api/receipt")
     async def receipt(request: Request):

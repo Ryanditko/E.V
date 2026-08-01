@@ -630,8 +630,8 @@ class Brain:
             return f"{head}({lat}, {lng}). Ver no mapa: {link}"
 
         def locais_proximos(tipo: str) -> str:
-            """Sugere lugares de um tipo perto da localização atual do usuário
-            (devolve um link do Google Maps já centrado onde ele está).
+            """Lista lugares reais de um tipo perto da localização atual do usuário
+            (nome + distância), buscando no OpenStreetMap.
 
             Args:
                 tipo: o que procurar, ex 'farmácia', 'mercado', 'restaurante'.
@@ -641,7 +641,18 @@ class Brain:
             if not (lat and lng):
                 return ("não sei sua localização ainda. Abra a aba Mapa e toque em "
                         "'Onde estou'.")
-            return f"{tipo} perto de você: {tools_mod.maps_search_link(lat, lng, tipo)}"
+            places = tools_mod.nearby_places(float(lat), float(lng), tipo, limit=6)
+            if not places:
+                return f"não achei '{tipo}' por perto agora."
+            lines = [f"- {p['name']} (~{p['dist']} m)" for p in places]
+            return f"{tipo.capitalize()} perto de você:\n" + "\n".join(lines)
+
+        def meus_locais() -> str:
+            """Lista os pontos de interesse que o usuário salvou no mapa da E.V."""
+            places = self._memory.list_places(user_id)
+            if not places:
+                return "você ainda não salvou nenhum ponto no mapa."
+            return "Seus pontos salvos: " + ", ".join(p["name"] for p in places)
 
         callables: dict = {
             "executar_comando": executar_comando,
@@ -649,6 +660,7 @@ class Brain:
             "sobre_pessoa": sobre_pessoa,
             "minha_localizacao": minha_localizacao,
             "locais_proximos": locais_proximos,
+            "meus_locais": meus_locais,
             "salvar_memoria": salvar_memoria,
             "listar_memorias": listar_memorias,
             "apagar_memoria": apagar_memoria,
@@ -781,10 +793,11 @@ class Brain:
             ),
             fn(
                 "locais_proximos",
-                "Sugere lugares de um tipo perto do usuário (link do Google Maps).",
+                "Lista lugares reais (nome + distância) de um tipo perto do usuário.",
                 {"tipo": {"type": s, "description": "ex: farmácia, mercado, restaurante"}},
                 ["tipo"],
             ),
+            fn("meus_locais", "Lista os pontos de interesse que o usuário salvou no mapa."),
             fn(
                 "criar_lembrete",
                 "Cria um lembrete para o usuário.",
