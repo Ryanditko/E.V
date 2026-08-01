@@ -1000,7 +1000,7 @@ async function switchThread(name){thread=name;localStorage.setItem('ev_thread',n
   loadFolders();log.textContent='';await loadHistory();}
 async function loadHistory(){try{const r=await fetch('/api/history?thread='+encodeURIComponent(thread),{headers:H()});const d=await r.json();
   if(!d.messages.length){sys('Pasta "'+thread+'" — comece a conversa.');return;}
-  d.messages.forEach(m=>m.role==='user'?you(m.content):ev(m.content));}catch(e){}}
+  d.messages.forEach(m=>m.role==='user'?youHistory(m.content):ev(m.content));}catch(e){}}
 $('#newf').onclick=()=>openForm('Nova pasta',[{key:'name',label:'Nome',placeholder:'ex: projetos'}],async v=>{
   const name=(v.name||'').toLowerCase().replace(/\s+/g,'-').replace(/\//g,'-');if(!name)return;
   await fetch('/api/threads',{method:'POST',headers:H(),body:JSON.stringify({name})});await switchThread(name);});
@@ -1482,6 +1482,18 @@ function startEvents(){try{if(_es)_es.close();
 }catch(e){}}
 // --- Batch C: image in chat, global search, undo ---
 function youImg(caption,url){const d=el('div','msg you');const img=document.createElement('img');img.className='msg-img';img.src=url;d.appendChild(img);if(caption){const c=el('div','',caption);c.style.marginTop='6px';d.appendChild(c);}log.appendChild(d);log.scrollTop=log.scrollHeight;}
+// render a persisted user message that may carry [img:ID] markers
+const IMGMARK=/\[img:(\d+)\]/g;
+function youHistory(content){const ids=[];let m;IMGMARK.lastIndex=0;while((m=IMGMARK.exec(content||'')))ids.push(m[1]);
+  if(!ids.length){you(content);return;}
+  let txt=(content||'').replace(IMGMARK,'').trim();if(txt==='O que há nesta imagem?')txt='';
+  const d=el('div','msg you');
+  ids.forEach(id=>{const img=document.createElement('img');img.className='msg-img';img.src='/api/chat/image?id='+id+'&k='+encodeURIComponent(token);d.appendChild(img);});
+  if(txt){const c=el('div','',txt);c.style.marginTop='6px';d.appendChild(c);}
+  log.appendChild(d);log.scrollTop=log.scrollHeight;}
+// paste an image straight from the clipboard (no need to save it first)
+window.addEventListener('paste',e=>{const items=(e.clipboardData&&e.clipboardData.items)||[];
+  for(const it of items){if(it.type&&it.type.indexOf('image/')===0){const f=it.getAsFile();if(f){setPendingImg(f);e.preventDefault();break;}}}});
 let _pendingImg=null;
 function setPendingImg(f){_pendingImg=f;const p=$('#imgprev');p.innerHTML='';if(!f){p.style.display='none';return;}
   const img=document.createElement('img');img.src=URL.createObjectURL(f);
@@ -2561,13 +2573,33 @@ def create_app(config: Config, brain: Brain | None = None):
             return {"reply": "Imagem vazia."}
         prompt = (form.get("text") or "").strip() or "O que há nesta imagem?"
         thread = (form.get("thread") or "geral").strip()
+        conv = _conv(thread)
         try:
             reply = await brain.respond(
-                owner, conv_id=_conv(thread), text=prompt,
+                owner, conv_id=conv, text=prompt,
                 image=data, image_mime=(f.content_type or "image/jpeg"))
         except Exception as exc:
             return {"reply": f"Não consegui analisar a imagem: {exc}"}
-        return {"reply": reply}
+        # keep the image in the conversation so it re-appears on reload
+        img_id = None
+        try:
+            img_id = memory.add_chat_image(conv, data, f.content_type or "image/png")
+            memory.mark_last_user_image(conv, img_id)
+        except Exception:
+            pass
+        return {"reply": reply, "img_id": img_id}
+
+    @app.get("/api/chat/image")
+    async def chat_image(request: Request):
+        tok = request.query_params.get("k", "")
+        if not config.web_token or not hmac.compare_digest(tok, config.web_token):
+            raise HTTPException(status_code=401, detail="unauthorized")
+        img = memory.get_chat_image(int(request.query_params.get("id") or 0))
+        if not img:
+            raise HTTPException(status_code=404, detail="não encontrada")
+        return Response(content=img["data"],
+                        media_type=img["mime"] or "image/png",
+                        headers={"Cache-Control": "private, max-age=86400"})
 
     @app.post("/api/receipt")
     async def receipt(request: Request):

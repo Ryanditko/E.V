@@ -317,3 +317,18 @@ def test_birthday_normalization(tmp_path):
     assert m._norm_bday("12/03/1998") == "1998-03-12"
     assert m._norm_bday("1998-03-12") == "1998-03-12"
     assert m._norm_bday("") == ""
+
+
+def test_chat_image_persistence(tmp_path):
+    from ev.core.memory import Memory
+    m = Memory(tmp_path / "t.db")
+    conv = "web:geral"
+    m.add_message(conv, "user", "O que há nesta imagem?")
+    m.add_message(conv, "model", "é um gato")
+    iid = m.add_chat_image(conv, b"\x89PNG-fake-bytes", "image/png")
+    m.mark_last_user_image(conv, iid)
+    got = m.get_chat_image(iid)
+    assert got and got["data"] == b"\x89PNG-fake-bytes" and got["mime"] == "image/png"
+    user = [x for x in m.recent_messages(conv, 10) if x["role"] == "user"][-1]
+    assert f"[img:{iid}]" in user["content"]
+    assert m.get_chat_image(999999) is None
