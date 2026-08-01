@@ -235,24 +235,30 @@ body.speaking .bigcore .r2{animation-delay:.15s}body.speaking .bigcore .r3{anima
 #cam-actions{position:absolute;bottom:40px;display:flex;gap:22px;align-items:center}
 #cam-x{position:absolute;top:20px;right:24px;font-family:var(--mono);font-size:12px;letter-spacing:.1em;color:var(--fg);background:rgba(0,0,0,.4);border:1px solid var(--line);border-radius:999px;padding:8px 14px;cursor:pointer;z-index:2}
 /* pomodoro focus overlay */
-#pomo{position:fixed;inset:0;z-index:24;background:radial-gradient(80% 60% at 50% 32%,#111,#050505 82%);display:none;flex-direction:column;align-items:center;justify-content:center;gap:20px}
+#pomo{position:fixed;inset:0;z-index:24;background:radial-gradient(90% 70% at 50% 28%,#0b1929,#04070c 78%);display:none;flex-direction:column;align-items:center;justify-content:center;gap:20px;overflow:hidden}
 #pomo.on{display:flex}
+#pomo::before{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(120,200,255,.045) 0 1px,transparent 1px 3px)}
+#pomo::after{content:"";position:absolute;inset:16px;border-radius:16px;pointer-events:none;box-shadow:inset 0 0 0 1px rgba(53,200,255,.12),inset 0 0 90px -55px var(--glow)}
+#pomo>*{position:relative;z-index:1}
 #pomo .bigcore{width:210px;height:210px}
 #pomo.run .bigcore .arc{animation-duration:2.4s}
 #pomo-timebox{display:flex;flex-direction:column;align-items:center;gap:6px}
-#pomo-time{font-family:var(--mono);font-weight:600;font-size:60px;letter-spacing:.02em;line-height:1}
-#pomo-label{font-family:var(--mono);font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--muted)}
+#pomo-time{font-family:var(--mono);font-weight:600;font-size:60px;letter-spacing:.02em;line-height:1;color:#eaf4fb;text-shadow:0 0 24px var(--glow)}
+#pomo-label{font-family:var(--mono);font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:#6fb0da;text-shadow:0 0 12px rgba(53,200,255,.3)}
 #pomo-ctl{display:flex;gap:10px;align-items:center}
 #pomo-ctl button{font-family:var(--mono);font-size:13px;color:var(--fg);background:var(--elev);border:1px solid var(--line);border-radius:10px;padding:11px 15px;cursor:pointer;transition:.15s}
-#pomo-ctl button:hover{border-color:var(--line-2)}
-#pomo-toggle{width:62px!important;height:62px;border-radius:50%!important;font-size:20px!important;background:var(--fg)!important;color:var(--ink)!important;border:none!important;display:grid;place-items:center}
+#pomo-ctl button:hover{border-color:var(--accent);color:var(--accent)}
+#pomo-toggle{width:64px!important;height:64px;border-radius:50%!important;background:radial-gradient(circle at 50% 35%,rgba(53,200,255,.18),var(--elev) 70%)!important;color:var(--accent)!important;border:1px solid var(--accent)!important;display:grid;place-items:center;box-shadow:0 0 30px -6px var(--glow),inset 0 0 20px -12px var(--glow)}
 #pomo-toggle svg{width:24px;height:24px}
 #pomo-presets{display:flex;gap:8px}
 #pomo-presets button{font-family:var(--mono);font-size:11px;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:8px 14px;cursor:pointer}
 #pomo-presets button:hover{color:var(--fg);border-color:var(--line-2)}
 #pomo-pip{margin-top:4px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:var(--muted);background:none;border:1px solid var(--line);border-radius:999px;padding:9px 16px;cursor:pointer}
 #pomo-pip:hover{color:var(--fg);border-color:var(--line-2)}
-#pomo-x{position:absolute;top:20px;right:24px;font-family:var(--mono);font-size:12px;letter-spacing:.1em;color:var(--muted);background:none;border:1px solid var(--line);border-radius:999px;padding:8px 14px;cursor:pointer}
+#pomo-x{position:absolute;top:20px;right:24px;z-index:2;font-family:var(--mono);font-size:12px;letter-spacing:.1em;color:var(--muted);background:rgba(4,7,12,.5);border:1px solid var(--line-2);border-radius:999px;padding:8px 14px;cursor:pointer}
+#pomo-x:hover{color:var(--accent);border-color:var(--accent)}
+#pomo-presets button:hover{color:var(--accent);border-color:var(--accent)}
+#pomo-pip:hover{color:var(--accent);border-color:var(--accent)}
 #login,#welcome{position:fixed;inset:0;z-index:50;background:radial-gradient(80% 60% at 50% 30%,#111,#050505 82%);display:none;flex-direction:column;align-items:center;justify-content:center;gap:22px}
 #login.on,#welcome.on{display:flex}
 #login-token{background:var(--surface);border:1px solid var(--line-2);border-radius:12px;padding:13px 18px;color:var(--fg);font:inherit;font-size:15px;width:min(320px,80vw);text-align:center;outline:none}
