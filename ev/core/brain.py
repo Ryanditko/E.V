@@ -654,6 +654,29 @@ class Brain:
                 return "você ainda não salvou nenhum ponto no mapa."
             return "Seus pontos salvos: " + ", ".join(p["name"] for p in places)
 
+        def salvar_local(nome: str, endereco: str = "") -> str:
+            """Salva um ponto de interesse no mapa do usuário (ex: Faculdade, Casa).
+            Se um endereço for dado, geocodifica; senão usa a localização atual.
+
+            Args:
+                nome: apelido do ponto (ex: 'Faculdade').
+                endereco: endereço/local a geocodificar (opcional).
+            """
+            if endereco.strip():
+                g = tools_mod.geocode(endereco)
+                if not g:
+                    return f"não achei o endereço '{endereco}'. Pode detalhar mais?"
+                lat, lng = g["lat"], g["lng"]
+            else:
+                slat = self._memory.get_setting("loc_lat")
+                slng = self._memory.get_setting("loc_lng")
+                if not (slat and slng):
+                    return ("me diz o endereço, ou abra o Mapa e toque em 'Onde estou' "
+                            "pra eu salvar na sua posição atual.")
+                lat, lng = float(slat), float(slng)
+            self._memory.add_place(user_id, nome, lat, lng)
+            return f"ponto '{nome}' salvo no seu mapa."
+
         callables: dict = {
             "executar_comando": executar_comando,
             "anotar_pessoa": anotar_pessoa,
@@ -661,6 +684,7 @@ class Brain:
             "minha_localizacao": minha_localizacao,
             "locais_proximos": locais_proximos,
             "meus_locais": meus_locais,
+            "salvar_local": salvar_local,
             "salvar_memoria": salvar_memoria,
             "listar_memorias": listar_memorias,
             "apagar_memoria": apagar_memoria,
@@ -798,6 +822,14 @@ class Brain:
                 ["tipo"],
             ),
             fn("meus_locais", "Lista os pontos de interesse que o usuário salvou no mapa."),
+            fn(
+                "salvar_local",
+                "Salva um ponto no mapa do usuário (ex: Faculdade). Com endereço, "
+                "geocodifica; sem, usa a localização atual.",
+                {"nome": {"type": s, "description": "apelido, ex 'Faculdade'"},
+                 "endereco": {"type": s, "description": "endereço a geocodificar (opcional)"}},
+                ["nome"],
+            ),
             fn(
                 "criar_lembrete",
                 "Cria um lembrete para o usuário.",
