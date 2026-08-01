@@ -184,9 +184,11 @@ class Config:
             embed_backend=os.getenv("EV_EMBED_BACKEND", "gemini").strip().lower(),
             owner_id=owner_id,
             voice_reply=_get_bool("EV_VOICE_REPLY", True),
-            # Multilingual pt-BR voice: base is Brazilian Portuguese, but it
-            # pronounces embedded foreign words (Spider-Man, deploy) correctly.
-            voice=os.getenv("EV_VOICE", "pt-BR-ThalitaMultilingualNeural").strip(),
+            # Fast standard pt-BR voice (~0.4-1.2s synth). The multilingual voice
+            # (pt-BR-ThalitaMultilingualNeural) pronounces foreign words better but
+            # is ~6-8s per reply — too slow for a voice assistant. Override with
+            # EV_VOICE if you prefer that accuracy over speed.
+            voice=os.getenv("EV_VOICE", "pt-BR-FranciscaNeural").strip(),
             voice_rate=os.getenv("EV_VOICE_RATE", "+0%").strip(),
             voice_pitch=os.getenv("EV_VOICE_PITCH", "+0Hz").strip(),
             voice_fixes=tuple(
