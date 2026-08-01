@@ -245,6 +245,14 @@ class Memory:
                 birthday TEXT,   -- 'MM-DD' or 'YYYY-MM-DD'
                 created  TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS chat_images (
+                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                conv_id  TEXT NOT NULL,
+                mime     TEXT,
+                data     BLOB NOT NULL,
+                created  TEXT NOT NULL
+            );
             """
         )
         # Migrations for older DBs.
@@ -455,6 +463,41 @@ class Memory:
             if b and b[-5:] == mmdd:
                 out.append(p)
         return out
+
+    # --- chat images (pasted/sent images kept in the conversation) ---------
+
+    def add_chat_image(self, conv_id: str, data: bytes, mime: str = "image/png") -> int:
+        cur = self._conn.execute(
+            "INSERT INTO chat_images (conv_id, mime, data, created) VALUES (?, ?, ?, ?)",
+            (conv_id, mime or "image/png", sqlite3.Binary(data), self._now()),
+        )
+        # bound the store — keep only the newest 80 images overall
+        self._conn.execute(
+            "DELETE FROM chat_images WHERE id NOT IN "
+            "(SELECT id FROM chat_images ORDER BY id DESC LIMIT 80)")
+        self._conn.commit()
+        return int(cur.lastrowid)
+
+    def get_chat_image(self, image_id: int) -> dict | None:
+        row = self._conn.execute(
+            "SELECT mime, data FROM chat_images WHERE id = ?", (image_id,)).fetchone()
+        return {"mime": row["mime"], "data": bytes(row["data"])} if row else None
+
+    def mark_last_user_image(self, conv_id: str, image_id: int) -> None:
+        """Embed an [img:id] marker in the most recent user message so the image
+        can be re-rendered when the conversation is reloaded. (The messages table
+        stores the conversation id in the user_id column.)"""
+        row = self._conn.execute(
+            "SELECT id, content FROM messages WHERE user_id = ? AND role = 'user' "
+            "ORDER BY id DESC LIMIT 1", (conv_id,)).fetchone()
+        if not row:
+            return
+        content = (row["content"] or "").strip()
+        marker = f"[img:{image_id}]"
+        content = marker if content in ("", "[imagem]") else f"{content}\n{marker}"
+        self._conn.execute(
+            "UPDATE messages SET content = ? WHERE id = ?", (content, row["id"]))
+        self._conn.commit()
         self._conn.commit()
 
     def activity_categories(self, user_id: str) -> list[str]:
