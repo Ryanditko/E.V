@@ -143,8 +143,8 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:6;back
 /* Firefox/Zen: só o blur (backdrop-filter) e o blend travam — desligo esses e
    MANTENHO as animações holográficas (pulso do grid + barra de scan), que são baratas. */
 .ff #left,.ff #right{-webkit-backdrop-filter:none;backdrop-filter:none;background:rgba(8,15,26,.94)}
+/* só tira o blur das bolhas — mantém o degradê translúcido + borda que brilha (holográfico) */
 .ff .msg.ev,.ff #map-results,.ff #map-route{-webkit-backdrop-filter:none;backdrop-filter:none}
-.ff .msg.ev{background:var(--elev)}
 .ff #map-results{background:rgba(6,12,20,.96)}.ff #map-route{background:rgba(6,12,20,.96)}
 .ff body::after{mix-blend-mode:normal;opacity:.4}
 .rail{display:flex;flex-direction:column;min-height:0}
