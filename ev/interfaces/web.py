@@ -76,9 +76,9 @@ def _icon_png(size: int) -> bytes:
     d.rounded_rectangle([0, 0, size - 1, size - 1], radius=int(size * 0.22),
                         fill=(10, 10, 10, 255))
     cx = cy = size / 2
-    fg = (244, 243, 241)
+    fg = (53, 200, 255)
     w = max(2, size // 34)
-    for rr, alpha in [(0.33, 150), (0.20, 235)]:
+    for rr, alpha in [(0.33, 71), (0.20, 140)]:
         rad = size * rr
         d.ellipse([cx - rad, cy - rad, cx + rad, cy + rad], outline=fg + (alpha,), width=w)
     dot = size * 0.075
@@ -184,6 +184,11 @@ body.speaking .core .dot{animation:pulse .6s infinite}
 #vc-viz{position:absolute;width:480px;height:480px;max-width:92vw;max-height:92vw;pointer-events:none;opacity:0;transition:opacity .35s;filter:drop-shadow(0 0 14px var(--glow))}
 .bigcore{width:220px;height:220px;position:relative;z-index:1}
 #mapview{display:none;padding:22px;overflow:auto}
+#brainview{display:none;padding:22px;overflow:hidden;flex-direction:column;min-height:0;height:100%}
+#brain-wrap{position:relative;flex:1;min-height:400px;margin-top:10px;border:1px solid var(--line-2);border-radius:13px;overflow:hidden;box-shadow:0 0 40px -24px var(--glow);background:radial-gradient(120% 100% at 50% 0%,rgba(53,200,255,.05),transparent 60%)}
+#brain-canvas{position:absolute;inset:0;width:100%;height:100%;cursor:grab}
+#brain-canvas.dragging{cursor:grabbing}
+#brain-tip{position:absolute;pointer-events:none;display:none;max-width:240px;padding:7px 10px;border-radius:9px;background:var(--elev);border:1px solid var(--line-2);color:var(--fg);font-size:12px;font-family:var(--body);box-shadow:0 8px 24px -12px rgba(0,0,0,.6);z-index:2}
 #map-wrap{position:relative;height:calc(100vh - 300px);min-height:400px}
 #map{position:absolute;inset:0;border:1px solid var(--line-2);border-radius:13px;overflow:hidden;box-shadow:0 0 40px -24px var(--glow)}
 #map .leaflet-container{background:#04070c;font-family:var(--body)}
@@ -507,7 +512,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
   body.m-left #mbackdrop,body.m-right #mbackdrop{display:block;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:55}
   .topbar{padding:11px 12px;gap:5px}
   #slash{left:14px;right:14px}
-  #taskview,#kbview,#expview,#remview,#memview,#calview,#lnkview,#habview,#jouview,#subview,#orcview,#monview,#actview{padding:16px 14px}
+  #taskview,#kbview,#expview,#remview,#memview,#calview,#lnkview,#habview,#jouview,#subview,#orcview,#monview,#actview,#brainview{padding:16px 14px}
   #log{padding:14px 14px}
   .msg{max-width:92%!important}
   #calgrid{gap:3px}.cal-cell{min-height:62px;padding:4px}
@@ -540,7 +545,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
     <div class="topbar">
       <button class="tbtn ico" id="tgl-left" title="Ocultar/mostrar pastas"><i data-lucide="panel-left"></i></button>
       <div class="tabs" id="tabs"></div>
-      <select id="mnav" class="mnav" title="Ir para"><option value="chat">Conversa</option><option value="tasks">Tarefas</option><option value="exp">Gastos</option><option value="rem">Lembretes</option><option value="cal">Agenda</option><option value="mem">Memórias</option><option value="lnk">Links</option><option value="hab">Hábitos</option><option value="jou">Diário</option><option value="sub">Assinaturas</option><option value="orc">Orçamentos</option><option value="mon">Monitores</option><option value="act">Histórico</option><option value="kb">Base</option><option value="map">Mapa</option></select>
+      <select id="mnav" class="mnav" title="Ir para"><option value="chat">Conversa</option><option value="tasks">Tarefas</option><option value="exp">Gastos</option><option value="rem">Lembretes</option><option value="cal">Agenda</option><option value="mem">Memórias</option><option value="lnk">Links</option><option value="hab">Hábitos</option><option value="jou">Diário</option><option value="sub">Assinaturas</option><option value="orc">Orçamentos</option><option value="mon">Monitores</option><option value="act">Histórico</option><option value="kb">Base</option><option value="map">Mapa</option><option value="brain">Cérebro</option></select>
       <span class="eyebrow" id="scope">geral</span>
       <button class="tbtn ico" id="gsearch" title="Buscar em tudo"><i data-lucide="search"></i></button>
       <button class="tbtn ic-txt" id="vcopen" title="Falar"><i data-lucide="mic"></i><span>FALAR</span></button>
@@ -673,6 +678,17 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
         <button class="mchip" id="plan-go" type="button"><i data-lucide="clock"></i>Ver tempo</button>
       </div>
       <div id="map-wrap"><div id="map"></div><div id="map-results"></div><div id="map-route"></div></div>
+    </div>
+    <div id="brainview">
+      <div class="tv-h">Cérebro · tudo que a E.V. sabe</div>
+      <div class="tv-form" style="align-items:center;gap:10px">
+        <span class="eyebrow" id="brain-count" style="margin:0"></span>
+        <button class="mchip" id="brain-reset" type="button"><i data-lucide="focus"></i>Centralizar</button>
+      </div>
+      <div id="brain-wrap">
+        <canvas id="brain-canvas"></canvas>
+        <div id="brain-tip"></div>
+      </div>
     </div>
   </main>
   <aside id="right" class="rail">
@@ -1194,20 +1210,20 @@ $('#vc-cont').onclick=()=>{if(!SR){vcTxt.textContent='Mãos-livres precisa do Ch
   if(_hf){stopHF();setState();}else{_hf=true;if(startHF()){vcTxt.textContent='Modo mãos-livres ligado. É só dizer: "E.V., ..."';setState('listening');}else{_hf=false;}}renderHFBtn();};
 renderHFBtn();
 // view tabs — customizable: pick which appear in the header (minimalist)
-const VIEW_LABELS={chat:'Conversa',tasks:'Tarefas',exp:'Gastos',rem:'Lembretes',cal:'Agenda',mem:'Memórias',lnk:'Links',hab:'Hábitos',jou:'Diário',sub:'Assinaturas',orc:'Orçamentos',mon:'Monitores',act:'Histórico',kb:'Base',map:'Mapa'};
+const VIEW_LABELS={chat:'Conversa',tasks:'Tarefas',exp:'Gastos',rem:'Lembretes',cal:'Agenda',mem:'Memórias',lnk:'Links',hab:'Hábitos',jou:'Diário',sub:'Assinaturas',orc:'Orçamentos',mon:'Monitores',act:'Histórico',kb:'Base',map:'Mapa',brain:'Cérebro'};
 let curView='chat',tabsShown;try{tabsShown=JSON.parse(localStorage.getItem('ev_tabs'));}catch(e){}
-if(!Array.isArray(tabsShown)||!tabsShown.length)tabsShown=['chat','tasks','exp','rem','cal'];
+if(!Array.isArray(tabsShown)||!tabsShown.length)tabsShown=['chat','tasks','exp','rem','cal','brain'];
 function renderTabs(){const box=$('#tabs');if(!box)return;box.textContent='';
   tabsShown.forEach(v=>{if(!VIEW_LABELS[v])return;const b=el('button','tab'+(v===curView?' on':''),VIEW_LABELS[v]);b.dataset.view=v;b.onclick=()=>switchView(v);box.appendChild(b);});
   const ed=el('button','tab tab-edit','+');ed.title='Escolher abas';ed.onclick=()=>openPicker('Abas do topo','Escolha quais abas aparecem no topo.',Object.keys(VIEW_LABELS).map(k=>({key:k,label:VIEW_LABELS[k]})),tabsShown,l=>{tabsShown=l.length?l:['chat'];localStorage.setItem('ev_tabs',JSON.stringify(tabsShown));renderTabs();});box.appendChild(ed);}
 renderTabs();
 $('#mnav').onchange=()=>switchView($('#mnav').value);
-const VIEWS={chat:'#chatview',tasks:'#taskview',exp:'#expview',rem:'#remview',cal:'#calview',mem:'#memview',lnk:'#lnkview',hab:'#habview',jou:'#jouview',sub:'#subview',orc:'#orcview',mon:'#monview',kb:'#kbview',act:'#actview',map:'#mapview'};
+const VIEWS={chat:'#chatview',tasks:'#taskview',exp:'#expview',rem:'#remview',cal:'#calview',mem:'#memview',lnk:'#lnkview',hab:'#habview',jou:'#jouview',sub:'#subview',orc:'#orcview',mon:'#monview',kb:'#kbview',act:'#actview',map:'#mapview',brain:'#brainview'};
 function switchView(v){if(!VIEWS[v])v='chat';curView=v;document.querySelectorAll('#tabs .tab').forEach(t=>t.classList.toggle('on',t.dataset.view===v));
   const mn=$('#mnav');if(mn&&mn.value!==v)mn.value=v;
   document.body.classList.remove('m-left','m-right');
-  Object.entries(VIEWS).forEach(([k,sel])=>{const el2=$(sel);if(el2)el2.style.display=(k===v)?(k==='chat'?'flex':'block'):'none';});
-  ({tasks:loadTasks,exp:loadExp,rem:loadRem,mem:loadMem,kb:loadKB,cal:loadCal,lnk:loadLinks,hab:loadHabits,jou:loadJournal,sub:loadSub,orc:loadOrc,mon:loadMon,act:loadAct,map:loadMap}[v]||function(){})();}
+  Object.entries(VIEWS).forEach(([k,sel])=>{const el2=$(sel);if(el2)el2.style.display=(k===v)?((k==='chat'||k==='brain')?'flex':'block'):'none';});
+  ({tasks:loadTasks,exp:loadExp,rem:loadRem,mem:loadMem,kb:loadKB,cal:loadCal,lnk:loadLinks,hab:loadHabits,jou:loadJournal,sub:loadSub,orc:loadOrc,mon:loadMon,act:loadAct,map:loadMap,brain:loadBrain}[v]||function(){})();}
 // --- Mapa + localização (Leaflet + OSM; lugares e pontos dentro da própria E.V.) ---
 let _map=null,_marker=null,_loc=null,_nearLayer=null,_savedLayer=null,_addMode=false,_pendingNear=null;
 const MAP_CHIPS=[['Onde estou','locate-fixed'],['Metrô','tram-front'],['Trem','train-front'],['Ônibus','bus'],['Farmácia','pill'],['Mercado','shopping-cart'],['Restaurante','utensils'],['Padaria','croissant'],['Café','coffee'],['Posto','fuel'],['Banco','landmark'],['Hospital','cross'],['Academia','dumbbell']];
@@ -1616,7 +1632,7 @@ function filterRows(box,q){if(!box)return;q=(q||'').trim().toLowerCase();let cur
 [['tasks-search','tasklist'],['exp-search','explist'],['rem-search','remlist'],['mem-search','memlist'],['kb-search','kblist'],['lnk-search','lnklist'],['hab-search','hablist'],['jou-search','joulist'],['sub-search','sublist'],['orc-search','orclist'],['mon-search','monlist'],['act-search','actlist']].forEach(p=>{const inp=document.getElementById(p[0]);if(inp)inp.oninput=()=>filterRows(document.getElementById(p[1]),inp.value);});
 // command palette (Ctrl/Cmd+K)
 const CK=$('#cmdk'),CKI=$('#ck-input'),CKL=$('#ck-list');let ckItems=[],ckSel=0;
-function ckBuild(){const nav=[['Conversa',()=>switchView('chat')],['Tarefas',()=>switchView('tasks')],['Gastos',()=>switchView('exp')],['Lembretes',()=>switchView('rem')],['Agenda',()=>switchView('cal')],['Memórias',()=>switchView('mem')],['Links',()=>switchView('lnk')],['Hábitos',()=>switchView('hab')],['Diário',()=>switchView('jou')],['Assinaturas',()=>switchView('sub')],['Orçamentos',()=>switchView('orc')],['Monitores',()=>switchView('mon')],['Base',()=>switchView('kb')],['Pomodoro',()=>openPomo(25)],['Voz ao vivo',()=>$('#vcopen').click()],['Chaves de API',()=>openKeys()]];
+function ckBuild(){const nav=[['Conversa',()=>switchView('chat')],['Tarefas',()=>switchView('tasks')],['Gastos',()=>switchView('exp')],['Lembretes',()=>switchView('rem')],['Agenda',()=>switchView('cal')],['Memórias',()=>switchView('mem')],['Links',()=>switchView('lnk')],['Hábitos',()=>switchView('hab')],['Diário',()=>switchView('jou')],['Assinaturas',()=>switchView('sub')],['Orçamentos',()=>switchView('orc')],['Monitores',()=>switchView('mon')],['Base',()=>switchView('kb')],['Cérebro',()=>switchView('brain')],['Pomodoro',()=>openPomo(25)],['Voz ao vivo',()=>$('#vcopen').click()],['Chaves de API',()=>openKeys()]];
   return nav.map(n=>({k:'ir',label:n[0],desc:'abrir',run:n[1]})).concat((COMMANDS||[]).map(c=>({k:'/'+c.name,label:c.name,desc:c.desc,run:()=>runCmd(c.name)})));}
 function ckRender(q){ckItems=ckBuild().filter(i=>(i.label+' '+i.k+' '+i.desc).toLowerCase().includes((q||'').toLowerCase())).slice(0,40);ckSel=0;CKL.textContent='';
   ckItems.forEach((i,ix)=>{const r=el('div','ck-item'+(ix===0?' sel':''));r.appendChild(el('span','ck-k',i.k));r.appendChild(el('span','',i.label));r.appendChild(el('span','ck-d',i.desc||''));r.onclick=()=>{ckClose();i.run();};CKL.appendChild(r);});}
@@ -1633,6 +1649,110 @@ async function validate(tok){try{return (await fetch('/api/panel',{headers:{'Aut
 function welcome(){$('#welcome-txt').textContent=GREETING;$('#welcome').classList.add('on');window.lucide&&lucide.createIcons();
   fetch('/api/greeting',{headers:H()}).then(r=>r.ok?r.blob():null).then(b=>{if(b&&b.size>0)new Audio(URL.createObjectURL(b)).play().catch(()=>{});}).catch(()=>{});
   setTimeout(()=>$('#welcome').classList.remove('on'),3200);}
+// --- Cérebro: grafo interativo (força) com tudo que a E.V. sabe, estilo Obsidian ---
+const BRAIN_COLORS={core:'#f4f3f1',mem:'#35c8ff',tasks:'#5ee6a3',rem:'#ffb35e',people:'#ff6ec7',links:'#8f7bff',kb:'#ffe066',hab:'#4dd0e1',jou:'#ff8a65',sub:'#c792ea',orc:'#82e0aa',mon:'#ef5350',places:'#64b5f6'};
+let brainNodes=[],brainLinks=[],brainLoaded=false,brainRAF=null,brainAlpha=1;
+let brainScale=1,brainOffX=0,brainOffY=0,brainDrag=null,brainPan=null,brainMoved=false,brainHoverId=null;
+function brainMouse(e){const cv=$('#brain-canvas');const r=cv.getBoundingClientRect();return{mx:e.clientX-r.left,my:e.clientY-r.top};}
+function brainToWorld(mx,my){const cv=$('#brain-canvas');const w=cv.width,h=cv.height;
+  return{x:(mx*devicePixelRatio-w/2-brainOffX*devicePixelRatio)/(brainScale*devicePixelRatio),
+         y:(my*devicePixelRatio-h/2-brainOffY*devicePixelRatio)/(brainScale*devicePixelRatio)};}
+function brainNodeAt(mx,my){const {x,y}=brainToWorld(mx,my);let best=null,bd=1e9;
+  brainNodes.forEach(node=>{const r=Math.sqrt(node.val)*2.4+5;const d=(node.x-x)**2+(node.y-y)**2;if(d<r*r&&d<bd){bd=d;best=node;}});
+  return best;}
+function resizeBrainCanvas(){const cv=$('#brain-canvas');if(!cv)return;const r=cv.parentElement.getBoundingClientRect();
+  cv.width=Math.max(1,Math.round(r.width*devicePixelRatio));cv.height=Math.max(1,Math.round(r.height*devicePixelRatio));
+  cv.style.width=r.width+'px';cv.style.height=r.height+'px';}
+window.addEventListener('resize',()=>{if(curView==='brain'){resizeBrainCanvas();brainDraw();}});
+async function loadBrain(){
+  const cv=$('#brain-canvas');if(!cv)return;
+  resizeBrainCanvas();
+  if(!brainLoaded){
+    try{
+      const d=await (await fetch('/api/brain',{headers:H()})).json();
+      const idx={};
+      brainNodes=(d.nodes||[]).map(n=>{const o=Object.assign({},n,{x:(Math.random()-0.5)*320,y:(Math.random()-0.5)*320,vx:0,vy:0});idx[n.id]=o;return o;});
+      brainLinks=(d.links||[]).map(l=>({source:idx[l.source],target:idx[l.target]})).filter(l=>l.source&&l.target);
+      brainLoaded=true;
+      const cnt=$('#brain-count');if(cnt)cnt.textContent=Math.max(0,brainNodes.length-1)+' pontos · '+brainLinks.length+' conexões';
+    }catch(e){return;}
+  }
+  brainAlpha=1;
+  if(!brainRAF)brainTick();
+}
+function brainStep(){
+  const n=brainNodes.length;if(!n)return;
+  for(let i=0;i<n;i++){const a=brainNodes[i];
+    for(let j=i+1;j<n;j++){const b=brainNodes[j];
+      let dx=a.x-b.x,dy=a.y-b.y,d2=dx*dx+dy*dy;if(d2<1)d2=1;
+      const d=Math.sqrt(d2),force=850/d2,fx=dx/d*force,fy=dy/d*force;
+      a.vx+=fx;a.vy+=fy;b.vx-=fx;b.vy-=fy;}}
+  brainLinks.forEach(l=>{const a=l.source,b=l.target,dx=b.x-a.x,dy=b.y-a.y,d=Math.sqrt(dx*dx+dy*dy)||0.01;
+    const target=(a.group==='core'||b.group==='core')?115:((a.val>=12||b.val>=12)?68:34);
+    const force=(d-target)*0.02,fx=dx/d*force,fy=dy/d*force;
+    a.vx+=fx;a.vy+=fy;b.vx-=fx;b.vy-=fy;});
+  brainNodes.forEach(node=>{if(node===brainDrag)return;
+    node.vx-=node.x*0.005;node.vy-=node.y*0.005;node.vx*=0.8;node.vy*=0.8;
+    node.x+=node.vx*brainAlpha;node.y+=node.vy*brainAlpha;});
+  brainAlpha=Math.max(0.015,brainAlpha*0.99);
+}
+function brainDraw(){
+  const cv=$('#brain-canvas');if(!cv)return;const ctx=cv.getContext('2d');
+  ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.save();ctx.translate(cv.width/2+brainOffX*devicePixelRatio,cv.height/2+brainOffY*devicePixelRatio);
+  ctx.scale(brainScale*devicePixelRatio,brainScale*devicePixelRatio);
+  ctx.lineWidth=1/brainScale;
+  brainLinks.forEach(l=>{const hi=brainHoverId&&(l.source.id===brainHoverId||l.target.id===brainHoverId);
+    ctx.strokeStyle=hi?'rgba(53,200,255,.7)':'rgba(125,147,170,.16)';
+    ctx.beginPath();ctx.moveTo(l.source.x,l.source.y);ctx.lineTo(l.target.x,l.target.y);ctx.stroke();});
+  brainNodes.forEach(node=>{const r=Math.sqrt(node.val)*2.4,hi=node.id===brainHoverId;
+    ctx.beginPath();ctx.arc(node.x,node.y,hi?r+2:r,0,Math.PI*2);
+    ctx.fillStyle=BRAIN_COLORS[node.group]||'#7d93aa';ctx.globalAlpha=hi?1:.88;ctx.fill();ctx.globalAlpha=1;
+    if(hi){ctx.lineWidth=2/brainScale;ctx.strokeStyle='#fff';ctx.stroke();}
+    if(node.val>=12||brainScale>1.5){ctx.fillStyle='rgba(214,233,251,.9)';ctx.font=(11/brainScale)+'px Inter, sans-serif';
+      ctx.fillText(node.label,node.x+r+4,node.y+3);}});
+  ctx.restore();
+}
+function brainTick(){brainStep();brainDraw();
+  if(brainAlpha>0.016||brainDrag||brainPan){brainRAF=requestAnimationFrame(brainTick);}else{brainRAF=null;}}
+(function initBrainCanvas(){
+  const cv=$('#brain-canvas');if(!cv)return;
+  cv.addEventListener('pointerdown',e=>{
+    const {mx,my}=brainMouse(e);const node=brainNodeAt(mx,my);
+    brainMoved=false;cv.setPointerCapture(e.pointerId);
+    if(node&&node.group!=='core'){brainDrag=node;cv.classList.add('dragging');brainAlpha=Math.max(brainAlpha,0.3);if(!brainRAF)brainTick();}
+    else{brainPan={x:e.clientX,y:e.clientY,offX:brainOffX,offY:brainOffY};cv.classList.add('dragging');}
+  });
+  cv.addEventListener('pointermove',e=>{
+    const {mx,my}=brainMouse(e);
+    if(brainDrag){brainMoved=true;const w=brainToWorld(mx,my);brainDrag.x=w.x;brainDrag.y=w.y;brainDrag.vx=0;brainDrag.vy=0;return;}
+    if(brainPan){const dx=e.clientX-brainPan.x,dy=e.clientY-brainPan.y;if(Math.abs(dx)+Math.abs(dy)>3)brainMoved=true;
+      brainOffX=brainPan.offX+dx;brainOffY=brainPan.offY+dy;brainDraw();return;}
+    if(curView!=='brain')return;
+    const node=brainNodeAt(mx,my);brainHoverId=node?node.id:null;cv.style.cursor=node?'pointer':'grab';
+    const tip=$('#brain-tip');
+    if(node){tip.style.display='block';tip.style.left=(mx+14)+'px';tip.style.top=(my+10)+'px';tip.textContent=node.label;}
+    else if(tip)tip.style.display='none';
+    brainDraw();
+  });
+  function endPointer(){brainDrag=null;brainPan=null;cv.classList.remove('dragging');}
+  cv.addEventListener('pointerup',endPointer);
+  cv.addEventListener('pointercancel',endPointer);
+  cv.addEventListener('click',e=>{
+    if(brainMoved){brainMoved=false;return;}
+    const {mx,my}=brainMouse(e);const node=brainNodeAt(mx,my);
+    if(node&&node.view)switchView(node.view);
+  });
+  cv.addEventListener('wheel',e=>{e.preventDefault();
+    const {mx,my}=brainMouse(e);const before=brainScale;
+    brainScale=Math.min(3,Math.max(0.35,brainScale*(e.deltaY<0?1.1:0.9)));
+    brainOffX-=(mx-cv.clientWidth/2-brainOffX)*(brainScale/before-1);
+    brainOffY-=(my-cv.clientHeight/2-brainOffY)*(brainScale/before-1);
+    brainDraw();
+  },{passive:false});
+})();
+document.getElementById('brain-reset')?.addEventListener('click',()=>{
+  brainScale=1;brainOffX=0;brainOffY=0;brainAlpha=Math.max(brainAlpha,0.6);if(!brainRAF)brainTick();});
 // --- PWA + notifications + live sync (Lote A) ---
 async function initPWA(){
   try{if('serviceWorker' in navigator)await navigator.serviceWorker.register('/sw.js');}catch(e){}
@@ -2744,6 +2864,50 @@ def create_app(config: Config, brain: Brain | None = None):
             "provider": prov,
             "model": model,
         }
+
+    # groups shown in the "brain" graph: (key, hub label, view to jump to on
+    # click, items, text-getter). Capped per group below so a heavy user's DB
+    # still renders a smooth graph.
+    @app.get("/api/brain")
+    async def brain_graph(request: Request):
+        _check(request.headers.get("authorization"))
+        groups = [
+            ("mem", "Memórias", "mem", memory.list_facts(owner), lambda r: r["fact"]),
+            ("tasks", "Tarefas", "tasks", memory.open_tasks(owner), lambda r: r["text"]),
+            ("rem", "Lembretes", "rem", memory.open_reminders(owner), lambda r: r["text"]),
+            ("people", "Pessoas", "chat", memory.list_people(owner), lambda r: r["name"]),
+            ("links", "Links", "lnk", memory.list_links(owner), lambda r: r["name"]),
+            ("kb", "Base", "kb", memory.list_sources(owner), lambda r: r["source"]),
+            ("hab", "Hábitos", "hab", memory.list_habits(owner), lambda r: r["name"]),
+            ("jou", "Diário", "jou", memory.recent_journal(owner, 40), lambda r: r["text"]),
+            ("sub", "Assinaturas", "sub", memory.list_recurring(owner), lambda r: r["description"]),
+            ("orc", "Orçamentos", "orc", memory.list_budgets(owner), lambda r: r["category"]),
+            ("mon", "Monitores", "mon", memory.list_watches(owner), lambda r: r["url"]),
+            ("places", "Lugares", "map", memory.list_places(owner), lambda r: r["name"]),
+        ]
+        nodes = [{"id": "core", "label": "E.V.", "group": "core", "val": 22, "view": "chat"}]
+        edges = []
+        CAP = 40
+        for key, label, view, items, textfn in groups:
+            if not items:
+                continue
+            hub = f"g:{key}"
+            nodes.append({"id": hub, "label": label, "group": key, "val": 12, "view": view})
+            edges.append({"source": "core", "target": hub})
+            for i, item in enumerate(items[:CAP]):
+                nid = f"{key}:{item.get('id', i)}"
+                txt = (textfn(item) or "").strip().replace("\n", " ")
+                nodes.append({
+                    "id": nid, "label": (txt[:60] or "—"), "group": key, "val": 4, "view": view,
+                })
+                edges.append({"source": hub, "target": nid})
+            extra = len(items) - CAP
+            if extra > 0:
+                more_id = f"{key}:more"
+                nodes.append({"id": more_id, "label": f"+{extra} mais", "group": key,
+                              "val": 5, "view": view})
+                edges.append({"source": hub, "target": more_id})
+        return {"nodes": nodes, "links": edges}
 
     @app.post("/api/tts")
     async def tts(request: Request):
