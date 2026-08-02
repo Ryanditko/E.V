@@ -185,10 +185,18 @@ body.speaking .core .dot{animation:pulse .6s infinite}
 .bigcore{width:220px;height:220px;position:relative;z-index:1}
 #mapview{display:none;padding:22px;overflow:auto}
 #brainview{display:none;padding:22px;overflow:hidden;flex-direction:column;min-height:0;height:100%}
-#brain-wrap{position:relative;flex:1;min-height:400px;margin-top:10px;border:1px solid var(--line-2);border-radius:13px;overflow:hidden;box-shadow:0 0 40px -24px var(--glow);background:radial-gradient(120% 100% at 50% 0%,rgba(53,200,255,.05),transparent 60%)}
-#brain-canvas{position:absolute;inset:0;width:100%;height:100%;cursor:grab}
+#brain-wrap{position:relative;flex:1;min-height:400px;margin-top:10px;border:1px solid var(--line-2);border-radius:13px;overflow:hidden;box-shadow:0 0 60px -20px var(--glow),inset 0 0 60px -20px var(--glow);background:radial-gradient(120% 100% at 50% 0%,rgba(53,200,255,.08),transparent 60%),radial-gradient(90% 90% at 50% 100%,rgba(53,200,255,.05),transparent 70%),#03070a}
+#brain-canvas{position:absolute;inset:0;width:100%;height:100%;cursor:grab;z-index:0}
 #brain-canvas.dragging{cursor:grabbing}
-#brain-tip{position:absolute;pointer-events:none;display:none;max-width:240px;padding:7px 10px;border-radius:9px;background:var(--elev);border:1px solid var(--line-2);color:var(--fg);font-size:12px;font-family:var(--body);box-shadow:0 8px 24px -12px rgba(0,0,0,.6);z-index:2}
+#brain-wrap::before{content:"";position:absolute;inset:0;pointer-events:none;z-index:1;background:repeating-linear-gradient(0deg,rgba(120,200,255,.05) 0 1px,transparent 1px 3px);mix-blend-mode:screen;opacity:.5}
+#brain-wrap::after{content:"";position:absolute;left:50%;top:50%;width:150%;padding-top:150%;margin-left:-75%;margin-top:-75%;pointer-events:none;z-index:1;background:conic-gradient(from 0deg,transparent 0 91%,rgba(53,200,255,.22) 98%,transparent 100%);animation:brainsweep 6s linear infinite;mix-blend-mode:screen;opacity:.8}
+@keyframes brainsweep{to{transform:rotate(360deg)}}
+.brain-corner{position:absolute;width:26px;height:26px;border:2px solid var(--accent);opacity:.5;pointer-events:none;z-index:2;filter:drop-shadow(0 0 6px var(--glow))}
+.brain-corner.tl{top:10px;left:10px;border-right:none;border-bottom:none;border-radius:6px 0 0 0}
+.brain-corner.tr{top:10px;right:10px;border-left:none;border-bottom:none;border-radius:0 6px 0 0}
+.brain-corner.bl{bottom:10px;left:10px;border-right:none;border-top:none;border-radius:0 0 0 6px}
+.brain-corner.br{bottom:10px;right:10px;border-left:none;border-top:none;border-radius:0 0 6px 0}
+#brain-tip{position:absolute;pointer-events:none;display:none;max-width:240px;padding:7px 10px;border-radius:9px;background:var(--elev);border:1px solid var(--accent);color:var(--fg);font-size:12px;font-family:var(--body);box-shadow:0 0 20px -4px var(--glow),0 8px 24px -12px rgba(0,0,0,.6);z-index:3}
 #map-wrap{position:relative;height:calc(100vh - 300px);min-height:400px}
 #map{position:absolute;inset:0;border:1px solid var(--line-2);border-radius:13px;overflow:hidden;box-shadow:0 0 40px -24px var(--glow)}
 #map .leaflet-container{background:#04070c;font-family:var(--body)}
@@ -687,6 +695,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
       </div>
       <div id="brain-wrap">
         <canvas id="brain-canvas"></canvas>
+        <span class="brain-corner tl"></span><span class="brain-corner tr"></span><span class="brain-corner bl"></span><span class="brain-corner br"></span>
         <div id="brain-tip"></div>
       </div>
     </div>
@@ -1678,7 +1687,7 @@ async function loadBrain(){
     }catch(e){return;}
   }
   brainAlpha=1;
-  if(!brainRAF)brainTick();
+  if(!brainRAF)brainRAF=requestAnimationFrame(brainTick);
 }
 function brainStep(){
   const n=brainNodes.length;if(!n)return;
@@ -1696,31 +1705,52 @@ function brainStep(){
     node.x+=node.vx*brainAlpha;node.y+=node.vy*brainAlpha;});
   brainAlpha=Math.max(0.015,brainAlpha*0.99);
 }
-function brainDraw(){
+function brainDraw(t){
+  t=t||0;
   const cv=$('#brain-canvas');if(!cv)return;const ctx=cv.getContext('2d');
+  const reduced=window.matchMedia&&window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  const pulse=reduced?0:0.5+0.5*Math.sin(t*2);
   ctx.clearRect(0,0,cv.width,cv.height);
   ctx.save();ctx.translate(cv.width/2+brainOffX*devicePixelRatio,cv.height/2+brainOffY*devicePixelRatio);
   ctx.scale(brainScale*devicePixelRatio,brainScale*devicePixelRatio);
   ctx.lineWidth=1/brainScale;
   brainLinks.forEach(l=>{const hi=brainHoverId&&(l.source.id===brainHoverId||l.target.id===brainHoverId);
-    ctx.strokeStyle=hi?'rgba(53,200,255,.7)':'rgba(125,147,170,.16)';
-    ctx.beginPath();ctx.moveTo(l.source.x,l.source.y);ctx.lineTo(l.target.x,l.target.y);ctx.stroke();});
-  brainNodes.forEach(node=>{const r=Math.sqrt(node.val)*2.4,hi=node.id===brainHoverId;
+    ctx.beginPath();ctx.moveTo(l.source.x,l.source.y);ctx.lineTo(l.target.x,l.target.y);
+    if(hi){ctx.save();ctx.strokeStyle='rgba(53,200,255,.85)';ctx.shadowBlur=8;ctx.shadowColor='#35c8ff';
+      ctx.setLineDash([5/brainScale,4/brainScale]);ctx.lineDashOffset=reduced?0:-t*36;ctx.lineWidth=1.4/brainScale;
+      ctx.stroke();ctx.restore();}
+    else{ctx.strokeStyle='rgba(125,147,170,.16)';ctx.stroke();}});
+  brainNodes.forEach(node=>{const r=Math.sqrt(node.val)*2.4,hi=node.id===brainHoverId,color=BRAIN_COLORS[node.group]||'#7d93aa';
+    if(node.id==='core'){
+      ctx.save();ctx.lineWidth=1.4/brainScale;ctx.strokeStyle='rgba(53,200,255,.35)';
+      ctx.beginPath();ctx.arc(node.x,node.y,r+9+pulse*5,0,Math.PI*2);ctx.globalAlpha=.5+.25*pulse;ctx.stroke();
+      ctx.beginPath();ctx.arc(node.x,node.y,r+20+pulse*9,0,Math.PI*2);ctx.globalAlpha=.22+.14*pulse;ctx.stroke();
+      ctx.restore();
+    }
+    ctx.save();ctx.shadowBlur=(hi?20:10)/1;ctx.shadowColor=color;
     ctx.beginPath();ctx.arc(node.x,node.y,hi?r+2:r,0,Math.PI*2);
-    ctx.fillStyle=BRAIN_COLORS[node.group]||'#7d93aa';ctx.globalAlpha=hi?1:.88;ctx.fill();ctx.globalAlpha=1;
-    if(hi){ctx.lineWidth=2/brainScale;ctx.strokeStyle='#fff';ctx.stroke();}
+    ctx.fillStyle=color;ctx.globalAlpha=hi?1:.88;ctx.fill();ctx.globalAlpha=1;
+    if(hi){ctx.shadowBlur=0;ctx.lineWidth=2/brainScale;ctx.strokeStyle='#fff';ctx.stroke();}
+    ctx.restore();
     if(node.val>=12||brainScale>1.5){ctx.fillStyle='rgba(214,233,251,.9)';ctx.font=(11/brainScale)+'px Inter, sans-serif';
       ctx.fillText(node.label,node.x+r+4,node.y+3);}});
   ctx.restore();
 }
-function brainTick(){brainStep();brainDraw();
-  if(brainAlpha>0.016||brainDrag||brainPan){brainRAF=requestAnimationFrame(brainTick);}else{brainRAF=null;}}
+let brainT0=null;
+function brainTick(ts){
+  if(curView!=='brain'){brainRAF=null;brainT0=null;return;}
+  if(brainT0===null)brainT0=ts;
+  const t=(ts-brainT0)/1000;
+  if(brainAlpha>0.016||brainDrag||brainPan)brainStep();
+  brainDraw(t);
+  brainRAF=requestAnimationFrame(brainTick);
+}
 (function initBrainCanvas(){
   const cv=$('#brain-canvas');if(!cv)return;
   cv.addEventListener('pointerdown',e=>{
     const {mx,my}=brainMouse(e);const node=brainNodeAt(mx,my);
     brainMoved=false;cv.setPointerCapture(e.pointerId);
-    if(node&&node.group!=='core'){brainDrag=node;cv.classList.add('dragging');brainAlpha=Math.max(brainAlpha,0.3);if(!brainRAF)brainTick();}
+    if(node&&node.group!=='core'){brainDrag=node;cv.classList.add('dragging');brainAlpha=Math.max(brainAlpha,0.3);if(!brainRAF)brainRAF=requestAnimationFrame(brainTick);}
     else{brainPan={x:e.clientX,y:e.clientY,offX:brainOffX,offY:brainOffY};cv.classList.add('dragging');}
   });
   cv.addEventListener('pointermove',e=>{
@@ -1752,7 +1782,7 @@ function brainTick(){brainStep();brainDraw();
   },{passive:false});
 })();
 document.getElementById('brain-reset')?.addEventListener('click',()=>{
-  brainScale=1;brainOffX=0;brainOffY=0;brainAlpha=Math.max(brainAlpha,0.6);if(!brainRAF)brainTick();});
+  brainScale=1;brainOffX=0;brainOffY=0;brainAlpha=Math.max(brainAlpha,0.6);if(!brainRAF)brainRAF=requestAnimationFrame(brainTick);});
 // --- PWA + notifications + live sync (Lote A) ---
 async function initPWA(){
   try{if('serviceWorker' in navigator)await navigator.serviceWorker.register('/sw.js');}catch(e){}
