@@ -243,7 +243,13 @@ body.speaking .bigcore .r2{animation-delay:.15s}body.speaking .bigcore .r3{anima
 /* live camera overlay */
 #cam{position:fixed;inset:0;z-index:22;background:#000;display:none;flex-direction:column;align-items:center;justify-content:center}
 #cam.on{display:flex}
-#cam-video{max-width:100%;max-height:78vh;object-fit:contain;background:#000}
+#cam-stage{position:relative;display:flex}
+#cam-video{max-width:100%;max-height:78vh;object-fit:contain;background:#000;display:block}
+#cam-fx{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+#cam-result{position:absolute;bottom:120px;left:16px;right:16px;max-width:640px;margin:0 auto;text-align:center;font-size:14px;line-height:1.4;color:var(--fg);background:rgba(4,7,12,.66);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);border:1px solid var(--line-2);border-radius:12px;padding:10px 14px;display:none;z-index:3;box-shadow:0 0 30px -18px var(--glow)}
+#cam-result.on{display:block}
+#cam .vcbtn.on{background:var(--accent);color:var(--ink);border-color:var(--accent)}
+#cam .vcbtn.on svg{color:var(--ink)}
 #cam-hint{position:absolute;top:70px;left:0;right:0;text-align:center;font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--subtle);padding:0 20px}
 #cam-actions{position:absolute;bottom:40px;display:flex;gap:22px;align-items:center}
 #cam-x{position:absolute;top:20px;right:24px;font-family:var(--mono);font-size:12px;letter-spacing:.1em;color:var(--fg);background:rgba(0,0,0,.4);border:1px solid var(--line);border-radius:999px;padding:8px 14px;cursor:pointer;z-index:2}
@@ -722,11 +728,14 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
 </div>
 <div id="cam">
   <button id="cam-x">FECHAR</button>
-  <video id="cam-video" autoplay playsinline muted></video>
-  <div id="cam-hint">Aponte a câmera e toque para capturar — a E.V. analisa o que vê.</div>
+  <div id="cam-stage"><video id="cam-video" autoplay playsinline muted></video><canvas id="cam-fx"></canvas></div>
+  <div id="cam-result"></div>
+  <div id="cam-hint">Aponte a câmera. Toque em capturar, em "o que é isso?", ou ligue o modo ao vivo.</div>
   <div id="cam-actions">
     <button class="vcbtn" id="cam-flip" title="Trocar câmera"><i data-lucide="refresh-cw"></i></button>
-    <button class="vcbtn" id="cam-shot" title="Capturar e perguntar"><i data-lucide="camera"></i></button>
+    <button class="vcbtn" id="cam-live" title="Ao vivo (marca rostos + narra)"><i data-lucide="scan-eye"></i></button>
+    <button class="vcbtn" id="cam-what" title="O que é isso?"><i data-lucide="search"></i></button>
+    <button class="vcbtn" id="cam-shot" title="Capturar e perguntar no chat"><i data-lucide="camera"></i></button>
   </div>
 </div>
 <div id="pomo">
@@ -1868,12 +1877,48 @@ async function startCam(){stopCam();
 $('#cambtn').onclick=async()=>{
   if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)){sys('Câmera indisponível neste navegador.');return;}
   $('#cam').classList.add('on');$('#cam-hint').textContent='Aponte a câmera e toque para capturar — a E.V. analisa o que vê.';await startCam();};
-$('#cam-x').onclick=()=>{stopCam();$('#cam').classList.remove('on');};
+$('#cam-x').onclick=()=>{stopCamLive();stopCam();$('#cam').classList.remove('on');};
 $('#cam-flip').onclick=()=>{_camFacing=_camFacing==='environment'?'user':'environment';startCam();};
+// --- câmera ao vivo: caixas de rosto (MediaPipe) + narração por movimento + "o que é isso" ---
+let _camLive=false,_faceDet=null,_faceRAF=0,_motionPrev=null,_lastSee=0,_camBusy=false;
+const _mCv=document.createElement('canvas');_mCv.width=48;_mCv.height=36;const _mCtx=_mCv.getContext('2d',{willReadFrequently:true});
+function camResult(t){const r=$('#cam-result');if(!t){r.classList.remove('on');return;}r.textContent=t;r.classList.add('on');}
+function camFrameBlob(cb){const v=$('#cam-video');if(!v||!v.videoWidth)return cb(null);const c=document.createElement('canvas');c.width=v.videoWidth;c.height=v.videoHeight;c.getContext('2d').drawImage(v,0,0);c.toBlob(cb,'image/jpeg',0.82);}
+function camSee(mode){if(_camBusy)return;_camBusy=true;if(mode==='what')camResult('Analisando...');
+  camFrameBlob(async b=>{if(!b){_camBusy=false;return;}
+    try{const fd=new FormData();fd.append('image',b,'frame.jpg');fd.append('mode',mode);
+      const j=await (await fetch('/api/see',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd})).json();
+      const t=(j.text||'').trim();if(t){camResult(t);if(mode==='what'||voiceOn)speak(t,mode==='what');}
+    }catch(e){}finally{_camBusy=false;}});}
+async function initFaceDetector(){if(_faceDet)return _faceDet;
+  try{const V=await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs');
+    const fs=await V.FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
+    _faceDet=await V.FaceDetector.createFromOptions(fs,{baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite'},runningMode:'VIDEO'});
+  }catch(e){_faceDet=null;}
+  return _faceDet;}
+function drawFaces(dets){const v=$('#cam-video'),cv=$('#cam-fx');if(!cv||!v)return;const W=v.clientWidth||1,H=v.clientHeight||1;if(cv.width!==W)cv.width=W;if(cv.height!==H)cv.height=H;
+  const ctx=cv.getContext('2d');ctx.clearRect(0,0,W,H);const sx=W/(v.videoWidth||W),sy=H/(v.videoHeight||H);
+  ctx.strokeStyle='#35c8ff';ctx.lineWidth=2;ctx.shadowColor='rgba(53,200,255,.9)';ctx.shadowBlur=8;
+  (dets||[]).forEach(d=>{const bb=d.boundingBox;if(!bb)return;ctx.strokeRect(bb.originX*sx,bb.originY*sy,bb.width*sx,bb.height*sy);});
+  ctx.shadowBlur=0;
+  if((dets||[]).length)$('#cam-hint').textContent=dets.length+' rosto(s) detectado(s) · movimento é narrado';}
+function faceLoop(){if(!_camLive)return;const v=$('#cam-video');
+  if(_faceDet&&v&&v.videoWidth){try{drawFaces(_faceDet.detectForVideo(v,performance.now()).detections);}catch(e){}}
+  if(v&&v.videoWidth){try{_mCtx.drawImage(v,0,0,48,36);const cur=_mCtx.getImageData(0,0,48,36).data;
+    if(_motionPrev){let diff=0,n=0;for(let i=0;i<cur.length;i+=16){diff+=Math.abs(cur[i]-_motionPrev[i]);n++;}diff/=n;
+      const now=performance.now();if(diff>18&&now-_lastSee>6500&&!_camBusy){_lastSee=now;camSee('live');}}
+    _motionPrev=cur;}catch(e){}}
+  _faceRAF=requestAnimationFrame(faceLoop);}
+async function startCamLive(){_camLive=true;$('#cam-live').classList.add('on');$('#cam-hint').textContent='Modo ao vivo: preparando detecção de rostos...';
+  await initFaceDetector();$('#cam-hint').textContent=_faceDet?'Ao vivo: rostos marcados + movimento narrado':'Ao vivo: narração por movimento (caixas de rosto indisponíveis neste navegador)';
+  _motionPrev=null;_lastSee=performance.now();cancelAnimationFrame(_faceRAF);faceLoop();}
+function stopCamLive(){_camLive=false;const lb=$('#cam-live');if(lb)lb.classList.remove('on');cancelAnimationFrame(_faceRAF);const cv=$('#cam-fx');if(cv&&cv.getContext)cv.getContext('2d').clearRect(0,0,cv.width,cv.height);camResult('');}
+$('#cam-live').onclick=()=>{_camLive?stopCamLive():startCamLive();};
+$('#cam-what').onclick=()=>camSee('what');
 $('#cam-shot').onclick=()=>{const v=$('#cam-video');if(!v||!v.videoWidth){$('#cam-hint').textContent='Espere a câmera carregar...';return;}
   const cv=document.createElement('canvas');cv.width=v.videoWidth;cv.height=v.videoHeight;cv.getContext('2d').drawImage(v,0,0);
   cv.toBlob(b=>{if(!b)return;const cap=(txt.value||'').trim();txt.value='';
-    stopCam();$('#cam').classList.remove('on');switchView('chat');sendImage(b,cap);},'image/jpeg',0.85);};
+    stopCamLive();stopCam();$('#cam').classList.remove('on');switchView('chat');sendImage(b,cap);},'image/jpeg',0.85);};
 $('#imgfile').onchange=e=>{const f=e.target.files[0];if(f)setPendingImg(f);e.target.value='';};
 (function(){const cv=$('#chatview');if(!cv)return;
   ['dragover','dragenter'].forEach(n=>cv.addEventListener(n,e=>{e.preventDefault();cv.classList.add('drag');}));
@@ -3068,6 +3113,31 @@ def create_app(config: Config, brain: Brain | None = None):
         r = await asyncio.to_thread(
             tools_mod.route, fl, fg, tl, tg, (d.get("mode") or "car"))
         return {"ok": bool(r), **(r or {})}
+
+    @app.post("/api/see")
+    async def see(request: Request):
+        """Ephemeral vision for the live camera / 'what is this' — describes the
+        frame without saving it to the conversation."""
+        _check(request.headers.get("authorization"))
+        form = await request.form()
+        f = form.get("image")
+        if f is None or isinstance(f, str) or not hasattr(f, "read"):
+            return {"text": ""}
+        data = await f.read()
+        if not data:
+            return {"text": ""}
+        mode = (form.get("mode") or "live").strip()
+        if mode == "what":
+            prompt = ("Identifique o que está em destaque nesta imagem (objeto, "
+                      "lugar/ponto de referência, planta, animal, produto ou texto) e "
+                      "dê uma info curta e útil, em 1-2 frases, português do Brasil. "
+                      "Se houver texto importante, transcreva.")
+        else:
+            prompt = ("Descreva em 1 frase curta (pt-BR) o que a câmera vê agora: "
+                      "objetos principais e quantas pessoas/rostos aparecem (sem "
+                      "identificar quem são). Seja objetivo.")
+        text = await brain.describe_image(data, f.content_type or "image/jpeg", prompt)
+        return {"text": text or "(não consegui enxergar agora)"}
 
     @app.post("/api/receipt")
     async def receipt(request: Request):
