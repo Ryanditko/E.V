@@ -258,7 +258,8 @@ body.speaking .bigcore .r2{animation-delay:.15s}body.speaking .bigcore .r3{anima
 #cam .vcbtn.on{background:var(--accent);color:var(--ink);border-color:var(--accent)}
 #cam .vcbtn.on svg{color:var(--ink)}
 #cam-hint{position:absolute;top:70px;left:0;right:0;text-align:center;font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--subtle);padding:0 20px}
-#cam-actions{position:absolute;bottom:40px;display:flex;gap:22px;align-items:center}
+#cam-actions{position:absolute;bottom:34px;left:10px;right:10px;display:flex;gap:16px;align-items:center;justify-content:center;flex-wrap:wrap}
+@media(max-width:520px){#cam-actions{gap:10px}#cam .vcbtn{width:60px;height:60px}#cam .vcbtn svg{width:24px;height:24px}}
 #cam-x{position:absolute;top:20px;right:24px;font-family:var(--mono);font-size:12px;letter-spacing:.1em;color:var(--fg);background:rgba(0,0,0,.4);border:1px solid var(--line);border-radius:999px;padding:8px 14px;cursor:pointer;z-index:2}
 /* pomodoro focus overlay */
 #pomo{position:fixed;inset:0;z-index:24;background:radial-gradient(90% 70% at 50% 28%,#0b1929,#04070c 78%);display:none;flex-direction:column;align-items:center;justify-content:center;gap:20px;overflow:hidden}
@@ -743,6 +744,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
     <button class="vcbtn" id="cam-flip" title="Trocar câmera"><i data-lucide="refresh-cw"></i></button>
     <button class="vcbtn" id="cam-live" title="Ao vivo (marca rostos + narra)"><i data-lucide="scan-eye"></i></button>
     <button class="vcbtn" id="cam-what" title="O que é isso?"><i data-lucide="search"></i></button>
+    <button class="vcbtn" id="cam-tr" title="Traduzir o texto"><i data-lucide="languages"></i></button>
     <button class="vcbtn" id="cam-shot" title="Capturar e perguntar no chat"><i data-lucide="camera"></i></button>
   </div>
 </div>
@@ -1921,7 +1923,7 @@ function camSee(mode){if(_camBusy)return;_camBusy=true;if(mode==='what')camResul
   camFrameBlob(async b=>{if(!b){_camBusy=false;return;}
     try{const fd=new FormData();fd.append('image',b,'frame.jpg');fd.append('mode',mode);
       const j=await (await fetch('/api/see',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd})).json();
-      const t=(j.text||'').trim();if(t){camResult(t);if(mode==='what'||voiceOn)speak(t,mode==='what');}
+      const t=(j.text||'').trim();if(t){camResult(t);const od=mode!=='live';if(od||voiceOn)speak(t,od);}
     }catch(e){}finally{_camBusy=false;}});}
 async function initFaceDetector(){if(_faceDet)return _faceDet;
   try{const V=await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs');
@@ -1948,6 +1950,7 @@ async function startCamLive(){_camLive=true;$('#cam-live').classList.add('on');$
 function stopCamLive(){_camLive=false;const lb=$('#cam-live');if(lb)lb.classList.remove('on');cancelAnimationFrame(_faceRAF);const cv=$('#cam-fx');if(cv&&cv.getContext)cv.getContext('2d').clearRect(0,0,cv.width,cv.height);camResult('');}
 $('#cam-live').onclick=()=>{_camLive?stopCamLive():startCamLive();};
 $('#cam-what').onclick=()=>camSee('what');
+$('#cam-tr').onclick=()=>{camResult('Traduzindo...');camSee('translate');};
 $('#cam-shot').onclick=()=>{const v=$('#cam-video');if(!v||!v.videoWidth){$('#cam-hint').textContent='Espere a câmera carregar...';return;}
   const cv=document.createElement('canvas');cv.width=v.videoWidth;cv.height=v.videoHeight;cv.getContext('2d').drawImage(v,0,0);
   cv.toBlob(b=>{if(!b)return;const cap=(txt.value||'').trim();txt.value='';
@@ -3166,7 +3169,16 @@ def create_app(config: Config, brain: Brain | None = None):
         if not data:
             return {"text": ""}
         mode = (form.get("mode") or "live").strip()
-        if mode == "what":
+        if mode == "translate":
+            prompt = ("Leia TODO o texto visível nesta imagem e traduza para "
+                      "português do Brasil. Responda só com a tradução, natural e "
+                      "curta. Se não houver texto legível, responda apenas: (sem texto).")
+        elif mode == "food":
+            prompt = ("Esta é uma foto de comida. Estime em 1-2 frases (pt-BR) o "
+                      "prato/itens e as calorias aproximadas totais, e os macros se "
+                      "der (proteína/carbo/gordura). Deixe claro que é estimativa. "
+                      "Se não for comida, diga: (não parece comida).")
+        elif mode == "what":
             prompt = ("Identifique o que está em destaque nesta imagem (objeto, "
                       "lugar/ponto de referência, planta, animal, produto ou texto) e "
                       "dê uma info curta e útil, em 1-2 frases, português do Brasil. "
