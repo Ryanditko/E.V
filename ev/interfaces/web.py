@@ -197,6 +197,13 @@ body.speaking .core .dot{animation:pulse .6s infinite}
 .brain-corner.bl{bottom:10px;left:10px;border-right:none;border-top:none;border-radius:0 0 0 6px}
 .brain-corner.br{bottom:10px;right:10px;border-left:none;border-top:none;border-radius:0 0 6px 0}
 #brain-tip{position:absolute;pointer-events:none;display:none;max-width:240px;padding:7px 10px;border-radius:9px;background:var(--elev);border:1px solid var(--accent);color:var(--fg);font-size:12px;font-family:var(--body);box-shadow:0 0 20px -4px var(--glow),0 8px 24px -12px rgba(0,0,0,.6);z-index:3}
+#brain-menu{position:absolute;display:none;flex-direction:column;min-width:170px;max-width:230px;background:var(--elev);border:1px solid var(--accent);border-radius:11px;padding:8px;z-index:4;box-shadow:0 0 26px -6px var(--glow),0 12px 30px -14px rgba(0,0,0,.7)}
+#brain-menu.on{display:flex}
+#brain-menu .bm-t{font-size:12px;color:var(--fg);padding:2px 6px 8px;border-bottom:1px solid var(--line);margin-bottom:6px;word-break:break-word}
+#brain-menu button{display:flex;align-items:center;gap:8px;font-family:var(--body);font-size:13px;color:var(--fg);background:none;border:none;border-radius:8px;padding:8px 8px;cursor:pointer;text-align:left}
+#brain-menu button:hover{background:var(--surface);color:var(--accent)}
+#brain-menu button svg{width:15px;height:15px}
+#brain-menu button.bm-del:hover{color:#ff8a8a}
 #map-wrap{position:relative;height:calc(100vh - 300px);min-height:400px}
 #map{position:absolute;inset:0;border:1px solid var(--line-2);border-radius:13px;overflow:hidden;box-shadow:0 0 40px -24px var(--glow)}
 #map .leaflet-container{background:#04070c;font-family:var(--body)}
@@ -623,10 +630,10 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
       <div id="calgrid"></div>
     </div>
     <div id="memview">
-      <div class="tv-h">Memórias</div>
+      <div class="tv-h">Memórias<span id="mem-count" style="font-size:13px;color:var(--subtle);margin-left:10px"></span></div>
       <form id="memform" class="tv-form"><input id="mem-text" placeholder="Algo que a E.V. deve lembrar sobre você..."><button class="mbtn" type="submit">Salvar</button></form>
-      <input class="tv-search" id="mem-search" placeholder="Buscar memórias..." autocomplete="off">
-      <div class="tv-cat">O que a E.V. sabe</div>
+      <input class="tv-search" id="mem-search" placeholder="Buscar no cérebro..." autocomplete="off">
+      <div class="tv-cat" style="display:flex;justify-content:space-between;align-items:center">O que a E.V. sabe<span id="mem-clear" style="cursor:pointer;color:var(--muted);font-family:var(--mono);font-size:10px;letter-spacing:.1em">esquecer tudo</span></div>
       <div id="memlist"></div>
     </div>
     <div id="lnkview">
@@ -703,6 +710,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
         <canvas id="brain-canvas"></canvas>
         <span class="brain-corner tl"></span><span class="brain-corner tr"></span><span class="brain-corner bl"></span><span class="brain-corner br"></span>
         <div id="brain-tip"></div>
+        <div id="brain-menu"></div>
       </div>
     </div>
   </main>
@@ -1571,17 +1579,25 @@ function editRem(r){openForm('Editar lembrete',[
   async v=>{if(!v.text)return;await fetch('/api/reminders/update',{method:'POST',headers:H(),body:JSON.stringify({id:r.id,text:v.text,when:v.when,recur:v.recur})});loadRem();loadCal();loadPanel();});}
 $('#remform').onsubmit=async e=>{e.preventDefault();const text=$('#rem-text').value.trim();if(!text)return;
   await fetch('/api/reminders',{method:'POST',headers:H(),body:JSON.stringify({text,when:$('#rem-when').value||'',recur:$('#rem-recur').value})});$('#rem-text').value='';$('#rem-when').value='';$('#rem-recur').value='';loadRem();loadPanel();};
-async function loadMem(){try{const items=(await (await fetch('/api/facts',{headers:H()})).json()).items||[];const box=$('#memlist');box.textContent='';
-  if(!items.length){box.appendChild(el('div','tv-empty','Nenhuma memória ainda.'));return;}
-  items.forEach(f=>{const row=el('div','tv-row');row.appendChild(el('div','txt',f.fact));
-    const ed=el('button','tv-ic');ed.title='editar';ed.appendChild(ficon('pencil'));ed.onclick=()=>editMem(f);
-    const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));dl.onclick=()=>delU('/api/facts/delete',{id:f.id},'/api/facts',{text:f.fact},loadMem,'Memória');
-    row.appendChild(ed);row.appendChild(dl);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
-function editMem(f){openForm('Editar memória',[
-  {key:'text',label:'Memória',value:f.fact,type:'textarea'}],
-  async v=>{if(!v.text)return;await fetch('/api/facts/update',{method:'POST',headers:H(),body:JSON.stringify({id:f.id,text:v.text})});loadMem();});}
+async function loadMem(){try{const items=(await (await fetch('/api/facts',{headers:H()})).json()).items||[];
+  const cnt=$('#mem-count');if(cnt)cnt.textContent=items.length?('· '+items.length+' memória'+(items.length>1?'s':'')):'';
+  const box=$('#memlist');box.textContent='';
+  if(!items.length){box.appendChild(el('div','tv-empty','Cérebro vazio. Adicione acima, ou diga à E.V. o que lembrar.'));return;}
+  items.forEach(f=>{const row=el('div','tv-row');
+    const t=el('div','txt',f.fact);t.title='clique para editar';t.style.cursor='text';t.onclick=()=>startMemEdit(t,f);
+    row.appendChild(t);
+    const dl=el('button','tv-ic');dl.title='esquecer';dl.appendChild(ficon('trash-2'));dl.onclick=e=>{e.stopPropagation();delU('/api/facts/delete',{id:f.id},'/api/facts',{text:f.fact},loadMem,'Memória');};
+    row.appendChild(dl);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
+function startMemEdit(t,f){const orig=f.fact;const inp=document.createElement('input');inp.className='tv-search';inp.value=orig;inp.style.margin='0';inp.style.flex='1';
+  t.replaceWith(inp);inp.focus();inp.select();let done=false;
+  const save=async()=>{if(done)return;done=true;const v=inp.value.trim();
+    if(v&&v!==orig){await fetch('/api/facts/update',{method:'POST',headers:H(),body:JSON.stringify({id:f.id,text:v})});}
+    loadMem();};
+  inp.onblur=save;inp.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();save();}else if(e.key==='Escape'){done=true;loadMem();}};}
 $('#memform').onsubmit=async e=>{e.preventDefault();const text=$('#mem-text').value.trim();if(!text)return;
   await fetch('/api/facts',{method:'POST',headers:H(),body:JSON.stringify({text})});$('#mem-text').value='';loadMem();loadPanel();};
+$('#mem-clear').onclick=async()=>{if(!(await confirmDialog('Esquecer TODAS as memórias da E.V.? Isso apaga tudo que ela sabe sobre você (não afeta tarefas, gastos etc).')))return;
+  await fetch('/api/facts/clear',{method:'POST',headers:H()});loadMem();loadPanel();};
 async function loadKB(){try{const d=await (await fetch('/api/kb',{headers:H()})).json();const box=$('#kblist');box.textContent='';
   if(!d.sources||!d.sources.length){box.appendChild(el('div','tv-empty','Nada na base ainda. Adicione uma URL, arquivo ou texto acima.'));return;}
   const files=new Set(d.files||[]);
@@ -1698,6 +1714,19 @@ async function loadBrain(){
   brainAlpha=1;
   if(!brainRAF)brainRAF=requestAnimationFrame(brainTick);
 }
+const BRAIN_DEL={mem:'/api/facts/delete',tasks:'/api/tasks/delete',rem:'/api/reminders/delete',links:'/api/links/delete',places:'/api/places/delete',hab:'/api/habits/delete',jou:'/api/journal/delete',mon:'/api/watches/delete'};
+function reloadBrain(){brainLoaded=false;loadBrain();}
+function brainNodeMenu(node,mx,my){const m=$('#brain-menu');m.innerHTML='';
+  const parts=node.id.split(':'),grp=parts[0],rid=parts.slice(1).join(':');
+  m.appendChild(el('div','bm-t',node.label));
+  const ob=el('button','');ob.appendChild(ficon('external-link'));ob.appendChild(document.createTextNode('Abrir'+(node.view?' ('+(VIEW_LABELS[node.view]||node.view)+')':'')));ob.onclick=()=>{m.classList.remove('on');if(node.view)switchView(node.view);};m.appendChild(ob);
+  if(grp==='mem'){const eb=el('button','');eb.appendChild(ficon('pencil'));eb.appendChild(document.createTextNode('Editar'));eb.onclick=async()=>{m.classList.remove('on');
+    const items=(await (await fetch('/api/facts',{headers:H()})).json()).items||[];const f=items.find(x=>String(x.id)===String(rid));if(!f)return;
+    const v=prompt('Editar memória:',f.fact);if(v==null)return;if(v.trim()&&v.trim()!==f.fact){await fetch('/api/facts/update',{method:'POST',headers:H(),body:JSON.stringify({id:f.id,text:v.trim()})});reloadBrain();}};m.appendChild(eb);}
+  if(BRAIN_DEL[grp]){const db=el('button','bm-del');db.appendChild(ficon('trash-2'));db.appendChild(document.createTextNode('Apagar do cérebro'));db.onclick=async()=>{m.classList.remove('on');
+    if(!(await confirmDialog('Apagar "'+node.label+'"? Isso remove o item de verdade da E.V.')))return;
+    try{await fetch(BRAIN_DEL[grp],{method:'POST',headers:H(),body:JSON.stringify({id:parseInt(rid)})});}catch(e){}reloadBrain();loadPanel();};m.appendChild(db);}
+  const wrap=$('#brain-wrap');m.style.left=Math.max(6,Math.min(mx,wrap.clientWidth-236))+'px';m.style.top=Math.min(my+8,wrap.clientHeight-140)+'px';m.classList.add('on');window.lucide&&lucide.createIcons();}
 function brainStep(){
   const n=brainNodes.length;if(!n)return;
   for(let i=0;i<n;i++){const a=brainNodes[i];
@@ -1758,6 +1787,7 @@ function brainTick(ts){
   const cv=$('#brain-canvas');if(!cv)return;
   cv.addEventListener('pointerdown',e=>{
     const {mx,my}=brainMouse(e);const node=brainNodeAt(mx,my);
+    const bm=$('#brain-menu');if(bm)bm.classList.remove('on');
     brainMoved=false;cv.setPointerCapture(e.pointerId);
     if(node&&node.group!=='core'){brainDrag=node;cv.classList.add('dragging');brainAlpha=Math.max(brainAlpha,0.3);if(!brainRAF)brainRAF=requestAnimationFrame(brainTick);}
     else{brainPan={x:e.clientX,y:e.clientY,offX:brainOffX,offY:brainOffY};cv.classList.add('dragging');}
@@ -1780,7 +1810,10 @@ function brainTick(ts){
   cv.addEventListener('click',e=>{
     if(brainMoved){brainMoved=false;return;}
     const {mx,my}=brainMouse(e);const node=brainNodeAt(mx,my);
-    if(node&&node.view)switchView(node.view);
+    if(!node){$('#brain-menu').classList.remove('on');return;}
+    const leaf=node.id.indexOf(':')>0&&!node.id.startsWith('g:')&&node.id!=='core'&&!node.id.endsWith(':more');
+    if(leaf)brainNodeMenu(node,mx,my);
+    else if(node.view)switchView(node.view);
   });
   cv.addEventListener('wheel',e=>{e.preventDefault();
     const {mx,my}=brainMouse(e);const before=brainScale;
@@ -2600,6 +2633,12 @@ def create_app(config: Config, brain: Brain | None = None):
         _check(request.headers.get("authorization"))
         memory.delete_fact(owner, int((await _body(request)).get("id") or 0))
         return {"ok": True}
+
+    @app.post("/api/facts/clear")
+    async def fact_clear(request: Request):
+        _check(request.headers.get("authorization"))
+        n = memory.clear_facts(owner)
+        return {"ok": True, "cleared": n}
 
     # --- API keys management -----------------------------------------------
     _KEY_FIELDS = [
