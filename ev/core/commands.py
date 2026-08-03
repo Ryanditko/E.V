@@ -26,6 +26,7 @@ from .timeparse import add_months, parse_when
 COMMAND_LIST = [
     ("menu", "Abre o menu interativo com botões"),
     ("ev", "Falar com a IA (útil em grupos): /ev sua mensagem"),
+    ("plano", "Resolve minha manhã: plano do dia (tarefas + agenda + clima)"),
     ("ajuda", "Lista os comandos disponíveis"),
     ("status", "Diagnóstico: VM, banco, chaves de API"),
     ("silenciar", "Não perturbe: /silenciar 2h (ou off)"),
