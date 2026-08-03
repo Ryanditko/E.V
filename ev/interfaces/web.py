@@ -1967,12 +1967,19 @@ function camSee(mode){if(_camBusy)return;_camBusy=true;if(mode==='what')camResul
     }catch(e){}finally{_camBusy=false;}});}
 let _objDet=null;
 const OBJ_PT={person:'pessoa',cup:'copo',bottle:'garrafa','cell phone':'celular',laptop:'notebook',keyboard:'teclado',mouse:'mouse',book:'livro',chair:'cadeira','dining table':'mesa',tv:'TV',remote:'controle',clock:'relógio','potted plant':'planta',backpack:'mochila',handbag:'bolsa',car:'carro',bicycle:'bicicleta',dog:'cachorro',cat:'gato',bird:'pássaro','wine glass':'taça',fork:'garfo',knife:'faca',spoon:'colher',bowl:'tigela',banana:'banana',apple:'maçã',orange:'laranja',pizza:'pizza',cake:'bolo',scissors:'tesoura',umbrella:'guarda-chuva',couch:'sofá',bed:'cama'};
-async function initDetectors(){if(_faceDet||_objDet)return;
+let _detInit=false,_gestDet=null,_gestLast='',_gestN=0,_gestFired=0;
+const GEMOJI={Thumb_Up:'👍',Thumb_Down:'👎',Victory:'✌️',Open_Palm:'✋',Closed_Fist:'✊',Pointing_Up:'☝️',ILoveYou:'🤟'};
+function handleGesture(name){$('#cam-hint').textContent='Gesto: '+(GEMOJI[name]||name);
+  if(name==='Thumb_Up')camSee('what');
+  else if(name==='Victory')camSee('translate');
+  else if(name==='Open_Palm')$('#cam-x').click();}
+async function initDetectors(){if(_detInit)return;_detInit=true;
   try{const V=await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs');
     const fs=await V.FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
     try{_faceDet=await V.FaceDetector.createFromOptions(fs,{baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite'},runningMode:'VIDEO'});}catch(e){_faceDet=null;}
     try{_objDet=await V.ObjectDetector.createFromOptions(fs,{baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/float16/1/efficientdet_lite0.tflite'},runningMode:'VIDEO',scoreThreshold:0.45,maxResults:6});}catch(e){_objDet=null;}
-  }catch(e){}}
+    try{_gestDet=await V.GestureRecognizer.createFromOptions(fs,{baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task'},runningMode:'VIDEO',numHands:1});}catch(e){_gestDet=null;}
+  }catch(e){_detInit=false;}}
 function ovCtx(){const v=$('#cam-video'),cv=$('#cam-fx');if(!cv||!v)return null;const W=v.clientWidth||1,H=v.clientHeight||1;if(cv.width!==W)cv.width=W;if(cv.height!==H)cv.height=H;const ctx=cv.getContext('2d');ctx.clearRect(0,0,W,H);ctx._sx=W/(v.videoWidth||W);ctx._sy=H/(v.videoHeight||H);return ctx;}
 function drawBox(ctx,bb,color,label){const x=bb.originX*ctx._sx,y=bb.originY*ctx._sy,w=bb.width*ctx._sx,h=bb.height*ctx._sy;
   ctx.strokeStyle=color;ctx.lineWidth=2;ctx.shadowColor=color;ctx.shadowBlur=8;ctx.strokeRect(x,y,w,h);ctx.shadowBlur=0;
@@ -1981,7 +1988,10 @@ function faceLoop(){if(!_camLive)return;const v=$('#cam-video');
   if(v&&v.videoWidth){const ctx=ovCtx();let nf=0,no=0;const ts=performance.now();
     if(ctx&&_faceDet){try{(_faceDet.detectForVideo(v,ts).detections||[]).forEach(d=>{if(d.boundingBox){drawBox(ctx,d.boundingBox,'#35c8ff','rosto');nf++;}});}catch(e){}}
     if(ctx&&_objDet){try{(_objDet.detectForVideo(v,ts).detections||[]).forEach(d=>{const c=(d.categories&&d.categories[0])||{};const nm=OBJ_PT[c.categoryName]||c.categoryName||'objeto';if(nm==='pessoa')return;if(d.boundingBox){drawBox(ctx,d.boundingBox,'#7fe3ff',nm);no++;}});}catch(e){}}
-    if(ctx)$('#cam-hint').textContent=(nf?nf+' rosto(s) · ':'')+(no?no+' objeto(s) · ':'')+'movimento narrado';}
+    if(ctx&&_gestDet&&!_camBusy){try{const gr=_gestDet.recognizeForVideo(v,ts);const g=(gr.gestures&&gr.gestures[0]&&gr.gestures[0][0])||null;const nm=(g&&g.score>0.55)?g.categoryName:'';
+      if(nm&&nm!=='None'){if(nm===_gestLast)_gestN++;else{_gestLast=nm;_gestN=1;}if(_gestN===5&&performance.now()-_gestFired>2800){_gestFired=performance.now();handleGesture(nm);}}
+      else{_gestLast='';_gestN=0;}}catch(e){}}
+    if(ctx)$('#cam-hint').textContent=(nf?nf+' rosto(s) · ':'')+(no?no+' objeto(s) · ':'')+'👍 o que é · ✌️ traduzir · ✋ fechar';}
   if(v&&v.videoWidth){try{_mCtx.drawImage(v,0,0,48,36);const cur=_mCtx.getImageData(0,0,48,36).data;
     if(_motionPrev){let diff=0,n=0;for(let i=0;i<cur.length;i+=16){diff+=Math.abs(cur[i]-_motionPrev[i]);n++;}diff/=n;
       const now=performance.now();if(diff>18&&now-_lastSee>6500&&!_camBusy){_lastSee=now;camSee('live');}}
