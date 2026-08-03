@@ -761,6 +761,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
     <button class="vcbtn" id="cam-tr" title="Traduzir o texto"><i data-lucide="languages"></i></button>
     <button class="vcbtn" id="cam-food" title="Calorias da comida"><i data-lucide="utensils"></i></button>
     <button class="vcbtn" id="cam-qr" title="Ler QR / código de barras"><i data-lucide="qr-code"></i></button>
+    <button class="vcbtn" id="cam-scan" title="Escanear documento pra Base"><i data-lucide="scan-line"></i></button>
     <button class="vcbtn" id="cam-shot" title="Capturar e perguntar no chat"><i data-lucide="camera"></i></button>
   </div>
 </div>
@@ -2005,6 +2006,9 @@ $('#cam-live').onclick=()=>{_camLive?stopCamLive():startCamLive();};
 $('#cam-what').onclick=()=>camSee('what');
 $('#cam-tr').onclick=()=>{camResult('Traduzindo...');camSee('translate');};
 $('#cam-food').onclick=()=>{camResult('Estimando calorias...');camSee('food');};
+$('#cam-scan').onclick=()=>{camResult('Lendo o documento...');camFrameBlob(async b=>{if(!b)return;
+  try{const fd=new FormData();fd.append('image',b,'doc.jpg');const j=await (await fetch('/api/scan',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd})).json();
+    camResult(j.msg||'Pronto.');speak(j.msg||'',true);loadPanel();}catch(e){camResult('Falha ao escanear o documento.');}});};
 // QR / código de barras (client-side, grátis, via BarcodeDetector)
 let _qrScan=false,_qrDet=null,_qrRAF=0;
 function stopQR(){_qrScan=false;const b=$('#cam-qr');if(b)b.classList.remove('on');cancelAnimationFrame(_qrRAF);}
@@ -3284,6 +3288,29 @@ def create_app(config: Config, brain: Brain | None = None):
                       "identificar quem são). Seja objetivo.")
         text = await brain.describe_image(data, f.content_type or "image/jpeg", prompt)
         return {"text": text or "(não consegui enxergar agora)"}
+
+    @app.post("/api/scan")
+    async def scan(request: Request):
+        """Scan a document: OCR the frame and save the text to the knowledge base."""
+        _check(request.headers.get("authorization"))
+        form = await request.form()
+        f = form.get("image")
+        if f is None or isinstance(f, str) or not hasattr(f, "read"):
+            return {"ok": False, "msg": "Nenhuma imagem."}
+        data = await f.read()
+        text = await brain.ocr_image(data, f.content_type or "image/jpeg")
+        if not text or text.strip() in ("", "(sem texto)"):
+            return {"ok": False, "msg": "Não achei texto legível no documento."}
+        from datetime import datetime, timezone
+        title = "Documento " + datetime.now(timezone.utc).strftime("%d/%m %H:%M")
+        try:
+            stored = await asyncio.to_thread(
+                knowledge.ingest_text, text, title, config, memory, owner)
+            return {"ok": True, "msg": f"Documento salvo na Base: {title} "
+                    f"({len(text)} caracteres).", "stored": stored}
+        except Exception as exc:
+            return {"ok": True, "msg": f"Li o documento ({len(text)} caracteres), "
+                    f"mas não consegui salvar na Base ({str(exc)[:50]}).", "text": text[:300]}
 
     @app.post("/api/receipt")
     async def receipt(request: Request):
