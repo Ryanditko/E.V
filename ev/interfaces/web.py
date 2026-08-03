@@ -746,6 +746,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
     <button class="vcbtn" id="cam-what" title="O que é isso?"><i data-lucide="search"></i></button>
     <button class="vcbtn" id="cam-tr" title="Traduzir o texto"><i data-lucide="languages"></i></button>
     <button class="vcbtn" id="cam-food" title="Calorias da comida"><i data-lucide="utensils"></i></button>
+    <button class="vcbtn" id="cam-qr" title="Ler QR / código de barras"><i data-lucide="qr-code"></i></button>
     <button class="vcbtn" id="cam-shot" title="Capturar e perguntar no chat"><i data-lucide="camera"></i></button>
   </div>
 </div>
@@ -1913,7 +1914,7 @@ async function startCam(){stopCam();
 $('#cambtn').onclick=async()=>{
   if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)){sys('Câmera indisponível neste navegador.');return;}
   $('#cam').classList.add('on');$('#cam-hint').textContent='Aponte a câmera e toque para capturar — a E.V. analisa o que vê.';await startCam();};
-$('#cam-x').onclick=()=>{stopCamLive();stopCam();$('#cam').classList.remove('on');};
+$('#cam-x').onclick=()=>{stopQR();stopCamLive();stopCam();$('#cam').classList.remove('on');};
 $('#cam-flip').onclick=()=>{_camFacing=_camFacing==='environment'?'user':'environment';startCam();};
 // --- câmera ao vivo: caixas de rosto (MediaPipe) + narração por movimento + "o que é isso" ---
 let _camLive=false,_faceDet=null,_faceRAF=0,_motionPrev=null,_lastSee=0,_camBusy=false;
@@ -1953,10 +1954,22 @@ $('#cam-live').onclick=()=>{_camLive?stopCamLive():startCamLive();};
 $('#cam-what').onclick=()=>camSee('what');
 $('#cam-tr').onclick=()=>{camResult('Traduzindo...');camSee('translate');};
 $('#cam-food').onclick=()=>{camResult('Estimando calorias...');camSee('food');};
+// QR / código de barras (client-side, grátis, via BarcodeDetector)
+let _qrScan=false,_qrDet=null,_qrRAF=0;
+function stopQR(){_qrScan=false;const b=$('#cam-qr');if(b)b.classList.remove('on');cancelAnimationFrame(_qrRAF);}
+async function qrLoop(){if(!_qrScan)return;const v=$('#cam-video');
+  if(v&&v.videoWidth){try{const codes=await _qrDet.detect(v);if(codes&&codes.length){const val=(codes[0].rawValue||'').trim();stopQR();
+    if(/^https?:\/\//i.test(val)){camResult('Link: '+val);window.open(val,'_blank','noopener');}
+    else if(val){camResult('Código lido: '+val);speak('Código: '+val,true);}else camResult('Não consegui ler.');return;}}catch(e){}}
+  _qrRAF=requestAnimationFrame(qrLoop);}
+$('#cam-qr').onclick=()=>{if(_qrScan){stopQR();camResult('');return;}
+  if(!('BarcodeDetector' in window)){camResult('Leitura de QR/código precisa do Chrome ou Edge.');return;}
+  try{if(!_qrDet)_qrDet=new BarcodeDetector();}catch(e){camResult('Leitura de código indisponível.');return;}
+  _qrScan=true;$('#cam-qr').classList.add('on');camResult('Aponte para um QR ou código de barras...');qrLoop();};
 $('#cam-shot').onclick=()=>{const v=$('#cam-video');if(!v||!v.videoWidth){$('#cam-hint').textContent='Espere a câmera carregar...';return;}
   const cv=document.createElement('canvas');cv.width=v.videoWidth;cv.height=v.videoHeight;cv.getContext('2d').drawImage(v,0,0);
   cv.toBlob(b=>{if(!b)return;const cap=(txt.value||'').trim();txt.value='';
-    stopCamLive();stopCam();$('#cam').classList.remove('on');switchView('chat');sendImage(b,cap);},'image/jpeg',0.85);};
+    stopQR();stopCamLive();stopCam();$('#cam').classList.remove('on');switchView('chat');sendImage(b,cap);},'image/jpeg',0.85);};
 $('#imgfile').onchange=e=>{const f=e.target.files[0];if(f)setPendingImg(f);e.target.value='';};
 (function(){const cv=$('#chatview');if(!cv)return;
   ['dragover','dragenter'].forEach(n=>cv.addEventListener(n,e=>{e.preventDefault();cv.classList.add('drag');}));
