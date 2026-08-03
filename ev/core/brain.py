@@ -127,6 +127,46 @@ class Brain:
         """Extract text from an image via Gemini vision (OCR)."""
         return await asyncio.to_thread(self._ocr_sync, image, mime)
 
+    async def plan_day(self, user_id: str) -> str:
+        """Agentic synthesis: an actionable plan from tasks + agenda + weather + loc."""
+        return await asyncio.to_thread(self._plan_day_sync, user_id)
+
+    def _plan_day_sync(self, user_id: str) -> str:
+        cfg = self._config
+        parts = []
+        tasks = self._memory.open_tasks(user_id)
+        if tasks:
+            parts.append("Tarefas abertas:\n" + "\n".join(
+                f"- {t['text']} ({t.get('category', 'geral')})" for t in tasks[:20]))
+        rems = self._memory.open_reminders(user_id)
+        if rems:
+            parts.append("Lembretes:\n" + "\n".join(
+                f"- {r['text']}" + (f" — {r['when_iso'][:16].replace('T', ' ')}"
+                                    if r.get("when_iso") else "") for r in rems[:15]))
+        if cfg.google_authorized():
+            try:
+                parts.append("Agenda:\n" + tools_mod.calendar_upcoming(
+                    cfg, cfg.default_account, 8))
+            except Exception:
+                pass
+        if getattr(cfg, "city", ""):
+            try:
+                parts.append("Clima:\n" + tools_mod.weather(cfg.city))
+            except Exception:
+                pass
+        addr = self._memory.get_setting("loc_addr")
+        if addr:
+            parts.append("Localização atual: " + addr)
+        context = f"(agora: {self._now_str()})\n\n" + (
+            "\n\n".join(parts) or "Sem dados no momento.")
+        system = (
+            "Você é a E.V., assistente pessoal do Ryan. Com base nos dados, monte um "
+            "PLANO curto e acionável para o dia dele, em português do Brasil: priorize "
+            "as tarefas, encaixe-as nos espaços entre os compromissos, avise sobre "
+            "conflitos de horário, clima ou trânsito, e termine com UMA sugestão do que "
+            "fazer AGORA. Use bullets curtos, direto ao ponto. Chame ele de Ryan.")
+        return self._ask_sync(system, context) or "Não consegui montar o plano agora."
+
     async def describe_image(self, image: bytes, mime: str | None, prompt: str) -> str:
         """One-off vision description (for live camera / 'what is this'). NOT
         persisted to any conversation. Returns '' on failure."""
@@ -697,8 +737,16 @@ class Brain:
             self._memory.add_place(user_id, nome, lat, lng)
             return f"ponto '{nome}' salvo no seu mapa."
 
+        def planejar_dia() -> str:
+            """Monta um plano acionável para o dia do usuário, juntando as tarefas
+            abertas, os lembretes, a agenda, o clima e a localização atual, e
+            priorizando tudo. Use quando ele pedir 'resolve minha manhã', 'plano do
+            dia', 'organiza meu dia', 'o que eu faço hoje'."""
+            return self._plan_day_sync(user_id)
+
         callables: dict = {
             "executar_comando": executar_comando,
+            "planejar_dia": planejar_dia,
             "anotar_pessoa": anotar_pessoa,
             "sobre_pessoa": sobre_pessoa,
             "minha_localizacao": minha_localizacao,
@@ -784,6 +832,12 @@ class Brain:
 
         s = "string"
         schemas = [
+            fn(
+                "planejar_dia",
+                "Monta um plano acionável do dia do usuário juntando tarefas, "
+                "lembretes, agenda, clima e localização. Use para 'resolve minha "
+                "manhã', 'plano do dia', 'organiza meu dia', 'o que faço hoje'.",
+            ),
             fn(
                 "executar_comando",
                 "Executa QUALQUER comando da E.V. em nome do usuário (hands-free por "

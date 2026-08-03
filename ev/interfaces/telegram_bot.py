@@ -869,6 +869,13 @@ class TelegramInterface:
             ),
         )
 
+    async def cmd_plano(self, update: Update, _c: ContextTypes.DEFAULT_TYPE) -> None:
+        """Agentic day plan: 'resolve minha manhã'."""
+        if not self._authorized(update):
+            return
+        await self._reply(
+            update, await self._brain.plan_day(str(update.effective_user.id)))
+
     async def cmd_lembrete(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
         if self._authorized(update):
             uid = str(update.effective_user.id)
@@ -2373,6 +2380,7 @@ class TelegramInterface:
         app.add_handler(CommandHandler("start", self.on_start))
         app.add_handler(CommandHandler("menu", self.cmd_menu))
         app.add_handler(CommandHandler("ev", self.cmd_ev))
+        app.add_handler(CommandHandler("plano", self.cmd_plano))
         app.add_handler(CallbackQueryHandler(self.on_callback))
         # Deterministic commands (no LLM)
         app.add_handler(CommandHandler("ajuda", self.cmd_ajuda))
