@@ -724,9 +724,22 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
     </div>
     <div id="chartsview">
       <div class="tv-h">Gráficos · seus dados</div>
-      <div class="chart-card"><div class="chart-t">Gastos do mês por categoria</div><canvas id="ch-cat"></canvas></div>
-      <div class="chart-card"><div class="chart-t">Gastos nos últimos 14 dias</div><canvas id="ch-day"></canvas></div>
-      <div class="chart-card"><div class="chart-t">Hábitos (dias marcados)</div><canvas id="ch-hab"></canvas></div>
+      <div class="tv-form" style="gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
+        <select id="ch-period" class="tv-search" style="max-width:190px">
+          <option value="month">Este mês</option>
+          <option value="30">Últimos 30 dias</option>
+          <option value="90">Últimos 3 meses</option>
+          <option value="180">Últimos 6 meses</option>
+          <option value="year">Este ano</option>
+          <option value="custom">Personalizado</option>
+        </select>
+        <input type="date" id="ch-from" class="tv-search" style="max-width:160px;display:none">
+        <input type="date" id="ch-to" class="tv-search" style="max-width:160px;display:none">
+        <span class="eyebrow" id="ch-range" style="margin:0"></span>
+      </div>
+      <div class="chart-card"><div class="chart-t">Gastos por categoria</div><canvas id="ch-cat"></canvas></div>
+      <div class="chart-card"><div class="chart-t">Gastos ao longo do período</div><canvas id="ch-day"></canvas></div>
+      <div class="chart-card"><div class="chart-t">Hábitos (dias marcados no período)</div><canvas id="ch-hab"></canvas></div>
     </div>
   </main>
   <aside id="right" class="rail">
@@ -867,14 +880,25 @@ function appendRich(parent,text){let last=0,m;MDRE.lastIndex=0;
 let _chartLibP=null,_charts={};
 function loadChartLib(){if(window.Chart)return Promise.resolve();if(_chartLibP)return _chartLibP;
   _chartLibP=new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);});return _chartLibP;}
-async function loadCharts(){try{await loadChartLib();}catch(e){$('#chartsview').querySelectorAll('.chart-t').forEach(x=>{});return;}
-  let d;try{d=await (await fetch('/api/charts',{headers:H()})).json();}catch(e){return;}
+function chPeriodRange(){const p=($('#ch-period')||{}).value||'month';const to=new Date();let from=new Date();
+  if(p==='month')from=new Date(to.getFullYear(),to.getMonth(),1);
+  else if(p==='year')from=new Date(to.getFullYear(),0,1);
+  else if(p==='custom')return {from:$('#ch-from').value,to:$('#ch-to').value};
+  else from=new Date(to.getTime()-parseInt(p)*86400000);
+  const f=d=>d.toISOString().slice(0,10);return {from:f(from),to:f(to)};}
+async function loadCharts(){try{await loadChartLib();}catch(e){return;}
+  const r=chPeriodRange();let url='/api/charts';if(r.from||r.to)url+='?from='+encodeURIComponent(r.from||'')+'&to='+encodeURIComponent(r.to||'');
+  let d;try{d=await (await fetch(url,{headers:H()})).json();}catch(e){return;}
+  if(d.range&&$('#ch-range'))$('#ch-range').textContent=d.range.from+' → '+d.range.to;
   const grid='rgba(93,178,255,.12)';Chart.defaults.color='#7d93aa';Chart.defaults.font.family='Inter, sans-serif';
   const PAL=['#35c8ff','#7fe3ff','#1f8fbf','#5aa0cf','#2bd6c0','#9d7bff','#ff8a8a','#ffd166'];
   function mk(id,cfg){if(_charts[id])_charts[id].destroy();const cx=document.getElementById(id);if(!cx)return;_charts[id]=new Chart(cx,cfg);}
   const cat=d.exp_cat||[];mk('ch-cat',{type:'doughnut',data:{labels:cat.map(x=>x.label),datasets:[{data:cat.map(x=>x.value),backgroundColor:PAL,borderColor:'#04070c',borderWidth:2}]},options:{plugins:{legend:{position:'right'}}}});
   const day=d.exp_day||[];mk('ch-day',{type:'bar',data:{labels:day.map(x=>x.label),datasets:[{data:day.map(x=>x.value),backgroundColor:'#35c8ff',borderRadius:4}]},options:{plugins:{legend:{display:false}},scales:{x:{grid:{color:grid}},y:{grid:{color:grid}}}}});
   const hab=d.habits||[];mk('ch-hab',{type:'bar',data:{labels:hab.map(x=>x.label),datasets:[{data:hab.map(x=>x.value),backgroundColor:'#7fe3ff',borderRadius:4}]},options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{grid:{color:grid}},y:{grid:{color:grid}}}}});}
+(function(){const ps=document.getElementById('ch-period');if(!ps)return;
+  ps.onchange=()=>{const cst=ps.value==='custom';const cf=$('#ch-from'),ct=$('#ch-to');if(cf)cf.style.display=cst?'block':'none';if(ct)ct.style.display=cst?'block':'none';if(!cst)loadCharts();};
+  const cf=$('#ch-from'),ct=$('#ch-to');if(cf)cf.onchange=()=>{if(ct.value)loadCharts();};if(ct)ct.onchange=()=>{if(cf.value)loadCharts();};})();
 function splitRow(r){return r.replace(/^\s*\|/,'').replace(/\|\s*$/,'').split('|').map(c=>c.trim());}
 function renderTable(box,rows){const t=document.createElement('table');t.className='mtable';
   const thead=document.createElement('thead'),htr=document.createElement('tr');
@@ -999,7 +1023,7 @@ f.onsubmit=e=>{e.preventDefault();if(slash.style.display==='block'&&slSel>=0){pi
   txt.value='';hideSlash();if(!m)return;
   if(m.startsWith('/'))runCmd(m.slice(1));else send(m);};
 
-const CAT={tarefas:['Tarefas','list-checks'],lembretes:['Lembretes','alarm-clock'],gastos:['Gastos','wallet'],memorias:['Memórias','brain'],kb:['Base','book-open'],map:['Mapa','map'],buscar:['Buscar web','search'],noticias:['Notícias','newspaper'],clima:['Clima','cloud-sun'],relatorio:['Relatório','bar-chart-3'],status:['Status','activity'],semana:['Semana','calendar-days'],foco:['Pomodoro','timer'],procurar:['Procurar','file-search'],calendario:['Agenda','calendar'],habitos:['Hábitos','repeat'],diario:['Diário','notebook-pen'],orcamentos:['Orçamentos','piggy-bank'],assinaturas:['Assinaturas','credit-card'],dados:['Meus dados','database'],insights:['Insights','sparkles'],quiz:['Quiz','graduation-cap']};
+const CAT={tarefas:['Tarefas','list-checks'],lembretes:['Lembretes','alarm-clock'],gastos:['Gastos','wallet'],memorias:['Memórias','brain'],kb:['Base','book-open'],map:['Mapa','map'],graf:['Gráficos','bar-chart-3'],brain:['Cérebro','brain-circuit'],cam:['Câmera','camera'],buscar:['Buscar web','search'],noticias:['Notícias','newspaper'],clima:['Clima','cloud-sun'],relatorio:['Relatório','bar-chart-3'],status:['Status','activity'],semana:['Semana','calendar-days'],foco:['Pomodoro','timer'],procurar:['Procurar','file-search'],calendario:['Agenda','calendar'],habitos:['Hábitos','repeat'],diario:['Diário','notebook-pen'],orcamentos:['Orçamentos','piggy-bank'],assinaturas:['Assinaturas','credit-card'],dados:['Meus dados','database'],insights:['Insights','sparkles'],quiz:['Quiz','graduation-cap']};
 const SM={tasks:['Tarefas','list-checks','tarefas'],reminders:['Lembretes','alarm-clock','lembretes'],expenses:['Gastos · mês','wallet','gastos'],memories:['Memórias','brain','memorias'],kb:['Base','book-open','kb'],kbfiles:['Arquivos','file-text','kb'],links:['Links','link','links'],habits:['Hábitos','repeat','habitos'],journal:['Diário','notebook-pen','diario'],subscriptions:['Assinaturas','credit-card','assinaturas'],budgets:['Orçamentos','piggy-bank','orcamentos'],watches:['Monitores','radar','monitores'],agenda:['Agenda · 7d','calendar','calendario'],activity:['Histórico · 24h','history','status'],provider:['Provedor','cpu','status'],model:['Modelo','box','modelo'],disk:['Disco','hard-drive','status'],ram:['RAM','memory-stick','status'],uptime:['Uptime','clock','status']};
 const RECUR=[{v:'',l:'Uma vez'},{v:'daily',l:'Diário'},{v:'weekly',l:'Semanal'},{v:'monthly',l:'Mensal'}];
 const RECUR_LBL={daily:'repete diário',weekly:'repete semanal',monthly:'repete mensal'};
@@ -1011,7 +1035,7 @@ function renderStats(){const box=$('#stats');box.textContent='';config.stats.for
   num.appendChild(document.createTextNode(_counts[k]!=null?_counts[k]:'0'));s.appendChild(lbl);s.appendChild(num);box.appendChild(s);});window.lucide&&lucide.createIcons();}
 function renderActs(){const box=$('#acts');box.textContent='';config.actions.forEach(cmd=>{const m=CAT[cmd]||[cmd,'chevron-right'];
   const b=el('button','act');b.appendChild(ficon(m[1]));b.appendChild(document.createTextNode(m[0]));
-  b.onclick=e=>{if(cmd==='foco')openPomo(25);else if(cmd==='map'){ripple(b,e);switchView('map');}else runCmd(cmd,b,e);};box.appendChild(b);});window.lucide&&lucide.createIcons();}
+  b.onclick=e=>{if(cmd==='foco'){openPomo(25);return;}ripple(b,e);if(cmd==='cam'){$('#cambtn').click();return;}if(VIEWS[cmd]){switchView(cmd);return;}runCmd(cmd,b,e);};box.appendChild(b);});window.lucide&&lucide.createIcons();}
 async function loadPanel(){try{const r=await fetch('/api/panel',{headers:H()});if(!r.ok)return;_counts=await r.json();
   renderStats();$('#s-prov').textContent=_counts.provider;$('#s-model').textContent=_counts.model;$('#prov').value=_counts.provider;updateNBadge(_counts.notifs);}catch(e){}}
 async function loadConfig(){try{config=await (await fetch('/api/config',{headers:H()})).json();}catch(e){}renderActs();}
@@ -2717,29 +2741,59 @@ def create_app(config: Config, brain: Brain | None = None):
     async def charts(request: Request):
         _check(request.headers.get("authorization"))
         from datetime import datetime, timedelta, timezone
-        _, since, _ = commands._month_bounds(0)
+        qp = request.query_params
+
+        def _pd(s):
+            try:
+                return datetime.fromisoformat(s).replace(tzinfo=timezone.utc)
+            except (ValueError, TypeError):
+                return None
+        frm = _pd(qp.get("from", ""))
+        to = _pd(qp.get("to", ""))
+        if not frm:  # default = current month
+            _, since, _ = commands._month_bounds(0)
+            frm = datetime.fromisoformat(since)
+        if not to:
+            to = datetime.now(timezone.utc)
+        to_end = (to.replace(hour=0, minute=0, second=0, microsecond=0)
+                  + timedelta(days=1)).isoformat()
+        exps = [e for e in memory.expenses_since(owner, frm.isoformat())
+                if (e.get("created") or "") < to_end]
+
         bycat: dict = {}
-        for e in memory.expenses_since(owner, since):
+        for e in exps:
             bycat[e["category"]] = bycat.get(e["category"], 0) + e.get("amount", 0)
         cat = sorted(bycat.items(), key=lambda x: -x[1])[:8]
-        now = datetime.now(timezone.utc)
-        days = [(now - timedelta(days=i)).date().isoformat() for i in range(13, -1, -1)]
-        byday = {d: 0 for d in days}
-        for e in memory.expenses_since(owner, (now - timedelta(days=14)).isoformat()):
-            d = (e.get("created") or "")[:10]
-            if d in byday:
-                byday[d] += e.get("amount", 0)
+
+        span = max(1, (to.date() - frm.date()).days)
+        by_month = span > 62
+        buckets: dict = {}
+        d = frm.date()
+        while d <= to.date():
+            key = d.strftime("%Y-%m") if by_month else d.isoformat()
+            buckets.setdefault(key, 0)
+            d += timedelta(days=1)
+        for e in exps:
+            c = (e.get("created") or "")[:10]
+            key = c[:7] if by_month else c
+            if key in buckets:
+                buckets[key] += e.get("amount", 0)
+        series = [{"label": (k[5:] if not by_month else k),
+                   "value": round(v, 2)} for k, v in buckets.items()]
+
+        fd, td = frm.date().isoformat(), to.date().isoformat()
         habits = []
         for h in memory.list_habits(owner):
             try:
-                done = len(memory.habit_days(h["id"]))
+                done = sum(1 for x in memory.habit_days(h["id"]) if fd <= x <= td)
             except Exception:
                 done = 0
             habits.append({"label": h["name"], "value": done})
         return {
             "exp_cat": [{"label": k, "value": round(v, 2)} for k, v in cat],
-            "exp_day": [{"label": d[5:], "value": round(byday[d], 2)} for d in days],
+            "exp_day": series,
             "habits": habits[:10],
+            "range": {"from": fd, "to": td},
         }
 
     # --- API keys management -----------------------------------------------
