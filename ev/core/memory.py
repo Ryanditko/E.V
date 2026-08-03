@@ -688,6 +688,12 @@ class Memory:
         self._conn.commit()
         return cur.rowcount > 0
 
+    def clear_facts(self, user_id: str) -> int:
+        """Wipe all of a user's remembered facts (the 'brain'). Returns how many."""
+        cur = self._conn.execute("DELETE FROM facts WHERE user_id = ?", (user_id,))
+        self._conn.commit()
+        return cur.rowcount
+
     def relevant_facts(
         self, user_id: str, query_embedding: list[float] | None, k: int = 8
     ) -> list[str]:

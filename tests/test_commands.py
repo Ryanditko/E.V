@@ -351,3 +351,13 @@ def test_haversine_and_kinds(tmp_path):
     d = tools._haversine_m(-23.55, -46.63, -23.56, -46.63)
     assert 1000 < d < 1200
     assert "farmácia" in tools._OSM_KINDS and "restaurante" in tools._OSM_KINDS
+
+
+def test_clear_facts(tmp_path):
+    from ev.core.memory import Memory
+    m = Memory(tmp_path / "t.db")
+    m.add_fact("u", "gosto de café")
+    m.add_fact("u", "moro em SP")
+    assert len(m.list_facts("u")) == 2
+    assert m.clear_facts("u") == 2
+    assert m.list_facts("u") == []
