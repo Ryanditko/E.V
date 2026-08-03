@@ -160,6 +160,7 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:6;back
 .core .arc.two{inset:18px;animation-duration:11s;animation-direction:reverse;opacity:.5}
 .core .dot{position:absolute;inset:0;margin:auto;width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 20px 5px var(--glow)}
 @keyframes spin{to{transform:rotate(360deg)}}
+@keyframes ambpulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.7)}}
 body.listening .core .arc{animation-duration:1.8s}body.thinking .core .arc{animation-duration:2.6s}
 body.speaking .core .arc{animation-duration:1.1s}
 body.listening .core .dot{animation:pulse 1s infinite}@keyframes pulse{50%{transform:scale(1.9);opacity:.55}}
@@ -340,7 +341,7 @@ body.speaking .bigcore .r2{animation-delay:.15s}body.speaking .bigcore .r3{anima
   .mnav{display:block;flex:1 1 auto;min-width:60px}
   /* declutter the phone header so the folder/panel toggles never get clipped
      (keep Terminal available on mobile; only drop search + clean-mode) */
-  #gsearch,#tgl-zen{display:none}
+  #gsearch,#tgl-zen,#amb{display:none}
   .tbtn.ic-txt span{display:none}
   .tbtn.ic-txt{padding:9px 10px}
   .topbar{gap:6px;padding:10px 10px}
@@ -579,6 +580,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
       <span class="eyebrow" id="scope">geral</span>
       <button class="tbtn ico" id="gsearch" title="Buscar em tudo"><i data-lucide="search"></i></button>
       <button class="tbtn ic-txt" id="vcopen" title="Falar"><i data-lucide="mic"></i><span>FALAR</span></button>
+      <button class="tbtn ic-txt" id="amb" title="Presença ambiente — escuta &quot;E.V. ...&quot; sempre"><i data-lucide="radio"></i><span>AMBIENTE</span></button>
       <button class="tbtn ic-txt" id="term" title="Modo terminal"><i data-lucide="square-terminal"></i><span>TERMINAL</span></button>
       <button class="tbtn ic-txt on" id="voz" title="Voz da E.V."><i data-lucide="volume-2"></i><span>VOZ</span></button>
       <button class="tbtn ico" id="tgl-right" title="Ocultar/mostrar painel"><i data-lucide="panel-right"></i></button>
@@ -1246,7 +1248,7 @@ const vc=$('#vc'),vcTxt=$('#vc-txt'),vcMic=$('#vc-mic');
 // mostra a resposta da voz com a MESMA formatação bonita do chat (sem ** cru)
 function vcShowReply(reply){vcTxt.innerHTML='';const b=el('div','msg ev');renderReply(b,reply||'(sem resposta)');vcTxt.appendChild(b);}
 $('#vcopen').onclick=()=>{if(!RECOK){sys('Gravação de áudio indisponível neste navegador.');return;}vc.classList.add('on');vcTxt.textContent='Toque no microfone e fale. Toque de novo para enviar.';$('#vc-sub').textContent='pasta: '+thread+' · a conversa fica salva aqui';};
-$('#vc-x').onclick=()=>{if(_recActive)stopRec();if(_hf){stopHF();renderHFBtn();}stopSpeaking();vc.classList.remove('on');setState();};
+$('#vc-x').onclick=()=>{if(_recActive)stopRec();if(_hf){stopHF();renderHFBtn();}stopSpeaking();vc.classList.remove('on');setState(_ambient?'listening':'');};
 vcMic.onclick=async()=>{
   if(!RECOK){vcTxt.textContent='Gravação de áudio indisponível neste navegador.';return;}
   if(_recActive){stopRec();vcTxt.textContent='transcrevendo...';return;}
@@ -1261,7 +1263,8 @@ vcMic.onclick=async()=>{
 
 // --- hands-free: escuta contínua + palavra de ativação "E.V." (Web Speech API) ---
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-let _hf=false,_rec=null,_hfBusy=false;
+let _hf=false,_rec=null,_hfBusy=false,_ambient=false;
+function vcOpen(){return vc.classList.contains('on');}
 // aceita variações de como o STT ouve "E.V." em pt-BR (ev, eva, e vê, êvê, ei vi...)
 // "E.V." é ouvido pelo STT de MUITAS formas (evee, yvee, eveee, evi, ivi, e vê...).
 // Normaliza cada palavra (minúsculas, sem pontuação, colapsa letras repetidas) e
@@ -1274,13 +1277,17 @@ function extractCommand(t){let s=(t||'').trim();
   for(let i=0;i<words.length;i++){if(WAKESET.has(normTok(words[i])))return words.slice(i+1).join(' ').trim();}
   return null;}
 function hasWake(t){return extractCommand(t)!==null;}
+function hfSay(t){if(vcOpen())vcTxt.textContent=t;else toast(t);}
 async function processHF(text){if(_hfBusy)return;_hfBusy=true;stopSpeaking();
-  setState('thinking');vcTxt.textContent='"'+text+'"';
+  setState('thinking');hfSay('"'+text+'"');
   try{const r=await fetch('/api/chat',{method:'POST',headers:H(),body:JSON.stringify({message:text,thread})});
-    const j=await r.json();vcShowReply(j.reply);speak(j.reply,true);loadPanel();
-  }catch(e){vcTxt.textContent='Falha ao falar com a E.V. Tenta de novo.';}
-  finally{_hfBusy=false;setState(_hf?'listening':'');}}
-function startHF(){if(!SR){vcTxt.textContent='Mãos-livres precisa do Chrome, Edge ou Safari. No Firefox, use o microfone manual.';return false;}
+    const j=await r.json();
+    if(vcOpen())vcShowReply(j.reply);else toast((j.reply||'').slice(0,220));
+    speak(j.reply,true);loadPanel();
+  }catch(e){hfSay('Falha ao falar com a E.V. Tenta de novo.');}
+  finally{_hfBusy=false;setState((_hf||_ambient)?'listening':'');}}
+// Single SpeechRecognition shared by hands-free (voice screen) and ambient presence.
+function ensureRec(){if(_rec)return true;if(!SR)return false;
   try{_rec=new SR();}catch(e){return false;}
   _rec.lang='pt-BR';_rec.continuous=true;_rec.interimResults=true;
   _rec.onresult=ev=>{for(let i=ev.resultIndex;i<ev.results.length;i++){const res=ev.results[i];
@@ -1290,18 +1297,34 @@ function startHF(){if(!SR){vcTxt.textContent='Mãos-livres precisa do Chrome, Ed
     if(!res.isFinal)continue;
     const cmd=extractCommand(txt);
     if(cmd===null)continue;                 // não foi chamada pela E.V.
-    if(!cmd){vcTxt.textContent='Pois não, Ryan?';speak('Pois não?',true);continue;}
+    if(!cmd){hfSay('Pois não, Ryan?');speak('Pois não?',true);continue;}
     processHF(cmd);}};
-  _rec.onerror=e=>{if(e.error==='not-allowed'||e.error==='service-not-allowed'){_hf=false;renderHFBtn();vcTxt.textContent='Permita o microfone para o modo mãos-livres.';}};
-  _rec.onend=()=>{if(_hf){try{_rec.start();}catch(e){}}};   // reinicia (o SR para sozinho)
+  _rec.onerror=e=>{if(e.error==='not-allowed'||e.error==='service-not-allowed'){
+    _hf=false;_ambient=false;renderHFBtn();renderAmbBtn();hfSay('Permita o microfone para escutar por voz.');}};
+  _rec.onend=()=>{if(_hf||_ambient){try{_rec.start();}catch(e){}}};   // reinicia (o SR para sozinho)
   try{_rec.start();}catch(e){}
   return true;}
-function stopHF(){_hf=false;if(_rec){try{_rec.onend=null;_rec.stop();}catch(e){}_rec=null;}}
+function maybeStopRec(){if(!_hf&&!_ambient&&_rec){try{_rec.onend=null;_rec.stop();}catch(e){}_rec=null;}}
+function startHF(){if(!SR){vcTxt.textContent='Mãos-livres precisa do Chrome, Edge ou Safari. No Firefox, use o microfone manual.';return false;}
+  return ensureRec();}
+function stopHF(){_hf=false;maybeStopRec();}
 function renderHFBtn(){const b=$('#vc-cont');b.innerHTML='';b.appendChild(ficon(_hf?'ear':'ear-off'));
   b.appendChild(document.createTextNode(' Mãos-livres: '+(_hf?'on — diga "E.V. ..."':'off')));b.classList.toggle('on',_hf);window.lucide&&lucide.createIcons();}
 $('#vc-cont').onclick=()=>{if(!SR){vcTxt.textContent='Mãos-livres precisa do Chrome, Edge ou Safari. No Firefox, use o microfone manual.';return;}
   if(_hf){stopHF();setState();}else{_hf=true;if(startHF()){vcTxt.textContent='Modo mãos-livres ligado. É só dizer: "E.V., ..."';setState('listening');}else{_hf=false;}}renderHFBtn();};
 renderHFBtn();
+// Ambient presence — keeps listening globally so "E.V. ..." works from any screen.
+function renderAmbBtn(){const b=$('#amb');if(!b)return;b.classList.toggle('on',_ambient);
+  b.title=_ambient?'Presença ambiente ligada — escuta "E.V. ..." sempre':'Presença ambiente — escuta "E.V. ..." sempre';
+  let d=document.getElementById('amb-dot');
+  if(_ambient){if(!d){d=el('div','');d.id='amb-dot';d.style.cssText='position:fixed;bottom:22px;left:22px;display:flex;align-items:center;gap:8px;padding:7px 13px;border-radius:20px;background:rgba(4,7,12,.72);border:1px solid var(--accent);color:var(--fg);font-size:12px;letter-spacing:.06em;z-index:9998;box-shadow:0 0 18px var(--glow);backdrop-filter:blur(4px)';d.innerHTML='<span style="width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent);animation:ambpulse 1.4s infinite"></span>E.V. OUVINDO';document.body.appendChild(d);if(document.body.classList.contains('ff'))d.style.backdropFilter='none';}}
+  else if(d){d.remove();}}
+function toggleAmb(){if(!SR){toast('Presença ambiente precisa do Chrome, Edge ou Safari.');return;}
+  if(_ambient){_ambient=false;maybeStopRec();setState((_hf)?'listening':'');}
+  else{_ambient=true;if(!ensureRec()){_ambient=false;}else{toast('Presença ambiente ligada — é só dizer "E.V. ..." a qualquer momento.');setState('listening');}}
+  renderAmbBtn();}
+$('#amb').onclick=toggleAmb;
+renderAmbBtn();
 // view tabs — customizable: pick which appear in the header (minimalist)
 const VIEW_LABELS={chat:'Conversa',tasks:'Tarefas',exp:'Gastos',rem:'Lembretes',cal:'Agenda',mem:'Memórias',lnk:'Links',hab:'Hábitos',jou:'Diário',sub:'Assinaturas',orc:'Orçamentos',mon:'Monitores',act:'Histórico',kb:'Base',map:'Mapa',brain:'Cérebro',graf:'Gráficos'};
 let curView='chat',tabsShown;try{tabsShown=JSON.parse(localStorage.getItem('ev_tabs'));}catch(e){}
