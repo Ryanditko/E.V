@@ -408,6 +408,10 @@ body:not(.term) .msg.ev::after{content:"";position:absolute;top:7px;left:7px;wid
 .msg .sub:first-child{margin-top:0}
 .msg .sub svg{width:15px;height:15px;color:var(--subtle);flex:none}
 .msg .sep{height:1px;background:var(--line);margin:9px 0;border:none}
+.msg .mtable{border-collapse:collapse;width:100%;margin:8px 0;font-size:13px;display:block;overflow-x:auto}
+.msg .mtable th,.msg .mtable td{border:1px solid var(--line);padding:6px 9px;text-align:left;white-space:nowrap}
+.msg .mtable th{background:var(--surface);color:var(--accent);font-family:var(--mono);font-size:10px;letter-spacing:.05em;text-transform:uppercase}
+.msg .mtable tr:nth-child(even) td{background:rgba(53,200,255,.045)}
 .mchips{display:flex;flex-wrap:wrap;gap:7px;margin:3px 0 10px}
 .mchip{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:12px;color:var(--fg);background:var(--elev);border:1px solid var(--line);border-radius:999px;padding:6px 12px;cursor:pointer;position:relative;overflow:hidden;transition:background .15s,border-color .15s,color .15s}
 .mchip:hover,.mchip:active{background:var(--fg);color:var(--ink);border-color:var(--fg)}
@@ -849,21 +853,34 @@ function appendRich(parent,text){let last=0,m;MDRE.lastIndex=0;
     last=m.index+m[0].length;}
   if(last<text.length)parent.appendChild(document.createTextNode(text.slice(last)));}
 // structured, monochrome rendering with Lucide icons (no emoji read-out)
-function renderReply(box,text){box.textContent='';const lines=(text||'').split('\n');let first=true;
-  lines.forEach(ln=>{const s=ln.trim();if(!s)return;let m;
-    if(SEPRE.test(s)){box.appendChild(el('div','sep'));return;}
-    if(EMOLEAD.test(s)){
-      if(first){const h=el('span','h');h.appendChild(ficon(iconName(s)));h.appendChild(document.createTextNode(stripEmoji(s)));box.appendChild(h);first=false;return;}
-      const sub=el('div','sub');sub.appendChild(ficon(iconName(s)));const sp=el('span','');appendRich(sp,stripEmoji(s));sub.appendChild(sp);box.appendChild(sub);return;}
-    if((m=s.match(/^\[(.+)\]$/))){box.appendChild(el('div','cat',m[1]));return;}
-    if((m=s.match(/^#{1,6}\s+(.+)$/))){const h=el('div','mdh');appendRich(h,stripEmoji(m[1]).replace(/\*+/g,''));box.appendChild(h);first=false;return;}
-    if((m=s.match(/^[-*•]\s+(.+)$/))){const b=el('div','bul');const sp=el('span','');appendRich(sp,stripEmoji(m[1]));b.appendChild(sp);box.appendChild(b);first=false;return;}
-    if((m=s.match(/^#(\w+)\s+(.*)$/))){const r=el('div','row');r.appendChild(el('span','id','#'+m[1]));
-      const t=el('span','t');const tt=stripEmoji(m[2]);const parts=tt.split(/\s+(?=\d+[.)]\s)/);
-      if(parts.length>1)parts.forEach(p=>{const dv=el('div','');appendRich(dv,p);t.appendChild(dv);});else appendRich(t,tt);
-      r.appendChild(t);box.appendChild(r);return;}
-    if(/^(Concluir|Cancelar|Uso|Remover|Apagar):/i.test(s)||s.startsWith('/')){const hh=el('div','hint');appendRich(hh,stripEmoji(s));box.appendChild(hh);return;}
-    const pp=el('p','');appendRich(pp,stripEmoji(s));box.appendChild(pp);first=false;});
+function splitRow(r){return r.replace(/^\s*\|/,'').replace(/\|\s*$/,'').split('|').map(c=>c.trim());}
+function renderTable(box,rows){const t=document.createElement('table');t.className='mtable';
+  const thead=document.createElement('thead'),htr=document.createElement('tr');
+  splitRow(rows[0]).forEach(h=>{const th=document.createElement('th');appendRich(th,h);htr.appendChild(th);});
+  thead.appendChild(htr);t.appendChild(thead);const tb=document.createElement('tbody');
+  rows.slice(2).forEach(r=>{const tr=document.createElement('tr');splitRow(r).forEach(c=>{const td=document.createElement('td');appendRich(td,c);tr.appendChild(td);});tb.appendChild(tr);});
+  t.appendChild(tb);box.appendChild(t);}
+function renderLine(box,s,st){let m;
+  if(SEPRE.test(s)){box.appendChild(el('div','sep'));return;}
+  if(EMOLEAD.test(s)){
+    if(st.first){const h=el('span','h');h.appendChild(ficon(iconName(s)));h.appendChild(document.createTextNode(stripEmoji(s)));box.appendChild(h);st.first=false;return;}
+    const sub=el('div','sub');sub.appendChild(ficon(iconName(s)));const sp=el('span','');appendRich(sp,stripEmoji(s));sub.appendChild(sp);box.appendChild(sub);return;}
+  if((m=s.match(/^\[(.+)\]$/))){box.appendChild(el('div','cat',m[1]));return;}
+  if((m=s.match(/^#{1,6}\s+(.+)$/))){const h=el('div','mdh');appendRich(h,stripEmoji(m[1]).replace(/\*+/g,''));box.appendChild(h);st.first=false;return;}
+  if((m=s.match(/^[-*•]\s+(.+)$/))){const b=el('div','bul');const sp=el('span','');appendRich(sp,stripEmoji(m[1]));b.appendChild(sp);box.appendChild(b);st.first=false;return;}
+  if((m=s.match(/^#(\w+)\s+(.*)$/))){const r=el('div','row');r.appendChild(el('span','id','#'+m[1]));
+    const t=el('span','t');const tt=stripEmoji(m[2]);const parts=tt.split(/\s+(?=\d+[.)]\s)/);
+    if(parts.length>1)parts.forEach(p=>{const dv=el('div','');appendRich(dv,p);t.appendChild(dv);});else appendRich(t,tt);
+    r.appendChild(t);box.appendChild(r);return;}
+  if(/^(Concluir|Cancelar|Uso|Remover|Apagar):/i.test(s)||s.startsWith('/')){const hh=el('div','hint');appendRich(hh,stripEmoji(s));box.appendChild(hh);return;}
+  const pp=el('p','');appendRich(pp,stripEmoji(s));box.appendChild(pp);st.first=false;}
+function renderReply(box,text){box.textContent='';const lines=(text||'').split('\n');const st={first:true};
+  for(let i=0;i<lines.length;i++){const s=lines[i].trim();
+    if(/^\|.*\|$/.test(s)&&i+1<lines.length&&/^\|[\s:|-]+\|$/.test(lines[i+1].trim())){
+      const rows=[s];let j=i+2;while(j<lines.length&&/^\|.*\|$/.test(lines[j].trim())){rows.push(lines[j].trim());j++;}
+      renderTable(box,rows);i=j-1;st.first=false;continue;}
+    if(!s)continue;
+    renderLine(box,s,st);}
   window.lucide&&lucide.createIcons();
 }
 function you(t){const d=el('div','msg you',t);log.appendChild(d);log.scrollTop=log.scrollHeight;}
