@@ -127,6 +127,26 @@ class Brain:
         """Extract text from an image via Gemini vision (OCR)."""
         return await asyncio.to_thread(self._ocr_sync, image, mime)
 
+    async def describe_image(self, image: bytes, mime: str | None, prompt: str) -> str:
+        """One-off vision description (for live camera / 'what is this'). NOT
+        persisted to any conversation. Returns '' on failure."""
+        return await asyncio.to_thread(self._describe_sync, image, mime, prompt)
+
+    def _describe_sync(self, image: bytes, mime: str | None, prompt: str) -> str:
+        try:
+            resp = self._client.models.generate_content(
+                model=self.current_model(),
+                contents=[
+                    types.Part.from_bytes(data=image, mime_type=mime or "image/jpeg"),
+                    types.Part.from_text(text=prompt),
+                ],
+                config=types.GenerateContentConfig(temperature=0.2),
+            )
+            return (resp.text or "").strip()
+        except Exception as exc:
+            log.warning("describe_image failed (%s)", exc)
+            return ""
+
     async def extract_receipt(self, image: bytes, mime: str | None) -> dict | None:
         """Read a receipt/invoice image -> {amount, description, category} or None."""
         return await asyncio.to_thread(self._extract_receipt_sync, image, mime)
