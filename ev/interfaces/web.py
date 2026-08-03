@@ -745,6 +745,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
     <button class="vcbtn" id="cam-live" title="Ao vivo (marca rostos + narra)"><i data-lucide="scan-eye"></i></button>
     <button class="vcbtn" id="cam-what" title="O que é isso?"><i data-lucide="search"></i></button>
     <button class="vcbtn" id="cam-tr" title="Traduzir o texto"><i data-lucide="languages"></i></button>
+    <button class="vcbtn" id="cam-food" title="Calorias da comida"><i data-lucide="utensils"></i></button>
     <button class="vcbtn" id="cam-shot" title="Capturar e perguntar no chat"><i data-lucide="camera"></i></button>
   </div>
 </div>
@@ -1951,6 +1952,7 @@ function stopCamLive(){_camLive=false;const lb=$('#cam-live');if(lb)lb.classList
 $('#cam-live').onclick=()=>{_camLive?stopCamLive():startCamLive();};
 $('#cam-what').onclick=()=>camSee('what');
 $('#cam-tr').onclick=()=>{camResult('Traduzindo...');camSee('translate');};
+$('#cam-food').onclick=()=>{camResult('Estimando calorias...');camSee('food');};
 $('#cam-shot').onclick=()=>{const v=$('#cam-video');if(!v||!v.videoWidth){$('#cam-hint').textContent='Espere a câmera carregar...';return;}
   const cv=document.createElement('canvas');cv.width=v.videoWidth;cv.height=v.videoHeight;cv.getContext('2d').drawImage(v,0,0);
   cv.toBlob(b=>{if(!b)return;const cap=(txt.value||'').trim();txt.value='';
