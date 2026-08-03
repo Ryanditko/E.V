@@ -184,6 +184,10 @@ body.speaking .core .dot{animation:pulse .6s infinite}
 #vc-viz{position:absolute;width:480px;height:480px;max-width:92vw;max-height:92vw;pointer-events:none;opacity:0;transition:opacity .35s;filter:drop-shadow(0 0 14px var(--glow))}
 .bigcore{width:220px;height:220px;position:relative;z-index:1}
 #mapview{display:none;padding:22px;overflow:auto}
+#chartsview{display:none;padding:22px;overflow:auto}
+.chart-card{border:1px solid var(--line-2);border-radius:13px;padding:14px 16px;margin-bottom:16px;background:linear-gradient(180deg,rgba(14,27,43,.4),rgba(6,12,20,.3));box-shadow:0 0 40px -26px var(--glow)}
+.chart-t{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#6fb0da;margin-bottom:10px}
+.chart-card canvas{max-height:280px}
 #brainview{display:none;padding:22px;overflow:hidden;flex-direction:column;min-height:0;height:100%}
 #brain-wrap{position:relative;flex:1;min-height:400px;margin-top:10px;border:1px solid var(--line-2);border-radius:13px;overflow:hidden;box-shadow:0 0 60px -20px var(--glow),inset 0 0 60px -20px var(--glow);background:radial-gradient(120% 100% at 50% 0%,rgba(53,200,255,.08),transparent 60%),radial-gradient(90% 90% at 50% 100%,rgba(53,200,255,.05),transparent 70%),#03070a}
 #brain-canvas{position:absolute;inset:0;width:100%;height:100%;cursor:grab;z-index:0}
@@ -571,7 +575,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
     <div class="topbar">
       <button class="tbtn ico" id="tgl-left" title="Ocultar/mostrar pastas"><i data-lucide="panel-left"></i></button>
       <div class="tabs" id="tabs"></div>
-      <select id="mnav" class="mnav" title="Ir para"><option value="chat">Conversa</option><option value="tasks">Tarefas</option><option value="exp">Gastos</option><option value="rem">Lembretes</option><option value="cal">Agenda</option><option value="mem">Memórias</option><option value="lnk">Links</option><option value="hab">Hábitos</option><option value="jou">Diário</option><option value="sub">Assinaturas</option><option value="orc">Orçamentos</option><option value="mon">Monitores</option><option value="act">Histórico</option><option value="kb">Base</option><option value="map">Mapa</option><option value="brain">Cérebro</option></select>
+      <select id="mnav" class="mnav" title="Ir para"><option value="chat">Conversa</option><option value="tasks">Tarefas</option><option value="exp">Gastos</option><option value="rem">Lembretes</option><option value="cal">Agenda</option><option value="mem">Memórias</option><option value="lnk">Links</option><option value="hab">Hábitos</option><option value="jou">Diário</option><option value="sub">Assinaturas</option><option value="orc">Orçamentos</option><option value="mon">Monitores</option><option value="act">Histórico</option><option value="kb">Base</option><option value="map">Mapa</option><option value="brain">Cérebro</option><option value="graf">Gráficos</option></select>
       <span class="eyebrow" id="scope">geral</span>
       <button class="tbtn ico" id="gsearch" title="Buscar em tudo"><i data-lucide="search"></i></button>
       <button class="tbtn ic-txt" id="vcopen" title="Falar"><i data-lucide="mic"></i><span>FALAR</span></button>
@@ -718,6 +722,12 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
         <div id="brain-menu"></div>
       </div>
     </div>
+    <div id="chartsview">
+      <div class="tv-h">Gráficos · seus dados</div>
+      <div class="chart-card"><div class="chart-t">Gastos do mês por categoria</div><canvas id="ch-cat"></canvas></div>
+      <div class="chart-card"><div class="chart-t">Gastos nos últimos 14 dias</div><canvas id="ch-day"></canvas></div>
+      <div class="chart-card"><div class="chart-t">Hábitos (dias marcados)</div><canvas id="ch-hab"></canvas></div>
+    </div>
   </main>
   <aside id="right" class="rail">
     <div class="eyebrow">Sistema <span class="mini" id="edit-stats">editar</span></div>
@@ -853,6 +863,17 @@ function appendRich(parent,text){let last=0,m;MDRE.lastIndex=0;
     last=m.index+m[0].length;}
   if(last<text.length)parent.appendChild(document.createTextNode(text.slice(last)));}
 // structured, monochrome rendering with Lucide icons (no emoji read-out)
+let _chartLibP=null,_charts={};
+function loadChartLib(){if(window.Chart)return Promise.resolve();if(_chartLibP)return _chartLibP;
+  _chartLibP=new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);});return _chartLibP;}
+async function loadCharts(){try{await loadChartLib();}catch(e){$('#chartsview').querySelectorAll('.chart-t').forEach(x=>{});return;}
+  let d;try{d=await (await fetch('/api/charts',{headers:H()})).json();}catch(e){return;}
+  const grid='rgba(93,178,255,.12)';Chart.defaults.color='#7d93aa';Chart.defaults.font.family='Inter, sans-serif';
+  const PAL=['#35c8ff','#7fe3ff','#1f8fbf','#5aa0cf','#2bd6c0','#9d7bff','#ff8a8a','#ffd166'];
+  function mk(id,cfg){if(_charts[id])_charts[id].destroy();const cx=document.getElementById(id);if(!cx)return;_charts[id]=new Chart(cx,cfg);}
+  const cat=d.exp_cat||[];mk('ch-cat',{type:'doughnut',data:{labels:cat.map(x=>x.label),datasets:[{data:cat.map(x=>x.value),backgroundColor:PAL,borderColor:'#04070c',borderWidth:2}]},options:{plugins:{legend:{position:'right'}}}});
+  const day=d.exp_day||[];mk('ch-day',{type:'bar',data:{labels:day.map(x=>x.label),datasets:[{data:day.map(x=>x.value),backgroundColor:'#35c8ff',borderRadius:4}]},options:{plugins:{legend:{display:false}},scales:{x:{grid:{color:grid}},y:{grid:{color:grid}}}}});
+  const hab=d.habits||[];mk('ch-hab',{type:'bar',data:{labels:hab.map(x=>x.label),datasets:[{data:hab.map(x=>x.value),backgroundColor:'#7fe3ff',borderRadius:4}]},options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{grid:{color:grid}},y:{grid:{color:grid}}}}});}
 function splitRow(r){return r.replace(/^\s*\|/,'').replace(/\|\s*$/,'').split('|').map(c=>c.trim());}
 function renderTable(box,rows){const t=document.createElement('table');t.className='mtable';
   const thead=document.createElement('thead'),htr=document.createElement('tr');
@@ -1257,7 +1278,7 @@ $('#vc-cont').onclick=()=>{if(!SR){vcTxt.textContent='Mãos-livres precisa do Ch
   if(_hf){stopHF();setState();}else{_hf=true;if(startHF()){vcTxt.textContent='Modo mãos-livres ligado. É só dizer: "E.V., ..."';setState('listening');}else{_hf=false;}}renderHFBtn();};
 renderHFBtn();
 // view tabs — customizable: pick which appear in the header (minimalist)
-const VIEW_LABELS={chat:'Conversa',tasks:'Tarefas',exp:'Gastos',rem:'Lembretes',cal:'Agenda',mem:'Memórias',lnk:'Links',hab:'Hábitos',jou:'Diário',sub:'Assinaturas',orc:'Orçamentos',mon:'Monitores',act:'Histórico',kb:'Base',map:'Mapa',brain:'Cérebro'};
+const VIEW_LABELS={chat:'Conversa',tasks:'Tarefas',exp:'Gastos',rem:'Lembretes',cal:'Agenda',mem:'Memórias',lnk:'Links',hab:'Hábitos',jou:'Diário',sub:'Assinaturas',orc:'Orçamentos',mon:'Monitores',act:'Histórico',kb:'Base',map:'Mapa',brain:'Cérebro',graf:'Gráficos'};
 let curView='chat',tabsShown;try{tabsShown=JSON.parse(localStorage.getItem('ev_tabs'));}catch(e){}
 if(!Array.isArray(tabsShown)||!tabsShown.length)tabsShown=['chat','tasks','exp','rem','cal','brain'];
 function renderTabs(){const box=$('#tabs');if(!box)return;box.textContent='';
@@ -1265,12 +1286,12 @@ function renderTabs(){const box=$('#tabs');if(!box)return;box.textContent='';
   const ed=el('button','tab tab-edit','+');ed.title='Escolher abas';ed.onclick=()=>openPicker('Abas do topo','Escolha quais abas aparecem no topo.',Object.keys(VIEW_LABELS).map(k=>({key:k,label:VIEW_LABELS[k]})),tabsShown,l=>{tabsShown=l.length?l:['chat'];localStorage.setItem('ev_tabs',JSON.stringify(tabsShown));renderTabs();});box.appendChild(ed);}
 renderTabs();
 $('#mnav').onchange=()=>switchView($('#mnav').value);
-const VIEWS={chat:'#chatview',tasks:'#taskview',exp:'#expview',rem:'#remview',cal:'#calview',mem:'#memview',lnk:'#lnkview',hab:'#habview',jou:'#jouview',sub:'#subview',orc:'#orcview',mon:'#monview',kb:'#kbview',act:'#actview',map:'#mapview',brain:'#brainview'};
+const VIEWS={chat:'#chatview',tasks:'#taskview',exp:'#expview',rem:'#remview',cal:'#calview',mem:'#memview',lnk:'#lnkview',hab:'#habview',jou:'#jouview',sub:'#subview',orc:'#orcview',mon:'#monview',kb:'#kbview',act:'#actview',map:'#mapview',brain:'#brainview',graf:'#chartsview'};
 function switchView(v){if(!VIEWS[v])v='chat';curView=v;document.querySelectorAll('#tabs .tab').forEach(t=>t.classList.toggle('on',t.dataset.view===v));
   const mn=$('#mnav');if(mn&&mn.value!==v)mn.value=v;
   document.body.classList.remove('m-left','m-right');
   Object.entries(VIEWS).forEach(([k,sel])=>{const el2=$(sel);if(el2)el2.style.display=(k===v)?((k==='chat'||k==='brain')?'flex':'block'):'none';});
-  ({tasks:loadTasks,exp:loadExp,rem:loadRem,mem:loadMem,kb:loadKB,cal:loadCal,lnk:loadLinks,hab:loadHabits,jou:loadJournal,sub:loadSub,orc:loadOrc,mon:loadMon,act:loadAct,map:loadMap,brain:loadBrain}[v]||function(){})();}
+  ({tasks:loadTasks,exp:loadExp,rem:loadRem,mem:loadMem,kb:loadKB,cal:loadCal,lnk:loadLinks,hab:loadHabits,jou:loadJournal,sub:loadSub,orc:loadOrc,mon:loadMon,act:loadAct,map:loadMap,brain:loadBrain,graf:loadCharts}[v]||function(){})();}
 // --- Mapa + localização (Leaflet + OSM; lugares e pontos dentro da própria E.V.) ---
 let _map=null,_marker=null,_loc=null,_nearLayer=null,_savedLayer=null,_addMode=false,_pendingNear=null;
 const MAP_CHIPS=[['Onde estou','locate-fixed'],['Metrô','tram-front'],['Trem','train-front'],['Ônibus','bus'],['Farmácia','pill'],['Mercado','shopping-cart'],['Restaurante','utensils'],['Padaria','croissant'],['Café','coffee'],['Posto','fuel'],['Banco','landmark'],['Hospital','cross'],['Academia','dumbbell']];
@@ -2677,6 +2698,35 @@ def create_app(config: Config, brain: Brain | None = None):
         _check(request.headers.get("authorization"))
         n = memory.clear_facts(owner)
         return {"ok": True, "cleared": n}
+
+    @app.get("/api/charts")
+    async def charts(request: Request):
+        _check(request.headers.get("authorization"))
+        from datetime import datetime, timedelta, timezone
+        _, since, _ = commands._month_bounds(0)
+        bycat: dict = {}
+        for e in memory.expenses_since(owner, since):
+            bycat[e["category"]] = bycat.get(e["category"], 0) + e.get("amount", 0)
+        cat = sorted(bycat.items(), key=lambda x: -x[1])[:8]
+        now = datetime.now(timezone.utc)
+        days = [(now - timedelta(days=i)).date().isoformat() for i in range(13, -1, -1)]
+        byday = {d: 0 for d in days}
+        for e in memory.expenses_since(owner, (now - timedelta(days=14)).isoformat()):
+            d = (e.get("created") or "")[:10]
+            if d in byday:
+                byday[d] += e.get("amount", 0)
+        habits = []
+        for h in memory.list_habits(owner):
+            try:
+                done = len(memory.habit_days(h["id"]))
+            except Exception:
+                done = 0
+            habits.append({"label": h["name"], "value": done})
+        return {
+            "exp_cat": [{"label": k, "value": round(v, 2)} for k, v in cat],
+            "exp_day": [{"label": d[5:], "value": round(byday[d], 2)} for d in days],
+            "habits": habits[:10],
+        }
 
     # --- API keys management -----------------------------------------------
     _KEY_FIELDS = [
