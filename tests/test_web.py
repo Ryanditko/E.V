@@ -53,6 +53,30 @@ def _auth():
     return {"Authorization": "Bearer secret"}
 
 
+def test_brain_edit_and_delete(tmp_path):
+    client, _ = _client(tmp_path)
+    # create a task, then edit + delete it straight from the brain
+    client.post("/api/cmd", json={"command": "tarefa comprar pão"}, headers=_auth())
+    nodes = client.get("/api/brain", headers=_auth()).json()["nodes"]
+    task = next(n for n in nodes if n.get("group") == "tasks" and "ref" in n)
+    assert task["editable"] is True
+    r = client.post("/api/brain/edit",
+                    json={"group": "tasks", "ref": task["ref"], "text": "comprar leite"},
+                    headers=_auth())
+    assert r.json()["ok"] is True
+    labels = [n["label"] for n in client.get("/api/brain", headers=_auth()).json()["nodes"]]
+    assert any("comprar leite" in l for l in labels)
+    assert client.post("/api/brain/delete",
+                       json={"group": "tasks", "ref": task["ref"]}, headers=_auth()).json()["ok"]
+    groups = {n.get("group") for n in client.get("/api/brain", headers=_auth()).json()["nodes"]}
+    assert "tasks" not in groups  # the only task is gone
+    # guards
+    assert client.post("/api/brain/delete", json={"group": "tasks"}, headers=_auth()).status_code == 400
+    assert client.post("/api/brain/delete", json={"group": "nope", "ref": 1},
+                       headers=_auth()).status_code == 400
+    assert client.post("/api/brain/edit").status_code == 401
+
+
 def test_face_enroll_and_clear(tmp_path):
     client, _ = _client(tmp_path)
     assert client.get("/api/face").status_code == 401  # needs auth
