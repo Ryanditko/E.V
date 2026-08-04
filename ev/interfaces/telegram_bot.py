@@ -2051,6 +2051,7 @@ class TelegramInterface:
                     await self._maybe_habit_nudge(app)
                     await self._maybe_nudge(app)
                     await self._maybe_insight(app)
+                    await self._maybe_run_automations(app)
                     await self._maybe_monthly_report(app)
             except Exception:
                 log.exception("Briefing loop error")
@@ -2254,6 +2255,87 @@ class TelegramInterface:
             return
         await self._cmd_out(update, self._commands.learned_text(
             str(update.effective_user.id)))
+
+    async def _maybe_run_automations(self, app: Application) -> None:
+        """Evaluate the user's automations ('quando X, faça Y') and run those that
+        fire. Deterministic triggers (no LLM) → cheap and reliable."""
+        cfg = self._config
+        if cfg.owner_id is None:
+            return
+        from ..core import automations as au
+        now = datetime.now(self._tz())
+        owner = str(cfg.owner_id)
+        for a in self._memory.list_automations(owner, only_enabled=True):
+            try:
+                state = a["state"]
+                fired, extra = False, None
+                if a["trig"] == "time":
+                    if au.time_due(a["trig_cfg"], now, state.get("last")):
+                        fired = True
+                        state["last"] = now.date().isoformat()
+                elif a["trig"] == "expense_over":
+                    new = self._memory.expenses_after_id(owner, int(state.get("last_id", 0)))
+                    if new:
+                        state["last_id"] = new[-1]["id"]
+                        extra = next((e for e in new if au.expense_matches(a["trig_cfg"], e)), None)
+                        fired = extra is not None
+                elif a["trig"] == "task_overdue":
+                    loops = self._commands.open_loops(owner)
+                    if loops["overdue"] and state.get("last") != now.date().isoformat():
+                        fired, extra = True, loops["overdue"]
+                        state["last"] = now.date().isoformat()
+                if fired:
+                    await self._run_automation_action(app, a, extra)
+                self._memory.set_automation_state(a["id"], state)
+            except Exception:
+                log.exception("automation %s failed", a.get("id"))
+
+    async def _run_automation_action(self, app: Application, a: dict, extra) -> None:
+        cfg = self._config
+        owner = str(cfg.owner_id)
+        act, ac = a["act"], a["act_cfg"]
+        if act == "notify":
+            msg = "🤖 " + (ac.get("message") or a["name"])
+            if a["trig"] == "expense_over" and isinstance(extra, dict):
+                msg += f"\n(R$ {float(extra.get('amount', 0)):.2f} em {extra.get('description', '')})"
+        elif act == "command":
+            name = (ac.get("command") or "").lstrip("/").split()[0] if ac.get("command") else ""
+            out = self._commands.run(owner, name, "") if name in self._commands.runnable() else None
+            msg = "🤖 " + a["name"] + (("\n\n" + out) if out else "")
+        elif act == "reschedule":
+            from datetime import timedelta
+            today = datetime.now(self._tz()).date().isoformat()
+            tomorrow = (datetime.now(self._tz()).date() + timedelta(days=1)).isoformat()
+            n = 0
+            for t in self._memory.open_tasks(owner):
+                due = t.get("due")
+                if due and due[:10] < today:
+                    self._memory.update_task(owner, t["id"], due=tomorrow)
+                    n += 1
+            msg = f"🤖 {a['name']}: remarquei {n} tarefa(s) atrasada(s) pra amanhã."
+        else:
+            return
+        await self._bot_send(app.bot, cfg.owner_id, msg, self._quick_kb())
+        try:
+            from ..providers import push
+            await asyncio.to_thread(push.send_push, cfg, self._memory,
+                                    "🤖 Automação", msg[:200], "/", owner)
+        except Exception:
+            pass
+        log.info("Ran automation #%s (%s → %s).", a.get("id"), a["trig"], act)
+
+    async def cmd_automacoes(self, update: Update, _c: ContextTypes.DEFAULT_TYPE) -> None:
+        """List the user's automations."""
+        if not self._authorized(update):
+            return
+        await self._cmd_out(update, self._commands.automacoes(str(update.effective_user.id)))
+
+    async def cmd_automacaorm(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
+        """Delete an automation by id: /automacaorm 3."""
+        if not self._authorized(update):
+            return
+        await self._cmd_out(update, self._commands.automacao_rm(
+            str(update.effective_user.id), self._args(c).strip()))
 
     async def _maybe_monthly_report(self, app: Application) -> None:
         cfg = self._config
@@ -2479,6 +2561,8 @@ class TelegramInterface:
         app.add_handler(CommandHandler("pendencias", self.cmd_pendencias))
         app.add_handler(CommandHandler("backup", self.cmd_backup))
         app.add_handler(CommandHandler("padroes", self.cmd_padroes))
+        app.add_handler(CommandHandler("automacoes", self.cmd_automacoes))
+        app.add_handler(CommandHandler("automacaorm", self.cmd_automacaorm))
         app.add_handler(CallbackQueryHandler(self.on_callback))
         # Deterministic commands (no LLM)
         app.add_handler(CommandHandler("ajuda", self.cmd_ajuda))

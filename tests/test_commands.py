@@ -42,6 +42,25 @@ def test_open_loops_and_nudge(tmp_path):
     assert c.nudge_text("v", now=now) == ""
 
 
+def test_automations_crud(tmp_path):
+    c = _commands(tmp_path)
+    aid, msg = c.create_automation("u", "expense_over", "notify", amount=200,
+                                   message="Gasto alto")
+    assert aid and "200" in msg
+    listing = c.automacoes("u")
+    assert "200" in listing and "avisar" in listing
+    # a time+command automation
+    aid2, _ = c.create_automation("u", "time", "command", hour=18, weekday=4,
+                                  command="semana")
+    assert aid2 and "sexta" in c.automacoes("u")
+    # validation: bad trigger / missing field
+    assert c.create_automation("u", "bogus", "notify")[0] is None
+    assert c.create_automation("u", "expense_over", "notify")[0] is None  # no amount
+    # remove
+    assert "removida" in c.automacao_rm("u", str(aid))
+    assert c.automacao_rm("u", "999") == "Não achei essa automação."
+
+
 def test_learned_patterns_and_persistence(tmp_path):
     from datetime import datetime, timezone, timedelta
     c = _commands(tmp_path)

@@ -737,6 +737,36 @@ class Brain:
             self._memory.add_place(user_id, nome, lat, lng)
             return f"ponto '{nome}' salvo no seu mapa."
 
+        def criar_automacao(gatilho: str, acao: str, hora: int = -1, minuto: int = 0,
+                            dia_semana: int = -1, valor: float = 0.0, categoria: str = "",
+                            mensagem: str = "", comando: str = "") -> str:
+            """Cria uma automação 'quando X, faça Y' que roda sozinha depois.
+
+            Args:
+                gatilho: 'time' (horário recorrente), 'expense_over' (gasto acima de
+                    um valor) ou 'task_overdue' (quando uma tarefa vencer).
+                acao: 'notify' (avisar com uma mensagem), 'command' (rodar um comando
+                    da E.V.) ou 'reschedule' (remarcar tarefas vencidas; só com task_overdue).
+                hora: para 'time', hora 0-23.
+                minuto: para 'time', minuto 0-59.
+                dia_semana: para 'time', 0=segunda..6=domingo, ou -1 para todo dia.
+                valor: para 'expense_over', o limite em reais.
+                categoria: para 'expense_over', categoria opcional (ex 'comida').
+                mensagem: para 'notify', o texto do aviso.
+                comando: para 'command', o comando a rodar (ex 'semana', 'relatorio').
+
+            Ex: 'toda sexta 18h me manda o resumo' -> gatilho='time', hora=18,
+            dia_semana=4, acao='command', comando='semana'. 'quando eu gastar mais de
+            200 me avisa' -> gatilho='expense_over', valor=200, acao='notify',
+            mensagem='Gasto acima de 200!'.
+            """
+            aid, msg = self._commands.create_automation(
+                user_id, gatilho, acao,
+                hour=(None if hora < 0 else hora), minute=minuto, weekday=dia_semana,
+                amount=(None if valor <= 0 else valor), category=(categoria or None),
+                message=(mensagem or None), command=(comando or None))
+            return ("automação criada: " + msg) if aid else ("não consegui criar: " + msg)
+
         def planejar_dia() -> str:
             """Monta um plano acionável para o dia do usuário, juntando as tarefas
             abertas, os lembretes, a agenda, o clima e a localização atual, e
@@ -747,6 +777,7 @@ class Brain:
         callables: dict = {
             "executar_comando": executar_comando,
             "planejar_dia": planejar_dia,
+            "criar_automacao": criar_automacao,
             "anotar_pessoa": anotar_pessoa,
             "sobre_pessoa": sobre_pessoa,
             "minha_localizacao": minha_localizacao,
@@ -837,6 +868,25 @@ class Brain:
                 "Monta um plano acionável do dia do usuário juntando tarefas, "
                 "lembretes, agenda, clima e localização. Use para 'resolve minha "
                 "manhã', 'plano do dia', 'organiza meu dia', 'o que faço hoje'.",
+            ),
+            fn(
+                "criar_automacao",
+                "Cria uma automação 'quando X, faça Y' que roda sozinha. gatilho: "
+                "'time'|'expense_over'|'task_overdue'. acao: 'notify'|'command'|"
+                "'reschedule'. Use para 'toda sexta 18h me manda o resumo', 'quando "
+                "eu gastar mais de 200 me avisa', 'se uma tarefa vencer, remarca'.",
+                {
+                    "gatilho": {"type": s, "description": "time|expense_over|task_overdue"},
+                    "acao": {"type": s, "description": "notify|command|reschedule"},
+                    "hora": {"type": "integer", "description": "para time: 0-23"},
+                    "minuto": {"type": "integer", "description": "para time: 0-59"},
+                    "dia_semana": {"type": "integer", "description": "0=seg..6=dom, -1=todo dia"},
+                    "valor": {"type": "number", "description": "para expense_over: limite em R$"},
+                    "categoria": {"type": s, "description": "para expense_over: categoria opcional"},
+                    "mensagem": {"type": s, "description": "para notify: texto do aviso"},
+                    "comando": {"type": s, "description": "para command: ex 'semana'"},
+                },
+                ["gatilho", "acao"],
             ),
             fn(
                 "executar_comando",
