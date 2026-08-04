@@ -1016,6 +1016,21 @@ class Memory:
     def update_watch(self, u, i, url=None, keyword=None):
         return self._update("watches", u, i, {"url": url, "keyword": keyword})
 
+    def update_habit(self, u, i, name):
+        return self._update("habits", u, i, {"name": name})
+
+    def update_place(self, u, i, name):
+        return self._update("places", u, i, {"name": name})
+
+    def update_person(self, u, i, name):
+        return self._update("people", u, i, {"name": name})
+
+    def delete_person_by_id(self, user_id: str, person_id: int) -> bool:
+        cur = self._conn.execute(
+            "DELETE FROM people WHERE id = ? AND user_id = ?", (person_id, user_id))
+        self._conn.commit()
+        return cur.rowcount > 0
+
     def rename_habit(self, u, i, name):
         return self._update("habits", u, i, {"name": name})
 
