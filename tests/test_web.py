@@ -53,6 +53,16 @@ def _auth():
     return {"Authorization": "Bearer secret"}
 
 
+def test_backup_download(tmp_path):
+    client, _ = _client(tmp_path)
+    # browser downloads can't set headers → token via ?k=
+    r = client.get("/api/backup?k=secret")
+    assert r.status_code == 200
+    assert len(r.content) > 0  # a real DB copy came back
+    assert client.get("/api/backup?k=wrong").status_code == 401
+    assert client.get("/api/backup").status_code == 401
+
+
 def test_index_served(tmp_path):
     client, _ = _client(tmp_path)
     r = client.get("/")

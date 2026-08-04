@@ -1025,7 +1025,7 @@ f.onsubmit=e=>{e.preventDefault();if(slash.style.display==='block'&&slSel>=0){pi
   txt.value='';hideSlash();if(!m)return;
   if(m.startsWith('/'))runCmd(m.slice(1));else send(m);};
 
-const CAT={plano:['Plano do dia','sunrise'],pendencias:['Pendências','bell-ring'],tarefas:['Tarefas','list-checks'],lembretes:['Lembretes','alarm-clock'],gastos:['Gastos','wallet'],memorias:['Memórias','brain'],kb:['Base','book-open'],map:['Mapa','map'],graf:['Gráficos','bar-chart-3'],brain:['Cérebro','brain-circuit'],cam:['Câmera','camera'],buscar:['Buscar web','search'],noticias:['Notícias','newspaper'],clima:['Clima','cloud-sun'],relatorio:['Relatório','bar-chart-3'],status:['Status','activity'],semana:['Semana','calendar-days'],foco:['Pomodoro','timer'],procurar:['Procurar','file-search'],calendario:['Agenda','calendar'],habitos:['Hábitos','repeat'],diario:['Diário','notebook-pen'],orcamentos:['Orçamentos','piggy-bank'],assinaturas:['Assinaturas','credit-card'],dados:['Meus dados','database'],insights:['Insights','sparkles'],quiz:['Quiz','graduation-cap']};
+const CAT={plano:['Plano do dia','sunrise'],pendencias:['Pendências','bell-ring'],bak:['Backup','database-backup'],tarefas:['Tarefas','list-checks'],lembretes:['Lembretes','alarm-clock'],gastos:['Gastos','wallet'],memorias:['Memórias','brain'],kb:['Base','book-open'],map:['Mapa','map'],graf:['Gráficos','bar-chart-3'],brain:['Cérebro','brain-circuit'],cam:['Câmera','camera'],buscar:['Buscar web','search'],noticias:['Notícias','newspaper'],clima:['Clima','cloud-sun'],relatorio:['Relatório','bar-chart-3'],status:['Status','activity'],semana:['Semana','calendar-days'],foco:['Pomodoro','timer'],procurar:['Procurar','file-search'],calendario:['Agenda','calendar'],habitos:['Hábitos','repeat'],diario:['Diário','notebook-pen'],orcamentos:['Orçamentos','piggy-bank'],assinaturas:['Assinaturas','credit-card'],dados:['Meus dados','database'],insights:['Insights','sparkles'],quiz:['Quiz','graduation-cap']};
 const SM={tasks:['Tarefas','list-checks','tarefas'],reminders:['Lembretes','alarm-clock','lembretes'],expenses:['Gastos · mês','wallet','gastos'],memories:['Memórias','brain','memorias'],kb:['Base','book-open','kb'],kbfiles:['Arquivos','file-text','kb'],links:['Links','link','links'],habits:['Hábitos','repeat','habitos'],journal:['Diário','notebook-pen','diario'],subscriptions:['Assinaturas','credit-card','assinaturas'],budgets:['Orçamentos','piggy-bank','orcamentos'],watches:['Monitores','radar','monitores'],agenda:['Agenda · 7d','calendar','calendario'],activity:['Histórico · 24h','history','status'],provider:['Provedor','cpu','status'],model:['Modelo','box','modelo'],disk:['Disco','hard-drive','status'],ram:['RAM','memory-stick','status'],uptime:['Uptime','clock','status']};
 const RECUR=[{v:'',l:'Uma vez'},{v:'daily',l:'Diário'},{v:'weekly',l:'Semanal'},{v:'monthly',l:'Mensal'}];
 const RECUR_LBL={daily:'repete diário',weekly:'repete semanal',monthly:'repete mensal'};
@@ -1037,7 +1037,7 @@ function renderStats(){const box=$('#stats');box.textContent='';config.stats.for
   num.appendChild(document.createTextNode(_counts[k]!=null?_counts[k]:'0'));s.appendChild(lbl);s.appendChild(num);box.appendChild(s);});window.lucide&&lucide.createIcons();}
 function renderActs(){const box=$('#acts');box.textContent='';config.actions.forEach(cmd=>{const m=CAT[cmd]||[cmd,'chevron-right'];
   const b=el('button','act');b.appendChild(ficon(m[1]));b.appendChild(document.createTextNode(m[0]));
-  b.onclick=e=>{if(cmd==='foco'){openPomo(25);return;}ripple(b,e);if(cmd==='cam'){$('#cambtn').click();return;}if(VIEWS[cmd]){switchView(cmd);return;}runCmd(cmd,b,e);};box.appendChild(b);});window.lucide&&lucide.createIcons();}
+  b.onclick=e=>{if(cmd==='foco'){openPomo(25);return;}ripple(b,e);if(cmd==='cam'){$('#cambtn').click();return;}if(cmd==='bak'){window.location='/api/backup?k='+encodeURIComponent(token);toast('Baixando backup cifrado…');return;}if(VIEWS[cmd]){switchView(cmd);return;}runCmd(cmd,b,e);};box.appendChild(b);});window.lucide&&lucide.createIcons();}
 async function loadPanel(){try{const r=await fetch('/api/panel',{headers:H()});if(!r.ok)return;_counts=await r.json();
   renderStats();$('#s-prov').textContent=_counts.provider;$('#s-model').textContent=_counts.model;$('#prov').value=_counts.provider;updateNBadge(_counts.notifs);}catch(e){}}
 async function loadConfig(){try{config=await (await fetch('/api/config',{headers:H()})).json();}catch(e){}renderActs();}
@@ -2517,6 +2517,22 @@ def create_app(config: Config, brain: Brain | None = None):
         return StreamingResponse(gen(), media_type="text/event-stream",
                                  headers={"Cache-Control": "no-cache",
                                           "X-Accel-Buffering": "no"})
+
+    @app.get("/api/backup")
+    async def api_backup(request: Request):
+        # On-demand off-VM pull: a browser download can't set headers, so the
+        # token comes as ?k=. Returns a fresh, SQLCipher-encrypted copy of the DB.
+        tok = request.query_params.get("k", "")
+        if not config.web_token or not hmac.compare_digest(tok, config.web_token):
+            raise HTTPException(status_code=401, detail="unauthorized")
+        from fastapi.responses import FileResponse
+        from datetime import datetime
+        bdir = config.db_path.parent / "backups"
+        bdir.mkdir(exist_ok=True)
+        dest = bdir / f"ev_memory.{datetime.now().strftime('%Y%m%d-%H%M%S')}.db"
+        await asyncio.to_thread(memory.backup, dest)
+        return FileResponse(str(dest), media_type="application/octet-stream",
+                            filename=dest.name)
 
     @app.get("/api/push/key")
     async def push_key(request: Request):
