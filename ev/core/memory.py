@@ -271,6 +271,19 @@ class Memory:
                 created  TEXT NOT NULL,
                 UNIQUE(user_id, key)
             );
+
+            CREATE TABLE IF NOT EXISTS automations (
+                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id  TEXT NOT NULL,
+                name     TEXT NOT NULL,
+                trig     TEXT NOT NULL,
+                trig_cfg TEXT NOT NULL,
+                act      TEXT NOT NULL,
+                act_cfg  TEXT NOT NULL,
+                enabled  INTEGER NOT NULL DEFAULT 1,
+                state    TEXT NOT NULL DEFAULT '{}',
+                created  TEXT NOT NULL
+            );
             """
         )
         # Migrations for older DBs.
@@ -393,6 +406,68 @@ class Memory:
             (user_id, limit),
         ).fetchall()
         return [dict(r) for r in rows]
+
+    # --- automations ("quando X, faça Y") ----------------------------------
+
+    def add_automation(self, user_id: str, name: str, trig: str, trig_cfg: dict,
+                       act: str, act_cfg: dict, state: dict | None = None) -> int:
+        cur = self._conn.execute(
+            "INSERT INTO automations "
+            "(user_id, name, trig, trig_cfg, act, act_cfg, enabled, state, created) "
+            "VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)",
+            (user_id, name, trig, json.dumps(trig_cfg), act, json.dumps(act_cfg),
+             json.dumps(state or {}), self._now()),
+        )
+        self._conn.commit()
+        return int(cur.lastrowid)
+
+    def _auto_row(self, r) -> dict:
+        d = dict(r)
+        for k in ("trig_cfg", "act_cfg", "state"):
+            try:
+                d[k] = json.loads(d.get(k) or "{}")
+            except (ValueError, TypeError):
+                d[k] = {}
+        d["enabled"] = bool(d.get("enabled"))
+        return d
+
+    def list_automations(self, user_id: str, only_enabled: bool = False) -> list[dict]:
+        q = ("SELECT id, name, trig, trig_cfg, act, act_cfg, enabled, state, created "
+             "FROM automations WHERE user_id = ?")
+        if only_enabled:
+            q += " AND enabled = 1"
+        rows = self._conn.execute(q + " ORDER BY id", (user_id,)).fetchall()
+        return [self._auto_row(r) for r in rows]
+
+    def delete_automation(self, user_id: str, auto_id: int) -> bool:
+        cur = self._conn.execute(
+            "DELETE FROM automations WHERE id = ? AND user_id = ?", (auto_id, user_id))
+        self._conn.commit()
+        return cur.rowcount > 0
+
+    def set_automation_enabled(self, user_id: str, auto_id: int, on: bool) -> bool:
+        cur = self._conn.execute(
+            "UPDATE automations SET enabled = ? WHERE id = ? AND user_id = ?",
+            (1 if on else 0, auto_id, user_id))
+        self._conn.commit()
+        return cur.rowcount > 0
+
+    def set_automation_state(self, auto_id: int, state: dict) -> None:
+        self._conn.execute("UPDATE automations SET state = ? WHERE id = ?",
+                           (json.dumps(state), auto_id))
+        self._conn.commit()
+
+    def expenses_after_id(self, user_id: str, after_id: int) -> list[dict]:
+        rows = self._conn.execute(
+            "SELECT id, amount, description, category, created FROM expenses "
+            "WHERE user_id = ? AND id > ? ORDER BY id", (user_id, after_id)).fetchall()
+        return [dict(r) for r in rows]
+
+    def max_expense_id(self, user_id: str) -> int:
+        row = self._conn.execute(
+            "SELECT COALESCE(MAX(id), 0) AS m FROM expenses WHERE user_id = ?",
+            (user_id,)).fetchone()
+        return int(row["m"]) if row else 0
 
     def list_notifications(self, user_id: str, limit: int = 100) -> list[dict]:
         rows = self._conn.execute(
