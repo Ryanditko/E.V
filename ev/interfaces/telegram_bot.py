@@ -86,6 +86,7 @@ class TelegramInterface:
         self._last_tg_backup: str | None = None  # date backup was sent to Telegram
         self._last_habit_nudge: str | None = None  # date of the last habit nudge
         self._last_monthly: str | None = None      # month of the last financial report
+        self._last_nudge: str | None = None        # date of the last open-loops nudge
         # Keep references to background tasks so they aren't garbage-collected
         # (a GC'd task would silently kill the scheduler).
         self._bg_tasks: list = []
@@ -875,6 +876,13 @@ class TelegramInterface:
             return
         await self._reply(
             update, await self._brain.plan_day(str(update.effective_user.id)))
+
+    async def cmd_pendencias(self, update: Update, _c: ContextTypes.DEFAULT_TYPE) -> None:
+        """Proactive open loops on demand: what's overdue / due / charging soon."""
+        if not self._authorized(update):
+            return
+        msg = self._commands.nudge_text(str(update.effective_user.id))
+        await self._cmd_out(update, msg or "Tudo em dia — nada atrasado. 👌")
 
     async def cmd_lembrete(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
         if self._authorized(update):
@@ -2016,6 +2024,7 @@ class TelegramInterface:
                     await self._maybe_send_weekly(app)
                     await self._maybe_send_rain(app)
                     await self._maybe_habit_nudge(app)
+                    await self._maybe_nudge(app)
                     await self._maybe_monthly_report(app)
             except Exception:
                 log.exception("Briefing loop error")
@@ -2159,6 +2168,30 @@ class TelegramInterface:
             msg = "👀 Ainda falta hoje: " + ", ".join(pend) + ".\nMarque com /feito <nome>."
             await self._bot_send(app.bot, cfg.owner_id, msg, self._quick_kb())
             log.info("Sent habit nudge.")
+
+    async def _maybe_nudge(self, app: Application) -> None:
+        """Proactive open-loops nudge: overdue/due tasks + upcoming subscriptions.
+        Deterministic (no LLM), fired once/day at cfg.nudge_hour, and only when
+        something is actually slipping — silence when the day is clean."""
+        cfg = self._config
+        if getattr(cfg, "nudge_hour", -1) < 0 or cfg.owner_id is None:
+            return
+        now = datetime.now(self._tz())
+        today = now.date().isoformat()
+        if now.hour != cfg.nudge_hour or self._last_nudge == today:
+            return
+        self._last_nudge = today
+        msg = self._commands.nudge_text(str(cfg.owner_id))
+        if not msg:
+            return
+        await self._bot_send(app.bot, cfg.owner_id, msg, self._quick_kb())
+        try:  # mirror into the web notification center + push to devices
+            from ..providers import push
+            await asyncio.to_thread(push.send_push, cfg, self._memory,
+                                    "👋 E.V. te cobrando", msg, "/", str(cfg.owner_id))
+        except Exception:
+            pass
+        log.info("Sent proactive open-loops nudge.")
 
     async def _maybe_monthly_report(self, app: Application) -> None:
         cfg = self._config
@@ -2381,6 +2414,7 @@ class TelegramInterface:
         app.add_handler(CommandHandler("menu", self.cmd_menu))
         app.add_handler(CommandHandler("ev", self.cmd_ev))
         app.add_handler(CommandHandler("plano", self.cmd_plano))
+        app.add_handler(CommandHandler("pendencias", self.cmd_pendencias))
         app.add_handler(CallbackQueryHandler(self.on_callback))
         # Deterministic commands (no LLM)
         app.add_handler(CommandHandler("ajuda", self.cmd_ajuda))

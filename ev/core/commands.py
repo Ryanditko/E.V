@@ -27,6 +27,7 @@ COMMAND_LIST = [
     ("menu", "Abre o menu interativo com botões"),
     ("ev", "Falar com a IA (útil em grupos): /ev sua mensagem"),
     ("plano", "Resolve minha manhã: plano do dia (tarefas + agenda + clima)"),
+    ("pendencias", "O que está atrasado/vencendo — a E.V. te cobra"),
     ("ajuda", "Lista os comandos disponíveis"),
     ("status", "Diagnóstico: VM, banco, chaves de API"),
     ("silenciar", "Não perturbe: /silenciar 2h (ou off)"),
@@ -1025,6 +1026,56 @@ class Commands:
             if tab:
                 parts.append("\nTabNews (tech):")
                 parts.append(tab)
+        return "\n".join(parts)
+
+    def open_loops(self, user_id: str, now=None) -> dict:
+        """Deterministic 'things slipping' detector for the proactive nudge:
+        overdue tasks, tasks due today, and subscriptions charging soon.
+        Cheap (no LLM) and safe to call often."""
+        now = now or datetime.now(timezone.utc)
+        today = now.date()
+        overdue: list[str] = []
+        due_today: list[str] = []
+        for t in self._memory.open_tasks(user_id):
+            raw = t.get("due")
+            if not raw:
+                continue
+            try:
+                d = datetime.fromisoformat(raw)
+            except (ValueError, TypeError):
+                continue
+            if d.tzinfo is None:
+                d = d.replace(tzinfo=timezone.utc)
+            if d.date() < today:
+                overdue.append(t["text"])
+            elif d.date() == today:
+                due_today.append(t["text"])
+        subs: list[str] = []
+        for r in self._memory.list_recurring(user_id):
+            day = r.get("day")
+            if not day:
+                continue
+            days_until = (int(day) - today.day) % 31  # heads-up within 2 days
+            if 0 <= days_until <= 2:
+                subs.append(f"{r['description']} (R$ {r['amount']:.2f}, dia {day})")
+        return {"overdue": overdue, "due_today": due_today, "subs": subs}
+
+    def nudge_text(self, user_id: str, now=None) -> str:
+        """Human-readable proactive nudge, or '' when nothing is slipping."""
+        loops = self.open_loops(user_id, now)
+        if not (loops["overdue"] or loops["due_today"] or loops["subs"]):
+            return ""
+        parts = ["👋 Ryan, deixa eu te cobrar algumas coisas:"]
+        if loops["overdue"]:
+            parts.append("\n⏰ Tarefas atrasadas:")
+            parts += [f"- {t}" for t in loops["overdue"][:10]]
+        if loops["due_today"]:
+            parts.append("\n📌 Vence hoje:")
+            parts += [f"- {t}" for t in loops["due_today"][:10]]
+        if loops["subs"]:
+            parts.append("\n💳 Assinatura debitando em breve:")
+            parts += [f"- {s}" for s in loops["subs"][:10]]
+        parts.append("\nConcluir: /concluir <nome>. Quer que eu te ajude com alguma?")
         return "\n".join(parts)
 
     # --- links (named, categorized) ----------------------------------------
