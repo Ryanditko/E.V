@@ -54,7 +54,7 @@ _ALL_DOWN_MSG = (
 _INTERFACE_COMMANDS = frozenset({
     "foco", "silenciar", "exportar", "status", "resumir", "limparchat",
     "dados", "limpar", "quiz", "insights", "modelo", "ajuda", "documento",
-    "transcrever", "menu", "provedor",
+    "transcrever", "menu", "provedor", "padroes",
 })
 
 

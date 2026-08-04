@@ -42,6 +42,45 @@ def test_open_loops_and_nudge(tmp_path):
     assert c.nudge_text("v", now=now) == ""
 
 
+def test_learned_patterns_and_persistence(tmp_path):
+    from datetime import datetime, timezone, timedelta
+    c = _commands(tmp_path)
+    m = c._memory
+    now = datetime(2026, 8, 4, 12, 0, tzinfo=timezone.utc)
+    today = now.date()
+    hid = m.add_habit("u", "academia")
+    # marked every day in the last 4 weeks EXCEPT Mondays → clear Monday-skip pattern
+    for i in range(1, 29):
+        d = today - timedelta(days=i)
+        if d.weekday() != 0:  # skip Mondays
+            m.log_habit(hid, d.isoformat())
+    pats = c.learned_patterns("u", now=now)
+    skip = [p for p in pats if p["key"].startswith("habit-skip:")]
+    assert skip and "academia" in skip[0]["text"] and "segunda" in skip[0]["text"]
+
+    # spending: this month already exceeds last month's total for a category
+    conn = m._conn
+    conn.execute("INSERT INTO expenses (user_id, amount, description, category, created)"
+                 " VALUES (?,?,?,?,?)", ("u", 40, "ifood", "comida", "2026-07-15T12:00:00+00:00"))
+    conn.execute("INSERT INTO expenses (user_id, amount, description, category, created)"
+                 " VALUES (?,?,?,?,?)", ("u", 100, "ifood", "comida", "2026-08-02T12:00:00+00:00"))
+    conn.commit()
+    pats = c.learned_patterns("u", now=now)
+    assert any(p["key"].startswith("spend-over:") and "comida" in p["text"] for p in pats)
+
+    # persistence + dedup: add_learned only once per key
+    key = skip[0]["key"]
+    assert not m.learned_seen("u", key)
+    assert m.add_learned("u", key, skip[0]["text"]) is True
+    assert m.learned_seen("u", key) is True
+    assert m.add_learned("u", key, skip[0]["text"]) is False
+    assert "aprendi" in c.learned_text("u").lower()
+
+    # a fresh user with no history → E.V. stays humble, no false patterns
+    assert c.learned_patterns("v", now=now) == []
+    assert "conhecendo" in c.learned_text("v").lower()
+
+
 def test_task_flow(tmp_path):
     c = _commands(tmp_path)
     assert "adicionada" in c.tarefa("u", "comprar pão")

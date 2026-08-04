@@ -67,6 +67,7 @@ class Config:
     monthly_report_hour: int
     event_alert_minutes: int  # heads-up lead time before a calendar event; <=0 disables
     nudge_hour: int  # local hour for the proactive open-loops nudge; <0 disables
+    learn_hour: int  # local hour E.V. shares a learned pattern; <0 disables
     # Tools
     websearch_enabled: bool
     brave_api_key: str   # optional: better web search than DuckDuckGo
@@ -215,6 +216,7 @@ class Config:
             monthly_report_hour=_get_int("EV_MONTHLY_REPORT_HOUR", 9),
             event_alert_minutes=_get_int("EV_EVENT_ALERT_MINUTES", 30),
             nudge_hour=_get_int("EV_NUDGE_HOUR", 9),
+            learn_hour=_get_int("EV_LEARN_HOUR", 19),
             websearch_enabled=_get_bool("EV_WEBSEARCH_ENABLED", True),
             brave_api_key=os.getenv("BRAVE_API_KEY", "").strip(),
             tavily_api_key=os.getenv("TAVILY_API_KEY", "").strip(),

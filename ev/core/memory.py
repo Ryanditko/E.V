@@ -262,6 +262,15 @@ class Memory:
                 lng      REAL NOT NULL,
                 created  TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS learned (
+                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id  TEXT NOT NULL,
+                key      TEXT NOT NULL,
+                text     TEXT NOT NULL,
+                created  TEXT NOT NULL,
+                UNIQUE(user_id, key)
+            );
             """
         )
         # Migrations for older DBs.
@@ -356,6 +365,34 @@ class Memory:
             self._conn.commit()
         except sqlite3.Error:
             pass  # a logging failure must never break delivery
+
+    # --- learned patterns (continuous learning) ----------------------------
+
+    def learned_seen(self, user_id: str, key: str) -> bool:
+        row = self._conn.execute(
+            "SELECT 1 FROM learned WHERE user_id = ? AND key = ?", (user_id, key)
+        ).fetchone()
+        return row is not None
+
+    def add_learned(self, user_id: str, key: str, text: str) -> bool:
+        """Record a learned pattern (once per key). Returns True if it was new."""
+        try:
+            self._conn.execute(
+                "INSERT INTO learned (user_id, key, text, created) VALUES (?, ?, ?, ?)",
+                (user_id, key, text, self._now()),
+            )
+            self._conn.commit()
+            return True
+        except sqlite3.IntegrityError:
+            return False  # already known
+
+    def list_learned(self, user_id: str, limit: int = 20) -> list[dict]:
+        rows = self._conn.execute(
+            "SELECT key, text, created FROM learned WHERE user_id = ? "
+            "ORDER BY id DESC LIMIT ?",
+            (user_id, limit),
+        ).fetchall()
+        return [dict(r) for r in rows]
 
     def list_notifications(self, user_id: str, limit: int = 100) -> list[dict]:
         rows = self._conn.execute(

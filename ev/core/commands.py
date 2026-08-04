@@ -29,6 +29,7 @@ COMMAND_LIST = [
     ("plano", "Resolve minha manhã: plano do dia (tarefas + agenda + clima)"),
     ("pendencias", "O que está atrasado/vencendo — a E.V. te cobra"),
     ("backup", "Envia agora um backup cifrado do banco (fora da VM)"),
+    ("padroes", "O que a E.V. aprendeu sobre seus padrões"),
     ("ajuda", "Lista os comandos disponíveis"),
     ("status", "Diagnóstico: VM, banco, chaves de API"),
     ("silenciar", "Não perturbe: /silenciar 2h (ou off)"),
@@ -1078,6 +1079,84 @@ class Commands:
             parts += [f"- {s}" for s in loops["subs"][:10]]
         parts.append("\nConcluir: /concluir <nome>. Quer que eu te ajude com alguma?")
         return "\n".join(parts)
+
+    # --- continuous learning (deterministic pattern mining) ----------------
+
+    _WD_PT = ["segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo"]
+
+    def learned_patterns(self, user_id: str, now=None) -> list[dict]:
+        """Deterministically mine the user's own data for patterns worth surfacing.
+        No LLM (cheap, testable). Each item: {key, text, question}. Empty until
+        there's enough history — E.V. only speaks when a signal is real."""
+        from datetime import timedelta
+        now = now or self._now()
+        today = now.date()
+        out: list[dict] = []
+
+        # 1) Habit weekday-skip: an established habit that keeps failing on one weekday.
+        window = [today - timedelta(days=i) for i in range(1, 29)]  # last 4 weeks
+        for h in self._memory.list_habits(user_id):
+            days = self._memory.habit_days(h["id"])
+            if len(days) < 8:  # not yet an established habit
+                continue
+            per_tot: dict[int, int] = {}
+            per_done: dict[int, int] = {}
+            for d in window:
+                wd = d.weekday()
+                per_tot[wd] = per_tot.get(wd, 0) + 1
+                if d.isoformat() in days:
+                    per_done[wd] = per_done.get(wd, 0) + 1
+            overall = sum(1 for d in window if d.isoformat() in days) / len(window)
+            worst, worst_rate = None, 1.0
+            for wd, tot in per_tot.items():
+                if tot < 3:
+                    continue
+                rate = per_done.get(wd, 0) / tot
+                if rate < worst_rate:
+                    worst, worst_rate = wd, rate
+            if worst is not None and worst_rate <= 0.34 and overall >= 0.4:
+                name = self._WD_PT[worst]
+                suffix = "s-feiras" if worst < 5 else "s"
+                out.append({
+                    "key": f"habit-skip:{h['id']}:{worst}",
+                    "text": f"Notei um padrão: você quase sempre pula '{h['name']}' "
+                            f"às {name}{suffix}.",
+                    "question": "Quer que eu te dê um empurrãozinho nesse dia?",
+                })
+
+        # 2) Spending: already spent more on a category than ALL of last month.
+        label, cur_start, _cur_end = self._month_bounds(0)
+        _, prev_start, prev_end = self._month_bounds(-1)
+
+        def _by_cat(rows):
+            agg: dict[str, float] = {}
+            for e in rows:
+                agg[e["category"]] = agg.get(e["category"], 0.0) + (e["amount"] or 0)
+            return agg
+
+        cur = _by_cat(self._memory.expenses_since(user_id, cur_start))
+        prev = _by_cat(self._memory.expenses_between(user_id, prev_start, prev_end))
+        for cat, tot in cur.items():
+            if tot >= 50 and prev.get(cat, 0) > 0 and tot > prev[cat]:
+                out.append({
+                    "key": f"spend-over:{label}:{cat}",
+                    "text": f"Você já gastou R$ {tot:.0f} em '{cat}' este mês — mais "
+                            f"que os R$ {prev[cat]:.0f} do mês passado inteiro.",
+                    "question": "Quer definir um orçamento pra essa categoria?",
+                })
+        return out
+
+    def learned_text(self, user_id: str) -> str:
+        """On-demand view of what E.V. has learned about the user."""
+        items = self._memory.list_learned(user_id, 15)
+        if items:
+            return "🧠 O que já aprendi sobre você:\n" + "\n".join(
+                "- " + i["text"] for i in items)
+        fresh = self.learned_patterns(user_id)
+        if fresh:
+            return "🧠 Comecei a notar:\n" + "\n".join(
+                "- " + p["text"] for p in fresh[:8])
+        return "Ainda estou te conhecendo — em alguns dias começo a notar seus padrões. 🌱"
 
     # --- links (named, categorized) ----------------------------------------
 
