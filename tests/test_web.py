@@ -53,6 +53,22 @@ def _auth():
     return {"Authorization": "Bearer secret"}
 
 
+def test_face_enroll_and_clear(tmp_path):
+    client, _ = _client(tmp_path)
+    assert client.get("/api/face").status_code == 401  # needs auth
+    assert client.get("/api/face", headers=_auth()).json()["enrolled"] is False
+    # a valid 128-d descriptor enrolls the owner
+    desc = [0.1] * 128
+    assert client.post("/api/face", json={"descriptor": desc}, headers=_auth()).json()["enrolled"] is True
+    got = client.get("/api/face", headers=_auth()).json()
+    assert got["enrolled"] is True and len(got["descriptor"]) == 128
+    # wrong length is rejected (not silently stored)
+    assert client.post("/api/face", json={"descriptor": [0.1] * 10}, headers=_auth()).status_code == 400
+    # clear removes the biometric
+    assert client.post("/api/face", json={"clear": True}, headers=_auth()).json()["enrolled"] is False
+    assert client.get("/api/face", headers=_auth()).json()["enrolled"] is False
+
+
 def test_backup_download(tmp_path):
     client, _ = _client(tmp_path)
     # browser downloads can't set headers → token via ?k=
