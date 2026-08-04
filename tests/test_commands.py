@@ -21,6 +21,27 @@ def _commands(tmp_path):
     return Commands(config, Memory(tmp_path / "t.db"))
 
 
+def test_open_loops_and_nudge(tmp_path):
+    from datetime import datetime, timezone
+    c = _commands(tmp_path)
+    now = datetime(2026, 8, 4, 12, 0, tzinfo=timezone.utc)
+    m = c._memory
+    m.add_task("u", "entregar relatório", due="2026-08-01")   # overdue
+    m.add_task("u", "pagar boleto", due="2026-08-04")          # due today
+    m.add_task("u", "ler artigo")                              # no due — ignored
+    m.add_recurring("u", 39.9, "Netflix", "lazer", 5)          # charges tomorrow
+    m.add_recurring("u", 20.0, "Spotify", "lazer", 20)         # far off — ignored
+    loops = c.open_loops("u", now=now)
+    assert loops["overdue"] == ["entregar relatório"]
+    assert loops["due_today"] == ["pagar boleto"]
+    assert any("Netflix" in s for s in loops["subs"])
+    assert not any("Spotify" in s for s in loops["subs"])
+    msg = c.nudge_text("u", now=now)
+    assert "atrasada" in msg and "entregar relatório" in msg and "Netflix" in msg
+    # clean slate → empty nudge (E.V. stays silent when nothing is slipping)
+    assert c.nudge_text("v", now=now) == ""
+
+
 def test_task_flow(tmp_path):
     c = _commands(tmp_path)
     assert "adicionada" in c.tarefa("u", "comprar pão")

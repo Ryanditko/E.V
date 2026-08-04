@@ -1025,7 +1025,7 @@ f.onsubmit=e=>{e.preventDefault();if(slash.style.display==='block'&&slSel>=0){pi
   txt.value='';hideSlash();if(!m)return;
   if(m.startsWith('/'))runCmd(m.slice(1));else send(m);};
 
-const CAT={plano:['Plano do dia','sunrise'],tarefas:['Tarefas','list-checks'],lembretes:['Lembretes','alarm-clock'],gastos:['Gastos','wallet'],memorias:['Memórias','brain'],kb:['Base','book-open'],map:['Mapa','map'],graf:['Gráficos','bar-chart-3'],brain:['Cérebro','brain-circuit'],cam:['Câmera','camera'],buscar:['Buscar web','search'],noticias:['Notícias','newspaper'],clima:['Clima','cloud-sun'],relatorio:['Relatório','bar-chart-3'],status:['Status','activity'],semana:['Semana','calendar-days'],foco:['Pomodoro','timer'],procurar:['Procurar','file-search'],calendario:['Agenda','calendar'],habitos:['Hábitos','repeat'],diario:['Diário','notebook-pen'],orcamentos:['Orçamentos','piggy-bank'],assinaturas:['Assinaturas','credit-card'],dados:['Meus dados','database'],insights:['Insights','sparkles'],quiz:['Quiz','graduation-cap']};
+const CAT={plano:['Plano do dia','sunrise'],pendencias:['Pendências','bell-ring'],tarefas:['Tarefas','list-checks'],lembretes:['Lembretes','alarm-clock'],gastos:['Gastos','wallet'],memorias:['Memórias','brain'],kb:['Base','book-open'],map:['Mapa','map'],graf:['Gráficos','bar-chart-3'],brain:['Cérebro','brain-circuit'],cam:['Câmera','camera'],buscar:['Buscar web','search'],noticias:['Notícias','newspaper'],clima:['Clima','cloud-sun'],relatorio:['Relatório','bar-chart-3'],status:['Status','activity'],semana:['Semana','calendar-days'],foco:['Pomodoro','timer'],procurar:['Procurar','file-search'],calendario:['Agenda','calendar'],habitos:['Hábitos','repeat'],diario:['Diário','notebook-pen'],orcamentos:['Orçamentos','piggy-bank'],assinaturas:['Assinaturas','credit-card'],dados:['Meus dados','database'],insights:['Insights','sparkles'],quiz:['Quiz','graduation-cap']};
 const SM={tasks:['Tarefas','list-checks','tarefas'],reminders:['Lembretes','alarm-clock','lembretes'],expenses:['Gastos · mês','wallet','gastos'],memories:['Memórias','brain','memorias'],kb:['Base','book-open','kb'],kbfiles:['Arquivos','file-text','kb'],links:['Links','link','links'],habits:['Hábitos','repeat','habitos'],journal:['Diário','notebook-pen','diario'],subscriptions:['Assinaturas','credit-card','assinaturas'],budgets:['Orçamentos','piggy-bank','orcamentos'],watches:['Monitores','radar','monitores'],agenda:['Agenda · 7d','calendar','calendario'],activity:['Histórico · 24h','history','status'],provider:['Provedor','cpu','status'],model:['Modelo','box','modelo'],disk:['Disco','hard-drive','status'],ram:['RAM','memory-stick','status'],uptime:['Uptime','clock','status']};
 const RECUR=[{v:'',l:'Uma vez'},{v:'daily',l:'Diário'},{v:'weekly',l:'Semanal'},{v:'monthly',l:'Mensal'}];
 const RECUR_LBL={daily:'repete diário',weekly:'repete semanal',monthly:'repete mensal'};
@@ -2168,6 +2168,8 @@ def create_app(config: Config, brain: Brain | None = None):
             return "Conversa limpa nesta pasta."
         if name in ("plano", "manha", "manhã"):  # agentic day plan
             return await brain.plan_day(owner)
+        if name in ("pendencias", "pendências", "cobrar"):  # proactive open loops
+            return commands.nudge_text(owner) or "Tudo em dia, Ryan — nada atrasado. 👌"
         if name in commands.runnable():
             return commands.run(owner, name, rest)
         if name == "provedor":
