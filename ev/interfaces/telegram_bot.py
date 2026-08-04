@@ -1990,28 +1990,51 @@ class TelegramInterface:
         return dest
 
     async def _maybe_send_backup_telegram(self, app: Application, path) -> None:
-        """Send the backup off the VM, into the owner's Telegram chat. Weekly
-        (Sundays), plus once right after startup so there's always a fresh copy."""
+        """Send the encrypted backup off the VM, into the owner's Telegram chat —
+        once per day. Off-site + encrypted means losing the VM never loses data."""
         cfg = self._config
         if not cfg.telegram_backup or cfg.owner_id is None or path is None:
             return
-        now = datetime.now(self._tz())
-        today = now.date().isoformat()
-        first_time = self._last_tg_backup is None
-        if not first_time and (now.weekday() != 6 or self._last_tg_backup == today):
+        today = datetime.now(self._tz()).date().isoformat()
+        if self._last_tg_backup == today:  # already sent today
             return
         self._last_tg_backup = today
+        await self._send_backup_doc(app, path)
+
+    async def _send_backup_doc(self, app: Application, path) -> bool:
+        cfg = self._config
+        if cfg.owner_id is None or path is None:
+            return False
         try:
             with open(path, "rb") as f:
                 await app.bot.send_document(
                     chat_id=cfg.owner_id,
                     document=f,
                     filename=path.name,
-                    caption="🗄️ Backup do banco da E.V. Guarde este arquivo — dá pra restaurar tudo com ele.",
+                    caption="🗄️ Backup cifrado da E.V. Guarde — restaura tudo com a EV_DB_KEY.",
                 )
             log.info("Backup sent to Telegram (%s).", path.name)
+            return True
         except Exception:
             log.exception("Failed to send backup to Telegram")
+            return False
+
+    async def cmd_backup(self, update: Update, _c: ContextTypes.DEFAULT_TYPE) -> None:
+        """On-demand off-VM backup: /backup sends a fresh encrypted copy now."""
+        if not self._authorized(update):
+            return
+        await update.message.reply_text("Gerando backup cifrado…")
+        try:
+            path = await asyncio.to_thread(self._do_backup)
+            with open(path, "rb") as f:
+                await update.message.reply_document(
+                    document=f, filename=path.name,
+                    caption="🗄️ Backup cifrado da E.V. Restaura com a EV_DB_KEY.")
+            self._last_tg_backup = datetime.now(self._tz()).date().isoformat()
+        except Exception:
+            log.exception("On-demand backup failed")
+            await update.message.reply_text(
+                "Falha ao gerar/enviar o backup. Vou tentar de novo no ciclo diário.")
 
     async def _briefing_loop(self, app: Application) -> None:
         while True:
@@ -2415,6 +2438,7 @@ class TelegramInterface:
         app.add_handler(CommandHandler("ev", self.cmd_ev))
         app.add_handler(CommandHandler("plano", self.cmd_plano))
         app.add_handler(CommandHandler("pendencias", self.cmd_pendencias))
+        app.add_handler(CommandHandler("backup", self.cmd_backup))
         app.add_handler(CallbackQueryHandler(self.on_callback))
         # Deterministic commands (no LLM)
         app.add_handler(CommandHandler("ajuda", self.cmd_ajuda))
