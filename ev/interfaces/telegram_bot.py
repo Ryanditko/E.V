@@ -87,6 +87,7 @@ class TelegramInterface:
         self._last_habit_nudge: str | None = None  # date of the last habit nudge
         self._last_monthly: str | None = None      # month of the last financial report
         self._last_nudge: str | None = None        # date of the last open-loops nudge
+        self._last_insight: str | None = None       # date of the last learned-pattern share
         # Keep references to background tasks so they aren't garbage-collected
         # (a GC'd task would silently kill the scheduler).
         self._bg_tasks: list = []
@@ -1760,6 +1761,7 @@ class TelegramInterface:
         "status": "cmd_status", "resumir": "cmd_resumir", "limparchat": "cmd_limparchat",
         "dados": "cmd_dados", "limpar": "cmd_limpar", "quiz": "cmd_quiz",
         "insights": "cmd_insights", "modelo": "cmd_modelo", "ajuda": "cmd_ajuda",
+        "padroes": "cmd_padroes",
         "documento": "cmd_documento", "transcrever": "cmd_transcrever", "menu": "cmd_menu",
         "provedor": "cmd_provedor",
     }
@@ -2048,6 +2050,7 @@ class TelegramInterface:
                     await self._maybe_send_rain(app)
                     await self._maybe_habit_nudge(app)
                     await self._maybe_nudge(app)
+                    await self._maybe_insight(app)
                     await self._maybe_monthly_report(app)
             except Exception:
                 log.exception("Briefing loop error")
@@ -2215,6 +2218,42 @@ class TelegramInterface:
         except Exception:
             pass
         log.info("Sent proactive open-loops nudge.")
+
+    async def _maybe_insight(self, app: Application) -> None:
+        """Continuous learning (participative): once/day, E.V. shares ONE freshly
+        learned pattern about the user and asks a follow-up. Deterministic mining
+        (no LLM); each pattern is persisted so it's shared only once."""
+        cfg = self._config
+        if getattr(cfg, "learn_hour", -1) < 0 or cfg.owner_id is None:
+            return
+        now = datetime.now(self._tz())
+        today = now.date().isoformat()
+        if now.hour != cfg.learn_hour or self._last_insight == today:
+            return
+        self._last_insight = today
+        uid = str(cfg.owner_id)
+        patterns = self._commands.learned_patterns(uid)
+        fresh = next((p for p in patterns if not self._memory.learned_seen(uid, p["key"])), None)
+        if not fresh:
+            return
+        self._memory.add_learned(uid, fresh["key"], fresh["text"])
+        msg = "🧠 " + fresh["text"] + "\n\n" + fresh.get("question", "")
+        await self._bot_send(app.bot, cfg.owner_id, msg.strip(), self._quick_kb())
+        try:
+            from ..providers import push
+            await asyncio.to_thread(push.send_push, cfg, self._memory,
+                                    "🧠 E.V. aprendeu algo sobre você", fresh["text"],
+                                    "/", uid)
+        except Exception:
+            pass
+        log.info("Shared a learned pattern (%s).", fresh["key"])
+
+    async def cmd_padroes(self, update: Update, _c: ContextTypes.DEFAULT_TYPE) -> None:
+        """On demand: what E.V. has learned about the user."""
+        if not self._authorized(update):
+            return
+        await self._cmd_out(update, self._commands.learned_text(
+            str(update.effective_user.id)))
 
     async def _maybe_monthly_report(self, app: Application) -> None:
         cfg = self._config
@@ -2439,6 +2478,7 @@ class TelegramInterface:
         app.add_handler(CommandHandler("plano", self.cmd_plano))
         app.add_handler(CommandHandler("pendencias", self.cmd_pendencias))
         app.add_handler(CommandHandler("backup", self.cmd_backup))
+        app.add_handler(CommandHandler("padroes", self.cmd_padroes))
         app.add_handler(CallbackQueryHandler(self.on_callback))
         # Deterministic commands (no LLM)
         app.add_handler(CommandHandler("ajuda", self.cmd_ajuda))
