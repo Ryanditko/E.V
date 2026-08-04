@@ -777,6 +777,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
     <button class="vcbtn" id="cam-food" title="Calorias da comida"><i data-lucide="utensils"></i></button>
     <button class="vcbtn" id="cam-qr" title="Ler QR / código de barras"><i data-lucide="qr-code"></i></button>
     <button class="vcbtn" id="cam-scan" title="Escanear documento pra Base"><i data-lucide="scan-line"></i></button>
+    <button class="vcbtn" id="cam-face" title="Quem sou eu? (reconhece só você — segure para apagar)"><i data-lucide="user-round-check"></i></button>
     <button class="vcbtn" id="cam-shot" title="Capturar e perguntar no chat"><i data-lucide="camera"></i></button>
   </div>
 </div>
@@ -2072,6 +2073,40 @@ $('#cam-shot').onclick=()=>{const v=$('#cam-video');if(!v||!v.videoWidth){$('#ca
   const cv=document.createElement('canvas');cv.width=v.videoWidth;cv.height=v.videoHeight;cv.getContext('2d').drawImage(v,0,0);
   cv.toBlob(b=>{if(!b)return;const cap=(txt.value||'').trim();txt.value='';
     stopQR();stopCamLive();stopCam();$('#cam').classList.remove('on');switchView('chat');sendImage(b,cap);},'image/jpeg',0.85);};
+// --- Owner face recognition (client-side, greeting only — token stays the gate) ---
+// Recognizes ONLY the enrolled owner; anyone else = "não reconhecido". Never IDs
+// strangers. Stores a 128-d math descriptor (not photos), encrypted server-side.
+let _fapi=null,_fapiBusy=false;
+async function loadFaceApi(){if(_fapi)return _fapi;
+  const B='https://cdn.jsdelivr.net/npm/@vladmandic/face-api';
+  const fa=await import(B+'/dist/face-api.esm.js');
+  await fa.nets.tinyFaceDetector.loadFromUri(B+'/model');
+  await fa.nets.faceLandmark68Net.loadFromUri(B+'/model');
+  await fa.nets.faceRecognitionNet.loadFromUri(B+'/model');
+  _fapi=fa;return fa;}
+async function faceDescriptor(){const v=$('#cam-video');if(!v||!v.videoWidth)return null;
+  const fa=await loadFaceApi();
+  const r=await fa.detectSingleFace(v,new fa.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+  return r?Array.from(r.descriptor):null;}
+function faceDist(a,b){let s=0;for(let i=0;i<a.length;i++){const d=a[i]-b[i];s+=d*d;}return Math.sqrt(s);}
+async function camFace(){if(_fapiBusy)return;_fapiBusy=true;camResult('Analisando seu rosto…');
+  try{const desc=await faceDescriptor();
+    if(!desc){camResult('Não achei um rosto nítido — chega mais perto, com luz.');return;}
+    const st=await (await fetch('/api/face',{headers:H()})).json();
+    if(!st.enrolled){
+      if(!confirm('Ainda não reconheço você. Cadastrar SEU rosto agora? (fica só pra te cumprimentar; o token continua sendo a segurança)')){camResult('');return;}
+      await fetch('/api/face',{method:'POST',headers:H(),body:JSON.stringify({descriptor:desc})});
+      camResult('Rosto cadastrado! Da próxima vez eu te reconheço, Ryan. 👋');speak('Rosto cadastrado. Da próxima vez eu te reconheço.',true);return;}
+    const d=faceDist(desc,st.descriptor);
+    if(d<0.52){camResult('Olá, Ryan! 👋 Reconheci você.');speak('Olá, Ryan! Reconheci você.',true);}
+    else{camResult('Não reconheço quem está na câmera. 🔒');}
+  }catch(e){camResult('Reconhecimento facial indisponível neste navegador.');}
+  finally{_fapiBusy=false;}}
+$('#cam-face').onclick=camFace;
+$('#cam-face').oncontextmenu=async e=>{e.preventDefault();
+  if(!confirm('Apagar seu rosto cadastrado da E.V.?'))return;
+  await fetch('/api/face',{method:'POST',headers:H(),body:JSON.stringify({clear:true})});
+  camResult('Rosto apagado. Nenhuma biometria fica guardada.');};
 $('#imgfile').onchange=e=>{const f=e.target.files[0];if(f)setPendingImg(f);e.target.value='';};
 (function(){const cv=$('#chatview');if(!cv)return;
   ['dragover','dragenter'].forEach(n=>cv.addEventListener(n,e=>{e.preventDefault();cv.classList.add('drag');}));
@@ -2535,6 +2570,31 @@ def create_app(config: Config, brain: Brain | None = None):
         await asyncio.to_thread(memory.backup, dest)
         return FileResponse(str(dest), media_type="application/octet-stream",
                             filename=dest.name)
+
+    @app.get("/api/face")
+    async def face_get(request: Request):
+        # Owner face descriptor (greeting/personalization only). Never other people.
+        _check(request.headers.get("authorization"))
+        raw = memory.get_setting("face_descriptor") or ""
+        try:
+            desc = json.loads(raw) if raw else None
+        except ValueError:
+            desc = None
+        return {"enrolled": bool(desc), "descriptor": desc}
+
+    @app.post("/api/face")
+    async def face_set(request: Request):
+        _check(request.headers.get("authorization"))
+        data = await _body(request)
+        if data.get("clear"):
+            memory.set_setting("face_descriptor", "")
+            return {"ok": True, "enrolled": False}
+        desc = data.get("descriptor")
+        if (not isinstance(desc, list) or len(desc) != 128
+                or not all(isinstance(x, (int, float)) for x in desc)):
+            raise HTTPException(status_code=400, detail="invalid descriptor")
+        memory.set_setting("face_descriptor", json.dumps([float(x) for x in desc]))
+        return {"ok": True, "enrolled": True}
 
     @app.get("/api/push/key")
     async def push_key(request: Request):
