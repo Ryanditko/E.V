@@ -1980,7 +1980,7 @@ function welcome(){const w=$('#welcome'),txt=$('#welcome-txt');
   fetch('/api/greeting',{headers:H()}).then(r=>r.ok?r.blob():null).then(b=>{if(b&&b.size>0)new Audio(URL.createObjectURL(b)).play().catch(()=>{});}).catch(()=>{});
   setTimeout(()=>w.classList.remove('on'),4400);}
 // --- standby / ambient HUD (idle) ---
-let _idleT=null,_sbClock=null;const _IDLE_MS=90000;
+let _idleT=null,_sbClock=null;const _IDLE_MS=30000;
 function sbBusy(){const q=id=>{const e=document.getElementById(id);return e&&e.classList.contains('on');};
   return q('login')||q('welcome')||q('cam')||q('street')||q('modal')||(typeof vc!=='undefined'&&vc&&vc.classList.contains('on'));}
 function showStandby(){const st=$('#standby');if(!st||st.classList.contains('on')||sbBusy())return;
