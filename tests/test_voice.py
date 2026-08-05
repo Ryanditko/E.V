@@ -1,6 +1,15 @@
 """Tests for TTS-only pronunciation fixes."""
 
-from ev.providers.voice import _apply_fixes, clean_for_speech
+from ev.providers.voice import _apply_fixes, clean_for_speech, say_name
+
+
+def test_say_name_speaks_eevee_not_letters():
+    assert say_name("Sou a E.V., sua IA.") == "Sou a Ivi, sua IA."
+    assert say_name("a E.V está pronta") == "a Ivi está pronta"
+    assert say_name("e.v. ok") == "Ivi ok"
+    assert say_name("EV agora") == "Ivi agora"
+    # must NOT touch ordinary words containing e/v
+    assert say_name("level up eleven event") == "level up eleven event"
 
 
 def test_clean_for_speech_strips_markdown_and_emoji():

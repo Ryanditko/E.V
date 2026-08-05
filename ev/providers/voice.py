@@ -24,6 +24,15 @@ def _apply_fixes(text: str, fixes) -> str:
     return text
 
 
+# Her name is written "E.V." but spoken "Eevee" (pt-BR "Ivi") — like the Pokémon,
+# never spelled out "É-Vê". Matches E.V. / E.V / E. V. / EV as a standalone token.
+_NAME_SAY = re.compile(r"\bE\.?\s*V\.?(?=\b|\W|$)", re.IGNORECASE)
+
+
+def say_name(text: str) -> str:
+    return _NAME_SAY.sub("Ivi", text or "")
+
+
 # Emoji / pictographic ranges the TTS would otherwise read out loud.
 _EMOJI = re.compile(
     "[\U0001F000-\U0001FAFF\U00002600-\U000027BF\U0001F1E6-\U0001F1FF"
@@ -82,7 +91,7 @@ async def synthesize(
     fixes=(),
 ) -> bytes:
     """Return MP3 bytes speaking `text` with the chosen voice/tuning."""
-    spoken = _apply_fixes(clean_for_speech(text), fixes) or "..."
+    spoken = _apply_fixes(say_name(clean_for_speech(text)), fixes) or "..."
     communicate = edge_tts.Communicate(spoken, voice, rate=rate, pitch=pitch)
     audio = bytearray()
     async for chunk in communicate.stream():
