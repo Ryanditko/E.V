@@ -48,6 +48,32 @@ def clean_for_speech(text: str) -> str:
     return t.strip()
 
 
+_PTBR_VOICES = None
+
+
+async def list_ptbr_voices() -> list[dict]:
+    """Real pt-BR neural voices available in edge-tts (cached). Females first."""
+    global _PTBR_VOICES
+    if _PTBR_VOICES is not None:
+        return _PTBR_VOICES
+    try:
+        allv = await edge_tts.list_voices()
+    except Exception:
+        allv = []
+    out = []
+    for v in allv:
+        if (v.get("Locale") or "").lower().startswith("pt-br"):
+            sid = v.get("ShortName", "")
+            out.append({
+                "id": sid, "gender": v.get("Gender", ""),
+                "name": sid.split("-")[-1].replace("Neural", "") or sid,
+            })
+    out.sort(key=lambda x: (x["gender"] != "Female", x["name"].lower()))
+    if out:
+        _PTBR_VOICES = out
+    return out
+
+
 async def synthesize(
     text: str,
     voice: str,
