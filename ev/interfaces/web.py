@@ -1829,33 +1829,25 @@ function welcome(){$('#welcome-txt').textContent=GREETING;$('#welcome').classLis
   setTimeout(()=>$('#welcome').classList.remove('on'),3200);}
 // --- Cérebro: grafo interativo (força) com tudo que a E.V. sabe, estilo Obsidian ---
 const BRAIN_COLORS={core:'#f4f3f1',mem:'#35c8ff',tasks:'#5ee6a3',rem:'#ffb35e',people:'#ff6ec7',links:'#8f7bff',kb:'#ffe066',hab:'#4dd0e1',jou:'#ff8a65',sub:'#c792ea',orc:'#82e0aa',mon:'#ef5350',places:'#64b5f6'};
-let brainNodes=[],brainLinks=[],brainLoaded=false,brainRAF=null,brainAlpha=1;
-let brainScale=1,brainOffX=0,brainOffY=0,brainDrag=null,brainPan=null,brainMoved=false,brainHoverId=null;
-function brainMouse(e){const cv=$('#brain-canvas');const r=cv.getBoundingClientRect();return{mx:e.clientX-r.left,my:e.clientY-r.top};}
-function brainToWorld(mx,my){const cv=$('#brain-canvas');const w=cv.width,h=cv.height;
-  return{x:(mx*devicePixelRatio-w/2-brainOffX*devicePixelRatio)/(brainScale*devicePixelRatio),
-         y:(my*devicePixelRatio-h/2-brainOffY*devicePixelRatio)/(brainScale*devicePixelRatio)};}
-function brainNodeAt(mx,my){const {x,y}=brainToWorld(mx,my);let best=null,bd=1e9;
-  brainNodes.forEach(node=>{const r=Math.sqrt(node.val)*2.4+5;const d=(node.x-x)**2+(node.y-y)**2;if(d<r*r&&d<bd){bd=d;best=node;}});
-  return best;}
-function resizeBrainCanvas(){const cv=$('#brain-canvas');if(!cv)return;const r=cv.parentElement.getBoundingClientRect();
-  cv.width=Math.max(1,Math.round(r.width*devicePixelRatio));cv.height=Math.max(1,Math.round(r.height*devicePixelRatio));
-  cv.style.width=r.width+'px';cv.style.height=r.height+'px';}
-window.addEventListener('resize',()=>{if(curView==='brain'){resizeBrainCanvas();brainDraw();}});
+let brainLoaded=false,brainRAF=null,_TH=null;
+let brainScene=null,brainCam=null,brainRenderer=null,brainRoot=null,brainCoreMesh=null;
+let brainNodeMeshes=[],brainRay=null,brainDragging=false,brainDidRotate=false,brainAutoRot=true,brainLast={x:0,y:0};
+async function loadThree(){if(_TH)return _TH;
+  _TH=await import('https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js');return _TH;}
+function brainResize(){if(!brainRenderer)return;const wrap=$('#brain-wrap');if(!wrap)return;
+  const W=wrap.clientWidth||600,H=wrap.clientHeight||400;brainRenderer.setSize(W,H,false);
+  brainCam.aspect=W/H;brainCam.updateProjectionMatrix();}
+window.addEventListener('resize',()=>{if(curView==='brain')brainResize();});
 async function loadBrain(){
   const cv=$('#brain-canvas');if(!cv)return;
-  resizeBrainCanvas();
+  let THREE;try{THREE=await loadThree();}catch(e){const c=$('#brain-count');if(c)c.textContent='cérebro 3D indisponível (sem conexão com o Three.js)';return;}
+  ensureBrainGL(THREE);
   if(!brainLoaded){
-    try{
-      const d=await (await fetch('/api/brain',{headers:H()})).json();
-      const idx={};
-      brainNodes=(d.nodes||[]).map(n=>{const o=Object.assign({},n,{x:(Math.random()-0.5)*320,y:(Math.random()-0.5)*320,vx:0,vy:0});idx[n.id]=o;return o;});
-      brainLinks=(d.links||[]).map(l=>({source:idx[l.source],target:idx[l.target]})).filter(l=>l.source&&l.target);
-      brainLoaded=true;
-      const cnt=$('#brain-count');if(cnt)cnt.textContent=Math.max(0,brainNodes.length-1)+' pontos · '+brainLinks.length+' conexões';
-    }catch(e){return;}
+    let d;try{d=await (await fetch('/api/brain',{headers:H()})).json();}catch(e){return;}
+    populateBrain(THREE,d);brainLoaded=true;
+    const cnt=$('#brain-count');if(cnt)cnt.textContent=Math.max(0,(d.nodes||[]).length-1)+' neurônios · '+(d.links||[]).length+' sinapses';
   }
-  brainAlpha=1;
+  brainResize();
   if(!brainRAF)brainRAF=requestAnimationFrame(brainTick);
 }
 function reloadBrain(){brainLoaded=false;loadBrain();}
@@ -1870,104 +1862,87 @@ function brainNodeMenu(node,mx,my){const m=$('#brain-menu');m.innerHTML='';
     if(!(await confirmDialog('Apagar "'+node.label+'"? Isso remove o item de verdade da E.V.')))return;
     try{await fetch('/api/brain/delete',{method:'POST',headers:H(),body:JSON.stringify({group:grp,ref:node.ref})});}catch(e){}reloadBrain();loadPanel();};m.appendChild(db);}
   const wrap=$('#brain-wrap');m.style.left=Math.max(6,Math.min(mx,wrap.clientWidth-236))+'px';m.style.top=Math.min(my+8,wrap.clientHeight-140)+'px';m.classList.add('on');window.lucide&&lucide.createIcons();}
-function brainStep(){
-  const n=brainNodes.length;if(!n)return;
-  for(let i=0;i<n;i++){const a=brainNodes[i];
-    for(let j=i+1;j<n;j++){const b=brainNodes[j];
-      let dx=a.x-b.x,dy=a.y-b.y,d2=dx*dx+dy*dy;if(d2<1)d2=1;
-      const d=Math.sqrt(d2),force=850/d2,fx=dx/d*force,fy=dy/d*force;
-      a.vx+=fx;a.vy+=fy;b.vx-=fx;b.vy-=fy;}}
-  brainLinks.forEach(l=>{const a=l.source,b=l.target,dx=b.x-a.x,dy=b.y-a.y,d=Math.sqrt(dx*dx+dy*dy)||0.01;
-    const target=(a.group==='core'||b.group==='core')?115:((a.val>=12||b.val>=12)?68:34);
-    const force=(d-target)*0.02,fx=dx/d*force,fy=dy/d*force;
-    a.vx+=fx;a.vy+=fy;b.vx-=fx;b.vy-=fy;});
-  brainNodes.forEach(node=>{if(node===brainDrag)return;
-    node.vx-=node.x*0.005;node.vy-=node.y*0.005;node.vx*=0.8;node.vy*=0.8;
-    node.x+=node.vx*brainAlpha;node.y+=node.vy*brainAlpha;});
-  brainAlpha=Math.max(0.015,brainAlpha*0.99);
+function _hex(c){return parseInt((c||'#7d93aa').slice(1),16);}
+function ensureBrainGL(THREE){
+  if(brainRenderer)return;
+  const cv=$('#brain-canvas'),wrap=$('#brain-wrap');const W=wrap.clientWidth||600,H=wrap.clientHeight||400;
+  brainRenderer=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true});
+  brainRenderer.setPixelRatio(Math.min(2,devicePixelRatio));brainRenderer.setSize(W,H,false);
+  brainScene=new THREE.Scene();
+  brainCam=new THREE.PerspectiveCamera(45,W/H,0.1,200);brainCam.position.set(0,2,40);
+  brainScene.add(new THREE.AmbientLight(0x88bbff,1.4));
+  const pl=new THREE.PointLight(0x35c8ff,2,300);pl.position.set(25,30,40);brainScene.add(pl);
+  brainRoot=new THREE.Group();brainScene.add(brainRoot);
+  brainRay=new THREE.Raycaster();
 }
-function brainDraw(t){
-  t=t||0;
-  const cv=$('#brain-canvas');if(!cv)return;const ctx=cv.getContext('2d');
-  const reduced=window.matchMedia&&window.matchMedia('(prefers-reduced-motion:reduce)').matches;
-  const pulse=reduced?0:0.5+0.5*Math.sin(t*2);
-  ctx.clearRect(0,0,cv.width,cv.height);
-  ctx.save();ctx.translate(cv.width/2+brainOffX*devicePixelRatio,cv.height/2+brainOffY*devicePixelRatio);
-  ctx.scale(brainScale*devicePixelRatio,brainScale*devicePixelRatio);
-  ctx.lineWidth=1/brainScale;
-  brainLinks.forEach(l=>{const hi=brainHoverId&&(l.source.id===brainHoverId||l.target.id===brainHoverId);
-    ctx.beginPath();ctx.moveTo(l.source.x,l.source.y);ctx.lineTo(l.target.x,l.target.y);
-    if(hi){ctx.save();ctx.strokeStyle='rgba(53,200,255,.85)';ctx.shadowBlur=8;ctx.shadowColor='#35c8ff';
-      ctx.setLineDash([5/brainScale,4/brainScale]);ctx.lineDashOffset=reduced?0:-t*36;ctx.lineWidth=1.4/brainScale;
-      ctx.stroke();ctx.restore();}
-    else{ctx.strokeStyle='rgba(125,147,170,.16)';ctx.stroke();}});
-  brainNodes.forEach(node=>{const r=Math.sqrt(node.val)*2.4,hi=node.id===brainHoverId,color=BRAIN_COLORS[node.group]||'#7d93aa';
-    if(node.id==='core'){
-      ctx.save();ctx.lineWidth=1.4/brainScale;ctx.strokeStyle='rgba(53,200,255,.35)';
-      ctx.beginPath();ctx.arc(node.x,node.y,r+9+pulse*5,0,Math.PI*2);ctx.globalAlpha=.5+.25*pulse;ctx.stroke();
-      ctx.beginPath();ctx.arc(node.x,node.y,r+20+pulse*9,0,Math.PI*2);ctx.globalAlpha=.22+.14*pulse;ctx.stroke();
-      ctx.restore();
-    }
-    ctx.save();ctx.shadowBlur=(hi?20:10)/1;ctx.shadowColor=color;
-    ctx.beginPath();ctx.arc(node.x,node.y,hi?r+2:r,0,Math.PI*2);
-    ctx.fillStyle=color;ctx.globalAlpha=hi?1:.88;ctx.fill();ctx.globalAlpha=1;
-    if(hi){ctx.shadowBlur=0;ctx.lineWidth=2/brainScale;ctx.strokeStyle='#fff';ctx.stroke();}
-    ctx.restore();
-    if(node.val>=12||brainScale>1.5){ctx.fillStyle='rgba(214,233,251,.9)';ctx.font=(11/brainScale)+'px Inter, sans-serif';
-      ctx.fillText(node.label,node.x+r+4,node.y+3);}});
-  ctx.restore();
+function makeHemi(THREE,side){
+  const geo=new THREE.IcosahedronGeometry(6.6,5),p=geo.attributes.position,v=new THREE.Vector3();
+  for(let i=0;i<p.count;i++){v.set(p.getX(i),p.getY(i),p.getZ(i));
+    const n=Math.sin(v.x*1.6)*Math.sin(v.y*1.7)*Math.sin(v.z*1.5),r=1+n*0.14;   // gyri/folds
+    let x=v.x*r*0.64,y=v.y*r*0.86,z=v.z*r*1.02;if(y<0)y*=0.82;                    // flatter bottom
+    p.setXYZ(i,x+side*3.7,y,z);}                                                  // split hemispheres
+  geo.computeVertexNormals();
+  const wire=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({color:0x35c8ff,wireframe:true,transparent:true,opacity:0.15,blending:THREE.AdditiveBlending,depthWrite:false}));
+  const pts=new THREE.Points(geo,new THREE.PointsMaterial({color:0x9fe6ff,size:0.07,transparent:true,opacity:0.5,blending:THREE.AdditiveBlending,depthWrite:false}));
+  return[wire,pts];}
+function populateBrain(THREE,data){
+  while(brainRoot.children.length)brainRoot.remove(brainRoot.children[0]);
+  brainNodeMeshes=[];brainCoreMesh=null;
+  [-1,1].forEach(side=>makeHemi(THREE,side).forEach(o=>brainRoot.add(o)));
+  const nodes=data.nodes||[],links=data.links||[];
+  const groups=[...new Set(nodes.filter(n=>n.group!=='core').map(n=>n.group))];
+  const GA={};groups.forEach((g,i)=>{const y=groups.length>1?1-(i/(groups.length-1))*1.6:0;const rad=Math.sqrt(Math.max(0,1-y*y)),th=i*2.399;
+    GA[g]=new THREE.Vector3(Math.cos(th)*rad,y*0.85,Math.sin(th)*rad).multiplyScalar(7.4);});
+  const jit=(i,s)=>{const x=Math.sin(i*127.1+s*311.7)*43758.5;return(x-Math.floor(x))*2-1;};  // deterministic
+  const sph=new THREE.IcosahedronGeometry(1,2),pos={};
+  nodes.forEach((n,i)=>{let p;
+    if(n.group==='core')p=new THREE.Vector3(0,0,0);
+    else if(n.id.startsWith('g:'))p=GA[n.group].clone();
+    else p=(GA[n.group]||new THREE.Vector3()).clone().add(new THREE.Vector3(jit(i,1),jit(i,2),jit(i,3)).multiplyScalar(2.6));
+    pos[n.id]=p;
+    const col=_hex(BRAIN_COLORS[n.group]),rad=n.group==='core'?1.5:(n.id.startsWith('g:')?0.85:0.42);
+    const m=new THREE.Mesh(sph,new THREE.MeshBasicMaterial({color:col}));m.position.copy(p);m.scale.setScalar(rad);m.userData=n;
+    const halo=new THREE.Mesh(sph,new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:0.18,blending:THREE.AdditiveBlending,depthWrite:false}));
+    halo.position.copy(p);halo.scale.setScalar(rad*2.3);brainRoot.add(halo);brainRoot.add(m);
+    brainNodeMeshes.push(m);if(n.group==='core')brainCoreMesh=m;});
+  const lp=[];links.forEach(l=>{const a=pos[l.source],b=pos[l.target];if(a&&b)lp.push(a.x,a.y,a.z,b.x,b.y,b.z);});
+  if(lp.length){const lg=new THREE.BufferGeometry();lg.setAttribute('position',new THREE.Float32BufferAttribute(lp,3));
+    brainRoot.add(new THREE.LineSegments(lg,new THREE.LineBasicMaterial({color:0x35c8ff,transparent:true,opacity:0.13,blending:THREE.AdditiveBlending,depthWrite:false})));}
 }
 let brainT0=null;
 function brainTick(ts){
   if(curView!=='brain'){brainRAF=null;brainT0=null;return;}
-  if(brainT0===null)brainT0=ts;
-  const t=(ts-brainT0)/1000;
-  if(brainAlpha>0.016||brainDrag||brainPan)brainStep();
-  brainDraw(t);
+  if(brainT0===null)brainT0=ts;const t=(ts-brainT0)/1000;
+  if(brainRoot){if(brainAutoRot&&!brainDragging)brainRoot.rotation.y+=0.0018;
+    if(brainCoreMesh)brainCoreMesh.scale.setScalar(1.5*(1+0.1*Math.sin(t*2.2)));}
+  if(brainRenderer&&brainScene&&brainCam)brainRenderer.render(brainScene,brainCam);
   brainRAF=requestAnimationFrame(brainTick);
 }
-(function initBrainCanvas(){
+function brainPick(e){if(!brainRay||!brainCam||!_TH)return null;const cv=$('#brain-canvas'),r=cv.getBoundingClientRect();
+  const mv=new _TH.Vector2(((e.clientX-r.left)/r.width)*2-1,-((e.clientY-r.top)/r.height)*2+1);
+  brainRay.setFromCamera(mv,brainCam);const hits=brainRay.intersectObjects(brainNodeMeshes,false);return hits.length?hits[0].object:null;}
+(function initBrain3D(){
   const cv=$('#brain-canvas');if(!cv)return;
-  cv.addEventListener('pointerdown',e=>{
-    const {mx,my}=brainMouse(e);const node=brainNodeAt(mx,my);
-    const bm=$('#brain-menu');if(bm)bm.classList.remove('on');
-    brainMoved=false;cv.setPointerCapture(e.pointerId);
-    if(node&&node.group!=='core'){brainDrag=node;cv.classList.add('dragging');brainAlpha=Math.max(brainAlpha,0.3);if(!brainRAF)brainRAF=requestAnimationFrame(brainTick);}
-    else{brainPan={x:e.clientX,y:e.clientY,offX:brainOffX,offY:brainOffY};cv.classList.add('dragging');}
-  });
+  cv.addEventListener('pointerdown',e=>{brainDragging=true;brainDidRotate=false;brainLast={x:e.clientX,y:e.clientY};
+    try{cv.setPointerCapture(e.pointerId);}catch(_){}const bm=$('#brain-menu');if(bm)bm.classList.remove('on');});
   cv.addEventListener('pointermove',e=>{
-    const {mx,my}=brainMouse(e);
-    if(brainDrag){brainMoved=true;const w=brainToWorld(mx,my);brainDrag.x=w.x;brainDrag.y=w.y;brainDrag.vx=0;brainDrag.vy=0;return;}
-    if(brainPan){const dx=e.clientX-brainPan.x,dy=e.clientY-brainPan.y;if(Math.abs(dx)+Math.abs(dy)>3)brainMoved=true;
-      brainOffX=brainPan.offX+dx;brainOffY=brainPan.offY+dy;brainDraw();return;}
-    if(curView!=='brain')return;
-    const node=brainNodeAt(mx,my);brainHoverId=node?node.id:null;cv.style.cursor=node?'pointer':'grab';
-    const tip=$('#brain-tip');
-    if(node){tip.style.display='block';tip.style.left=(mx+14)+'px';tip.style.top=(my+10)+'px';tip.textContent=node.label;}
-    else if(tip)tip.style.display='none';
-    brainDraw();
-  });
-  function endPointer(){brainDrag=null;brainPan=null;cv.classList.remove('dragging');}
-  cv.addEventListener('pointerup',endPointer);
-  cv.addEventListener('pointercancel',endPointer);
-  cv.addEventListener('click',e=>{
-    if(brainMoved){brainMoved=false;return;}
-    const {mx,my}=brainMouse(e);const node=brainNodeAt(mx,my);
-    if(!node){$('#brain-menu').classList.remove('on');return;}
-    const leaf=node.id.indexOf(':')>0&&!node.id.startsWith('g:')&&node.id!=='core'&&!node.id.endsWith(':more');
-    if(leaf)brainNodeMenu(node,mx,my);
-    else if(node.view)switchView(node.view);
-  });
-  cv.addEventListener('wheel',e=>{e.preventDefault();
-    const {mx,my}=brainMouse(e);const before=brainScale;
-    brainScale=Math.min(3,Math.max(0.35,brainScale*(e.deltaY<0?1.1:0.9)));
-    brainOffX-=(mx-cv.clientWidth/2-brainOffX)*(brainScale/before-1);
-    brainOffY-=(my-cv.clientHeight/2-brainOffY)*(brainScale/before-1);
-    brainDraw();
-  },{passive:false});
+    if(brainDragging&&brainRoot){const dx=e.clientX-brainLast.x,dy=e.clientY-brainLast.y;if(Math.abs(dx)+Math.abs(dy)>2)brainDidRotate=true;
+      brainRoot.rotation.y+=dx*0.006;brainRoot.rotation.x=Math.max(-1.3,Math.min(1.3,brainRoot.rotation.x+dy*0.006));brainLast={x:e.clientX,y:e.clientY};return;}
+    if(curView!=='brain')return;const node=brainPick(e),tip=$('#brain-tip');cv.style.cursor=node?'pointer':'grab';
+    if(node&&tip){const r=cv.getBoundingClientRect();tip.style.display='block';tip.style.left=(e.clientX-r.left+14)+'px';tip.style.top=(e.clientY-r.top+10)+'px';tip.textContent=node.userData.label;}
+    else if(tip)tip.style.display='none';});
+  function endP(){brainDragging=false;}
+  cv.addEventListener('pointerup',e=>{const rot=brainDidRotate;endP();if(rot)return;
+    const node=brainPick(e);if(!node){$('#brain-menu').classList.remove('on');return;}
+    const n=node.userData,r=cv.getBoundingClientRect();
+    const leaf=n.id.indexOf(':')>0&&!n.id.startsWith('g:')&&n.id!=='core'&&!n.id.endsWith(':more');
+    if(leaf)brainNodeMenu(n,e.clientX-r.left,e.clientY-r.top);else if(n.view)switchView(n.view);});
+  cv.addEventListener('pointercancel',endP);
+  cv.addEventListener('wheel',e=>{e.preventDefault();if(!brainCam)return;
+    brainCam.position.z=Math.min(80,Math.max(14,brainCam.position.z*(e.deltaY<0?0.9:1.1)));},{passive:false});
 })();
 document.getElementById('brain-reset')?.addEventListener('click',()=>{
-  brainScale=1;brainOffX=0;brainOffY=0;brainAlpha=Math.max(brainAlpha,0.6);if(!brainRAF)brainRAF=requestAnimationFrame(brainTick);});
+  brainAutoRot=true;if(brainCam)brainCam.position.set(0,2,40);if(brainRoot)brainRoot.rotation.set(0,0,0);});
 // --- PWA + notifications + live sync (Lote A) ---
 async function initPWA(){
   try{if('serviceWorker' in navigator)await navigator.serviceWorker.register('/sw.js');}catch(e){}
