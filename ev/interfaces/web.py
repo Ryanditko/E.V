@@ -551,6 +551,15 @@ select{width:100%;font-family:var(--mono);font-size:12px;background:var(--surfac
 .mrow{display:flex;align-items:center;gap:10px;padding:9px 6px;border-top:1px solid var(--line);cursor:pointer;font-size:14px}
 .mrow input{width:16px;height:16px;accent-color:var(--fg)}
 .mfield{margin-bottom:13px}.mlabel{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+.vlist{display:flex;flex-direction:column;gap:6px;margin:10px 0;max-height:38vh;overflow:auto}
+.vrow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 13px;border:1px solid var(--line);border-radius:11px;background:var(--surface);cursor:pointer;transition:.15s}
+.vrow:hover{border-color:var(--line-2)}
+.vrow.on{border-color:var(--accent);background:linear-gradient(90deg,rgba(53,200,255,.12),transparent);box-shadow:0 0 16px -8px var(--glow)}
+.vname{font-size:14px;color:var(--fg)}
+.vplay{width:34px;height:34px;flex:none;display:grid;place-items:center;border-radius:9px;border:1px solid var(--line-2);background:var(--elev);color:var(--accent);cursor:pointer}
+.vplay:hover{box-shadow:0 0 12px -4px var(--glow)}.vplay.busy{opacity:.5}.vplay svg{width:15px;height:15px}
+.vrange{margin:8px 0}.vrange .vval{float:right;color:var(--accent);font-family:var(--mono);font-size:11px}
+.vrange input[type=range]{width:100%;accent-color:var(--accent)}
 .minput{width:100%;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:11px 13px;color:var(--fg);font:inherit;font-size:14px}
 .minput:focus{outline:none;border-color:var(--line-2)}
 select.minput{cursor:pointer}
@@ -794,7 +803,8 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
     <div class="grid2" id="acts"></div>
     <div class="eyebrow">Provedor de IA</div>
     <select id="prov"><option>auto</option><option>gemini</option><option>groq</option><option>openrouter</option><option>ollama</option></select>
-    <button class="act" id="btn-keys" style="margin-top:12px;width:100%"><i data-lucide="key-round"></i>Chaves de API</button>
+    <button class="act" id="btn-voice" style="margin-top:12px;width:100%"><i data-lucide="mic-vocal"></i>Voz da E.V.</button>
+    <button class="act" id="btn-keys" style="margin-top:8px;width:100%"><i data-lucide="key-round"></i>Chaves de API</button>
     <button class="act" id="btn-notifs" style="margin-top:8px;width:100%"><i data-lucide="bell"></i>Notificações<span id="notif-badge" class="nbadge"></span></button>
   </aside>
 </div>
@@ -1135,6 +1145,34 @@ async function openKeys(){let d;try{d=await (await fetch('/api/keys',{headers:H(
   openForm('Chaves de API',fields,async v=>{const body={};Object.keys(v).forEach(k=>{if(v[k])body[k]=v[k];});
     if(Object.keys(body).length){const r=await (await fetch('/api/keys',{method:'POST',headers:H(),body:JSON.stringify(body)})).json();sys('Chaves atualizadas: '+(r.changed||[]).join(', '));loadPanel();}});}
 $('#btn-keys').onclick=openKeys;
+$('#btn-voice').onclick=openVoicePicker;
+async function openVoicePicker(){
+  let d;try{d=await (await fetch('/api/voice',{headers:H()})).json();}catch(e){return;}
+  const m=$('#modal');m.textContent='';const card=el('div','mcard');
+  card.appendChild(el('div','mtitle','Voz da E.V.'));
+  card.appendChild(el('div','mconf','Escolha a voz e ouça uma amostra. Tom e velocidade ajustam o clima.'));
+  let sel=d.voice,rate=d.rate||'+0%',pitch=d.pitch||'+0Hz';
+  const list=el('div','vlist');
+  (d.voices||[]).forEach(v=>{const row=el('div','vrow'+(v.id===sel?' on':''));
+    const nm=el('span','vname',v.name+(v.gender==='Female'?' ♀':(v.gender==='Male'?' ♂':'')));
+    const play=el('button','vplay');play.appendChild(ficon('play'));
+    play.onclick=async e=>{e.stopPropagation();play.classList.add('busy');
+      try{const r=await fetch('/api/tts',{method:'POST',headers:H(),body:JSON.stringify({text:'Olá, Ryan. Sou a E.V., sua inteligência pessoal. Tudo pronto pra você.',voice:v.id,rate,pitch})});
+        if(r.ok){const a=new Audio(URL.createObjectURL(await r.blob()));a.play().catch(()=>{});}}catch(_){}
+      setTimeout(()=>play.classList.remove('busy'),500);};
+    row.onclick=()=>{sel=v.id;[...list.children].forEach(c=>c.classList.remove('on'));row.classList.add('on');};
+    row.appendChild(nm);row.appendChild(play);list.appendChild(row);});
+  if(!(d.voices||[]).length)list.appendChild(el('div','tv-empty','Não consegui listar as vozes agora.'));
+  card.appendChild(list);
+  const mkR=(lbl,val,min,max,unit,cb)=>{const w=el('div','vrange');const l=el('label','mlabel');l.textContent=lbl;const out=el('span','vval');out.textContent=val+unit;
+    const i=document.createElement('input');i.type='range';i.min=min;i.max=max;i.step=5;i.value=val;i.oninput=()=>{out.textContent=(i.value>=0?'+':'')+i.value+unit;cb(parseInt(i.value));};
+    l.appendChild(out);w.appendChild(l);w.appendChild(i);return w;};
+  card.appendChild(mkR('Velocidade',parseInt(rate)||0,-40,40,'%',v=>{rate=(v>=0?'+':'')+v+'%';}));
+  card.appendChild(mkR('Tom',parseInt(pitch)||0,-40,40,'Hz',v=>{pitch=(v>=0?'+':'')+v+'Hz';}));
+  const bar=el('div','mbar');const c=el('button','mbtn2','Cancelar');c.onclick=()=>m.classList.remove('on');
+  const s=el('button','mbtn','Salvar');s.onclick=async()=>{try{await fetch('/api/voice',{method:'POST',headers:H(),body:JSON.stringify({voice:sel,rate,pitch})});}catch(_){}
+    m.classList.remove('on');sfx('confirm');sys('Voz da E.V. atualizada.');};
+  bar.appendChild(c);bar.appendChild(s);card.appendChild(bar);m.appendChild(card);m.classList.add('on');window.lucide&&lucide.createIcons();}
 function updateNBadge(n){const b=$('#notif-badge');if(!b)return;n=n||0;b.textContent=n>99?'99+':n;b.classList.toggle('on',n>0);}
 function nfmt(iso){try{const d=new Date(iso);const now=new Date();const diff=(now-d)/1000;
   if(diff<60)return 'agora';if(diff<3600)return Math.floor(diff/60)+'min';
@@ -3496,14 +3534,49 @@ def create_app(config: Config, brain: Brain | None = None):
     @app.post("/api/tts")
     async def tts(request: Request):
         _check(request.headers.get("authorization"))
-        text = ((await _body(request)).get("text") or "").strip()
+        d = await _body(request)
+        text = (d.get("text") or "").strip()
         if not text:
             raise HTTPException(status_code=400, detail="empty")
+        # optional per-request overrides (used by the voice picker for previews)
+        voice = d.get("voice") or config.voice
+        if not str(voice).startswith("pt-BR"):
+            voice = config.voice
+        rate = d.get("rate") or config.voice_rate
+        pitch = d.get("pitch") or config.voice_pitch
         mp3 = await voice_mod.synthesize(
-            text[:1200], config.voice, rate=config.voice_rate,
-            pitch=config.voice_pitch, fixes=config.voice_fixes,
-        )
+            text[:1200], voice, rate=rate, pitch=pitch, fixes=config.voice_fixes)
         return Response(content=mp3, media_type="audio/mpeg")
+
+    @app.get("/api/voice")
+    async def voice_get(request: Request):
+        _check(request.headers.get("authorization"))
+        return {"voice": config.voice, "rate": config.voice_rate,
+                "pitch": config.voice_pitch,
+                "voices": await voice_mod.list_ptbr_voices()}
+
+    @app.post("/api/voice")
+    async def voice_set(request: Request):
+        _check(request.headers.get("authorization"))
+        d = await _body(request)
+        voice = (d.get("voice") or "").strip()
+        voices = {v["id"] for v in await voice_mod.list_ptbr_voices()}
+        if not voice.startswith("pt-BR") or (voices and voice not in voices):
+            raise HTTPException(status_code=400, detail="invalid voice")
+        rate = (d.get("rate") or "+0%").strip()
+        pitch = (d.get("pitch") or "+0Hz").strip()
+        for f, env, val in (("voice", "EV_VOICE", voice),
+                            ("voice_rate", "EV_VOICE_RATE", rate),
+                            ("voice_pitch", "EV_VOICE_PITCH", pitch)):
+            try:
+                object.__setattr__(config, f, val)
+            except Exception:
+                pass
+            try:
+                _env_write(env, val)
+            except Exception:
+                pass
+        return {"ok": True, "voice": voice, "rate": rate, "pitch": pitch}
 
     @app.post("/api/vision")
     async def vision(request: Request):
