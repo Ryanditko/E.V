@@ -310,15 +310,15 @@ body.speaking .bigcore .r2{animation-delay:.15s}body.speaking .bigcore .r3{anima
 .login-or{display:flex;align-items:center;gap:10px;width:100%;max-width:230px;color:var(--muted);font-size:12px;font-family:var(--mono)}
 .login-or span{flex:1;height:1px;background:var(--line)}
 .login-oauth{min-width:230px;text-align:center;text-decoration:none;display:inline-flex;justify-content:center;gap:8px}
-#welcome-txt{font-family:var(--disp);font-size:26px;text-align:center;max-width:600px;padding:0 24px;line-height:1.4;color:#eaf4fb;text-shadow:0 0 22px rgba(53,200,255,.35)}
-#welcome-txt.boot-reveal{animation:rise .5s}
-#boot-log{font-family:var(--mono);font-size:12px;letter-spacing:.05em;color:var(--accent);text-align:left;width:300px;max-width:82vw;min-height:132px;text-shadow:0 0 8px var(--glow)}
-#boot-log .boot-line{opacity:0;animation:bootln .28s forwards}
-#boot-log .boot-line.ok::after{content:' OK';color:#5ee6a3}
-@keyframes bootln{from{opacity:0;transform:translateX(-7px)}to{opacity:.92;transform:none}}
-#welcome::after{content:"";position:absolute;left:0;right:0;height:2px;top:0;background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:.6;box-shadow:0 0 14px var(--glow);animation:bootscan 2.4s ease-in-out infinite}
-@keyframes bootscan{0%{top:8%}50%{top:92%}100%{top:8%}}
-@media(prefers-reduced-motion:reduce){#welcome::after{animation:none;opacity:0}#boot-log .boot-line{animation:none;opacity:.9}}
+#welcome-txt{font-family:var(--disp);font-size:27px;text-align:center;max-width:620px;padding:0 24px;line-height:1.4;color:#eaf4fb;text-shadow:0 0 22px rgba(53,200,255,.4)}
+/* elegant power-up entrance: the core boots, a pulse rings out, greeting materializes */
+#welcome.on .bigcore{animation:coreboot 1s cubic-bezier(.2,.8,.2,1)}
+#welcome.on .bigcore::after{content:"";position:absolute;inset:0;border-radius:50%;border:1px solid var(--accent);box-shadow:0 0 18px var(--glow);animation:pulseout 1.5s ease-out .25s both;pointer-events:none}
+#welcome.on #welcome-txt{animation:wtxtin 1s .55s both}
+@keyframes coreboot{0%{transform:scale(.55);opacity:0;filter:blur(7px)}55%{opacity:1}100%{transform:scale(1);opacity:1;filter:none}}
+@keyframes pulseout{0%{transform:scale(.55);opacity:.75}100%{transform:scale(2.3);opacity:0}}
+@keyframes wtxtin{0%{opacity:0;transform:translateY(16px);letter-spacing:.34em;filter:blur(5px)}100%{opacity:1;transform:none;letter-spacing:normal;filter:none}}
+@media(prefers-reduced-motion:reduce){#welcome.on .bigcore,#welcome.on .bigcore::after,#welcome.on #welcome-txt{animation:none}}
 #pomo-mini{position:fixed;top:20px;right:20px;z-index:26;width:186px;background:var(--panel);border:1px solid var(--line-2);border-radius:14px;box-shadow:0 20px 60px -24px #000;display:none;flex-direction:column;overflow:hidden}
 .pm-head{display:flex;align-items:center;gap:6px;padding:7px 10px;border-bottom:1px solid var(--line);cursor:move;user-select:none}
 .pm-grip{color:var(--subtle);font-size:12px;letter-spacing:-3px}
@@ -855,7 +855,6 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
 </div>
 <div id="welcome">
   <div class="bigcore"><div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div><div class="arc"></div><div class="bdot"></div></div>
-  <div id="boot-log"></div>
   <div id="welcome-txt"></div>
 </div>
 <script>
@@ -1897,16 +1896,12 @@ window.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key.toLowerCa
 setInterval(()=>{$('#s-clock').textContent=new Date().toTimeString().slice(0,8);},1000);
 const GREETING='Bem-vindo de volta, Ryan. Sistemas online, tudo pronto pra você.';
 async function validate(tok){try{return (await fetch('/api/panel',{headers:{'Authorization':'Bearer '+tok}})).status===200;}catch(e){return false;}}
-const BOOT_LINES=['INICIALIZANDO NÚCLEO E.V.','▸ memória neural.........','▸ síntese de voz.........','▸ visão · câmera.........','▸ automações.............','▸ conexão segura.........'];
-function welcome(){const w=$('#welcome'),log=$('#boot-log'),txt=$('#welcome-txt');
-  w.classList.add('on');sfx('boot');if(log)log.textContent='';if(txt){txt.textContent='';txt.classList.remove('boot-reveal');}window.lucide&&lucide.createIcons();
+function welcome(){const w=$('#welcome'),txt=$('#welcome-txt');
+  if(txt)txt.textContent=GREETING;
+  w.classList.remove('on');void w.offsetWidth;   // restart the entrance animations
+  w.classList.add('on');sfx('boot');window.lucide&&lucide.createIcons();
   fetch('/api/greeting',{headers:H()}).then(r=>r.ok?r.blob():null).then(b=>{if(b&&b.size>0)new Audio(URL.createObjectURL(b)).play().catch(()=>{});}).catch(()=>{});
-  const reduced=window.matchMedia&&window.matchMedia('(prefers-reduced-motion:reduce)').matches;
-  if(reduced||!log){if(txt)txt.textContent=GREETING;setTimeout(()=>w.classList.remove('on'),1800);return;}
-  let i=0;(function step(){
-    if(i<BOOT_LINES.length){const d=el('div','boot-line'+(i>0?' ok':''));d.textContent=BOOT_LINES[i];log.appendChild(d);i++;setTimeout(step,240);}
-    else{setTimeout(()=>{if(txt){txt.textContent=GREETING;txt.classList.add('boot-reveal');}},200);setTimeout(()=>w.classList.remove('on'),2500);}
-  })();}
+  setTimeout(()=>w.classList.remove('on'),3400);}
 // --- Cérebro: grafo interativo (força) com tudo que a E.V. sabe, estilo Obsidian ---
 const BRAIN_COLORS={core:'#f4f3f1',mem:'#35c8ff',tasks:'#5ee6a3',rem:'#ffb35e',people:'#ff6ec7',links:'#8f7bff',kb:'#ffe066',hab:'#4dd0e1',jou:'#ff8a65',sub:'#c792ea',orc:'#82e0aa',mon:'#ef5350',places:'#64b5f6'};
 let brainLoaded=false,brainRAF=null,_TH=null;
