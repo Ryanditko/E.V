@@ -93,6 +93,14 @@ def test_face_enroll_and_clear(tmp_path):
     assert client.get("/api/face", headers=_auth()).json()["enrolled"] is False
 
 
+def test_mapillary_endpoint(tmp_path):
+    client, _ = _client(tmp_path)
+    assert client.get("/api/mapillary").status_code == 401
+    j = client.get("/api/mapillary", headers=_auth()).json()
+    assert j["enabled"] is False and j["token"] == ""  # no token → falls back to Google
+    assert client.get("/api/config", headers=_auth()).json()["mapillary"] is False
+
+
 def test_backup_download(tmp_path):
     client, _ = _client(tmp_path)
     # browser downloads can't set headers → token via ?k=

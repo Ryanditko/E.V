@@ -210,6 +210,11 @@ body.speaking .core .dot{animation:pulse .6s infinite}
 #brain-menu button svg{width:15px;height:15px}
 #brain-menu button.bm-del:hover{color:#ff8a8a}
 #map-wrap{position:relative;height:calc(100vh - 300px);min-height:400px}
+#street{position:fixed;inset:0;z-index:120;background:#04070c;display:none;flex-direction:column}
+#street.on{display:flex}
+#street-view{flex:1;min-height:0;background:#04070c}
+#street-x{position:absolute;top:14px;left:14px;z-index:6;background:rgba(4,7,12,.72);border:1px solid var(--accent);color:var(--fg);padding:9px 15px;border-radius:20px;font-family:var(--mono);font-size:12px;letter-spacing:.08em;cursor:pointer;box-shadow:0 0 16px var(--glow)}
+#street-hint{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);background:rgba(4,7,12,.74);border:1px solid var(--line-2);color:var(--fg);padding:8px 15px;border-radius:12px;font-size:12px;z-index:6}
 #map{position:absolute;inset:0;border:1px solid var(--line-2);border-radius:13px;overflow:hidden;box-shadow:0 0 40px -24px var(--glow)}
 #map .leaflet-container{background:#04070c;font-family:var(--body)}
 #map .leaflet-control-zoom a{background:var(--elev);color:var(--accent);border-color:var(--line)}
@@ -783,6 +788,11 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
     <button class="vcbtn" id="cam-face" title="Quem sou eu? (reconhece só você — segure para apagar)"><i data-lucide="user-round-check"></i></button>
     <button class="vcbtn" id="cam-shot" title="Capturar e perguntar no chat"><i data-lucide="camera"></i></button>
   </div>
+</div>
+<div id="street">
+  <button id="street-x">FECHAR</button>
+  <div id="street-view"></div>
+  <div id="street-hint">Carregando a rua…</div>
 </div>
 <div id="pomo">
   <button id="pomo-x">FECHAR</button>
@@ -1455,9 +1465,7 @@ function loadMap(){
     $('#map-sat').onclick=()=>{_sat=!_sat;const b=$('#map-sat');b.classList.toggle('on',_sat);
       if(_sat){_map.removeLayer(_baseDark);_baseSat.addTo(_map);}else{_map.removeLayer(_baseSat);_baseDark.addTo(_map);}
       b.lastChild&&(b.lastChild.textContent=_sat?'Mapa':'Satélite');};
-    $('#map-street').onclick=()=>{const c=(_loc?{lat:_loc[0],lng:_loc[1]}:_map.getCenter());
-      window.open('https://www.google.com/maps/@?api=1&map_action=pano&viewpoint='+c.lat+','+c.lng,'_blank','noopener');
-      $('#map-status').textContent='Abrindo a rua no Street View (vista de quem está lá).';};
+    $('#map-street').onclick=()=>{const c=(_loc?{lat:_loc[0],lng:_loc[1]}:_map.getCenter());openStreet(c.lat,c.lng);};
     renderMapChips();loadSavedPlaces();
     const q=$('#map-q');if(q)q.addEventListener('keydown',e=>{if(e.key==='Enter'&&q.value.trim())showNearby(q.value.trim());});
     $('#map-add').onclick=()=>{_addMode=!_addMode;$('#map-add').classList.toggle('on',_addMode);$('#map-status').textContent=_addMode?'Modo adicionar: toque no mapa pra criar um ponto':'Você está aqui';};
@@ -1477,6 +1485,34 @@ function loadMap(){
       _addMode=false;$('#map-add').classList.remove('on');$('#map-status').textContent='Ponto "'+name+'" salvo';});}
   setTimeout(()=>{if(_map)_map.invalidateSize();},120);
   if(!_loc)locateMe();}
+// In-app street-level view via Mapillary (free, open imagery — no Google redirect).
+// Falls back to a Google Street View link when there's no token or no coverage.
+let _mlyViewer=null,_mlyLibP=null;
+function loadMapillary(){if(window.mapillary)return Promise.resolve();if(_mlyLibP)return _mlyLibP;
+  _mlyLibP=new Promise((res,rej)=>{
+    const css=document.createElement('link');css.rel='stylesheet';css.href='https://cdn.jsdelivr.net/npm/mapillary-js@4.1.2/dist/mapillary.css';document.head.appendChild(css);
+    const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/mapillary-js@4.1.2/dist/mapillary.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);});
+  return _mlyLibP;}
+function closeStreet(){$('#street').classList.remove('on');if(_mlyViewer){try{_mlyViewer.remove();}catch(e){}_mlyViewer=null;}}
+async function openStreet(lat,lng){
+  const gsv='https://www.google.com/maps/@?api=1&map_action=pano&viewpoint='+lat+','+lng;
+  let tok='';try{tok=((await (await fetch('/api/mapillary',{headers:H()})).json()).token)||'';}catch(e){}
+  if(!tok){window.open(gsv,'_blank','noopener');toast('Pra ver a rua DENTRO da E.V., adicione um token grátis do Mapillary em "Chaves de API".');return;}
+  const sh=$('#street-hint');$('#street').classList.add('on');sh.style.display='block';sh.textContent='Procurando imagens de rua aqui…';
+  try{
+    const d=0.0007,bbox=[lng-d,lat-d,lng+d,lat+d].join(',');
+    const j=await (await fetch('https://graph.mapillary.com/images?access_token='+encodeURIComponent(tok)+'&fields=id&bbox='+bbox+'&limit=1')).json();
+    const img=(j.data||[])[0];
+    if(!img){sh.textContent='Sem cobertura de rua aqui — abrindo no Google.';setTimeout(()=>{window.open(gsv,'_blank','noopener');closeStreet();},1300);return;}
+    await loadMapillary();
+    if(_mlyViewer){try{_mlyViewer.remove();}catch(e){}_mlyViewer=null;}
+    $('#street-view').innerHTML='';
+    _mlyViewer=new mapillary.Viewer({accessToken:tok,container:'street-view',imageId:img.id});
+    sh.style.display='none';
+  }catch(e){sh.textContent='Não consegui abrir a rua aqui — abrindo no Google.';setTimeout(()=>{window.open(gsv,'_blank','noopener');closeStreet();},1300);}
+}
+document.addEventListener('DOMContentLoaded',()=>{const x=$('#street-x');if(x)x.onclick=closeStreet;});
+$('#street-x')&&($('#street-x').onclick=closeStreet);
 const ACT_ICON={'task.new':['plus','tarefa criada'],'task.done':['check-check','tarefa concluída'],'task.del':['trash-2','tarefa apagada'],'reminder.new':['alarm-clock','lembrete criado'],'reminder.done':['bell-ring','lembrete disparado'],'reminder.cancel':['bell-off','lembrete cancelado'],'expense.new':['wallet','gasto adicionado'],'expense.del':['trash-2','gasto apagado'],'habit.done':['repeat','hábito feito']};
 async function loadAct(){try{const cat=$('#act-cat').value;
   const d=await (await fetch('/api/activity'+(cat?'?category='+encodeURIComponent(cat):''),{headers:H()})).json();
@@ -2512,7 +2548,15 @@ def create_app(config: Config, brain: Brain | None = None):
     async def cfg_get(request: Request):
         _check(request.headers.get("authorization"))
         return {"actions": _cfg_list("web_actions", _DEF_ACTIONS),
-                "stats": _cfg_list("web_stats", _DEF_STATS)}
+                "stats": _cfg_list("web_stats", _DEF_STATS),
+                "mapillary": bool(getattr(config, "mapillary_token", ""))}
+
+    @app.get("/api/mapillary")
+    async def mapillary_token(request: Request):
+        # The in-app street-level viewer runs client-side and needs the token.
+        _check(request.headers.get("authorization"))
+        tok = getattr(config, "mapillary_token", "") or ""
+        return {"enabled": bool(tok), "token": tok}
 
     @app.post("/api/config")
     async def cfg_set(request: Request):
@@ -2930,6 +2974,7 @@ def create_app(config: Config, brain: Brain | None = None):
         ("brave_api_key", "BRAVE_API_KEY", "Brave (busca web)"),
         ("imap_address", "EV_IMAP_ADDRESS", "E-mail Gmail (leitura)"),
         ("imap_password", "EV_IMAP_PASSWORD", "Senha de app Gmail (leitura)"),
+        ("mapillary_token", "EV_MAPILLARY_TOKEN", "Mapillary (ver rua integrado)"),
     ]
 
     def _env_write(var, value):
