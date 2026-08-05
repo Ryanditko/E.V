@@ -701,11 +701,19 @@ class Brain:
             if not (lat and lng):
                 return ("não sei sua localização ainda. Abra a aba Mapa e toque em "
                         "'Onde estou'.")
-            places = tools_mod.nearby_places(float(lat), float(lng), tipo, limit=6)
+            flat, flng = float(lat), float(lng)
+            places = tools_mod.nearby_places(flat, flng, tipo, limit=6)
             if not places:
                 return f"não achei '{tipo}' por perto agora."
-            lines = [f"- {p['name']} (~{p['dist']} m)" for p in places]
-            return f"{tipo.capitalize()} perto de você:\n" + "\n".join(lines)
+            # A map photo of the area with every result pinned, plus a route link
+            # per place so the user can navigate straight there.
+            img = tools_mod.static_map_url(
+                flat, flng, markers=[(p["lat"], p["lng"]) for p in places], zoom=15)
+            lines = [f"{tipo.capitalize()} perto de você:", f"![mapa]({img})"]
+            for i, p in enumerate(places, 1):
+                dl = tools_mod.directions_link(flat, flng, p["lat"], p["lng"])
+                lines.append(f"{i}. {p['name']} (~{int(p['dist'])} m) — 🧭 Ir: {dl}")
+            return "\n".join(lines)
 
         def meus_locais() -> str:
             """Lista os pontos de interesse que o usuário salvou no mapa da E.V."""

@@ -417,6 +417,7 @@ body:not(.term) .msg.ev::after{content:"";position:absolute;top:7px;left:7px;wid
 .msg .mtable th,.msg .mtable td{border:1px solid var(--line);padding:6px 9px;text-align:left;white-space:nowrap}
 .msg .mtable th{background:var(--surface);color:var(--accent);font-family:var(--mono);font-size:10px;letter-spacing:.05em;text-transform:uppercase}
 .msg .mtable tr:nth-child(even) td{background:rgba(53,200,255,.045)}
+.msg .mimg{max-width:100%;border-radius:12px;margin:8px 0;border:1px solid var(--line-2);display:block;box-shadow:0 4px 18px rgba(0,0,0,.35)}
 .mchips{display:flex;flex-wrap:wrap;gap:7px;margin:3px 0 10px}
 .mchip{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:12px;color:var(--fg);background:var(--elev);border:1px solid var(--line);border-radius:999px;padding:6px 12px;cursor:pointer;position:relative;overflow:hidden;transition:background .15s,border-color .15s,color .15s}
 .mchip:hover,.mchip:active{background:var(--fg);color:var(--ink);border-color:var(--fg)}
@@ -910,6 +911,7 @@ function renderTable(box,rows){const t=document.createElement('table');t.classNa
   rows.slice(2).forEach(r=>{const tr=document.createElement('tr');splitRow(r).forEach(c=>{const td=document.createElement('td');appendRich(td,c);tr.appendChild(td);});tb.appendChild(tr);});
   t.appendChild(tb);box.appendChild(t);}
 function renderLine(box,s,st){let m;
+  if((m=s.match(/^!\[[^\]]*\]\((https?:\/\/[^)\s]+)\)$/))){const im=document.createElement('img');im.src=m[1];im.className='mimg';im.loading='lazy';im.alt='mapa';im.onerror=()=>im.remove();box.appendChild(im);st.first=false;return;}
   if(SEPRE.test(s)){box.appendChild(el('div','sep'));return;}
   if(EMOLEAD.test(s)){
     if(st.first){const h=el('span','h');h.appendChild(ficon(iconName(s)));h.appendChild(document.createTextNode(stripEmoji(s)));box.appendChild(h);st.first=false;return;}
