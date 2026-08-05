@@ -2249,9 +2249,25 @@ async function initDetectors(){if(_detInit)return;_detInit=true;
     try{_gestDet=await V.GestureRecognizer.createFromOptions(fs,{baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task'},runningMode:'VIDEO',numHands:1});}catch(e){_gestDet=null;}
   }catch(e){_detInit=false;}}
 function ovCtx(){const v=$('#cam-video'),cv=$('#cam-fx');if(!cv||!v)return null;const W=v.clientWidth||1,H=v.clientHeight||1;if(cv.width!==W)cv.width=W;if(cv.height!==H)cv.height=H;const ctx=cv.getContext('2d');ctx.clearRect(0,0,W,H);ctx._sx=W/(v.videoWidth||W);ctx._sy=H/(v.videoHeight||H);return ctx;}
+// JARVIS-style targeting reticle: corner brackets that "lock on" + crosshair
+// ticks + a rotating dashed ring + a HUD label. drawn over each detection.
 function drawBox(ctx,bb,color,label){const x=bb.originX*ctx._sx,y=bb.originY*ctx._sy,w=bb.width*ctx._sx,h=bb.height*ctx._sy;
-  ctx.strokeStyle=color;ctx.lineWidth=2;ctx.shadowColor=color;ctx.shadowBlur=8;ctx.strokeRect(x,y,w,h);ctx.shadowBlur=0;
-  if(label){ctx.font='12px Inter, sans-serif';const tw=ctx.measureText(label).width+10;ctx.fillStyle='rgba(4,7,12,.82)';ctx.fillRect(x,Math.max(0,y-18),tw,18);ctx.fillStyle=color;ctx.fillText(label,x+5,Math.max(11,y-5));}}
+  const t=performance.now()/1000,pulse=0.5+0.5*Math.sin(t*3.2);
+  const cl=Math.max(9,Math.min(w,h)*0.22);            // corner bracket length
+  ctx.save();ctx.strokeStyle=color;ctx.shadowColor=color;ctx.shadowBlur=8;ctx.lineWidth=2;ctx.lineCap='round';
+  ctx.globalAlpha=0.75+0.25*pulse;
+  const corner=(cx,cy,dx,dy)=>{ctx.beginPath();ctx.moveTo(cx+dx*cl,cy);ctx.lineTo(cx,cy);ctx.lineTo(cx,cy+dy*cl);ctx.stroke();};
+  corner(x,y,1,1);corner(x+w,y,-1,1);corner(x,y+h,1,-1);corner(x+w,y+h,-1,-1);
+  // center crosshair ticks
+  const mx=x+w/2,my=y+h/2,tk=Math.min(w,h)*0.07+3;ctx.globalAlpha=0.5+0.4*pulse;ctx.lineWidth=1.2;
+  ctx.beginPath();ctx.moveTo(mx-tk,my);ctx.lineTo(mx+tk,my);ctx.moveTo(mx,my-tk);ctx.lineTo(mx,my+tk);ctx.stroke();
+  // rotating dashed lock ring
+  const r=Math.min(w,h)*0.5*0.62;if(r>6){ctx.globalAlpha=0.4+0.3*pulse;ctx.setLineDash([r*0.5,r*0.7]);ctx.lineDashOffset=-t*30;ctx.beginPath();ctx.arc(mx,my,r,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);}
+  ctx.shadowBlur=0;ctx.globalAlpha=1;
+  if(label){const lb='⌖ '+label.toUpperCase();ctx.font='700 11px ui-monospace, monospace';const tw=ctx.measureText(lb).width+12;
+    ctx.fillStyle='rgba(4,7,12,.85)';ctx.fillRect(x,Math.max(0,y-19),tw,17);
+    ctx.fillStyle=color;ctx.fillText(lb,x+5,Math.max(11,y-6));}
+  ctx.restore();}
 function faceLoop(){if(!_camLive)return;const v=$('#cam-video');
   if(v&&v.videoWidth){const ctx=ovCtx();let nf=0,no=0;const ts=performance.now();
     if(ctx&&_faceDet){try{(_faceDet.detectForVideo(v,ts).detections||[]).forEach(d=>{if(d.boundingBox){drawBox(ctx,d.boundingBox,'#35c8ff','rosto');nf++;}});}catch(e){}}
