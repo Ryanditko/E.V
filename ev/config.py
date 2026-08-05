@@ -87,6 +87,7 @@ class Config:
     vapid_subject: str         # VAPID claims subject (mailto:...)
     imap_address: str          # Gmail address for reading mail via IMAP
     imap_password: str         # Gmail "app password" (not the account password)
+    mapillary_token: str       # Mapillary access token for in-app street-level view
     db_path: Path
 
     @property
@@ -235,5 +236,6 @@ class Config:
             vapid_subject=os.getenv("VAPID_SUBJECT", "mailto:ev@example.com").strip(),
             imap_address=os.getenv("EV_IMAP_ADDRESS", "").strip(),
             imap_password=os.getenv("EV_IMAP_PASSWORD", "").strip(),
+            mapillary_token=os.getenv("EV_MAPILLARY_TOKEN", "").strip(),
             db_path=_PROJECT_ROOT / "ev_memory.db",
         )
