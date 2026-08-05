@@ -834,6 +834,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
   <div id="vc-sub">voz ao vivo · português</div>
   <div id="vc-actions"><button class="vcbtn" id="vc-mic"><i data-lucide="mic"></i></button></div>
   <button id="vc-cont" class="tbtn" style="margin-top:14px"><i data-lucide="infinity"></i> Modo contínuo: off</button>
+  <button id="vc-convo" class="tbtn" style="margin-top:8px"><i data-lucide="messages-square"></i> Conversa: off</button>
 </div>
 <div id="cam">
   <button id="cam-x">FECHAR</button>
@@ -1402,7 +1403,7 @@ const vc=$('#vc'),vcTxt=$('#vc-txt'),vcMic=$('#vc-mic');
 // mostra a resposta da voz com a MESMA formatação bonita do chat (sem ** cru)
 function vcShowReply(reply){vcTxt.innerHTML='';const b=el('div','msg ev');renderReply(b,reply||'(sem resposta)');vcTxt.appendChild(b);}
 $('#vcopen').onclick=()=>{if(!RECOK){sys('Gravação de áudio indisponível neste navegador.');return;}vc.classList.add('on');vcTxt.textContent='Toque no microfone e fale. Toque de novo para enviar.';$('#vc-sub').textContent='pasta: '+thread+' · a conversa fica salva aqui';};
-$('#vc-x').onclick=()=>{if(_recActive)stopRec();if(_hf){stopHF();renderHFBtn();}stopSpeaking();vc.classList.remove('on');setState(_ambient?'listening':'');};
+$('#vc-x').onclick=()=>{if(_recActive)stopRec();if(_hf){stopHF();renderHFBtn();}if(_convo){_convo=false;maybeStopRec();renderConvoBtn();}stopSpeaking();vc.classList.remove('on');setState(_ambient?'listening':'');};
 vcMic.onclick=async()=>{
   if(!RECOK){vcTxt.textContent='Gravação de áudio indisponível neste navegador.';return;}
   if(_recActive){stopRec();vcTxt.textContent='transcrevendo...';return;}
@@ -1417,7 +1418,7 @@ vcMic.onclick=async()=>{
 
 // --- hands-free: escuta contínua + palavra de ativação "E.V." (Web Speech API) ---
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-let _hf=false,_rec=null,_hfBusy=false,_ambient=false;
+let _hf=false,_rec=null,_hfBusy=false,_ambient=false,_convo=false;
 function vcOpen(){return vc.classList.contains('on');}
 // aceita variações de como o STT ouve "E.V." em pt-BR (ev, eva, e vê, êvê, ei vi...)
 // "E.V." é ouvido pelo STT de MUITAS formas (evee, yvee, eveee, evi, ivi, e vê...).
@@ -1439,7 +1440,7 @@ async function processHF(text){if(_hfBusy)return;_hfBusy=true;stopSpeaking();
     if(vcOpen())vcShowReply(j.reply);else toast((j.reply||'').slice(0,220));
     speak(j.reply,true);loadPanel();
   }catch(e){hfSay('Falha ao falar com a E.V. Tenta de novo.');}
-  finally{_hfBusy=false;setState((_hf||_ambient)?'listening':'');}}
+  finally{_hfBusy=false;setState((_hf||_ambient||_convo)?'listening':'');}}
 // Single SpeechRecognition shared by hands-free (voice screen) and ambient presence.
 function ensureRec(){if(_rec)return true;if(!SR)return false;
   try{_rec=new SR();}catch(e){return false;}
@@ -1449,6 +1450,12 @@ function ensureRec(){if(_rec)return true;if(!SR)return false;
     // barge-in: se a E.V. está falando e o dono a chamou de novo, cala e escuta
     if(_speaking&&hasWake(txt))stopSpeaking();
     if(!res.isFinal)continue;
+    if(_convo){                             // conversa contínua: sem palavra-mágica
+      if(_speaking)continue;                // ignora a própria voz da E.V. (evita loop)
+      const t=txt.trim();if(t.length<2)continue;
+      if(/^(parar|encerrar|tchau|chega|para)\b/i.test(t)){toggleConvo(false);speak('Encerrando a conversa. Tô por perto.',true);continue;}
+      sfx('wake');wakePulse();processHF(t);continue;
+    }
     const cmd=extractCommand(txt);
     if(cmd===null)continue;                 // não foi chamada pela E.V.
     sfx('wake');wakePulse();                // heard her name → chirp + orb pulse
@@ -1456,10 +1463,10 @@ function ensureRec(){if(_rec)return true;if(!SR)return false;
     processHF(cmd);}};
   _rec.onerror=e=>{if(e.error==='not-allowed'||e.error==='service-not-allowed'){
     _hf=false;_ambient=false;renderHFBtn();renderAmbBtn();hfSay('Permita o microfone para escutar por voz.');}};
-  _rec.onend=()=>{if(_hf||_ambient){try{_rec.start();}catch(e){}}};   // reinicia (o SR para sozinho)
+  _rec.onend=()=>{if(_hf||_ambient||_convo){try{_rec.start();}catch(e){}}};   // reinicia (o SR para sozinho)
   try{_rec.start();}catch(e){}
   return true;}
-function maybeStopRec(){if(!_hf&&!_ambient&&_rec){try{_rec.onend=null;_rec.stop();}catch(e){}_rec=null;}}
+function maybeStopRec(){if(!_hf&&!_ambient&&!_convo&&_rec){try{_rec.onend=null;_rec.stop();}catch(e){}_rec=null;}}
 function startHF(){if(!SR){vcTxt.textContent='Mãos-livres precisa do Chrome, Edge ou Safari. No Firefox, use o microfone manual.';return false;}
   return ensureRec();}
 function stopHF(){_hf=false;maybeStopRec();}
@@ -1468,6 +1475,17 @@ function renderHFBtn(){const b=$('#vc-cont');b.innerHTML='';b.appendChild(ficon(
 $('#vc-cont').onclick=()=>{if(!SR){vcTxt.textContent='Mãos-livres precisa do Chrome, Edge ou Safari. No Firefox, use o microfone manual.';return;}
   if(_hf){stopHF();setState();}else{_hf=true;if(startHF()){vcTxt.textContent='Modo mãos-livres ligado. É só dizer: "E.V., ..."';setState('listening');}else{_hf=false;}}renderHFBtn();};
 renderHFBtn();
+// Conversa contínua — fala natural, sem palavra-mágica; ela escuta, responde e escuta de novo.
+function renderConvoBtn(){const b=$('#vc-convo');if(!b)return;b.innerHTML='';b.appendChild(ficon(_convo?'messages-square':'message-square-off'));
+  b.appendChild(document.createTextNode(' Conversa: '+(_convo?'on — pode falar':'off')));b.classList.toggle('on',_convo);window.lucide&&lucide.createIcons();}
+function toggleConvo(on){const want=(on===undefined)?!_convo:on;
+  if(want&&!SR){vcTxt.textContent='Conversa por voz precisa do Chrome, Edge ou Safari.';return;}
+  _convo=want;
+  if(_convo){if(ensureRec()){vcTxt.textContent='Modo conversa ligado — pode falar naturalmente, sem dizer meu nome. Diga "parar" pra encerrar.';setState('listening');speak('Modo conversa ligado. Pode falar, Ryan.',true);}else{_convo=false;}}
+  else{maybeStopRec();setState((_hf||_ambient)?'listening':'');}
+  renderConvoBtn();}
+$('#vc-convo')&&($('#vc-convo').onclick=()=>toggleConvo());
+renderConvoBtn();
 // Ambient presence — keeps listening globally so "E.V. ..." works from any screen.
 function renderAmbBtn(){const b=$('#amb');if(!b)return;b.classList.toggle('on',_ambient);
   b.title=_ambient?'Presença ambiente ligada — escuta "E.V. ..." sempre':'Presença ambiente — escuta "E.V. ..." sempre';
