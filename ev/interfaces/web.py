@@ -310,16 +310,36 @@ body.speaking .bigcore .r2{animation-delay:.15s}body.speaking .bigcore .r3{anima
 .login-or{display:flex;align-items:center;gap:10px;width:100%;max-width:230px;color:var(--muted);font-size:12px;font-family:var(--mono)}
 .login-or span{flex:1;height:1px;background:var(--line)}
 .login-oauth{min-width:230px;text-align:center;text-decoration:none;display:inline-flex;justify-content:center;gap:8px}
-#welcome-txt{font-family:var(--disp);font-size:26px;text-align:center;max-width:600px;padding:0 24px;line-height:1.4;animation:rise .5s;color:#eaf4fb;text-shadow:0 0 22px rgba(53,200,255,.35)}
+#welcome-txt{font-family:var(--disp);font-size:26px;text-align:center;max-width:600px;padding:0 24px;line-height:1.4;color:#eaf4fb;text-shadow:0 0 22px rgba(53,200,255,.35)}
+#welcome-txt.boot-reveal{animation:rise .5s}
+#boot-log{font-family:var(--mono);font-size:12px;letter-spacing:.05em;color:var(--accent);text-align:left;width:300px;max-width:82vw;min-height:132px;text-shadow:0 0 8px var(--glow)}
+#boot-log .boot-line{opacity:0;animation:bootln .28s forwards}
+#boot-log .boot-line.ok::after{content:' OK';color:#5ee6a3}
+@keyframes bootln{from{opacity:0;transform:translateX(-7px)}to{opacity:.92;transform:none}}
+#welcome::after{content:"";position:absolute;left:0;right:0;height:2px;top:0;background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:.6;box-shadow:0 0 14px var(--glow);animation:bootscan 2.4s ease-in-out infinite}
+@keyframes bootscan{0%{top:8%}50%{top:92%}100%{top:8%}}
+@media(prefers-reduced-motion:reduce){#welcome::after{animation:none;opacity:0}#boot-log .boot-line{animation:none;opacity:.9}}
 #pomo-mini{position:fixed;top:20px;right:20px;z-index:26;width:186px;background:var(--panel);border:1px solid var(--line-2);border-radius:14px;box-shadow:0 20px 60px -24px #000;display:none;flex-direction:column;overflow:hidden}
 .pm-head{display:flex;align-items:center;gap:6px;padding:7px 10px;border-bottom:1px solid var(--line);cursor:move;user-select:none}
 .pm-grip{color:var(--subtle);font-size:12px;letter-spacing:-3px}
 .pm-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:2px 6px}.pm-btn:hover{color:var(--fg)}
 .pm-body{padding:16px 14px;display:flex;justify-content:center;cursor:pointer}
 #pomo-mini #pomo-time{font-size:36px}#pomo-mini #pomo-label{font-size:9px}
-.sysbox{margin-top:auto;display:flex;flex-direction:column;gap:7px;border-top:1px solid var(--line);padding-top:12px}
+.sysbox{margin-top:auto;position:relative;display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--line);padding:12px 8px 6px}
 .kv{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px}
 .kv span{color:var(--subtle)}.kv b{font-weight:500}
+.sysbox .hud-c{position:absolute;width:7px;height:7px;border:1px solid var(--accent);opacity:.55;pointer-events:none}
+.sysbox .hud-c.tl{top:6px;left:-1px;border-right:0;border-bottom:0}
+.sysbox .hud-c.tr{top:6px;right:-1px;border-left:0;border-bottom:0}
+.sysbox .hud-c.bl{bottom:-1px;left:-1px;border-right:0;border-top:0}
+.sysbox .hud-c.br{bottom:-1px;right:-1px;border-left:0;border-top:0}
+.sysbox .load{height:4px;background:var(--surface);border-radius:3px;overflow:hidden;margin:1px 0 3px}
+.sysbox .load i{display:block;height:100%;width:26%;background:linear-gradient(90deg,transparent,var(--accent),transparent);box-shadow:0 0 8px var(--glow);animation:coreload 2.2s linear infinite}
+@keyframes coreload{from{transform:translateX(-130%)}to{transform:translateX(460%)}}
+#s-status.on-dot::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:#5ee6a3;box-shadow:0 0 7px #5ee6a3;margin-right:5px;vertical-align:middle;animation:pulse2 1.6s infinite}
+#s-status{color:#5ee6a3}#s-status:not(.on-dot){color:#ffb35e}
+@keyframes pulse2{0%,100%{opacity:1}50%{opacity:.3}}
+@media(prefers-reduced-motion:reduce){.sysbox .load i,#s-status.on-dot::before{animation:none}}
 .topbar{display:flex;align-items:center;gap:10px;padding:15px 22px;border-bottom:1px solid var(--line)}
 .topbar .eyebrow{flex:1;margin:0}
 .tbtn{font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:var(--muted);border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 12px;cursor:pointer}
@@ -576,8 +596,13 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
     <div id="folders"></div>
     <div class="newf" id="newf">+ nova pasta</div>
     <div class="sysbox">
+      <span class="hud-c tl"></span><span class="hud-c tr"></span><span class="hud-c bl"></span><span class="hud-c br"></span>
+      <div class="kv"><span>STATUS</span><b id="s-status" class="on-dot">ONLINE</b></div>
       <div class="kv"><span>PROVEDOR</span><b id="s-prov">—</b></div>
       <div class="kv"><span>MODELO</span><b id="s-model">—</b></div>
+      <div class="kv"><span>LATÊNCIA</span><b id="s-lat">—</b></div>
+      <div class="load"><i id="s-load"></i></div>
+      <div class="kv"><span id="s-counts">—</span></div>
       <div class="kv"><span>HORA</span><b id="s-clock">—</b></div>
     </div>
   </aside>
@@ -824,6 +849,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
 </div>
 <div id="welcome">
   <div class="bigcore"><div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div><div class="arc"></div><div class="bdot"></div></div>
+  <div id="boot-log"></div>
   <div id="welcome-txt"></div>
 </div>
 <script>
@@ -1057,8 +1083,12 @@ function renderStats(){const box=$('#stats');box.textContent='';config.stats.for
 function renderActs(){const box=$('#acts');box.textContent='';config.actions.forEach(cmd=>{const m=CAT[cmd]||[cmd,'chevron-right'];
   const b=el('button','act');b.appendChild(ficon(m[1]));b.appendChild(document.createTextNode(m[0]));
   b.onclick=e=>{if(cmd==='foco'){openPomo(25);return;}ripple(b,e);if(cmd==='cam'){$('#cambtn').click();return;}if(cmd==='bak'){window.location='/api/backup?k='+encodeURIComponent(token);toast('Baixando backup cifrado…');return;}if(VIEWS[cmd]){switchView(cmd);return;}runCmd(cmd,b,e);};box.appendChild(b);});window.lucide&&lucide.createIcons();}
-async function loadPanel(){try{const r=await fetch('/api/panel',{headers:H()});if(!r.ok)return;_counts=await r.json();
-  renderStats();$('#s-prov').textContent=_counts.provider;$('#s-model').textContent=_counts.model;$('#prov').value=_counts.provider;updateNBadge(_counts.notifs);}catch(e){}}
+async function loadPanel(){const _t0=(window.performance||Date).now();try{const r=await fetch('/api/panel',{headers:H()});if(!r.ok)return;_counts=await r.json();
+  renderStats();$('#s-prov').textContent=_counts.provider;$('#s-model').textContent=_counts.model;$('#prov').value=_counts.provider;updateNBadge(_counts.notifs);
+  const lat=Math.round((window.performance||Date).now()-_t0),sl=$('#s-lat');if(sl)sl.textContent='~'+lat+'ms';
+  const st=$('#s-status');if(st){st.textContent='ONLINE';st.classList.add('on-dot');}
+  const sc=$('#s-counts');if(sc)sc.textContent='T '+(_counts.tasks||0)+' · L '+(_counts.reminders||0)+' · M '+(_counts.memories||0)+' · KB '+(_counts.kb||0);
+}catch(e){const st=$('#s-status');if(st){st.textContent='RECONECTANDO';st.classList.remove('on-dot');}}}
 async function loadConfig(){try{config=await (await fetch('/api/config',{headers:H()})).json();}catch(e){}renderActs();}
 async function saveConfig(){try{await fetch('/api/config',{method:'POST',headers:H(),body:JSON.stringify(config)});}catch(e){}}
 $('#prov').onchange=()=>runCmd('provedor '+$('#prov').value);
@@ -1828,9 +1858,16 @@ window.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key.toLowerCa
 setInterval(()=>{$('#s-clock').textContent=new Date().toTimeString().slice(0,8);},1000);
 const GREETING='Bem-vindo de volta, Ryan. Sistemas online, tudo pronto pra você.';
 async function validate(tok){try{return (await fetch('/api/panel',{headers:{'Authorization':'Bearer '+tok}})).status===200;}catch(e){return false;}}
-function welcome(){$('#welcome-txt').textContent=GREETING;$('#welcome').classList.add('on');window.lucide&&lucide.createIcons();
+const BOOT_LINES=['INICIALIZANDO NÚCLEO E.V.','▸ memória neural.........','▸ síntese de voz.........','▸ visão · câmera.........','▸ automações.............','▸ conexão segura.........'];
+function welcome(){const w=$('#welcome'),log=$('#boot-log'),txt=$('#welcome-txt');
+  w.classList.add('on');if(log)log.textContent='';if(txt){txt.textContent='';txt.classList.remove('boot-reveal');}window.lucide&&lucide.createIcons();
   fetch('/api/greeting',{headers:H()}).then(r=>r.ok?r.blob():null).then(b=>{if(b&&b.size>0)new Audio(URL.createObjectURL(b)).play().catch(()=>{});}).catch(()=>{});
-  setTimeout(()=>$('#welcome').classList.remove('on'),3200);}
+  const reduced=window.matchMedia&&window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  if(reduced||!log){if(txt)txt.textContent=GREETING;setTimeout(()=>w.classList.remove('on'),1800);return;}
+  let i=0;(function step(){
+    if(i<BOOT_LINES.length){const d=el('div','boot-line'+(i>0?' ok':''));d.textContent=BOOT_LINES[i];log.appendChild(d);i++;setTimeout(step,240);}
+    else{setTimeout(()=>{if(txt){txt.textContent=GREETING;txt.classList.add('boot-reveal');}},200);setTimeout(()=>w.classList.remove('on'),2500);}
+  })();}
 // --- Cérebro: grafo interativo (força) com tudo que a E.V. sabe, estilo Obsidian ---
 const BRAIN_COLORS={core:'#f4f3f1',mem:'#35c8ff',tasks:'#5ee6a3',rem:'#ffb35e',people:'#ff6ec7',links:'#8f7bff',kb:'#ffe066',hab:'#4dd0e1',jou:'#ff8a65',sub:'#c792ea',orc:'#82e0aa',mon:'#ef5350',places:'#64b5f6'};
 let brainLoaded=false,brainRAF=null,_TH=null;
