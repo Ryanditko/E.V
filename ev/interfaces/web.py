@@ -753,6 +753,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
         <button class="mchip" id="map-add" type="button"><i data-lucide="map-pin"></i>Adicionar ponto</button>
         <button class="mchip" id="map-sat" type="button"><i data-lucide="satellite"></i>Satélite</button>
         <button class="mchip" id="map-street" type="button"><i data-lucide="eye"></i>Ver rua</button>
+        <button class="mchip" id="map-gmaps" type="button"><i data-lucide="external-link"></i>Abrir no Google Maps</button>
         <button class="mchip" id="map-ask" type="button"><i data-lucide="message-circle"></i>Perguntar à E.V.</button>
       </div>
       <div id="map-planner" style="display:none;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 10px">
@@ -1471,11 +1472,21 @@ let _baseDark=null,_baseSat=null,_sat=false;
 const MAP_CHIPS=[['Onde estou','locate-fixed'],['Metrô','tram-front'],['Trem','train-front'],['Ônibus','bus'],['Farmácia','pill'],['Mercado','shopping-cart'],['Restaurante','utensils'],['Padaria','croissant'],['Café','coffee'],['Posto','fuel'],['Banco','landmark'],['Hospital','cross'],['Academia','dumbbell']];
 function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 function askEV(name,lat,lng){switchView('chat');send('me conta sobre "'+name+'", que fica perto de mim.');}
-function routeBtn(name,lat,lng){const b=el('span','pop-b');b.appendChild(ficon('route'));b.appendChild(document.createTextNode('Traçar rota'));b.onclick=()=>routeTo(lat,lng,name);return b;}
+function routeBtn(name,lat,lng){const b=el('span','pop-b');b.appendChild(ficon('route'));b.appendChild(document.createTextNode('Traçar rota (aqui)'));b.onclick=()=>routeTo(lat,lng,name);return b;}
+// Open ANY point of interest straight in Google Maps — view, directions or street.
+function openGmaps(lat,lng){window.open('https://www.google.com/maps/search/?api=1&query='+lat+','+lng,'_blank','noopener');}
+function openGdir(lat,lng){const o=_loc?('&origin='+_loc[0]+','+_loc[1]):'';window.open('https://www.google.com/maps/dir/?api=1'+o+'&destination='+lat+','+lng+'&travelmode=driving','_blank','noopener');}
+function popBtn(icon,label,fn){const b=el('span','pop-b');b.appendChild(ficon(icon));b.appendChild(document.createTextNode(label));b.onclick=fn;return b;}
+function poiActions(d,name,lat,lng){
+  d.appendChild(routeBtn(name,lat,lng));                                   // rota interna (E.V.)
+  d.appendChild(popBtn('external-link','Abrir no Google Maps',()=>openGmaps(lat,lng)));
+  d.appendChild(popBtn('navigation','Rota no Google Maps',()=>openGdir(lat,lng)));
+  d.appendChild(popBtn('eye','Ver rua',()=>openStreet(lat,lng)));
+  d.appendChild(popBtn('message-circle','Perguntar à E.V.',()=>askEV(name,lat,lng)));
+  window.lucide&&lucide.createIcons();return d;}
 function poiPopup(name,lat,lng,dist){const d=document.createElement('div');
   d.innerHTML='<div class="pop-n">'+esc(name)+'</div>'+(dist!=null?'<div class="pop-d">~'+dist+' m de você</div>':'');
-  const ask=el('span','pop-b');ask.appendChild(ficon('message-circle'));ask.appendChild(document.createTextNode('Perguntar à E.V.'));ask.onclick=()=>askEV(name,lat,lng);
-  d.appendChild(routeBtn(name,lat,lng));d.appendChild(ask);window.lucide&&lucide.createIcons();return d;}
+  return poiActions(d,name,lat,lng);}
 function renderMapChips(){const box=$('#map-chips');box.textContent='';
   MAP_CHIPS.forEach(([label,ic])=>{const b=el('button','mchip');b.type='button';b.appendChild(ficon(ic));b.appendChild(document.createTextNode(label));
     b.onclick=(e)=>{ripple(b,e);label==='Onde estou'?locateMe():showNearby(label);};box.appendChild(b);});window.lucide&&lucide.createIcons();}
@@ -1525,9 +1536,9 @@ async function showNearby(query){if(!_loc){_pendingNear=query;$('#map-status').t
 let _savedMarkers={};
 function addSavedMarker(p){if(!_savedLayer)_savedLayer=L.layerGroup().addTo(_map);const m=L.marker([p.lat,p.lng]).addTo(_savedLayer);_savedMarkers[p.id]=m;
   m.bindPopup(()=>{const d=document.createElement('div');d.innerHTML='<div class="pop-n">'+esc(p.name)+'</div><div class="pop-d">ponto salvo</div>';
-    const ask=el('span','pop-b');ask.appendChild(ficon('message-circle'));ask.appendChild(document.createTextNode('Perguntar à E.V.'));ask.onclick=()=>askEV(p.name,p.lat,p.lng);
-    const del=el('span','pop-b');del.appendChild(ficon('trash-2'));del.appendChild(document.createTextNode('Remover'));del.onclick=async()=>{await fetch('/api/places/delete',{method:'POST',headers:H(),body:JSON.stringify({id:p.id})});m.remove();delete _savedMarkers[p.id];_savedPlaces=_savedPlaces.filter(x=>x.id!==p.id);};
-    d.appendChild(routeBtn(p.name,p.lat,p.lng));d.appendChild(ask);d.appendChild(del);window.lucide&&lucide.createIcons();return d;});}
+    poiActions(d,p.name,p.lat,p.lng);
+    d.appendChild(popBtn('trash-2','Remover',async()=>{await fetch('/api/places/delete',{method:'POST',headers:H(),body:JSON.stringify({id:p.id})});m.remove();delete _savedMarkers[p.id];_savedPlaces=_savedPlaces.filter(x=>x.id!==p.id);}));
+    window.lucide&&lucide.createIcons();return d;});}
 function loadSavedPlaces(){fetch('/api/places',{headers:H()}).then(r=>r.json()).then(d=>{
   _savedPlaces=d.items||[];_savedMarkers={};if(_savedLayer)_savedLayer.clearLayers();_savedPlaces.forEach(addSavedMarker);}).catch(()=>{});}
 function showSavedList(){const res=$('#map-results');res.innerHTML='';
@@ -1535,8 +1546,10 @@ function showSavedList(){const res=$('#map-results');res.innerHTML='';
   const head=el('div','mr-h');head.appendChild(document.createTextNode('MEUS PONTOS ('+_savedPlaces.length+')'));const x=document.createElement('b');x.textContent='fechar';x.onclick=()=>res.classList.remove('on');head.appendChild(x);res.appendChild(head);
   _savedPlaces.forEach(p=>{const row=el('div','mres');row.appendChild(el('div','mr-n',p.name));
     const act=el('div','mr-d');const go=document.createElement('span');go.textContent='ver no mapa';go.style.cursor='pointer';go.onclick=(e)=>{e.stopPropagation();_map.setView([p.lat,p.lng],16);const mk=_savedMarkers[p.id];if(mk)mk.openPopup();};
-    const rt=document.createElement('span');rt.textContent=' · traçar rota';rt.style.cursor='pointer';rt.onclick=(e)=>{e.stopPropagation();routeTo(p.lat,p.lng,p.name);};
-    act.appendChild(go);act.appendChild(rt);row.appendChild(act);
+    const rt=document.createElement('span');rt.textContent=' · rota';rt.style.cursor='pointer';rt.onclick=(e)=>{e.stopPropagation();routeTo(p.lat,p.lng,p.name);};
+    const gm=document.createElement('span');gm.textContent=' · Google Maps';gm.style.cursor='pointer';gm.onclick=(e)=>{e.stopPropagation();openGmaps(p.lat,p.lng);};
+    const sv=document.createElement('span');sv.textContent=' · ver rua';sv.style.cursor='pointer';sv.onclick=(e)=>{e.stopPropagation();openStreet(p.lat,p.lng);};
+    act.appendChild(go);act.appendChild(rt);act.appendChild(gm);act.appendChild(sv);row.appendChild(act);
     row.onclick=()=>{_map.setView([p.lat,p.lng],16);const mk=_savedMarkers[p.id];if(mk)mk.openPopup();};res.appendChild(row);});
   res.classList.add('on');$('#map-status').textContent=_savedPlaces.length+' ponto(s) salvo(s)';}
 let _accCircle=null,_fixMode=false;
@@ -1576,6 +1589,7 @@ function loadMap(){
       if(_sat){_map.removeLayer(_baseDark);_baseSat.addTo(_map);}else{_map.removeLayer(_baseSat);_baseDark.addTo(_map);}
       b.lastChild&&(b.lastChild.textContent=_sat?'Mapa':'Satélite');};
     $('#map-street').onclick=()=>{const c=(_loc?{lat:_loc[0],lng:_loc[1]}:_map.getCenter());openStreet(c.lat,c.lng);};
+    $('#map-gmaps').onclick=()=>{const c=_map.getCenter();window.open('https://www.google.com/maps/@'+c.lat+','+c.lng+','+Math.round(_map.getZoom())+'z','_blank','noopener');};
     renderMapChips();loadSavedPlaces();
     const q=$('#map-q');if(q)q.addEventListener('keydown',e=>{if(e.key==='Enter'&&q.value.trim())showNearby(q.value.trim());});
     $('#map-add').onclick=()=>{_addMode=!_addMode;$('#map-add').classList.toggle('on',_addMode);$('#map-status').textContent=_addMode?'Modo adicionar: toque no mapa pra criar um ponto':'Você está aqui';};
