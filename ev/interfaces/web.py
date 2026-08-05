@@ -318,6 +318,20 @@ body.speaking .bigcore .r2{animation-delay:.15s}body.speaking .bigcore .r3{anima
 @keyframes coreboot{0%{transform:scale(.55);opacity:0;filter:blur(7px)}55%{opacity:1}100%{transform:scale(1);opacity:1;filter:none}}
 @keyframes pulseout{0%{transform:scale(.55);opacity:.75}100%{transform:scale(2.3);opacity:0}}
 @keyframes wtxtin{0%{opacity:0;transform:translateY(16px);letter-spacing:.34em;filter:blur(5px)}100%{opacity:1;transform:none;letter-spacing:normal;filter:none}}
+/* standby / ambient HUD (idle) */
+#standby{position:fixed;inset:0;z-index:46;background:radial-gradient(90% 70% at 50% 32%,#0a1826,#04070c 82%);display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;overflow:hidden;cursor:pointer;animation:sbfade .8s}
+#standby.on{display:flex}
+@keyframes sbfade{from{opacity:0}to{opacity:1}}
+#standby .sb-top{position:absolute;top:26px;font-family:var(--mono);letter-spacing:.24em;color:var(--accent);font-size:12px}
+#standby .sb-top b{color:#5ee6a3}
+#standby .bigcore{transform:scale(.85);margin-bottom:2px}
+#sb-clock{font-family:var(--disp);font-size:min(18vw,140px);line-height:1;color:#eaf4fb;text-shadow:0 0 36px rgba(53,200,255,.42);letter-spacing:.02em}
+#sb-date{font-family:var(--mono);letter-spacing:.2em;color:var(--muted);text-transform:uppercase;font-size:13px}
+#sb-status{font-family:var(--body);color:var(--fg);font-size:16px;text-align:center;max-width:82vw;text-shadow:0 0 16px rgba(53,200,255,.3)}
+#standby .sb-load{width:min(320px,60vw);height:4px;background:var(--surface);border-radius:3px;overflow:hidden;margin-top:6px}
+#standby .sb-load i{display:block;height:100%;width:28%;background:linear-gradient(90deg,transparent,var(--accent),transparent);box-shadow:0 0 8px var(--glow);animation:coreload 2.4s linear infinite}
+#standby .sb-hint{position:absolute;bottom:30px;font-family:var(--mono);font-size:11px;letter-spacing:.16em;color:var(--subtle);animation:pulse2 2.6s infinite}
+@media(prefers-reduced-motion:reduce){#standby{animation:none}#standby .sb-load i,#standby .sb-hint{animation:none}}
 @media(prefers-reduced-motion:reduce){#welcome.on .bigcore,#welcome.on .bigcore::after,#welcome.on #welcome-txt{animation:none}}
 #pomo-mini{position:fixed;top:20px;right:20px;z-index:26;width:186px;background:var(--panel);border:1px solid var(--line-2);border-radius:14px;box-shadow:0 20px 60px -24px #000;display:none;flex-direction:column;overflow:hidden}
 .pm-head{display:flex;align-items:center;gap:6px;padding:7px 10px;border-bottom:1px solid var(--line);cursor:move;user-select:none}
@@ -867,6 +881,15 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
 <div id="welcome">
   <div class="bigcore"><div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div><div class="arc"></div><div class="bdot"></div></div>
   <div id="welcome-txt"></div>
+</div>
+<div id="standby">
+  <div class="sb-top">E.V. // <b>ONLINE</b></div>
+  <div class="bigcore"><div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div><div class="arc"></div><div class="bdot"></div></div>
+  <div id="sb-clock">--:--</div>
+  <div id="sb-date"></div>
+  <div id="sb-status"></div>
+  <div class="sb-load"><i></i></div>
+  <div class="sb-hint">toque ou fale para retomar</div>
 </div>
 <script>
 // Firefox/Zen: backdrop-filter e mix-blend-mode são muito lentos nele -> versão leve.
@@ -1956,6 +1979,21 @@ function welcome(){const w=$('#welcome'),txt=$('#welcome-txt');
   fetch('/api/briefing',{headers:H()}).then(r=>r.ok?r.json():null).then(j=>{if(j&&j.text&&txt)txt.textContent=j.text;}).catch(()=>{});
   fetch('/api/greeting',{headers:H()}).then(r=>r.ok?r.blob():null).then(b=>{if(b&&b.size>0)new Audio(URL.createObjectURL(b)).play().catch(()=>{});}).catch(()=>{});
   setTimeout(()=>w.classList.remove('on'),4400);}
+// --- standby / ambient HUD (idle) ---
+let _idleT=null,_sbClock=null;const _IDLE_MS=90000;
+function sbBusy(){const q=id=>{const e=document.getElementById(id);return e&&e.classList.contains('on');};
+  return q('login')||q('welcome')||q('cam')||q('street')||q('modal')||(typeof vc!=='undefined'&&vc&&vc.classList.contains('on'));}
+function showStandby(){const st=$('#standby');if(!st||st.classList.contains('on')||sbBusy())return;
+  const upd=()=>{const d=new Date();const c=$('#sb-clock');if(c)c.textContent=d.toTimeString().slice(0,5);
+    const dt=$('#sb-date');if(dt)dt.textContent=d.toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'});};
+  upd();_sbClock=setInterval(upd,1000);
+  const t=(_counts.tasks||0),l=(_counts.reminders||0),ss=$('#sb-status');
+  if(ss)ss.textContent=(t||l)?('Você tem '+t+' tarefa'+(t!=1?'s':'')+(l?(' e '+l+' lembrete'+(l!=1?'s':'')):'')+' pra hoje, Ryan.'):'Tudo tranquilo por aqui, Ryan.';
+  st.classList.add('on');window.lucide&&lucide.createIcons();}
+function hideStandby(){const st=$('#standby');if(!st||!st.classList.contains('on'))return;st.classList.remove('on');if(_sbClock){clearInterval(_sbClock);_sbClock=null;}}
+function resetIdle(){if($('#standby')&&$('#standby').classList.contains('on'))hideStandby();clearTimeout(_idleT);_idleT=setTimeout(showStandby,_IDLE_MS);}
+['pointerdown','keydown','wheel','touchstart','mousemove'].forEach(evn=>window.addEventListener(evn,resetIdle,{passive:true}));
+resetIdle();
 // --- Cérebro: grafo interativo (força) com tudo que a E.V. sabe, estilo Obsidian ---
 const BRAIN_COLORS={core:'#f4f3f1',mem:'#35c8ff',tasks:'#5ee6a3',rem:'#ffb35e',people:'#ff6ec7',links:'#8f7bff',kb:'#ffe066',hab:'#4dd0e1',jou:'#ff8a65',sub:'#c792ea',orc:'#82e0aa',mon:'#ef5350',places:'#64b5f6'};
 let brainLoaded=false,brainRAF=null,_TH=null;
