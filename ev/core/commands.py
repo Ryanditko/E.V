@@ -1032,6 +1032,37 @@ class Commands:
                 parts.append(tab)
         return "\n".join(parts)
 
+    def spoken_status(self, user_id: str) -> str:
+        """Short, TTS-friendly boot briefing (deterministic, no LLM): time-of-day
+        greeting + today's open loops + birthdays. Written to be HEARD."""
+        try:
+            tz = ZoneInfo(self._config.timezone) if ZoneInfo else None
+            now = datetime.now(tz)
+        except Exception:
+            now = datetime.now(timezone.utc)
+        saud = "Bom dia" if now.hour < 12 else ("Boa tarde" if now.hour < 18 else "Boa noite")
+        parts = [f"{saud}, Ryan."]
+        nt = len(self._memory.open_tasks(user_id))
+        nr = len(self._memory.open_reminders(user_id))
+        if nt or nr:
+            bits = []
+            if nt:
+                bits.append(f"{nt} tarefa" + ("s" if nt != 1 else ""))
+            if nr:
+                bits.append(f"{nr} lembrete" + ("s" if nr != 1 else ""))
+            parts.append("Hoje você tem " + " e ".join(bits) + ".")
+        else:
+            parts.append("Sua agenda está tranquila.")
+        try:
+            mmdd = now.strftime("%m-%d")
+            bdays = self._memory.birthdays_on(user_id, mmdd)
+            if bdays:
+                parts.append("Hoje é aniversário de " + ", ".join(p["name"] for p in bdays) + ".")
+        except Exception:
+            pass
+        parts.append("Sistemas online. Tudo pronto pra você.")
+        return " ".join(parts)
+
     def open_loops(self, user_id: str, now=None) -> dict:
         """Deterministic 'things slipping' detector for the proactive nudge:
         overdue tasks, tasks due today, and subscriptions charging soon.

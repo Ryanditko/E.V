@@ -42,6 +42,15 @@ def test_open_loops_and_nudge(tmp_path):
     assert c.nudge_text("v", now=now) == ""
 
 
+def test_spoken_status(tmp_path):
+    c = _commands(tmp_path)
+    s = c.spoken_status("u")
+    assert "Ryan" in s and ("Bom dia" in s or "Boa tarde" in s or "Boa noite" in s)
+    assert "tranquila" in s  # nothing open yet
+    c.tarefa("u", "comprar pão")
+    assert "1 tarefa" in c.spoken_status("u")
+
+
 def test_automations_crud(tmp_path):
     c = _commands(tmp_path)
     aid, msg = c.create_automation("u", "expense_over", "notify", amount=200,
