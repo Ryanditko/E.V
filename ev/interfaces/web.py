@@ -1952,8 +1952,10 @@ function welcome(){const w=$('#welcome'),txt=$('#welcome-txt');
   if(txt)txt.textContent=GREETING;
   w.classList.remove('on');void w.offsetWidth;   // restart the entrance animations
   w.classList.add('on');sfx('boot');window.lucide&&lucide.createIcons();
+  // live spoken briefing (status of the day) — shown AND spoken
+  fetch('/api/briefing',{headers:H()}).then(r=>r.ok?r.json():null).then(j=>{if(j&&j.text&&txt)txt.textContent=j.text;}).catch(()=>{});
   fetch('/api/greeting',{headers:H()}).then(r=>r.ok?r.blob():null).then(b=>{if(b&&b.size>0)new Audio(URL.createObjectURL(b)).play().catch(()=>{});}).catch(()=>{});
-  setTimeout(()=>w.classList.remove('on'),3400);}
+  setTimeout(()=>w.classList.remove('on'),4400);}
 // --- Cérebro: grafo interativo (força) com tudo que a E.V. sabe, estilo Obsidian ---
 const BRAIN_COLORS={core:'#f4f3f1',mem:'#35c8ff',tasks:'#5ee6a3',rem:'#ffb35e',people:'#ff6ec7',links:'#8f7bff',kb:'#ffe066',hab:'#4dd0e1',jou:'#ff8a65',sub:'#c792ea',orc:'#82e0aa',mon:'#ef5350',places:'#64b5f6'};
 let brainLoaded=false,brainRAF=null,_TH=null;
@@ -2505,20 +2507,30 @@ def create_app(config: Config, brain: Brain | None = None):
 
     _greet = []  # cache the welcome audio (edge-tts, no LLM) for the server's life
 
+    @app.get("/api/briefing")
+    async def briefing(request: Request):
+        # A live spoken boot briefing (deterministic status). Shown + spoken.
+        _check(request.headers.get("authorization"))
+        try:
+            return {"text": commands.spoken_status(owner)}
+        except Exception:
+            return {"text": "Bem-vindo de volta, Ryan. Sistemas online, tudo pronto pra você."}
+
     @app.get("/api/greeting")
     async def greeting(request: Request):
         from fastapi import Response as R
         _check(request.headers.get("authorization"))
-        if not _greet:
+        try:
+            phrase = commands.spoken_status(owner)
+        except Exception:
             phrase = "Bem-vindo de volta, Ryan. Sistemas online, tudo pronto pra você."
-            try:
-                mp3 = await voice_mod.synthesize(
-                    phrase, config.voice, rate=config.voice_rate,
-                    pitch=config.voice_pitch, fixes=config.voice_fixes)
-                _greet.append(mp3)
-            except Exception:
-                _greet.append(b"")
-        return R(content=_greet[0], media_type="audio/mpeg")
+        try:
+            mp3 = await voice_mod.synthesize(
+                phrase, config.voice, rate=config.voice_rate,
+                pitch=config.voice_pitch, fixes=config.voice_fixes)
+        except Exception:
+            mp3 = b""
+        return R(content=mp3, media_type="audio/mpeg")
 
     @app.get("/api/health")
     async def health_ep():
