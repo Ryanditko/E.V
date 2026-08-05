@@ -114,6 +114,8 @@ def test_location_tools(tmp_path, monkeypatch):
         {"name": "Drogaria X", "lat": -23.5, "lng": -46.6, "dist": 120, "kind": "pharmacy"}])
     out = fns["locais_proximos"]("farmácia")
     assert "Drogaria X" in out and "120" in out
+    assert "![mapa](" in out and "staticmap.openstreetmap.de" in out  # map photo
+    assert "maps/dir/" in out and "🧭" in out                          # route link
     assert "-23.5" in fns["minha_localizacao"]()
     # saved places surface via meus_locais
     b._memory.add_place("u", "Casa", -23.5, -46.6)

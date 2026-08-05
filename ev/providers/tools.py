@@ -601,6 +601,26 @@ def maps_search_link(lat, lng, query: str) -> str:
             f"/@{lat},{lng},15z")
 
 
+def static_map_url(center_lat, center_lng, markers=None, zoom: int = 15,
+                   w: int = 600, h: int = 320) -> str:
+    """Free OpenStreetMap static-map image (no API key). `markers` = list of
+    (lat, lng), pinned in red. It's a community service — best-effort, may be
+    slow or occasionally unavailable; the route links work regardless."""
+    import urllib.parse
+    params = [("center", f"{center_lat},{center_lng}"), ("zoom", str(zoom)),
+              ("size", f"{w}x{h}")]
+    for mlat, mlng in (markers or []):
+        params.append(("markers", f"{mlat},{mlng},red-pushpin"))
+    return "https://staticmap.openstreetmap.de/staticmap.php?" + urllib.parse.urlencode(params)
+
+
+def directions_link(from_lat, from_lng, to_lat, to_lng, mode: str = "walking") -> str:
+    """Google Maps directions (route) link from the user's location to a place."""
+    tm = mode if mode in ("walking", "driving", "bicycling", "transit") else "walking"
+    return (f"https://www.google.com/maps/dir/?api=1&origin={from_lat},{from_lng}"
+            f"&destination={to_lat},{to_lng}&travelmode={tm}")
+
+
 def calendar_upcoming(config, account: str, max_results: int = 5) -> str:
     """List the user's upcoming Google Calendar events."""
     from datetime import datetime, timezone
