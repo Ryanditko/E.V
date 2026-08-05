@@ -703,6 +703,8 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
         <button class="mchip" id="map-plan" type="button"><i data-lucide="route"></i>Tempo A→B</button>
         <button class="mchip" id="map-addr" type="button"><i data-lucide="search"></i>Adicionar endereço</button>
         <button class="mchip" id="map-add" type="button"><i data-lucide="map-pin"></i>Adicionar ponto</button>
+        <button class="mchip" id="map-sat" type="button"><i data-lucide="satellite"></i>Satélite</button>
+        <button class="mchip" id="map-street" type="button"><i data-lucide="eye"></i>Ver rua</button>
         <button class="mchip" id="map-ask" type="button"><i data-lucide="message-circle"></i>Perguntar à E.V.</button>
       </div>
       <div id="map-planner" style="display:none;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 10px">
@@ -1345,6 +1347,7 @@ function switchView(v){if(!VIEWS[v])v='chat';curView=v;document.querySelectorAll
   ({tasks:loadTasks,exp:loadExp,rem:loadRem,mem:loadMem,kb:loadKB,cal:loadCal,lnk:loadLinks,hab:loadHabits,jou:loadJournal,sub:loadSub,orc:loadOrc,mon:loadMon,act:loadAct,map:loadMap,brain:loadBrain,graf:loadCharts}[v]||function(){})();}
 // --- Mapa + localização (Leaflet + OSM; lugares e pontos dentro da própria E.V.) ---
 let _map=null,_marker=null,_loc=null,_nearLayer=null,_savedLayer=null,_addMode=false,_pendingNear=null;
+let _baseDark=null,_baseSat=null,_sat=false;
 const MAP_CHIPS=[['Onde estou','locate-fixed'],['Metrô','tram-front'],['Trem','train-front'],['Ônibus','bus'],['Farmácia','pill'],['Mercado','shopping-cart'],['Restaurante','utensils'],['Padaria','croissant'],['Café','coffee'],['Posto','fuel'],['Banco','landmark'],['Hospital','cross'],['Academia','dumbbell']];
 function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 function askEV(name,lat,lng){switchView('chat');send('me conta sobre "'+name+'", que fica perto de mim.');}
@@ -1442,7 +1445,19 @@ function loadMap(){
   if(!window.L){$('#map').innerHTML='<div class="tv-empty" style="padding:20px">Mapa indisponível (sem conexão com o Leaflet).</div>';return;}
   if(!_map){_map=L.map('map',{zoomControl:false,attributionControl:false}).setView([-23.5505,-46.6333],12);
     L.control.zoom({position:'topright'}).addTo(_map);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:19,subdomains:'abcd'}).addTo(_map);
+    _baseDark=L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:20,subdomains:'abcd'}).addTo(_map);
+    // Real-world aerial imagery (Esri World Imagery, free) + street labels overlay,
+    // so "zooming in" shows the world as it actually looks — streets and buildings.
+    _baseSat=L.layerGroup([
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:20,maxNativeZoom:19}),
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png',{maxZoom:20,subdomains:'abcd',opacity:.9})
+    ]);
+    $('#map-sat').onclick=()=>{_sat=!_sat;const b=$('#map-sat');b.classList.toggle('on',_sat);
+      if(_sat){_map.removeLayer(_baseDark);_baseSat.addTo(_map);}else{_map.removeLayer(_baseSat);_baseDark.addTo(_map);}
+      b.lastChild&&(b.lastChild.textContent=_sat?'Mapa':'Satélite');};
+    $('#map-street').onclick=()=>{const c=(_loc?{lat:_loc[0],lng:_loc[1]}:_map.getCenter());
+      window.open('https://www.google.com/maps/@?api=1&map_action=pano&viewpoint='+c.lat+','+c.lng,'_blank','noopener');
+      $('#map-status').textContent='Abrindo a rua no Street View (vista de quem está lá).';};
     renderMapChips();loadSavedPlaces();
     const q=$('#map-q');if(q)q.addEventListener('keydown',e=>{if(e.key==='Enter'&&q.value.trim())showNearby(q.value.trim());});
     $('#map-add').onclick=()=>{_addMode=!_addMode;$('#map-add').classList.toggle('on',_addMode);$('#map-status').textContent=_addMode?'Modo adicionar: toque no mapa pra criar um ponto':'Você está aqui';};
