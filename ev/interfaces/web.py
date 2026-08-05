@@ -465,6 +465,9 @@ body:not(.term) .msg.ev::after{content:"";position:absolute;top:7px;left:7px;wid
 body.talking .core{filter:drop-shadow(0 0 calc(4px + var(--talk,0)*30px) var(--glow))}
 body.talking .core .dot{transform:scale(calc(1 + var(--talk,0)*0.7))}
 body.talking .core .arc,body.talking .core .arc.two{opacity:calc(.4 + var(--talk,0)*0.6)}
+/* she heard her name — one-shot orb flash */
+body.heard .core{animation:heardpulse .66s ease-out}
+@keyframes heardpulse{0%{filter:drop-shadow(0 0 4px var(--glow))}35%{filter:drop-shadow(0 0 34px var(--glow)) brightness(1.5)}100%{filter:drop-shadow(0 0 4px var(--glow))}}
 .mchips{display:flex;flex-wrap:wrap;gap:7px;margin:3px 0 10px}
 .mchip{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:12px;color:var(--fg);background:var(--elev);border:1px solid var(--line);border-radius:999px;padding:6px 12px;cursor:pointer;position:relative;overflow:hidden;transition:background .15s,border-color .15s,color .15s}
 .mchip:hover,.mchip:active{background:var(--fg);color:var(--ink);border-color:var(--fg)}
@@ -1066,7 +1069,9 @@ function sfx(name){if(!_sfxOn)return;try{
   else if(name==='confirm')blip(560,860,0.11,'sine',0.055);
   else if(name==='error')blip(200,120,0.2,'sawtooth',0.05);
   else if(name==='boot')blip(280,900,0.55,'sine',0.05);
-  else if(name==='toggle')blip(900,900,0.05,'square',0.03);}catch(e){}}
+  else if(name==='toggle')blip(900,900,0.05,'square',0.03);
+  else if(name==='wake')blip(760,1320,0.13,'sine',0.05);}catch(e){}}
+function wakePulse(){const b=document.body;b.classList.remove('heard');void b.offsetWidth;b.classList.add('heard');setTimeout(()=>b.classList.remove('heard'),700);}
 function toggleSfx(){_sfxOn=!_sfxOn;localStorage.setItem('ev_sfx',_sfxOn?'1':'0');const b=$('#sfx');if(b)b.classList.toggle('on',_sfxOn);if(_sfxOn)sfx('toggle');}
 {const _sb=$('#sfx');if(_sb){_sb.classList.toggle('on',_sfxOn);_sb.onclick=toggleSfx;}}
 // --- decode/typewriter reveal for E.V.'s replies ---
@@ -1446,6 +1451,7 @@ function ensureRec(){if(_rec)return true;if(!SR)return false;
     if(!res.isFinal)continue;
     const cmd=extractCommand(txt);
     if(cmd===null)continue;                 // não foi chamada pela E.V.
+    sfx('wake');wakePulse();                // heard her name → chirp + orb pulse
     if(!cmd){hfSay('Pois não, Ryan?');speak('Pois não?',true);continue;}
     processHF(cmd);}};
   _rec.onerror=e=>{if(e.error==='not-allowed'||e.error==='service-not-allowed'){
@@ -2165,11 +2171,23 @@ async function pollTick(){try{
   const now=Date.now();
   items.forEach(r=>{if(!r.when_iso)return;const due=new Date(r.when_iso).getTime();const key=r.id+'@'+r.when_iso;
     if(due<=now&&(now-due)<3600000&&!_notified.has(key)){_notified.add(key);_saveNotified();notify('⏰ Lembrete',r.text);}});
-  loadPanel();
+  loadPanel();speakNewNotifs();
   // live sync: refresh the current data view, unless a modal is open or the user is typing
   const modalOpen=$('#modal').classList.contains('on');
   const typing=['INPUT','TEXTAREA','SELECT'].includes((document.activeElement||{}).tagName);
   if(!modalOpen&&!typing&&curView&&_VLOAD[curView])_VLOAD[curView]();
+}catch(e){}}
+// Speak proactive alerts aloud while you're at the screen (JARVIS interjecting).
+let _spokeNotif=parseInt(localStorage.getItem('ev_spoke_notif')||'0');
+async function speakNewNotifs(){try{
+  const items=(await (await fetch('/api/notifications',{headers:H()})).json()).items||[];
+  if(!items.length)return;
+  const maxId=Math.max.apply(null,items.map(n=>n.id));
+  const first=_spokeNotif===0;const fresh=items.filter(n=>n.id>_spokeNotif);
+  _spokeNotif=maxId;localStorage.setItem('ev_spoke_notif',String(maxId));
+  if(first||!fresh.length||document.hidden)return;   // don't blurt history / when tab hidden
+  const n=fresh[0];const say=((n.title||'')+(n.body?('. '+n.body):'')).trim();  // TTS strips emoji
+  if(say){sfx('recv');speak(say.slice(0,240));}       // respects the VOZ toggle
 }catch(e){}}
 let _pollTimer=null;
 function startPoll(){if(_pollTimer)return;_pollTimer=setInterval(pollTick,90000);pollTick();}  // fallback; SSE drives instant updates
