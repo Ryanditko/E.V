@@ -192,6 +192,9 @@ body.speaking .core .dot{animation:pulse .6s infinite}
 #brainview{display:none;padding:22px;overflow:hidden;flex-direction:column;min-height:0;height:100%}
 #brain-wrap{position:relative;flex:1;min-height:400px;margin-top:10px;border:1px solid var(--line-2);border-radius:13px;overflow:hidden;box-shadow:0 0 60px -20px var(--glow),inset 0 0 60px -20px var(--glow);background:radial-gradient(120% 100% at 50% 0%,rgba(53,200,255,.08),transparent 60%),radial-gradient(90% 90% at 50% 100%,rgba(53,200,255,.05),transparent 70%),#03070a}
 #brain-canvas{position:absolute;inset:0;width:100%;height:100%;cursor:grab;z-index:0}
+#brain-labels{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:2}
+#brain-labels .blab{position:absolute;left:0;top:0;font-size:9px;line-height:1;color:#bfe6ff;text-shadow:0 0 5px #04070c,0 0 3px #04070c,0 1px 2px #000;white-space:nowrap;letter-spacing:.02em;will-change:transform,opacity}
+#brain-labels .blab.hub{font-size:11px;color:#eaf4fb;font-family:var(--mono);letter-spacing:.06em;text-transform:uppercase}
 #brain-canvas.dragging{cursor:grabbing}
 #brain-wrap::before{content:"";position:absolute;inset:0;pointer-events:none;z-index:1;background:repeating-linear-gradient(0deg,rgba(120,200,255,.05) 0 1px,transparent 1px 3px);mix-blend-mode:screen;opacity:.5}
 #brain-wrap::after{content:"";position:absolute;left:50%;top:50%;width:150%;padding-top:150%;margin-left:-75%;margin-top:-75%;pointer-events:none;z-index:1;background:conic-gradient(from 0deg,transparent 0 91%,rgba(53,200,255,.22) 98%,transparent 100%);animation:brainsweep 6s linear infinite;mix-blend-mode:screen;opacity:.8}
@@ -727,6 +730,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
       </div>
       <div id="brain-wrap">
         <canvas id="brain-canvas"></canvas>
+        <div id="brain-labels"></div>
         <span class="brain-corner tl"></span><span class="brain-corner tr"></span><span class="brain-corner bl"></span><span class="brain-corner br"></span>
         <div id="brain-tip"></div>
         <div id="brain-menu"></div>
@@ -1831,7 +1835,7 @@ function welcome(){$('#welcome-txt').textContent=GREETING;$('#welcome').classLis
 const BRAIN_COLORS={core:'#f4f3f1',mem:'#35c8ff',tasks:'#5ee6a3',rem:'#ffb35e',people:'#ff6ec7',links:'#8f7bff',kb:'#ffe066',hab:'#4dd0e1',jou:'#ff8a65',sub:'#c792ea',orc:'#82e0aa',mon:'#ef5350',places:'#64b5f6'};
 let brainLoaded=false,brainRAF=null,_TH=null;
 let brainScene=null,brainCam=null,brainRenderer=null,brainRoot=null,brainCoreMesh=null;
-let brainNodeMeshes=[],brainRay=null,brainDragging=false,brainDidRotate=false,brainAutoRot=true,brainLast={x:0,y:0};
+let brainNodeMeshes=[],brainRay=null,brainDragging=false,brainDidRotate=false,brainAutoRot=true,brainLast={x:0,y:0},brainLabels=[],brainRings=[];
 async function loadThree(){if(_TH)return _TH;
   _TH=await import('https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js');return _TH;}
 function brainResize(){if(!brainRenderer)return;const wrap=$('#brain-wrap');if(!wrap)return;
@@ -1869,53 +1873,78 @@ function ensureBrainGL(THREE){
   brainRenderer=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true});
   brainRenderer.setPixelRatio(Math.min(2,devicePixelRatio));brainRenderer.setSize(W,H,false);
   brainScene=new THREE.Scene();
-  brainCam=new THREE.PerspectiveCamera(45,W/H,0.1,200);brainCam.position.set(0,2,40);
+  brainCam=new THREE.PerspectiveCamera(45,W/H,0.1,200);brainCam.position.set(0,0,34);
   brainScene.add(new THREE.AmbientLight(0x88bbff,1.4));
   const pl=new THREE.PointLight(0x35c8ff,2,300);pl.position.set(25,30,40);brainScene.add(pl);
   brainRoot=new THREE.Group();brainScene.add(brainRoot);
   brainRay=new THREE.Raycaster();
 }
-function makeHemi(THREE,side){
-  const geo=new THREE.IcosahedronGeometry(6.6,5),p=geo.attributes.position,v=new THREE.Vector3();
-  for(let i=0;i<p.count;i++){v.set(p.getX(i),p.getY(i),p.getZ(i));
-    const n=Math.sin(v.x*1.6)*Math.sin(v.y*1.7)*Math.sin(v.z*1.5),r=1+n*0.14;   // gyri/folds
-    let x=v.x*r*0.64,y=v.y*r*0.86,z=v.z*r*1.02;if(y<0)y*=0.82;                    // flatter bottom
-    p.setXYZ(i,x+side*3.7,y,z);}                                                  // split hemispheres
-  geo.computeVertexNormals();
-  const wire=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({color:0x35c8ff,wireframe:true,transparent:true,opacity:0.15,blending:THREE.AdditiveBlending,depthWrite:false}));
-  const pts=new THREE.Points(geo,new THREE.PointsMaterial({color:0x9fe6ff,size:0.07,transparent:true,opacity:0.5,blending:THREE.AdditiveBlending,depthWrite:false}));
-  return[wire,pts];}
+// JARVIS-style holographic orb: geodesic shell + particle dust + spinning
+// concentric rings + radial filaments. C_LINE/C_DUST let us recolor (gold vs cyan).
+const BRAIN_R=9,C_LINE=0x35c8ff,C_DUST=0x9fe6ff;
+function _addMat(THREE,o){return new THREE.MeshBasicMaterial(Object.assign({transparent:true,blending:THREE.AdditiveBlending,depthWrite:false},o));}
+function makeBrain(THREE){
+  brainRings=[];const out=[],R=BRAIN_R;
+  // geodesic lattice shell
+  out.push(new THREE.Mesh(new THREE.IcosahedronGeometry(R,3),_addMat(THREE,{color:C_LINE,wireframe:true,opacity:0.14})));
+  out.push(new THREE.Mesh(new THREE.IcosahedronGeometry(R*0.66,2),_addMat(THREE,{color:C_LINE,wireframe:true,opacity:0.1})));
+  // volumetric particle dust
+  const N=1500,arr=new Float32Array(N*3);
+  for(let i=0;i<N;i++){const c=Math.acos(2*Math.random()-1),th=Math.random()*6.2832,r=R*Math.cbrt(Math.random())*0.98;
+    arr[i*3]=r*Math.sin(c)*Math.cos(th);arr[i*3+1]=r*Math.sin(c)*Math.sin(th);arr[i*3+2]=r*Math.cos(c);}
+  const pg=new THREE.BufferGeometry();pg.setAttribute('position',new THREE.Float32BufferAttribute(arr,3));
+  out.push(new THREE.Points(pg,new THREE.PointsMaterial({color:C_DUST,size:0.08,transparent:true,opacity:0.55,blending:THREE.AdditiveBlending,depthWrite:false})));
+  // concentric rings at varied tilts — each spins on its own
+  for(let k=0;k<5;k++){const ring=new THREE.Mesh(new THREE.TorusGeometry(R*(0.42+k*0.15),0.028,8,140),_addMat(THREE,{color:C_LINE,opacity:0.5}));
+    ring.rotation.set(1.2*(k%3)+k*0.4,k*0.8,k*0.35);ring.userData.spin=((k%2)?1:-1)*(0.0025+k*0.0012);out.push(ring);brainRings.push(ring);}
+  // radial filaments
+  const sp=[];for(let i=0;i<52;i++){const c=Math.acos(2*Math.random()-1),th=Math.random()*6.2832,dx=Math.sin(c)*Math.cos(th),dy=Math.sin(c)*Math.sin(th),dz=Math.cos(c);sp.push(dx*2.2,dy*2.2,dz*2.2,dx*R,dy*R,dz*R);}
+  const sg=new THREE.BufferGeometry();sg.setAttribute('position',new THREE.Float32BufferAttribute(sp,3));
+  out.push(new THREE.LineSegments(sg,new THREE.LineBasicMaterial({color:C_LINE,transparent:true,opacity:0.12,blending:THREE.AdditiveBlending,depthWrite:false})));
+  return out;}
 function populateBrain(THREE,data){
   while(brainRoot.children.length)brainRoot.remove(brainRoot.children[0]);
-  brainNodeMeshes=[];brainCoreMesh=null;
-  [-1,1].forEach(side=>makeHemi(THREE,side).forEach(o=>brainRoot.add(o)));
+  brainNodeMeshes=[];brainCoreMesh=null;brainLabels=[];
+  const lbox=$('#brain-labels');if(lbox)lbox.textContent='';
+  makeBrain(THREE).forEach(o=>brainRoot.add(o));
   const nodes=data.nodes||[],links=data.links||[];
   const groups=[...new Set(nodes.filter(n=>n.group!=='core').map(n=>n.group))];
-  const GA={};groups.forEach((g,i)=>{const y=groups.length>1?1-(i/(groups.length-1))*1.6:0;const rad=Math.sqrt(Math.max(0,1-y*y)),th=i*2.399;
-    GA[g]=new THREE.Vector3(Math.cos(th)*rad,y*0.85,Math.sin(th)*rad).multiplyScalar(7.4);});
+  const GA={};groups.forEach((g,i)=>{const y=1-(i+0.5)/groups.length*2;const rad=Math.sqrt(Math.max(0,1-y*y)),th=i*2.399;
+    GA[g]=new THREE.Vector3(Math.cos(th)*rad,y,Math.sin(th)*rad).multiplyScalar(BRAIN_R*0.9);});
   const jit=(i,s)=>{const x=Math.sin(i*127.1+s*311.7)*43758.5;return(x-Math.floor(x))*2-1;};  // deterministic
   const sph=new THREE.IcosahedronGeometry(1,2),pos={};
   nodes.forEach((n,i)=>{let p;
     if(n.group==='core')p=new THREE.Vector3(0,0,0);
     else if(n.id.startsWith('g:'))p=GA[n.group].clone();
-    else p=(GA[n.group]||new THREE.Vector3()).clone().add(new THREE.Vector3(jit(i,1),jit(i,2),jit(i,3)).multiplyScalar(2.6));
+    else{p=(GA[n.group]||new THREE.Vector3()).clone().add(new THREE.Vector3(jit(i,1),jit(i,2),jit(i,3)).multiplyScalar(2.4));p.setLength(BRAIN_R*(0.8+0.18*((jit(i,4)+1)/2)));}
     pos[n.id]=p;
-    const col=_hex(BRAIN_COLORS[n.group]),rad=n.group==='core'?1.5:(n.id.startsWith('g:')?0.85:0.42);
+    const col=_hex(BRAIN_COLORS[n.group]),rad=n.group==='core'?1.2:(n.id.startsWith('g:')?0.55:0.3);
     const m=new THREE.Mesh(sph,new THREE.MeshBasicMaterial({color:col}));m.position.copy(p);m.scale.setScalar(rad);m.userData=n;
-    const halo=new THREE.Mesh(sph,new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:0.18,blending:THREE.AdditiveBlending,depthWrite:false}));
-    halo.position.copy(p);halo.scale.setScalar(rad*2.3);brainRoot.add(halo);brainRoot.add(m);
-    brainNodeMeshes.push(m);if(n.group==='core')brainCoreMesh=m;});
+    const halo=new THREE.Mesh(sph,new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:0.2,blending:THREE.AdditiveBlending,depthWrite:false}));
+    halo.position.copy(p);halo.scale.setScalar(rad*2.4);brainRoot.add(halo);brainRoot.add(m);
+    brainNodeMeshes.push(m);if(n.group==='core')brainCoreMesh=m;
+    if(lbox&&n.id!=='core'&&!n.id.endsWith(':more')){const d=el('div',n.id.startsWith('g:')?'blab hub':'blab');d.textContent=n.label;lbox.appendChild(d);brainLabels.push({pos:p,el:d});}});
   const lp=[];links.forEach(l=>{const a=pos[l.source],b=pos[l.target];if(a&&b)lp.push(a.x,a.y,a.z,b.x,b.y,b.z);});
   if(lp.length){const lg=new THREE.BufferGeometry();lg.setAttribute('position',new THREE.Float32BufferAttribute(lp,3));
     brainRoot.add(new THREE.LineSegments(lg,new THREE.LineBasicMaterial({color:0x35c8ff,transparent:true,opacity:0.13,blending:THREE.AdditiveBlending,depthWrite:false})));}
+}
+function brainSyncLabels(){
+  if(!brainLabels||!brainLabels.length||!brainCam||!_TH)return;
+  const wrap=$('#brain-wrap');if(!wrap)return;const W=wrap.clientWidth,H=wrap.clientHeight,v=new _TH.Vector3();
+  for(const L of brainLabels){v.copy(L.pos).applyMatrix4(brainRoot.matrixWorld);const wz=v.z;v.project(brainCam);
+    if(v.z>1||wz<-0.6){L.el.style.opacity='0';continue;}                    // behind camera / far side
+    L.el.style.transform='translate(-50%,-50%) translate('+((v.x*0.5+0.5)*W)+'px,'+((-v.y*0.5+0.5)*H)+'px)';
+    L.el.style.opacity=String(Math.min(0.95,0.35+(wz+0.6)/7));}             // fade toward the back
 }
 let brainT0=null;
 function brainTick(ts){
   if(curView!=='brain'){brainRAF=null;brainT0=null;return;}
   if(brainT0===null)brainT0=ts;const t=(ts-brainT0)/1000;
-  if(brainRoot){if(brainAutoRot&&!brainDragging)brainRoot.rotation.y+=0.0018;
-    if(brainCoreMesh)brainCoreMesh.scale.setScalar(1.5*(1+0.1*Math.sin(t*2.2)));}
+  if(brainRoot){if(brainAutoRot&&!brainDragging)brainRoot.rotation.y+=0.0016;
+    if(brainCoreMesh)brainCoreMesh.scale.setScalar(1.2*(1+0.12*Math.sin(t*2.2)));
+    for(const r of brainRings)r.rotation.z+=r.userData.spin;}
   if(brainRenderer&&brainScene&&brainCam)brainRenderer.render(brainScene,brainCam);
+  brainSyncLabels();
   brainRAF=requestAnimationFrame(brainTick);
 }
 function brainPick(e){if(!brainRay||!brainCam||!_TH)return null;const cv=$('#brain-canvas'),r=cv.getBoundingClientRect();
@@ -1942,7 +1971,7 @@ function brainPick(e){if(!brainRay||!brainCam||!_TH)return null;const cv=$('#bra
     brainCam.position.z=Math.min(80,Math.max(14,brainCam.position.z*(e.deltaY<0?0.9:1.1)));},{passive:false});
 })();
 document.getElementById('brain-reset')?.addEventListener('click',()=>{
-  brainAutoRot=true;if(brainCam)brainCam.position.set(0,2,40);if(brainRoot)brainRoot.rotation.set(0,0,0);});
+  brainAutoRot=true;if(brainCam)brainCam.position.set(0,0,34);if(brainRoot)brainRoot.rotation.set(0,0,0);});
 // --- PWA + notifications + live sync (Lote A) ---
 async function initPWA(){
   try{if('serviceWorker' in navigator)await navigator.serviceWorker.register('/sw.js');}catch(e){}
