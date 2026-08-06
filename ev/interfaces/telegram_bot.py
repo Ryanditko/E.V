@@ -2313,6 +2313,8 @@ class TelegramInterface:
                     self._memory.update_task(owner, t["id"], due=tomorrow)
                     n += 1
             msg = f"🤖 {a['name']}: remarquei {n} tarefa(s) atrasada(s) pra amanhã."
+        elif act == "play":
+            msg = await asyncio.to_thread(self._auto_play, a, ac)
         else:
             return
         await self._bot_send(app.bot, cfg.owner_id, msg, self._quick_kb())
@@ -2323,6 +2325,28 @@ class TelegramInterface:
         except Exception:
             pass
         log.info("Ran automation #%s (%s → %s).", a.get("id"), a["trig"], act)
+
+    def _auto_play(self, a: dict, ac: dict) -> str:
+        """Play a playlist/track on Spotify for a 'play' automation (sync)."""
+        from ..providers import spotify as sp
+        tok = sp.access_token(self._memory, self._config)
+        if not tok:
+            return f"🤖 {a['name']} — mas o Spotify não está conectado."
+        if ac.get("playlist"):
+            uri = sp.find_playlist(tok, ac["playlist"])
+            body = {"context_uri": uri} if uri else None
+        else:
+            uri = sp.first_track_uri(tok, ac.get("query", ""))
+            body = {"uris": [uri]} if uri else None
+        if not body:
+            return f"🤖 {a['name']} — não achei o que tocar."
+        try:
+            r = sp.api("PUT", "/me/player/play", tok, json=body)
+        except Exception:
+            return f"🤖 {a['name']} — falha ao tocar."
+        if r.status_code == 404:
+            return f"🤖 {a['name']} — sem dispositivo ativo (abre o Spotify)."
+        return f"🤖 {a['name']}"
 
     async def cmd_automacoes(self, update: Update, _c: ContextTypes.DEFAULT_TYPE) -> None:
         """List the user's automations."""

@@ -1368,6 +1368,9 @@ async function renderWidget(card,w){
   else if(w.type==='connector'){card.appendChild(el('div','pg-wt',w.name||'Conector'));const v=el('div','pg-big','…');card.appendChild(v);
     try{const r=await (await fetch('/api/connectors/run',{method:'POST',headers:H(),body:JSON.stringify({name:w.name})})).json();v.textContent=r.ok?r.value:('erro: '+r.error);}catch(e){v.textContent='erro';}}
   else if(w.type==='command'){const b=el('button','act');b.appendChild(ficon(w.icon||'zap'));b.appendChild(document.createTextNode(' '+(w.label||w.cmd)));b.onclick=e=>{ripple(b,e);runCmd(w.cmd);};card.appendChild(b);}
+  else if(w.type==='spotify'){card.appendChild(el('div','pg-wt','Spotify'));const f=document.createElement('iframe');
+    f.src='https://open.spotify.com/embed/'+w.kind+'/'+w.ref;f.loading='lazy';f.allow='encrypted-media';
+    f.style.cssText='width:100%;height:'+((w.kind==='track'||w.kind==='episode')?'152':'352')+'px;border:0;border-radius:12px';card.appendChild(f);}
   else if(w.type==='chart'){card.appendChild(el('div','pg-wt','Gastos por categoria'));
     try{const d=await (await fetch('/api/charts',{headers:H()})).json();const cs=(d.exp_cat||[]).slice(0,8);const mx=Math.max(1,...cs.map(c=>c.value));
       if(!cs.length)card.appendChild(el('div','tv-empty','Sem gastos no período.'));
@@ -1382,10 +1385,10 @@ function openPageBuilder(page){const m=$('#modal');m.textContent='';const card=e
     widgets.forEach((w,i)=>{const row=el('div','vrow');row.appendChild(el('span','vname',w.type+(w.category?(' · '+w.category):w.name?(' · '+w.name):w.cmd?(' · '+w.cmd):w.text?' · nota':'')));
       const del=el('button','vplay');del.appendChild(ficon('trash-2'));del.onclick=()=>{widgets.splice(i,1);draw();};row.appendChild(del);list.appendChild(row);});};
   draw();card.appendChild(el('div','tv-cat','Widgets'));card.appendChild(list);
-  const sel=document.createElement('select');sel.className='minput';['note','tasks','connector','command','chart'].forEach(t=>{const o=document.createElement('option');o.value=t;o.textContent={note:'Nota',tasks:'Tarefas',connector:'Conector',command:'Botão de comando',chart:'Gráfico de gastos'}[t];sel.appendChild(o);});sel.style.margin='8px 0 6px';card.appendChild(sel);
+  const sel=document.createElement('select');sel.className='minput';['note','tasks','connector','command','chart','spotify'].forEach(t=>{const o=document.createElement('option');o.value=t;o.textContent={note:'Nota',tasks:'Tarefas',connector:'Conector',command:'Botão de comando',chart:'Gráfico de gastos',spotify:'Spotify (link)'}[t];sel.appendChild(o);});sel.style.margin='8px 0 6px';card.appendChild(sel);
   const arg=document.createElement('input');arg.className='minput';arg.placeholder='detalhe (categoria / nome do conector / comando / texto)';card.appendChild(arg);
   const add=el('button','mbtn2','+ adicionar widget');add.style.marginTop='6px';add.onclick=()=>{const t=sel.value,a=(arg.value||'').trim();const w={type:t};
-    if(t==='tasks')w.category=a;else if(t==='connector')w.name=a;else if(t==='command'){w.cmd=a;w.label=a;}else if(t==='note')w.text=a;
+    if(t==='tasks')w.category=a;else if(t==='connector')w.name=a;else if(t==='command'){w.cmd=a;w.label=a;}else if(t==='note')w.text=a;else if(t==='spotify')w.url=a;
     widgets.push(w);arg.value='';draw();};card.appendChild(add);
   const bar=el('div','mbar');const cl=el('button','mbtn2','Cancelar');cl.onclick=()=>m.classList.remove('on');
   if(page){const dl=el('button','mbtn2','Apagar');dl.onclick=async()=>{await fetch('/api/pages/delete',{method:'POST',headers:H(),body:JSON.stringify({id:page.id})});m.classList.remove('on');await loadPages();if(curView==='page:'+page.id)switchView('chat');};bar.appendChild(dl);}
@@ -3579,15 +3582,25 @@ def create_app(config: Config, brain: Brain | None = None):
         return {"ok": True, "value": str(val)[:800]}
 
     # --- custom pages (declarative dashboards, no code) --------------------
-    _WIDGET_TYPES = {"note", "tasks", "connector", "command", "chart"}
+    _WIDGET_TYPES = {"note", "tasks", "connector", "command", "chart", "spotify"}
 
     def _clean_widgets(raw):
+        from ..providers import spotify as _sp2
         out = []
         for w in (raw or [])[:20]:
             if not isinstance(w, dict) or w.get("type") not in _WIDGET_TYPES:
                 continue
-            out.append({k: v for k, v in w.items()
-                        if k in ("type", "text", "category", "name", "cmd", "label", "icon")})
+            ww = {k: v for k, v in w.items()
+                  if k in ("type", "text", "category", "name", "cmd", "label", "icon", "kind", "ref")}
+            if ww.get("type") == "spotify":
+                if w.get("url"):
+                    p = _sp2.parse(w["url"])
+                    if not p:
+                        continue
+                    ww["kind"], ww["ref"] = p
+                if not ww.get("kind") or not ww.get("ref"):
+                    continue
+            out.append(ww)
         return out
 
     @app.get("/api/pages")

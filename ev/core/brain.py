@@ -747,14 +747,16 @@ class Brain:
 
         def criar_automacao(gatilho: str, acao: str, hora: int = -1, minuto: int = 0,
                             dia_semana: int = -1, valor: float = 0.0, categoria: str = "",
-                            mensagem: str = "", comando: str = "") -> str:
+                            mensagem: str = "", comando: str = "", playlist: str = "",
+                            musica: str = "") -> str:
             """Cria uma automação 'quando X, faça Y' que roda sozinha depois.
 
             Args:
                 gatilho: 'time' (horário recorrente), 'expense_over' (gasto acima de
                     um valor) ou 'task_overdue' (quando uma tarefa vencer).
-                acao: 'notify' (avisar com uma mensagem), 'command' (rodar um comando
-                    da E.V.) ou 'reschedule' (remarcar tarefas vencidas; só com task_overdue).
+                acao: 'notify' (avisar), 'command' (rodar um comando), 'reschedule'
+                    (remarcar tarefas vencidas; só com task_overdue) ou 'play' (tocar
+                    música no Spotify).
                 hora: para 'time', hora 0-23.
                 minuto: para 'time', minuto 0-59.
                 dia_semana: para 'time', 0=segunda..6=domingo, ou -1 para todo dia.
@@ -762,17 +764,19 @@ class Brain:
                 categoria: para 'expense_over', categoria opcional (ex 'comida').
                 mensagem: para 'notify', o texto do aviso.
                 comando: para 'command', o comando a rodar (ex 'semana', 'relatorio').
+                playlist: para 'play', o nome da playlist a tocar.
+                musica: para 'play', uma faixa/artista a tocar (se não for playlist).
 
             Ex: 'toda sexta 18h me manda o resumo' -> gatilho='time', hora=18,
-            dia_semana=4, acao='command', comando='semana'. 'quando eu gastar mais de
-            200 me avisa' -> gatilho='expense_over', valor=200, acao='notify',
-            mensagem='Gasto acima de 200!'.
+            dia_semana=4, acao='command', comando='semana'. 'toda manhã 8h toca minha
+            playlist Foco' -> gatilho='time', hora=8, acao='play', playlist='Foco'.
             """
             aid, msg = self._commands.create_automation(
                 user_id, gatilho, acao,
                 hour=(None if hora < 0 else hora), minute=minuto, weekday=dia_semana,
                 amount=(None if valor <= 0 else valor), category=(categoria or None),
-                message=(mensagem or None), command=(comando or None))
+                message=(mensagem or None), command=(comando or None),
+                playlist=(playlist or None), musica=(musica or None))
             return ("automação criada: " + msg) if aid else ("não consegui criar: " + msg)
 
         def tocar_playlist(nome: str) -> str:
@@ -1076,6 +1080,8 @@ class Brain:
                     "categoria": {"type": s, "description": "para expense_over: categoria opcional"},
                     "mensagem": {"type": s, "description": "para notify: texto do aviso"},
                     "comando": {"type": s, "description": "para command: ex 'semana'"},
+                    "playlist": {"type": s, "description": "para play: nome da playlist"},
+                    "musica": {"type": s, "description": "para play: faixa/artista"},
                 },
                 ["gatilho", "acao"],
             ),

@@ -65,6 +65,10 @@ def test_automations_crud(tmp_path):
     # validation: bad trigger / missing field
     assert c.create_automation("u", "bogus", "notify")[0] is None
     assert c.create_automation("u", "expense_over", "notify")[0] is None  # no amount
+    # a Spotify 'play' automation
+    aid3, m3 = c.create_automation("u", "time", "play", hour=8, playlist="Foco")
+    assert aid3 and "Foco" in m3
+    assert c.create_automation("u", "time", "play", hour=8)[0] is None  # no target
     # remove
     assert "removida" in c.automacao_rm("u", str(aid))
     assert c.automacao_rm("u", "999") == "Não achei essa automação."
