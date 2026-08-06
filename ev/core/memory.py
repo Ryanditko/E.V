@@ -311,6 +311,35 @@ class Memory:
                 ref      TEXT NOT NULL,
                 created  TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS goals (
+                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id  TEXT NOT NULL,
+                name     TEXT NOT NULL,
+                target   REAL NOT NULL,
+                saved    REAL NOT NULL DEFAULT 0,
+                created  TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS health (
+                user_id  TEXT NOT NULL,
+                day      TEXT NOT NULL,
+                water    INTEGER NOT NULL DEFAULT 0,
+                sleep    REAL,
+                mood     TEXT,
+                PRIMARY KEY (user_id, day)
+            );
+
+            CREATE TABLE IF NOT EXISTS documents (
+                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id  TEXT NOT NULL,
+                name     TEXT NOT NULL,
+                mime     TEXT NOT NULL,
+                size     INTEGER NOT NULL,
+                text     TEXT NOT NULL DEFAULT '',
+                data     BLOB NOT NULL,
+                created  TEXT NOT NULL
+            );
             """
         )
         # Migrations for older DBs.
@@ -582,6 +611,102 @@ class Memory:
     def delete_music(self, user_id: str, mid: int) -> bool:
         cur = self._conn.execute(
             "DELETE FROM music WHERE id = ? AND user_id = ?", (mid, user_id))
+        self._conn.commit()
+        return cur.rowcount > 0
+
+    # --- financial goals (cofrinho) ----------------------------------------
+
+    def add_goal(self, user_id: str, name: str, target: float) -> int:
+        cur = self._conn.execute(
+            "INSERT INTO goals (user_id, name, target, saved, created) VALUES (?, ?, ?, 0, ?)",
+            (user_id, name, target, self._now()))
+        self._conn.commit()
+        return int(cur.lastrowid)
+
+    def list_goals(self, user_id: str) -> list[dict]:
+        return [dict(r) for r in self._conn.execute(
+            "SELECT id, name, target, saved, created FROM goals WHERE user_id = ? ORDER BY id",
+            (user_id,)).fetchall()]
+
+    def add_to_goal(self, user_id: str, goal_id: int, amount: float) -> bool:
+        cur = self._conn.execute(
+            "UPDATE goals SET saved = MAX(0, saved + ?) WHERE id = ? AND user_id = ?",
+            (amount, goal_id, user_id))
+        self._conn.commit()
+        return cur.rowcount > 0
+
+    def delete_goal(self, user_id: str, goal_id: int) -> bool:
+        cur = self._conn.execute("DELETE FROM goals WHERE id = ? AND user_id = ?",
+                                 (goal_id, user_id))
+        self._conn.commit()
+        return cur.rowcount > 0
+
+    # --- health & routine ---------------------------------------------------
+
+    def health_day(self, user_id: str, day: str) -> dict:
+        r = self._conn.execute(
+            "SELECT water, sleep, mood FROM health WHERE user_id = ? AND day = ?",
+            (user_id, day)).fetchone()
+        return dict(r) if r else {"water": 0, "sleep": None, "mood": None}
+
+    def health_set(self, user_id: str, day: str, field: str, value) -> None:
+        if field not in ("water", "sleep", "mood"):
+            return
+        self._conn.execute(
+            "INSERT INTO health (user_id, day, water) VALUES (?, ?, 0) "
+            "ON CONFLICT(user_id, day) DO NOTHING", (user_id, day))
+        self._conn.execute(
+            f"UPDATE health SET {field} = ? WHERE user_id = ? AND day = ?",
+            (value, user_id, day))
+        self._conn.commit()
+
+    def health_water_inc(self, user_id: str, day: str, delta: int = 1) -> int:
+        self._conn.execute(
+            "INSERT INTO health (user_id, day, water) VALUES (?, ?, 0) "
+            "ON CONFLICT(user_id, day) DO NOTHING", (user_id, day))
+        self._conn.execute(
+            "UPDATE health SET water = MAX(0, water + ?) WHERE user_id = ? AND day = ?",
+            (delta, user_id, day))
+        self._conn.commit()
+        return self.health_day(user_id, day)["water"]
+
+    def health_history(self, user_id: str, limit: int = 7) -> list[dict]:
+        return [dict(r) for r in self._conn.execute(
+            "SELECT day, water, sleep, mood FROM health WHERE user_id = ? "
+            "ORDER BY day DESC LIMIT ?", (user_id, limit)).fetchall()]
+
+    # --- document vault -----------------------------------------------------
+
+    def add_document(self, user_id: str, name: str, mime: str, data: bytes,
+                     text: str = "") -> int:
+        cur = self._conn.execute(
+            "INSERT INTO documents (user_id, name, mime, size, text, data, created) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (user_id, name, mime, len(data), text, data, self._now()))
+        self._conn.commit()
+        return int(cur.lastrowid)
+
+    def list_documents(self, user_id: str, q: str = "") -> list[dict]:
+        if q:
+            like = f"%{q}%"
+            rows = self._conn.execute(
+                "SELECT id, name, mime, size, created FROM documents WHERE user_id = ? "
+                "AND (name LIKE ? OR text LIKE ?) ORDER BY id DESC", (user_id, like, like)).fetchall()
+        else:
+            rows = self._conn.execute(
+                "SELECT id, name, mime, size, created FROM documents WHERE user_id = ? "
+                "ORDER BY id DESC", (user_id,)).fetchall()
+        return [dict(r) for r in rows]
+
+    def get_document(self, user_id: str, doc_id: int) -> dict | None:
+        r = self._conn.execute(
+            "SELECT name, mime, data FROM documents WHERE id = ? AND user_id = ?",
+            (doc_id, user_id)).fetchone()
+        return dict(r) if r else None
+
+    def delete_document(self, user_id: str, doc_id: int) -> bool:
+        cur = self._conn.execute("DELETE FROM documents WHERE id = ? AND user_id = ?",
+                                 (doc_id, user_id))
         self._conn.commit()
         return cur.rowcount > 0
 

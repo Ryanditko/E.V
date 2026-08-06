@@ -395,14 +395,17 @@ body.speaking .bigcore .r2{animation-delay:.15s}body.speaking .bigcore .r3{anima
 .tab-edit{opacity:.5;font-size:14px;padding:6px 11px}.tab-edit:hover{opacity:1;color:var(--fg)}
 .tab.on{background:var(--fg);color:var(--ink)}
 #chatview{flex:1;display:flex;flex-direction:column;min-height:0}
-#taskview,#kbview,#expview,#remview,#memview,#calview,#lnkview,#habview,#jouview,#subview,#orcview,#monview,#actview,#pageview,#musicview,#climaview,#globoview{flex:1;min-height:0;overflow:auto;padding:24px;display:none}
-#globoview{display:none;flex-direction:column}
-#globo-wrap{position:relative;flex:1;min-height:420px;border:1px solid var(--line-2);border-radius:16px;overflow:hidden;background:radial-gradient(80% 80% at 50% 45%,#08131f,#04070c)}
-#globo-canvas{position:absolute;inset:0;width:100%;height:100%;cursor:grab}
-#globo-labels{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:2}
-#globo-labels .gl{position:absolute;left:0;top:0;font-family:var(--mono);font-size:10px;letter-spacing:.05em;color:#bfe6ff;text-shadow:0 0 5px #04070c,0 1px 2px #000;white-space:nowrap;transform:translate(-50%,-50%);will-change:transform,opacity}
-#globo-labels .gl.iss{color:#ffe066;font-weight:700}
-#globo-status{position:absolute;bottom:14px;left:14px;z-index:3;font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:var(--accent);background:rgba(4,7,12,.6);border:1px solid var(--line-2);padding:6px 11px;border-radius:9px}
+#taskview,#kbview,#expview,#remview,#memview,#calview,#lnkview,#habview,#jouview,#subview,#orcview,#monview,#actview,#pageview,#musicview,#climaview,#metasview,#saudeview,#cofreview{flex:1;min-height:0;overflow:auto;padding:24px;display:none}
+.goal{max-width:640px;border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:15px 18px;margin-bottom:12px}
+.goal .gh{display:flex;justify-content:space-between;align-items:baseline}.goal .gn{font-size:16px;color:#eaf4fb}.goal .gv{font-family:var(--mono);font-size:13px;color:var(--accent)}
+.goal .gbar{height:9px;background:var(--elev);border-radius:5px;overflow:hidden;margin:9px 0}.goal .gbar i{display:block;height:100%;background:linear-gradient(90deg,#4dd0e1,#5ee6a3);box-shadow:0 0 8px var(--glow)}
+.goal .ga{display:flex;gap:8px;align-items:center;margin-top:4px}.goal .ga input{width:110px}
+.sa-card{max-width:640px;border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:16px 18px;margin-bottom:12px}
+.sa-card .t{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--subtle);margin-bottom:10px}
+.sa-water{display:flex;gap:6px;flex-wrap:wrap;align-items:center}.sa-drop{width:26px;height:32px;color:var(--line-2);cursor:default}.sa-drop.on{color:var(--accent);filter:drop-shadow(0 0 5px var(--glow))}
+.sa-mood{display:flex;gap:8px}.sa-mood button{font-size:22px;background:none;border:1px solid var(--line);border-radius:10px;width:44px;height:44px;cursor:pointer}.sa-mood button.on{border-color:var(--accent);box-shadow:0 0 12px -4px var(--glow)}
+.cf-row{display:flex;align-items:center;gap:12px;padding:11px 14px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;background:var(--surface);max-width:720px}
+.cf-row .n{flex:1}.cf-row .sz{font-family:var(--mono);font-size:11px;color:var(--subtle)}
 #wx-body{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;align-items:start;max-width:1500px}
 .wx-cur{grid-column:1/-1;display:flex;align-items:center;gap:24px;border:1px solid var(--line-2);border-radius:18px;padding:26px 30px;background:linear-gradient(150deg,rgba(24,44,68,.6),rgba(10,20,32,.5));box-shadow:0 0 44px -22px var(--glow)}
 .wx-cur .ic svg{width:80px;height:80px;color:var(--accent);filter:drop-shadow(0 0 14px var(--glow))}
@@ -662,7 +665,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
   body.m-left #mbackdrop,body.m-right #mbackdrop{display:block;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:55}
   .topbar{padding:11px 12px;gap:5px}
   #slash{left:14px;right:14px}
-  #taskview,#kbview,#expview,#remview,#memview,#calview,#lnkview,#habview,#jouview,#subview,#orcview,#monview,#actview,#brainview,#pageview,#musicview{padding:16px 14px}
+  #taskview,#kbview,#expview,#remview,#memview,#calview,#lnkview,#habview,#jouview,#subview,#orcview,#monview,#actview,#brainview,#pageview,#musicview,#climaview,#metasview,#saudeview,#cofreview{padding:16px 14px}
   #log{padding:14px 14px}
   .msg{max-width:92%!important}
   #calgrid{gap:3px}.cal-cell{min-height:62px;padding:4px}
@@ -700,7 +703,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
     <div class="topbar">
       <button class="tbtn ico" id="tgl-left" title="Ocultar/mostrar pastas"><i data-lucide="panel-left"></i></button>
       <div class="tabs" id="tabs"></div>
-      <select id="mnav" class="mnav" title="Ir para"><option value="chat">Conversa</option><option value="tasks">Tarefas</option><option value="exp">Gastos</option><option value="rem">Lembretes</option><option value="cal">Agenda</option><option value="mem">Memórias</option><option value="lnk">Links</option><option value="hab">Hábitos</option><option value="jou">Diário</option><option value="sub">Assinaturas</option><option value="orc">Orçamentos</option><option value="mon">Monitores</option><option value="act">Histórico</option><option value="kb">Base</option><option value="map">Mapa</option><option value="brain">Cérebro</option><option value="graf">Gráficos</option><option value="musica">Música</option><option value="clima">Clima</option><option value="globo">Globo</option></select>
+      <select id="mnav" class="mnav" title="Ir para"><option value="chat">Conversa</option><option value="tasks">Tarefas</option><option value="exp">Gastos</option><option value="rem">Lembretes</option><option value="cal">Agenda</option><option value="mem">Memórias</option><option value="lnk">Links</option><option value="hab">Hábitos</option><option value="jou">Diário</option><option value="sub">Assinaturas</option><option value="orc">Orçamentos</option><option value="mon">Monitores</option><option value="act">Histórico</option><option value="kb">Base</option><option value="map">Mapa</option><option value="brain">Cérebro</option><option value="graf">Gráficos</option><option value="musica">Música</option><option value="clima">Clima</option><option value="metas">Metas</option><option value="saude">Saúde</option><option value="cofre">Cofre</option></select>
       <span class="eyebrow" id="scope">geral</span>
       <button class="tbtn ico" id="gsearch" title="Buscar em tudo"><i data-lucide="search"></i></button>
       <button class="tbtn ic-txt" id="vcopen" title="Falar"><i data-lucide="mic"></i><span>FALAR</span></button>
@@ -873,12 +876,6 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
       <div class="chart-card"><div class="chart-t">Hábitos (dias marcados no período)</div><canvas id="ch-hab"></canvas></div>
     </div>
     <div id="pageview"></div>
-    <div id="globoview">
-      <div class="tv-h">Globo · visão planetária</div>
-      <div id="globo-wrap"><canvas id="globo-canvas"></canvas><div id="globo-labels"></div>
-        <span class="brain-corner tl"></span><span class="brain-corner tr"></span><span class="brain-corner bl"></span><span class="brain-corner br"></span>
-        <div id="globo-status">ISS · localizando…</div></div>
-    </div>
     <div id="climaview">
       <div class="tv-form" style="gap:8px;margin-bottom:14px;flex-wrap:wrap">
         <input id="wx-city" class="tv-search" placeholder="cidade (ex: São Paulo)" style="max-width:260px">
@@ -897,6 +894,29 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
       </div>
       <div id="mu-player"></div>
       <div id="mu-list"></div>
+    </div>
+    <div id="metasview">
+      <div class="tv-h">Metas · cofrinho</div>
+      <div class="tv-form" style="gap:8px;flex-wrap:wrap;margin-bottom:14px">
+        <input class="tv-search" id="gl-name" placeholder="nome da meta (ex: Viagem)" style="max-width:240px">
+        <input class="tv-search" id="gl-target" type="number" placeholder="valor alvo (R$)" style="max-width:160px">
+        <button class="mchip" id="gl-add" type="button"><i data-lucide="target"></i>Criar meta</button>
+      </div>
+      <div id="gl-list"></div>
+    </div>
+    <div id="saudeview">
+      <div class="tv-h">Saúde & rotina</div>
+      <div id="sa-body"></div>
+    </div>
+    <div id="cofreview">
+      <div class="tv-h">Cofre de documentos</div>
+      <div class="eyebrow" style="margin:-8px 0 12px">Guardados cifrados no seu banco. Imagens viram texto pesquisável (OCR).</div>
+      <div class="tv-form" style="gap:8px;flex-wrap:wrap;margin-bottom:12px">
+        <input class="tv-search" id="cf-q" placeholder="buscar por nome ou texto..." style="flex:1;min-width:180px">
+        <label class="mchip" for="cf-file" style="cursor:pointer"><i data-lucide="upload"></i>Enviar documento</label>
+        <input id="cf-file" type="file" style="display:none">
+      </div>
+      <div id="cf-list"></div>
     </div>
   </main>
   <aside id="right" class="rail">
@@ -1236,7 +1256,7 @@ f.onsubmit=e=>{e.preventDefault();if(slash.style.display==='block'&&slSel>=0){pi
   txt.value='';hideSlash();if(!m)return;sfx('send');
   if(m.startsWith('/'))runCmd(m.slice(1));else send(m);};
 
-const CAT={plano:['Plano do dia','sunrise'],pendencias:['Pendências','bell-ring'],padroes:['Padrões','sparkles'],automacoes:['Automações','zap'],bak:['Backup','database-backup'],tarefas:['Tarefas','list-checks'],lembretes:['Lembretes','alarm-clock'],gastos:['Gastos','wallet'],memorias:['Memórias','brain'],kb:['Base','book-open'],map:['Mapa','map'],graf:['Gráficos','bar-chart-3'],brain:['Cérebro','brain-circuit'],musica:['Música','music'],globo:['Globo','globe'],cam:['Câmera','camera'],buscar:['Buscar web','search'],noticias:['Notícias','newspaper'],clima:['Clima','cloud-sun'],relatorio:['Relatório','bar-chart-3'],status:['Status','activity'],semana:['Semana','calendar-days'],foco:['Pomodoro','timer'],procurar:['Procurar','file-search'],calendario:['Agenda','calendar'],habitos:['Hábitos','repeat'],diario:['Diário','notebook-pen'],orcamentos:['Orçamentos','piggy-bank'],assinaturas:['Assinaturas','credit-card'],dados:['Meus dados','database'],insights:['Insights','sparkles'],quiz:['Quiz','graduation-cap']};
+const CAT={plano:['Plano do dia','sunrise'],pendencias:['Pendências','bell-ring'],padroes:['Padrões','sparkles'],automacoes:['Automações','zap'],bak:['Backup','database-backup'],tarefas:['Tarefas','list-checks'],lembretes:['Lembretes','alarm-clock'],gastos:['Gastos','wallet'],memorias:['Memórias','brain'],kb:['Base','book-open'],map:['Mapa','map'],graf:['Gráficos','bar-chart-3'],brain:['Cérebro','brain-circuit'],musica:['Música','music'],metas:['Metas','target'],saude:['Saúde','heart-pulse'],cofre:['Cofre','folder-lock'],cam:['Câmera','camera'],buscar:['Buscar web','search'],noticias:['Notícias','newspaper'],clima:['Clima','cloud-sun'],relatorio:['Relatório','bar-chart-3'],status:['Status','activity'],semana:['Semana','calendar-days'],foco:['Pomodoro','timer'],procurar:['Procurar','file-search'],calendario:['Agenda','calendar'],habitos:['Hábitos','repeat'],diario:['Diário','notebook-pen'],orcamentos:['Orçamentos','piggy-bank'],assinaturas:['Assinaturas','credit-card'],dados:['Meus dados','database'],insights:['Insights','sparkles'],quiz:['Quiz','graduation-cap']};
 const SM={tasks:['Tarefas','list-checks','tarefas'],reminders:['Lembretes','alarm-clock','lembretes'],expenses:['Gastos · mês','wallet','gastos'],memories:['Memórias','brain','memorias'],kb:['Base','book-open','kb'],kbfiles:['Arquivos','file-text','kb'],links:['Links','link','links'],habits:['Hábitos','repeat','habitos'],journal:['Diário','notebook-pen','diario'],subscriptions:['Assinaturas','credit-card','assinaturas'],budgets:['Orçamentos','piggy-bank','orcamentos'],watches:['Monitores','radar','monitores'],agenda:['Agenda · 7d','calendar','calendario'],activity:['Histórico · 24h','history','status'],provider:['Provedor','cpu','status'],model:['Modelo','box','modelo'],disk:['Disco','hard-drive','status'],ram:['RAM','memory-stick','status'],uptime:['Uptime','clock','status']};
 const RECUR=[{v:'',l:'Uma vez'},{v:'daily',l:'Diário'},{v:'weekly',l:'Semanal'},{v:'monthly',l:'Mensal'}];
 const RECUR_LBL={daily:'repete diário',weekly:'repete semanal',monthly:'repete mensal'};
@@ -1684,7 +1704,7 @@ function toggleAmb(){if(!SR){toast('Presença ambiente precisa do Chrome, Edge o
 $('#amb').onclick=toggleAmb;
 renderAmbBtn();
 // view tabs — customizable: pick which appear in the header (minimalist)
-const VIEW_LABELS={chat:'Conversa',tasks:'Tarefas',exp:'Gastos',rem:'Lembretes',cal:'Agenda',mem:'Memórias',lnk:'Links',hab:'Hábitos',jou:'Diário',sub:'Assinaturas',orc:'Orçamentos',mon:'Monitores',act:'Histórico',kb:'Base',map:'Mapa',brain:'Cérebro',graf:'Gráficos',musica:'Música',clima:'Clima',globo:'Globo'};
+const VIEW_LABELS={chat:'Conversa',tasks:'Tarefas',exp:'Gastos',rem:'Lembretes',cal:'Agenda',mem:'Memórias',lnk:'Links',hab:'Hábitos',jou:'Diário',sub:'Assinaturas',orc:'Orçamentos',mon:'Monitores',act:'Histórico',kb:'Base',map:'Mapa',brain:'Cérebro',graf:'Gráficos',musica:'Música',clima:'Clima',metas:'Metas',saude:'Saúde',cofre:'Cofre'};
 let curView='chat',tabsShown;try{tabsShown=JSON.parse(localStorage.getItem('ev_tabs'));}catch(e){}
 if(!Array.isArray(tabsShown)||!tabsShown.length)tabsShown=['chat','tasks','exp','rem','cal','brain'];
 function renderTabs(){const box=$('#tabs');if(!box)return;box.textContent='';
@@ -1692,7 +1712,7 @@ function renderTabs(){const box=$('#tabs');if(!box)return;box.textContent='';
   const ed=el('button','tab tab-edit','+');ed.title='Escolher abas';ed.onclick=()=>openPicker('Abas do topo','Escolha quais abas aparecem no topo.',Object.keys(VIEW_LABELS).map(k=>({key:k,label:VIEW_LABELS[k]})),tabsShown,l=>{tabsShown=l.length?l:['chat'];localStorage.setItem('ev_tabs',JSON.stringify(tabsShown));renderTabs();});box.appendChild(ed);}
 renderTabs();
 $('#mnav').onchange=()=>switchView($('#mnav').value);
-const VIEWS={chat:'#chatview',tasks:'#taskview',exp:'#expview',rem:'#remview',cal:'#calview',mem:'#memview',lnk:'#lnkview',hab:'#habview',jou:'#jouview',sub:'#subview',orc:'#orcview',mon:'#monview',kb:'#kbview',act:'#actview',map:'#mapview',brain:'#brainview',graf:'#chartsview',musica:'#musicview',clima:'#climaview',globo:'#globoview'};
+const VIEWS={chat:'#chatview',tasks:'#taskview',exp:'#expview',rem:'#remview',cal:'#calview',mem:'#memview',lnk:'#lnkview',hab:'#habview',jou:'#jouview',sub:'#subview',orc:'#orcview',mon:'#monview',kb:'#kbview',act:'#actview',map:'#mapview',brain:'#brainview',graf:'#chartsview',musica:'#musicview',clima:'#climaview',metas:'#metasview',saude:'#saudeview',cofre:'#cofreview'};
 function switchView(v){const isPage=(''+v).indexOf('page:')===0;
   if(!isPage&&!VIEWS[v])v='chat';curView=v;document.querySelectorAll('#tabs .tab').forEach(t=>t.classList.toggle('on',t.dataset.view===v));
   const mn=$('#mnav');if(mn&&!isPage&&mn.value!==v)mn.value=v;
@@ -1700,7 +1720,7 @@ function switchView(v){const isPage=(''+v).indexOf('page:')===0;
   Object.entries(VIEWS).forEach(([k,sel])=>{const el2=$(sel);if(el2)el2.style.display=(k===v)?((k==='chat'||k==='brain')?'flex':'block'):'none';});
   const pv=$('#pageview');if(pv)pv.style.display=isPage?'block':'none';
   if(isPage){renderPage(v.slice(5));return;}
-  ({tasks:loadTasks,exp:loadExp,rem:loadRem,mem:loadMem,kb:loadKB,cal:loadCal,lnk:loadLinks,hab:loadHabits,jou:loadJournal,sub:loadSub,orc:loadOrc,mon:loadMon,act:loadAct,map:loadMap,brain:loadBrain,graf:loadCharts,musica:loadMusic,clima:loadClima,globo:loadGlobo}[v]||function(){})();}
+  ({tasks:loadTasks,exp:loadExp,rem:loadRem,mem:loadMem,kb:loadKB,cal:loadCal,lnk:loadLinks,hab:loadHabits,jou:loadJournal,sub:loadSub,orc:loadOrc,mon:loadMon,act:loadAct,map:loadMap,brain:loadBrain,graf:loadCharts,musica:loadMusic,clima:loadClima,metas:loadGoals,saude:loadSaude,cofre:loadCofre}[v]||function(){})();}
 // --- Clima (painel holográfico estilo Weather) ---
 let _wxCity='';
 async function loadClima(){const body=$('#wx-body');if(!body)return;
@@ -1743,57 +1763,53 @@ async function loadClima(){const body=$('#wx-body');if(!body)return;
   metric('gauge','Pressão','<div class="big">'+C.pressure+'<span style="font-size:14px"> hPa</span></div>');
   window.lucide&&lucide.createIcons();}
 (function(){const g=$('#wx-go');if(g)g.onclick=()=>loadClima();const i=$('#wx-city');if(i)i.addEventListener('keydown',e=>{if(e.key==='Enter')loadClima();});})();
-// --- Globo 3D holográfico (Terra + você + pontos + ISS ao vivo) ---
-let _gTH=null,gScene=null,gCam=null,gRend=null,gRoot=null,gRAF=null,gBuilt=false,gDrag=false,gLast={x:0,y:0},gAuto=true,gLabels=[],gIssMesh=null,gIssLabel=null,gIssPoll=null;
-function gll2v(lat,lng,r){const la=lat*Math.PI/180,lo=lng*Math.PI/180;return new _gTH.Vector3(r*Math.cos(la)*Math.cos(lo),r*Math.sin(la),-r*Math.cos(la)*Math.sin(lo));}
-function gSunDir(){const now=new Date();const start=new Date(Date.UTC(now.getUTCFullYear(),0,0));const doy=Math.floor((now-start)/864e5);
-  const decl=-23.44*Math.cos((2*Math.PI/365)*(doy+10));const utc=now.getUTCHours()+now.getUTCMinutes()/60;return gll2v(decl,-(utc-12)*15,1).normalize();}
-function gResize(){if(!gRend)return;const w=$('#globo-wrap');if(!w)return;const W=w.clientWidth||600,H=w.clientHeight||400;gRend.setSize(W,H,false);gCam.aspect=W/H;gCam.updateProjectionMatrix();}
-async function loadGlobo(){const cv=$('#globo-canvas');if(!cv)return;
-  let THREE;try{THREE=await loadThree();_gTH=THREE;}catch(e){const s=$('#globo-status');if(s)s.textContent='globo indisponível (sem Three.js)';return;}
-  if(!gBuilt)buildGlobe(THREE);gResize();if(!gRAF)gRAF=requestAnimationFrame(gTick);startIssPoll();}
-function buildGlobe(THREE){const cv=$('#globo-canvas'),w=$('#globo-wrap');const W=w.clientWidth||600,HT=w.clientHeight||400,R=8;
-  gRend=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true});gRend.setPixelRatio(Math.min(2,devicePixelRatio));gRend.setSize(W,HT,false);
-  gScene=new THREE.Scene();gCam=new THREE.PerspectiveCamera(42,W/HT,0.1,200);gCam.position.set(0,3,26);
-  gRoot=new THREE.Group();gScene.add(gRoot);
-  gRoot.add(new THREE.Mesh(new THREE.SphereGeometry(R,40,26),new THREE.MeshBasicMaterial({color:0x35c8ff,wireframe:true,transparent:true,opacity:0.16,blending:THREE.AdditiveBlending,depthWrite:false})));
-  gRoot.add(new THREE.Points(new THREE.SphereGeometry(R,72,48),new THREE.PointsMaterial({color:0x8fe3ff,size:0.06,transparent:true,opacity:0.5,blending:THREE.AdditiveBlending,depthWrite:false})));
-  gScene.add(new THREE.Mesh(new THREE.SphereGeometry(R*1.09,48,32),new THREE.MeshBasicMaterial({color:0x35c8ff,transparent:true,opacity:0.09,side:THREE.BackSide,blending:THREE.AdditiveBlending,depthWrite:false})));
-  gScene.add(new THREE.Mesh(new THREE.SphereGeometry(R*1.006,48,32),new THREE.ShaderMaterial({transparent:true,depthWrite:false,uniforms:{uSun:{value:gSunDir()}},
-    vertexShader:'varying vec3 vN;void main(){vN=normalize(mat3(modelMatrix)*normal);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
-    fragmentShader:'uniform vec3 uSun;varying vec3 vN;void main(){float d=dot(normalize(vN),normalize(uSun));float n=smoothstep(0.12,-0.3,d);gl_FragColor=vec4(0.0,0.015,0.05,n*0.6);}'})));
-  gBuilt=true;gLabels=[];const lbox=$('#globo-labels');if(lbox)lbox.textContent='';
-  const pin=(lat,lng,name,color)=>{const p=gll2v(lat,lng,R*1.01);
-    const mk=new THREE.Mesh(new THREE.IcosahedronGeometry(0.1,1),new THREE.MeshBasicMaterial({color}));mk.position.copy(p);gRoot.add(mk);
-    const halo=new THREE.Mesh(new THREE.IcosahedronGeometry(0.1,1),new THREE.MeshBasicMaterial({color,transparent:true,opacity:0.25,blending:THREE.AdditiveBlending,depthWrite:false}));halo.position.copy(p);halo.scale.setScalar(2.6);gRoot.add(halo);
-    const d=el('div','gl');d.textContent=name;if(lbox)lbox.appendChild(d);gLabels.push({pos:p,el:d});};
-  if(typeof _loc!=='undefined'&&_loc)pin(_loc[0],_loc[1],'você',0x35c8ff);
-  fetch('/api/places',{headers:H()}).then(r=>r.json()).then(d=>{(d.items||[]).forEach(p=>pin(p.lat,p.lng,p.name,0x5ee6a3));}).catch(()=>{});
-  gIssMesh=new THREE.Mesh(new THREE.IcosahedronGeometry(0.17,1),new THREE.MeshBasicMaterial({color:0xffe066}));gIssMesh.visible=false;gRoot.add(gIssMesh);
-  const il=el('div','gl iss');il.textContent='🛰️ ISS';if(lbox)lbox.appendChild(il);gIssLabel=il;
-  gInitControls(cv);}
-let gT0=null;
-function gTick(ts){if(curView!=='globo'){gRAF=null;return;}
-  if(gRoot&&gAuto&&!gDrag)gRoot.rotation.y+=0.0009;
-  if(gRend&&gScene&&gCam)gRend.render(gScene,gCam);
-  gSyncLabels();gRAF=requestAnimationFrame(gTick);}
-function gSyncLabels(){if(!gCam||!_gTH||!gRoot)return;const w=$('#globo-wrap');if(!w)return;const W=w.clientWidth,H=w.clientHeight,v=new _gTH.Vector3();
-  const all=gLabels.slice();if(gIssLabel){if(gIssMesh&&gIssMesh.visible)all.push({pos:gIssMesh.position,el:gIssLabel});else gIssLabel.style.opacity='0';}
-  for(const L of all){v.copy(L.pos).applyMatrix4(gRoot.matrixWorld);
-    const toCam=gCam.position.clone().sub(v).normalize(),facing=v.clone().normalize().dot(toCam);v.project(gCam);
-    if(v.z>1||facing<0.06){L.el.style.opacity='0';continue;}
-    L.el.style.transform='translate(-50%,-50%) translate('+((v.x*0.5+0.5)*W)+'px,'+((-v.y*0.5+0.5)*H)+'px)';L.el.style.opacity='0.95';}}
-function startIssPoll(){if(gIssPoll)return;const upd=async()=>{if(curView!=='globo'){clearInterval(gIssPoll);gIssPoll=null;return;}
-  try{const d=await (await fetch('/api/iss',{headers:H()})).json();if(d&&d.lat!=null&&gIssMesh){gIssMesh.position.copy(gll2v(+d.lat,+d.lng,8*1.14));gIssMesh.visible=true;
-    const st=$('#globo-status');if(st)st.textContent='🛰️ ISS  '+(+d.lat).toFixed(1)+'°, '+(+d.lng).toFixed(1)+'°  ·  '+d.alt+' km  ·  '+d.vel+' km/h';}}catch(e){}};
-  upd();gIssPoll=setInterval(upd,5000);}
-function gInitControls(cv){
-  cv.addEventListener('pointerdown',e=>{gDrag=true;gLast={x:e.clientX,y:e.clientY};try{cv.setPointerCapture(e.pointerId);}catch(_){}});
-  cv.addEventListener('pointermove',e=>{if(!gDrag||!gRoot)return;const dx=e.clientX-gLast.x,dy=e.clientY-gLast.y;
-    gRoot.rotation.y+=dx*0.005;gRoot.rotation.x=Math.max(-1.3,Math.min(1.3,gRoot.rotation.x+dy*0.005));gLast={x:e.clientX,y:e.clientY};});
-  const end=()=>{gDrag=false;};cv.addEventListener('pointerup',end);cv.addEventListener('pointercancel',end);
-  cv.addEventListener('wheel',e=>{e.preventDefault();if(gCam)gCam.position.z=Math.min(60,Math.max(12,gCam.position.z*(e.deltaY<0?0.9:1.1)));},{passive:false});}
-window.addEventListener('resize',()=>{if(curView==='globo')gResize();});
+// --- Metas (cofrinho) ---
+async function loadGoals(){const box=$('#gl-list');if(!box)return;box.textContent='';
+  let items=[];try{items=(await (await fetch('/api/goals',{headers:H()})).json()).items||[];}catch(e){}
+  if(!items.length){box.appendChild(el('div','tv-empty','Nenhuma meta ainda. Crie uma acima.'));return;}
+  items.forEach(g=>{const pct=Math.min(100,g.target?Math.round(g.saved/g.target*100):0);
+    const c=el('div','goal');const h=el('div','gh');h.appendChild(el('span','gn',g.name));h.appendChild(el('span','gv','R$ '+Math.round(g.saved)+' / '+Math.round(g.target)+' · '+pct+'%'));c.appendChild(h);
+    const bar=el('div','gbar');const i=document.createElement('i');i.style.width=pct+'%';bar.appendChild(i);c.appendChild(bar);
+    const ga=el('div','ga');const inp=document.createElement('input');inp.className='tv-search';inp.type='number';inp.placeholder='R$';
+    const add=el('button','mchip');add.appendChild(ficon('plus'));add.appendChild(document.createTextNode('Guardar'));
+    add.onclick=async()=>{const v=parseFloat(inp.value);if(!v)return;await fetch('/api/goals/add',{method:'POST',headers:H(),body:JSON.stringify({id:g.id,amount:v})});sfx('confirm');loadGoals();};
+    const wd=el('button','tv-ic');wd.appendChild(ficon('minus'));wd.onclick=async()=>{const v=parseFloat(inp.value);if(!v)return;await fetch('/api/goals/add',{method:'POST',headers:H(),body:JSON.stringify({id:g.id,amount:-v})});loadGoals();};
+    const del=el('button','tv-ic');del.appendChild(ficon('trash-2'));del.onclick=async()=>{await fetch('/api/goals/delete',{method:'POST',headers:H(),body:JSON.stringify({id:g.id})});loadGoals();};
+    ga.appendChild(inp);ga.appendChild(add);ga.appendChild(wd);ga.appendChild(del);c.appendChild(ga);box.appendChild(c);});
+  window.lucide&&lucide.createIcons();}
+(function(){const b=$('#gl-add');if(b)b.onclick=async()=>{const n=$('#gl-name').value.trim(),t=parseFloat($('#gl-target').value);if(!n||!t){toast('dê um nome e um valor alvo');return;}
+  await fetch('/api/goals',{method:'POST',headers:H(),body:JSON.stringify({name:n,target:t})});$('#gl-name').value='';$('#gl-target').value='';sfx('confirm');loadGoals();};})();
+// --- Saúde & rotina ---
+async function loadSaude(){const box=$('#sa-body');if(!box)return;box.textContent='';
+  let d;try{d=await (await fetch('/api/saude',{headers:H()})).json();}catch(e){return;}const t=d.today||{water:0};
+  const wc=el('div','sa-card');wc.appendChild(el('div','t','Água hoje · '+(t.water||0)+' copos'));
+  const wrap=el('div','sa-water');for(let k=0;k<8;k++){const dp=el('span','sa-drop'+(k<(t.water||0)?' on':''));dp.appendChild(ficon('droplet'));wrap.appendChild(dp);}
+  const plus=el('button','mchip');plus.appendChild(ficon('plus'));plus.onclick=async()=>{await fetch('/api/saude',{method:'POST',headers:H(),body:JSON.stringify({water_inc:1})});sfx('click');loadSaude();};
+  const minus=el('button','tv-ic');minus.appendChild(ficon('minus'));minus.onclick=async()=>{await fetch('/api/saude',{method:'POST',headers:H(),body:JSON.stringify({water_inc:-1})});loadSaude();};
+  wrap.appendChild(plus);wrap.appendChild(minus);wc.appendChild(wrap);box.appendChild(wc);
+  const sc=el('div','sa-card');sc.appendChild(el('div','t','Sono da última noite'));
+  const si=document.createElement('input');si.className='tv-search';si.type='number';si.step='0.5';si.placeholder='horas';si.value=t.sleep!=null?t.sleep:'';si.style.maxWidth='120px';
+  si.onchange=async()=>{await fetch('/api/saude',{method:'POST',headers:H(),body:JSON.stringify({sleep:parseFloat(si.value)||0})});sfx('click');};sc.appendChild(si);box.appendChild(sc);
+  const mc=el('div','sa-card');mc.appendChild(el('div','t','Humor de hoje'));const mm=el('div','sa-mood');
+  ['😄','🙂','😐','😔','😣'].forEach(e=>{const bb=document.createElement('button');bb.textContent=e;if(t.mood===e)bb.className='on';bb.onclick=async()=>{await fetch('/api/saude',{method:'POST',headers:H(),body:JSON.stringify({mood:e})});sfx('click');loadSaude();};mm.appendChild(bb);});
+  mc.appendChild(mm);box.appendChild(mc);
+  if((d.history||[]).length>1){const hc=el('div','sa-card');hc.appendChild(el('div','t','Últimos dias'));
+    d.history.forEach(x=>{const r=el('div','');r.style.cssText='display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--line);font-size:13px;color:var(--muted)';
+      r.appendChild(el('span','',x.day));r.appendChild(el('span','','💧 '+(x.water||0)+'  😴 '+(x.sleep||'-')+'h  '+(x.mood||'')));hc.appendChild(r);});box.appendChild(hc);}
+  window.lucide&&lucide.createIcons();}
+// --- Cofre de documentos ---
+async function loadCofre(){const box=$('#cf-list');if(!box)return;box.textContent='';
+  const q=($('#cf-q').value||'').trim();let items=[];
+  try{items=(await (await fetch('/api/vault'+(q?('?q='+encodeURIComponent(q)):''),{headers:H()})).json()).items||[];}catch(e){}
+  if(!items.length){box.appendChild(el('div','tv-empty',q?'Nada encontrado.':'Nenhum documento. Envie um acima.'));return;}
+  items.forEach(it=>{const r=el('div','cf-row');r.appendChild(el('span','n',it.name));r.appendChild(el('span','sz',Math.round(it.size/1024)+' KB'));
+    const open=el('button','tv-ic');open.appendChild(ficon('external-link'));open.onclick=()=>window.open('/api/vault/file?id='+it.id+'&k='+encodeURIComponent(token),'_blank');
+    const del=el('button','tv-ic');del.appendChild(ficon('trash-2'));del.onclick=async()=>{await fetch('/api/vault/delete',{method:'POST',headers:H(),body:JSON.stringify({id:it.id})});loadCofre();};
+    r.appendChild(open);r.appendChild(del);box.appendChild(r);});
+  window.lucide&&lucide.createIcons();}
+(function(){const f=$('#cf-file');if(f)f.onchange=async e=>{const file=e.target.files[0];if(!file)return;const fd=new FormData();fd.append('file',file);
+  toast('enviando…');try{const r=await fetch('/api/vault',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd});if(r.ok){sfx('confirm');loadCofre();}else{const j=await r.json().catch(()=>({}));toast(j.detail||'falhou');}}catch(_){toast('falhou');}e.target.value='';};
+  const q=$('#cf-q');if(q)q.addEventListener('input',()=>{clearTimeout(q._t);q._t=setTimeout(loadCofre,300);});})();
 // --- Música (Spotify embed player) ---
 let _music=[];
 function playEmbed(embed,compact){const box=$('#mu-player');if(!box)return;box.classList.toggle('compact',!!compact);
@@ -3767,20 +3783,6 @@ def create_app(config: Config, brain: Brain | None = None):
         memory.delete_page(owner, int((await _body(request)).get("id") or 0))
         return {"ok": True}
 
-    @app.get("/api/iss")
-    async def iss_ep(request: Request):
-        _check(request.headers.get("authorization"))
-        import httpx
-        def _work():
-            try:
-                r = httpx.get("https://api.wheretheiss.at/v1/satellites/25544",
-                              timeout=10).json()
-                return {"lat": r.get("latitude"), "lng": r.get("longitude"),
-                        "alt": round(r.get("altitude", 0)), "vel": round(r.get("velocity", 0))}
-            except Exception:
-                return {}
-        return await asyncio.to_thread(_work)
-
     @app.get("/api/weather")
     async def weather_ep(request: Request):
         _check(request.headers.get("authorization"))
@@ -3821,6 +3823,109 @@ def create_app(config: Config, brain: Brain | None = None):
     async def music_del(request: Request):
         _check(request.headers.get("authorization"))
         memory.delete_music(owner, int((await _body(request)).get("id") or 0))
+        return {"ok": True}
+
+    def _today_local():
+        from datetime import datetime, timezone as _tz
+        try:
+            from zoneinfo import ZoneInfo
+            return datetime.now(ZoneInfo(getattr(config, "timezone", "UTC"))).date().isoformat()
+        except Exception:
+            return datetime.now(_tz.utc).date().isoformat()
+
+    # --- financial goals (cofrinho) ----------------------------------------
+    @app.get("/api/goals")
+    async def goals_list(request: Request):
+        _check(request.headers.get("authorization"))
+        return {"items": memory.list_goals(owner)}
+
+    @app.post("/api/goals")
+    async def goals_add(request: Request):
+        _check(request.headers.get("authorization"))
+        d = await _body(request)
+        name = (d.get("name") or "").strip()
+        target = float(d.get("target") or 0)
+        if not name or target <= 0:
+            raise HTTPException(status_code=400, detail="nome e valor alvo obrigatórios")
+        return {"ok": True, "id": memory.add_goal(owner, name[:60], target)}
+
+    @app.post("/api/goals/add")
+    async def goals_addmoney(request: Request):
+        _check(request.headers.get("authorization"))
+        d = await _body(request)
+        memory.add_to_goal(owner, int(d.get("id") or 0), float(d.get("amount") or 0))
+        return {"ok": True}
+
+    @app.post("/api/goals/delete")
+    async def goals_del(request: Request):
+        _check(request.headers.get("authorization"))
+        memory.delete_goal(owner, int((await _body(request)).get("id") or 0))
+        return {"ok": True}
+
+    # --- health & routine --------------------------------------------------
+    @app.get("/api/saude")
+    async def saude_get(request: Request):
+        _check(request.headers.get("authorization"))
+        day = _today_local()
+        return {"day": day, "today": memory.health_day(owner, day),
+                "history": memory.health_history(owner, 7)}
+
+    @app.post("/api/saude")
+    async def saude_post(request: Request):
+        _check(request.headers.get("authorization"))
+        d = await _body(request)
+        day = _today_local()
+        if d.get("water_inc") is not None:
+            memory.health_water_inc(owner, day, int(d["water_inc"]))
+        if d.get("sleep") is not None:
+            memory.health_set(owner, day, "sleep", float(d["sleep"]))
+        if d.get("mood") is not None:
+            memory.health_set(owner, day, "mood", str(d["mood"])[:20])
+        return {"ok": True, "today": memory.health_day(owner, day)}
+
+    # --- document vault (encrypted, OCR-searchable) ------------------------
+    @app.get("/api/vault")
+    async def vault_list(request: Request):
+        _check(request.headers.get("authorization"))
+        return {"items": memory.list_documents(owner, (request.query_params.get("q") or "").strip())}
+
+    @app.post("/api/vault")
+    async def vault_add(request: Request):
+        _check(request.headers.get("authorization"))
+        form = await request.form()
+        f = form.get("file")
+        if f is None or isinstance(f, str) or not hasattr(f, "read"):
+            raise HTTPException(status_code=400, detail="nenhum arquivo enviado")
+        data = await f.read()
+        if len(data) > 15_000_000:
+            raise HTTPException(status_code=400, detail="arquivo grande demais (máx 15 MB)")
+        mime = getattr(f, "content_type", "") or "application/octet-stream"
+        name = getattr(f, "filename", "documento") or "documento"
+        text = ""
+        if mime.startswith("image/") and brain:
+            try:
+                text = (await brain.ocr_image(data, mime)) or ""
+            except Exception:
+                text = ""
+        memory.add_document(owner, name[:120], mime, data, text[:20000])
+        return {"ok": True}
+
+    @app.get("/api/vault/file")
+    async def vault_file(request: Request):
+        tok = request.query_params.get("k", "")
+        if not config.web_token or not hmac.compare_digest(tok, config.web_token):
+            raise HTTPException(status_code=401, detail="unauthorized")
+        doc = memory.get_document(owner, int(request.query_params.get("id") or 0))
+        if not doc:
+            raise HTTPException(status_code=404, detail="não encontrado")
+        safe = (doc["name"] or "documento").replace('"', "")
+        return Response(content=doc["data"], media_type=doc["mime"],
+                        headers={"Content-Disposition": f'inline; filename="{safe}"'})
+
+    @app.post("/api/vault/delete")
+    async def vault_del(request: Request):
+        _check(request.headers.get("authorization"))
+        memory.delete_document(owner, int((await _body(request)).get("id") or 0))
         return {"ok": True}
 
     # --- Spotify OAuth + Web API (Premium: read playlists + control playback) --
