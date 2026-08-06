@@ -1669,6 +1669,17 @@ async function loadSpotify(){const box=$('#sp-section');if(!box)return;box.textC
   const now=el('span','eyebrow');now.id='sp-now';now.style.margin='0 0 0 6px';bar.appendChild(now);
   const dc=el('button','mchip');dc.style.marginLeft='auto';dc.textContent='desconectar';dc.onclick=async()=>{await fetch('/api/spotify/disconnect',{method:'POST',headers:H()});loadSpotify();};bar.appendChild(dc);
   box.appendChild(bar);
+  // search & play anything
+  const sf=el('div','');sf.style.cssText='display:flex;gap:8px;margin-bottom:10px';
+  const si=document.createElement('input');si.className='tv-search';si.placeholder='buscar e tocar (ex: Bohemian Rhapsody)';si.style.flex='1';
+  const sb=el('button','mchip');sb.appendChild(ficon('search'));
+  const doSearch=async()=>{const q=(si.value||'').trim();if(!q)return;const res=$('#sp-results');res.textContent='…';
+    try{const items=(await (await fetch('/api/spotify/search?q='+encodeURIComponent(q),{headers:H()})).json()).items||[];res.textContent='';
+      if(!items.length){res.appendChild(el('div','tv-empty','Nada encontrado.'));return;}
+      items.forEach(t=>{const row=el('div','mu-row');row.appendChild(el('span','n',t.name+' — '+t.artists));row.onclick=()=>{spPlay(t.uri);};res.appendChild(row);});}catch(e){res.textContent='';}};
+  sb.onclick=doSearch;si.addEventListener('keydown',e=>{if(e.key==='Enter')doSearch();});
+  sf.appendChild(si);sf.appendChild(sb);box.appendChild(sf);
+  const sres=el('div','vlist');sres.id='sp-results';sres.style.maxHeight='26vh';box.appendChild(sres);
   box.appendChild(el('div','tv-cat','Minhas playlists'));const pl=el('div','vlist');pl.style.maxHeight='34vh';box.appendChild(pl);
   try{const pls=(await (await fetch('/api/spotify/playlists',{headers:H()})).json()).items||[];
     if(!pls.length)pl.appendChild(el('div','tv-empty','Nenhuma playlist encontrada.'));
@@ -3720,8 +3731,18 @@ def create_app(config: Config, brain: Brain | None = None):
             raise HTTPException(status_code=400, detail="não conectado")
         d = await _body(request)
         body, dev = {}, d.get("device_id")
-        if d.get("uri"):
-            body["context_uri"] = d["uri"]
+        if d.get("uris"):
+            body["uris"] = d["uris"]
+        elif d.get("uri"):
+            u = d["uri"]
+            if u.startswith("spotify:track:"):
+                body["uris"] = [u]           # a single track
+            else:
+                body["context_uri"] = u      # playlist/album/artist
+        if d.get("query"):                   # search then play the top track
+            tk = await asyncio.to_thread(_sp.first_track_uri, tok, d["query"])
+            if tk:
+                body = {"uris": [tk]}
         def _work():
             path = "/me/player/play" + (f"?device_id={dev}" if dev else "")
             r = _sp_api("PUT", path, tok, json=body)
@@ -3730,6 +3751,17 @@ def create_app(config: Config, brain: Brain | None = None):
         if sc == 404:
             return {"ok": False, "error": "nenhum dispositivo ativo — abra o Spotify ou use o player da E.V."}
         return {"ok": sc in (200, 202, 204)}
+
+    @app.get("/api/spotify/search")
+    async def spotify_search(request: Request):
+        _check(request.headers.get("authorization"))
+        q = (request.query_params.get("q") or "").strip()
+        if not q:
+            return {"items": []}
+        tok = await asyncio.to_thread(_sp_access)
+        if not tok:
+            raise HTTPException(status_code=400, detail="não conectado")
+        return {"items": await asyncio.to_thread(_sp.search_tracks, tok, q)}
 
     @app.get("/api/spotify/current")
     async def spotify_current(request: Request):

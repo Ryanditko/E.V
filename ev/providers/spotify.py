@@ -102,6 +102,32 @@ def find_playlist(token: str, name: str):
     return None
 
 
+def search_tracks(token: str, q: str, limit: int = 6) -> list[dict]:
+    """Search Spotify for tracks by free text."""
+    try:
+        r = api("GET", "/search", token,
+                params={"q": q, "type": "track", "limit": limit})
+        items = ((r.json().get("tracks") or {}).get("items")) or []
+    except Exception:
+        return []
+    out = []
+    for t in items:
+        if not t:
+            continue
+        imgs = (t.get("album") or {}).get("images") or []
+        out.append({
+            "name": t.get("name"), "uri": t.get("uri"),
+            "artists": ", ".join(a.get("name", "") for a in (t.get("artists") or [])),
+            "image": (imgs[-1].get("url") if imgs else ""),
+        })
+    return out
+
+
+def first_track_uri(token: str, q: str):
+    r = search_tracks(token, q, 1)
+    return r[0]["uri"] if r else None
+
+
 def current_track(token: str) -> str:
     try:
         r = api("GET", "/me/player/currently-playing", token)
