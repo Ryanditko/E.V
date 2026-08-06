@@ -395,7 +395,13 @@ body.speaking .bigcore .r2{animation-delay:.15s}body.speaking .bigcore .r3{anima
 .tab-edit{opacity:.5;font-size:14px;padding:6px 11px}.tab-edit:hover{opacity:1;color:var(--fg)}
 .tab.on{background:var(--fg);color:var(--ink)}
 #chatview{flex:1;display:flex;flex-direction:column;min-height:0}
-#taskview,#kbview,#expview,#remview,#memview,#calview,#lnkview,#habview,#jouview,#subview,#orcview,#monview,#actview,#pageview{flex:1;min-height:0;overflow:auto;padding:24px;display:none}
+#taskview,#kbview,#expview,#remview,#memview,#calview,#lnkview,#habview,#jouview,#subview,#orcview,#monview,#actview,#pageview,#musicview{flex:1;min-height:0;overflow:auto;padding:24px;display:none}
+#mu-player{max-width:760px;margin-bottom:16px}
+#mu-player iframe{width:100%;height:352px;border:0;border-radius:14px;box-shadow:0 0 30px -18px var(--glow)}
+#mu-player.compact iframe{height:152px}
+.mu-row{display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;background:var(--surface);max-width:760px;cursor:pointer;transition:border-color .15s}
+.mu-row:hover{border-color:var(--line-2)}.mu-row.on{border-color:var(--accent);box-shadow:0 0 16px -8px var(--glow)}
+.mu-row .n{flex:1}.mu-row .k{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--subtle)}
 .pg-card{max-width:760px;border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:16px 18px;margin-bottom:14px}
 .pg-wt{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--subtle);margin-bottom:9px}
 .pg-li{padding:5px 0;line-height:1.4;border-bottom:1px solid var(--line)}
@@ -612,7 +618,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
   body.m-left #mbackdrop,body.m-right #mbackdrop{display:block;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:55}
   .topbar{padding:11px 12px;gap:5px}
   #slash{left:14px;right:14px}
-  #taskview,#kbview,#expview,#remview,#memview,#calview,#lnkview,#habview,#jouview,#subview,#orcview,#monview,#actview,#brainview{padding:16px 14px}
+  #taskview,#kbview,#expview,#remview,#memview,#calview,#lnkview,#habview,#jouview,#subview,#orcview,#monview,#actview,#brainview,#pageview,#musicview{padding:16px 14px}
   #log{padding:14px 14px}
   .msg{max-width:92%!important}
   #calgrid{gap:3px}.cal-cell{min-height:62px;padding:4px}
@@ -650,7 +656,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
     <div class="topbar">
       <button class="tbtn ico" id="tgl-left" title="Ocultar/mostrar pastas"><i data-lucide="panel-left"></i></button>
       <div class="tabs" id="tabs"></div>
-      <select id="mnav" class="mnav" title="Ir para"><option value="chat">Conversa</option><option value="tasks">Tarefas</option><option value="exp">Gastos</option><option value="rem">Lembretes</option><option value="cal">Agenda</option><option value="mem">Memórias</option><option value="lnk">Links</option><option value="hab">Hábitos</option><option value="jou">Diário</option><option value="sub">Assinaturas</option><option value="orc">Orçamentos</option><option value="mon">Monitores</option><option value="act">Histórico</option><option value="kb">Base</option><option value="map">Mapa</option><option value="brain">Cérebro</option><option value="graf">Gráficos</option></select>
+      <select id="mnav" class="mnav" title="Ir para"><option value="chat">Conversa</option><option value="tasks">Tarefas</option><option value="exp">Gastos</option><option value="rem">Lembretes</option><option value="cal">Agenda</option><option value="mem">Memórias</option><option value="lnk">Links</option><option value="hab">Hábitos</option><option value="jou">Diário</option><option value="sub">Assinaturas</option><option value="orc">Orçamentos</option><option value="mon">Monitores</option><option value="act">Histórico</option><option value="kb">Base</option><option value="map">Mapa</option><option value="brain">Cérebro</option><option value="graf">Gráficos</option><option value="musica">Música</option></select>
       <span class="eyebrow" id="scope">geral</span>
       <button class="tbtn ico" id="gsearch" title="Buscar em tudo"><i data-lucide="search"></i></button>
       <button class="tbtn ic-txt" id="vcopen" title="Falar"><i data-lucide="mic"></i><span>FALAR</span></button>
@@ -823,6 +829,17 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
       <div class="chart-card"><div class="chart-t">Hábitos (dias marcados no período)</div><canvas id="ch-hab"></canvas></div>
     </div>
     <div id="pageview"></div>
+    <div id="musicview">
+      <div class="tv-h">Música · Spotify</div>
+      <div class="eyebrow" style="margin:-8px 0 12px">Cole o link de uma playlist, faixa, álbum ou artista do Spotify. Toca a faixa inteira se você estiver logado no Spotify neste navegador.</div>
+      <div class="tv-form" style="gap:8px;flex-wrap:wrap;margin-bottom:12px">
+        <input class="tv-search" id="mu-url" placeholder="https://open.spotify.com/playlist/..." style="flex:1;min-width:200px">
+        <input class="tv-search" id="mu-label" placeholder="apelido (opcional)" style="max-width:170px">
+        <button class="mchip" id="mu-add" type="button"><i data-lucide="plus"></i>Adicionar</button>
+      </div>
+      <div id="mu-player"></div>
+      <div id="mu-list"></div>
+    </div>
   </main>
   <aside id="right" class="rail">
     <div class="eyebrow">Sistema <span class="mini" id="edit-stats">editar</span></div>
@@ -1161,7 +1178,7 @@ f.onsubmit=e=>{e.preventDefault();if(slash.style.display==='block'&&slSel>=0){pi
   txt.value='';hideSlash();if(!m)return;sfx('send');
   if(m.startsWith('/'))runCmd(m.slice(1));else send(m);};
 
-const CAT={plano:['Plano do dia','sunrise'],pendencias:['Pendências','bell-ring'],padroes:['Padrões','sparkles'],automacoes:['Automações','zap'],bak:['Backup','database-backup'],tarefas:['Tarefas','list-checks'],lembretes:['Lembretes','alarm-clock'],gastos:['Gastos','wallet'],memorias:['Memórias','brain'],kb:['Base','book-open'],map:['Mapa','map'],graf:['Gráficos','bar-chart-3'],brain:['Cérebro','brain-circuit'],cam:['Câmera','camera'],buscar:['Buscar web','search'],noticias:['Notícias','newspaper'],clima:['Clima','cloud-sun'],relatorio:['Relatório','bar-chart-3'],status:['Status','activity'],semana:['Semana','calendar-days'],foco:['Pomodoro','timer'],procurar:['Procurar','file-search'],calendario:['Agenda','calendar'],habitos:['Hábitos','repeat'],diario:['Diário','notebook-pen'],orcamentos:['Orçamentos','piggy-bank'],assinaturas:['Assinaturas','credit-card'],dados:['Meus dados','database'],insights:['Insights','sparkles'],quiz:['Quiz','graduation-cap']};
+const CAT={plano:['Plano do dia','sunrise'],pendencias:['Pendências','bell-ring'],padroes:['Padrões','sparkles'],automacoes:['Automações','zap'],bak:['Backup','database-backup'],tarefas:['Tarefas','list-checks'],lembretes:['Lembretes','alarm-clock'],gastos:['Gastos','wallet'],memorias:['Memórias','brain'],kb:['Base','book-open'],map:['Mapa','map'],graf:['Gráficos','bar-chart-3'],brain:['Cérebro','brain-circuit'],musica:['Música','music'],cam:['Câmera','camera'],buscar:['Buscar web','search'],noticias:['Notícias','newspaper'],clima:['Clima','cloud-sun'],relatorio:['Relatório','bar-chart-3'],status:['Status','activity'],semana:['Semana','calendar-days'],foco:['Pomodoro','timer'],procurar:['Procurar','file-search'],calendario:['Agenda','calendar'],habitos:['Hábitos','repeat'],diario:['Diário','notebook-pen'],orcamentos:['Orçamentos','piggy-bank'],assinaturas:['Assinaturas','credit-card'],dados:['Meus dados','database'],insights:['Insights','sparkles'],quiz:['Quiz','graduation-cap']};
 const SM={tasks:['Tarefas','list-checks','tarefas'],reminders:['Lembretes','alarm-clock','lembretes'],expenses:['Gastos · mês','wallet','gastos'],memories:['Memórias','brain','memorias'],kb:['Base','book-open','kb'],kbfiles:['Arquivos','file-text','kb'],links:['Links','link','links'],habits:['Hábitos','repeat','habitos'],journal:['Diário','notebook-pen','diario'],subscriptions:['Assinaturas','credit-card','assinaturas'],budgets:['Orçamentos','piggy-bank','orcamentos'],watches:['Monitores','radar','monitores'],agenda:['Agenda · 7d','calendar','calendario'],activity:['Histórico · 24h','history','status'],provider:['Provedor','cpu','status'],model:['Modelo','box','modelo'],disk:['Disco','hard-drive','status'],ram:['RAM','memory-stick','status'],uptime:['Uptime','clock','status']};
 const RECUR=[{v:'',l:'Uma vez'},{v:'daily',l:'Diário'},{v:'weekly',l:'Semanal'},{v:'monthly',l:'Mensal'}];
 const RECUR_LBL={daily:'repete diário',weekly:'repete semanal',monthly:'repete mensal'};
@@ -1606,7 +1623,7 @@ function toggleAmb(){if(!SR){toast('Presença ambiente precisa do Chrome, Edge o
 $('#amb').onclick=toggleAmb;
 renderAmbBtn();
 // view tabs — customizable: pick which appear in the header (minimalist)
-const VIEW_LABELS={chat:'Conversa',tasks:'Tarefas',exp:'Gastos',rem:'Lembretes',cal:'Agenda',mem:'Memórias',lnk:'Links',hab:'Hábitos',jou:'Diário',sub:'Assinaturas',orc:'Orçamentos',mon:'Monitores',act:'Histórico',kb:'Base',map:'Mapa',brain:'Cérebro',graf:'Gráficos'};
+const VIEW_LABELS={chat:'Conversa',tasks:'Tarefas',exp:'Gastos',rem:'Lembretes',cal:'Agenda',mem:'Memórias',lnk:'Links',hab:'Hábitos',jou:'Diário',sub:'Assinaturas',orc:'Orçamentos',mon:'Monitores',act:'Histórico',kb:'Base',map:'Mapa',brain:'Cérebro',graf:'Gráficos',musica:'Música'};
 let curView='chat',tabsShown;try{tabsShown=JSON.parse(localStorage.getItem('ev_tabs'));}catch(e){}
 if(!Array.isArray(tabsShown)||!tabsShown.length)tabsShown=['chat','tasks','exp','rem','cal','brain'];
 function renderTabs(){const box=$('#tabs');if(!box)return;box.textContent='';
@@ -1614,7 +1631,7 @@ function renderTabs(){const box=$('#tabs');if(!box)return;box.textContent='';
   const ed=el('button','tab tab-edit','+');ed.title='Escolher abas';ed.onclick=()=>openPicker('Abas do topo','Escolha quais abas aparecem no topo.',Object.keys(VIEW_LABELS).map(k=>({key:k,label:VIEW_LABELS[k]})),tabsShown,l=>{tabsShown=l.length?l:['chat'];localStorage.setItem('ev_tabs',JSON.stringify(tabsShown));renderTabs();});box.appendChild(ed);}
 renderTabs();
 $('#mnav').onchange=()=>switchView($('#mnav').value);
-const VIEWS={chat:'#chatview',tasks:'#taskview',exp:'#expview',rem:'#remview',cal:'#calview',mem:'#memview',lnk:'#lnkview',hab:'#habview',jou:'#jouview',sub:'#subview',orc:'#orcview',mon:'#monview',kb:'#kbview',act:'#actview',map:'#mapview',brain:'#brainview',graf:'#chartsview'};
+const VIEWS={chat:'#chatview',tasks:'#taskview',exp:'#expview',rem:'#remview',cal:'#calview',mem:'#memview',lnk:'#lnkview',hab:'#habview',jou:'#jouview',sub:'#subview',orc:'#orcview',mon:'#monview',kb:'#kbview',act:'#actview',map:'#mapview',brain:'#brainview',graf:'#chartsview',musica:'#musicview'};
 function switchView(v){const isPage=(''+v).indexOf('page:')===0;
   if(!isPage&&!VIEWS[v])v='chat';curView=v;document.querySelectorAll('#tabs .tab').forEach(t=>t.classList.toggle('on',t.dataset.view===v));
   const mn=$('#mnav');if(mn&&!isPage&&mn.value!==v)mn.value=v;
@@ -1622,7 +1639,27 @@ function switchView(v){const isPage=(''+v).indexOf('page:')===0;
   Object.entries(VIEWS).forEach(([k,sel])=>{const el2=$(sel);if(el2)el2.style.display=(k===v)?((k==='chat'||k==='brain')?'flex':'block'):'none';});
   const pv=$('#pageview');if(pv)pv.style.display=isPage?'block':'none';
   if(isPage){renderPage(v.slice(5));return;}
-  ({tasks:loadTasks,exp:loadExp,rem:loadRem,mem:loadMem,kb:loadKB,cal:loadCal,lnk:loadLinks,hab:loadHabits,jou:loadJournal,sub:loadSub,orc:loadOrc,mon:loadMon,act:loadAct,map:loadMap,brain:loadBrain,graf:loadCharts}[v]||function(){})();}
+  ({tasks:loadTasks,exp:loadExp,rem:loadRem,mem:loadMem,kb:loadKB,cal:loadCal,lnk:loadLinks,hab:loadHabits,jou:loadJournal,sub:loadSub,orc:loadOrc,mon:loadMon,act:loadAct,map:loadMap,brain:loadBrain,graf:loadCharts,musica:loadMusic}[v]||function(){})();}
+// --- Música (Spotify embed player) ---
+let _music=[];
+function playEmbed(embed,compact){const box=$('#mu-player');if(!box)return;box.classList.toggle('compact',!!compact);
+  box.innerHTML='';const f=document.createElement('iframe');f.src=embed+'?utm_source=ev';f.allow='autoplay; encrypted-media; clipboard-write';f.loading='lazy';f.setAttribute('allowfullscreen','');box.appendChild(f);}
+function renderMusic(){const list=$('#mu-list');if(!list)return;list.textContent='';
+  if(!_music.length){list.appendChild(el('div','tv-empty','Nenhuma música salva. Cole um link do Spotify acima.'));return;}
+  _music.forEach(m=>{const row=el('div','mu-row');const n=el('span','n',m.label);const k=el('span','k',m.kind);
+    const del=el('button','tv-ic');del.appendChild(ficon('trash-2'));del.onclick=async(e)=>{e.stopPropagation();await fetch('/api/music/delete',{method:'POST',headers:H(),body:JSON.stringify({id:m.id})});_music=_music.filter(x=>x.id!==m.id);renderMusic();};
+    row.appendChild(n);row.appendChild(k);row.appendChild(del);
+    row.onclick=()=>{[...list.children].forEach(c=>c.classList&&c.classList.remove('on'));row.classList.add('on');playEmbed(m.embed,m.kind==='track'||m.kind==='episode');sfx('click');};
+    list.appendChild(row);});}
+async function loadMusic(){try{_music=(await (await fetch('/api/music',{headers:H()})).json()).items||[];}catch(e){_music=[];}
+  renderMusic();if(_music.length&&!$('#mu-player').children.length)playEmbed(_music[0].embed,_music[0].kind==='track'||_music[0].kind==='episode');}
+async function addMusic(){const u=$('#mu-url'),l=$('#mu-label');const url=(u.value||'').trim();if(!url)return;
+  const r=await fetch('/api/music',{method:'POST',headers:H(),body:JSON.stringify({url,label:(l.value||'').trim()})});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok){toast(j.detail||'link não suportado');return;}
+  u.value='';l.value='';sfx('confirm');await loadMusic();playEmbed(j.embed,false);}
+$('#mu-add')&&($('#mu-add').onclick=addMusic);
+$('#mu-url')&&$('#mu-url').addEventListener('keydown',e=>{if(e.key==='Enter')addMusic();});
 // --- Mapa + localização (Leaflet + OSM; lugares e pontos dentro da própria E.V.) ---
 let _map=null,_marker=null,_loc=null,_nearLayer=null,_savedLayer=null,_addMode=false,_pendingNear=null;
 let _baseDark=null,_baseSat=null,_sat=false;
@@ -3490,6 +3527,39 @@ def create_app(config: Config, brain: Brain | None = None):
     async def pages_del(request: Request):
         _check(request.headers.get("authorization"))
         memory.delete_page(owner, int((await _body(request)).get("id") or 0))
+        return {"ok": True}
+
+    # --- music (Spotify embed player) --------------------------------------
+    from ..providers import spotify as _sp
+    _SP_PT = {"playlist": "Playlist", "track": "Faixa", "album": "Álbum",
+              "artist": "Artista", "show": "Podcast", "episode": "Episódio"}
+
+    @app.get("/api/music")
+    async def music_list(request: Request):
+        _check(request.headers.get("authorization"))
+        items = memory.list_music(owner)
+        for it in items:
+            it["embed"] = _sp.embed_url(it["kind"], it["ref"])
+        return {"items": items}
+
+    @app.post("/api/music")
+    async def music_add(request: Request):
+        _check(request.headers.get("authorization"))
+        d = await _body(request)
+        parsed = _sp.parse(d.get("url") or "")
+        if not parsed:
+            raise HTTPException(status_code=400, detail=(
+                "link não suportado — cole uma playlist, faixa, álbum, artista, "
+                "podcast ou episódio do Spotify (perfil não tem player)"))
+        kind, ref = parsed
+        label = (d.get("label") or "").strip() or _SP_PT.get(kind, kind)
+        mid = memory.add_music(owner, label[:80], kind, ref)
+        return {"ok": True, "id": mid, "embed": _sp.embed_url(kind, ref)}
+
+    @app.post("/api/music/delete")
+    async def music_del(request: Request):
+        _check(request.headers.get("authorization"))
+        memory.delete_music(owner, int((await _body(request)).get("id") or 0))
         return {"ok": True}
 
     # --- Links / Habits / Journal CRUD -------------------------------------
