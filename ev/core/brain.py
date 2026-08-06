@@ -775,6 +775,56 @@ class Brain:
                 message=(mensagem or None), command=(comando or None))
             return ("automação criada: " + msg) if aid else ("não consegui criar: " + msg)
 
+        def tocar_playlist(nome: str) -> str:
+            """Toca uma playlist do Spotify do usuário (por nome) no dispositivo
+            ativo dele. Requer Spotify conectado e Premium.
+
+            Args:
+                nome: nome (ou parte) da playlist.
+            """
+            from ..providers import spotify as _sp
+            tok = _sp.access_token(self._memory, self._config)
+            if not tok:
+                return "o Spotify não está conectado — conecte na aba Música."
+            uri = _sp.find_playlist(tok, nome)
+            if not uri:
+                return f"não achei uma playlist chamada '{nome}' no seu Spotify."
+            r = _sp.api("PUT", "/me/player/play", tok, json={"context_uri": uri})
+            if r.status_code == 404:
+                return ("não há um dispositivo ativo. Abre o Spotify (ou o player da "
+                        "E.V. na aba Música) e tenta de novo.")
+            return (f"tocando a playlist '{nome}'." if r.status_code in (200, 202, 204)
+                    else "não consegui tocar agora.")
+
+        def controlar_musica(acao: str) -> str:
+            """Controla o playback do Spotify: pausar, continuar, próxima, anterior.
+
+            Args:
+                acao: 'pausar', 'continuar', 'proxima' ou 'anterior'.
+            """
+            from ..providers import spotify as _sp
+            tok = _sp.access_token(self._memory, self._config)
+            if not tok:
+                return "o Spotify não está conectado."
+            a = (acao or "").lower()
+            m = {"pausar": ("PUT", "/me/player/pause"), "continuar": ("PUT", "/me/player/play"),
+                 "tocar": ("PUT", "/me/player/play"), "proxima": ("POST", "/me/player/next"),
+                 "próxima": ("POST", "/me/player/next"), "anterior": ("POST", "/me/player/previous")}
+            if a not in m:
+                return "diz: pausar, continuar, próxima ou anterior."
+            method, path = m[a]
+            r = _sp.api(method, path, tok)
+            return "feito." if r.status_code in (200, 202, 204) else "não consegui agora (tem algo tocando?)."
+
+        def musica_atual() -> str:
+            """O que está tocando agora no Spotify do usuário."""
+            from ..providers import spotify as _sp
+            tok = _sp.access_token(self._memory, self._config)
+            if not tok:
+                return "o Spotify não está conectado."
+            cur = _sp.current_track(tok)
+            return f"tocando agora: {cur}." if cur else "nada tocando no momento."
+
         def criar_pagina(nome: str, tarefas_categoria: str = "", nota: str = "",
                         conector: str = "", grafico: bool = False, comando: str = "") -> str:
             """Cria uma página/painel personalizado na interface do usuário, montada
@@ -850,6 +900,9 @@ class Brain:
             "criar_automacao": criar_automacao,
             "consultar_conector": consultar_conector,
             "criar_pagina": criar_pagina,
+            "tocar_playlist": tocar_playlist,
+            "controlar_musica": controlar_musica,
+            "musica_atual": musica_atual,
             "anotar_pessoa": anotar_pessoa,
             "sobre_pessoa": sobre_pessoa,
             "minha_localizacao": minha_localizacao,
@@ -941,6 +994,20 @@ class Brain:
                 "lembretes, agenda, clima e localização. Use para 'resolve minha "
                 "manhã', 'plano do dia', 'organiza meu dia', 'o que faço hoje'.",
             ),
+            fn(
+                "tocar_playlist",
+                "Toca uma playlist do Spotify do usuário (por nome). Requer Spotify "
+                "conectado + Premium. Use para 'toca minha playlist X', 'bota um som'.",
+                {"nome": {"type": s, "description": "nome/parte da playlist"}},
+                ["nome"],
+            ),
+            fn(
+                "controlar_musica",
+                "Controla o Spotify: pausar, continuar, próxima, anterior.",
+                {"acao": {"type": s, "description": "pausar|continuar|proxima|anterior"}},
+                ["acao"],
+            ),
+            fn("musica_atual", "O que está tocando agora no Spotify do usuário."),
             fn(
                 "criar_pagina",
                 "Cria uma página/painel personalizado na interface, com widgets "
