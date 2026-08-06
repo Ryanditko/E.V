@@ -775,6 +775,38 @@ class Brain:
                 message=(mensagem or None), command=(comando or None))
             return ("automação criada: " + msg) if aid else ("não consegui criar: " + msg)
 
+        def criar_pagina(nome: str, tarefas_categoria: str = "", nota: str = "",
+                        conector: str = "", grafico: bool = False, comando: str = "") -> str:
+            """Cria uma página/painel personalizado na interface do usuário, montada
+            com widgets seguros. Use para 'cria uma página X com ...'.
+
+            Args:
+                nome: nome da página (ex 'Faculdade').
+                tarefas_categoria: mostra tarefas dessa categoria ('todas' pra todas).
+                nota: um texto/nota fixa no painel.
+                conector: nome de um conector pra mostrar o valor.
+                grafico: True mostra um gráfico de gastos por categoria.
+                comando: um comando da E.V. pra virar botão (ex 'semana').
+            """
+            widgets = []
+            if nota.strip():
+                widgets.append({"type": "note", "text": nota.strip()})
+            if tarefas_categoria.strip():
+                cat = tarefas_categoria.strip()
+                widgets.append({"type": "tasks",
+                                "category": "" if cat.lower() in ("todas", "all", "*") else cat})
+            if grafico:
+                widgets.append({"type": "chart"})
+            if conector.strip():
+                widgets.append({"type": "connector", "name": conector.strip()})
+            if comando.strip():
+                widgets.append({"type": "command", "cmd": comando.strip(), "label": comando.strip()})
+            if not widgets:
+                return "me diga o que colocar na página (tarefas, nota, gráfico ou um conector)."
+            self._memory.add_page(user_id, nome.strip()[:60] or "Página", widgets)
+            return (f"pronto — criei a página '{nome.strip()}' com {len(widgets)} "
+                    f"widget(s). Ela aparece em 'Páginas' no painel.")
+
         def consultar_conector(nome: str) -> str:
             """Consulta um conector de API que o usuário criou (pelo nome) e retorna
             o valor atual. Use quando ele perguntar algo que um conector dele cobre
@@ -817,6 +849,7 @@ class Brain:
             "planejar_dia": planejar_dia,
             "criar_automacao": criar_automacao,
             "consultar_conector": consultar_conector,
+            "criar_pagina": criar_pagina,
             "anotar_pessoa": anotar_pessoa,
             "sobre_pessoa": sobre_pessoa,
             "minha_localizacao": minha_localizacao,
@@ -907,6 +940,21 @@ class Brain:
                 "Monta um plano acionável do dia do usuário juntando tarefas, "
                 "lembretes, agenda, clima e localização. Use para 'resolve minha "
                 "manhã', 'plano do dia', 'organiza meu dia', 'o que faço hoje'.",
+            ),
+            fn(
+                "criar_pagina",
+                "Cria uma página/painel personalizado na interface, com widgets "
+                "seguros (tarefas, nota, gráfico de gastos, conector, botão). Use "
+                "para 'cria uma página X com minhas tarefas de Y e um gráfico'.",
+                {
+                    "nome": {"type": s, "description": "nome da página"},
+                    "tarefas_categoria": {"type": s, "description": "categoria de tarefas ('todas' p/ todas)"},
+                    "nota": {"type": s, "description": "texto fixo no painel"},
+                    "conector": {"type": s, "description": "nome de um conector"},
+                    "grafico": {"type": "boolean", "description": "mostrar gráfico de gastos"},
+                    "comando": {"type": s, "description": "comando pra virar botão"},
+                },
+                ["nome"],
             ),
             fn(
                 "consultar_conector",
