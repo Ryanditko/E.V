@@ -25,19 +25,29 @@ _DEFAULT_FOLDERS = ["geral", "work", "university", "personal"]
 # Monochrome "core" mark — the E.V. identity, as an inline SVG favicon.
 _FAVICON = (
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
-    '<rect width="64" height="64" rx="14" fill="#0a0f16"/>'
-    # segmented outer reticle ring (the JARVIS "targeting" ticks)
-    '<circle cx="32" cy="32" r="26" fill="none" stroke="#35c8ff" stroke-opacity=".45"'
-    ' stroke-width="1.6" stroke-dasharray="1.5 5"/>'
+    '<defs><radialGradient id="ec" cx="50%" cy="50%" r="50%">'
+    '<stop offset="0" stop-color="#e8fbff"/><stop offset="1" stop-color="#35c8ff"/>'
+    '</radialGradient></defs>'
+    '<rect width="64" height="64" rx="15" fill="#060c14"/>'
+    # outer segmented reticle ring (JARVIS targeting ticks)
+    '<circle cx="32" cy="32" r="27" fill="none" stroke="#35c8ff" stroke-opacity=".4"'
+    ' stroke-width="1.3" stroke-dasharray="1.1 4"/>'
+    # 4 cardinal notches
+    '<g stroke="#7fe0ff" stroke-width="1.8" stroke-linecap="round">'
+    '<line x1="32" y1="4" x2="32" y2="9"/><line x1="60" y1="32" x2="55" y2="32"/>'
+    '<line x1="32" y1="60" x2="32" y2="55"/><line x1="4" y1="32" x2="9" y2="32"/></g>'
+    # two bright reactor arc segments at different radii/angles
+    '<circle cx="32" cy="32" r="23" fill="none" stroke="#35c8ff" stroke-width="2.6"'
+    ' stroke-linecap="round" stroke-dasharray="26 200" transform="rotate(-60 32 32)"/>'
+    '<circle cx="32" cy="32" r="18" fill="none" stroke="#5ee6ff" stroke-opacity=".7"'
+    ' stroke-width="1.8" stroke-linecap="round" stroke-dasharray="14 120" transform="rotate(120 32 32)"/>'
     # hexagonal reactor frame
-    '<polygon points="32,13 48.5,22.5 48.5,41.5 32,51 15.5,41.5 15.5,22.5" fill="none"'
-    ' stroke="#35c8ff" stroke-opacity=".3" stroke-width="1.4"/>'
-    # bright energy arc
-    '<circle cx="32" cy="32" r="22" fill="none" stroke="#35c8ff" stroke-width="2.4"'
-    ' stroke-linecap="round" stroke-dasharray="30 200" transform="rotate(-55 32 32)"/>'
-    # inner ring + diamond core
-    '<circle cx="32" cy="32" r="11" fill="none" stroke="#35c8ff" stroke-opacity=".5" stroke-width="1.6"/>'
-    '<path d="M32 24 L40 32 L32 40 L24 32 Z" fill="#35c8ff"/></svg>'
+    '<polygon points="32,14 48,23 48,41 32,50 16,41 16,23" fill="none"'
+    ' stroke="#35c8ff" stroke-opacity=".28" stroke-width="1.3"/>'
+    # inner ring + layered diamond core (glow)
+    '<circle cx="32" cy="32" r="11" fill="none" stroke="#35c8ff" stroke-opacity=".5" stroke-width="1.4"/>'
+    '<path d="M32 22 L42 32 L32 42 L22 32 Z" fill="url(#ec)"/>'
+    '<path d="M32 27 L37 32 L32 37 L27 32 Z" fill="#f2fdff"/></svg>'
 )
 
 # Minimal service worker — makes the app installable (needs a fetch handler) and
@@ -169,6 +179,8 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:6;back
 .core .arc.two{inset:18px;animation-duration:11s;animation-direction:reverse;opacity:.5}
 .core .dot{position:absolute;inset:0;margin:auto;width:9px;height:9px;border-radius:2px;background:var(--accent);box-shadow:0 0 20px 5px var(--glow);transform:rotate(45deg)}
 .core::before{content:"";position:absolute;inset:2px;border-radius:50%;background:repeating-conic-gradient(from 0deg,var(--accent) 0 1deg,transparent 1deg 11.25deg);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 7px),#000 calc(100% - 6px));mask:radial-gradient(farthest-side,transparent calc(100% - 7px),#000 calc(100% - 6px));opacity:.38;pointer-events:none;animation:spin 60s linear infinite}
+.core .ring.c{inset:33px;border:0;background:repeating-conic-gradient(from 0deg,var(--accent) 0 2deg,transparent 2deg 30deg);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 6px),#000 calc(100% - 5px));mask:radial-gradient(farthest-side,transparent calc(100% - 6px),#000 calc(100% - 5px));opacity:.55;animation:spin 26s linear infinite reverse}
+.core .arc,.bigcore .arc{filter:drop-shadow(0 0 5px var(--glow))}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes ambpulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.7)}}
 body.listening .core .arc{animation-duration:1.8s}body.thinking .core .arc{animation-duration:2.6s}
@@ -255,6 +267,7 @@ body.speaking .core .dot{animation:pulsed .6s infinite}
 .bigcore .arc{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,transparent 0 66%,var(--accent) 84%,transparent 100%);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1px));mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1px));animation:spin 8s linear infinite}
 .bigcore .bdot{position:absolute;inset:0;margin:auto;width:15px;height:15px;border-radius:3px;background:var(--accent);box-shadow:0 0 40px 12px var(--glow);transform:rotate(45deg)}
 .bigcore::before{content:"";position:absolute;inset:4px;border-radius:50%;background:repeating-conic-gradient(from 0deg,var(--accent) 0 .9deg,transparent .9deg 9deg);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 11px),#000 calc(100% - 10px));mask:radial-gradient(farthest-side,transparent calc(100% - 11px),#000 calc(100% - 10px));opacity:.34;pointer-events:none;animation:spin 80s linear infinite}
+.bigcore .r3{inset:48px;border:0;background:repeating-conic-gradient(from 0deg,var(--accent) 0 1.8deg,transparent 1.8deg 30deg);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 9px),#000 calc(100% - 8px));mask:radial-gradient(farthest-side,transparent calc(100% - 9px),#000 calc(100% - 8px));opacity:.5;animation:spin 30s linear infinite reverse}
 body.listening .bigcore .arc{animation-duration:1.6s}body.speaking .bigcore .arc{animation-duration:1s}
 body.listening .bigcore .bdot{animation:pulsed .9s infinite}body.speaking .bigcore .bdot{animation:pulsed .55s infinite}
 body.speaking .bigcore .ring{animation:ringpulse 1.3s ease-in-out infinite}
@@ -452,6 +465,11 @@ body.speaking .bigcore .r2{animation-delay:.15s}body.speaking .bigcore .r3{anima
 .ov-add button{background:var(--surface);border:1px solid var(--line);border-radius:9px;color:var(--accent);padding:0 12px;cursor:pointer}
 .ov-hours{display:flex;gap:10px;overflow:auto;margin-top:8px}.ov-hours .hh{flex:none;text-align:center;font-size:11px;color:var(--muted)}.ov-hours .hh svg{width:20px;height:20px;color:var(--accent);margin:3px 0}.ov-hours .hh b{color:#eaf4fb;font-weight:600}
 .ov-feed{max-height:190px;overflow:auto}.ov-feed .f{display:flex;gap:9px;align-items:center;padding:5px 0;font-size:12.5px;color:var(--muted)}.ov-feed .f svg{width:14px;height:14px;color:var(--accent);flex:none}.ov-feed .f .w{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--subtle);flex:none}
+.ov-ask .mic{flex:none;background:var(--surface);border:1px solid var(--line);color:var(--accent);border-radius:10px;padding:0 12px;cursor:pointer;display:flex;align-items:center}.ov-ask .mic:hover{border-color:var(--accent)}.ov-ask .mic svg{width:16px;height:16px}
+.ov-ask .mic.rec{background:var(--accent);color:#04121e;animation:pulse 1.1s infinite}
+.ov-sugg{display:flex;flex-wrap:wrap;gap:7px;width:100%;margin-top:2px}
+.ov-sugg button{font-family:var(--mono);font-size:11px;color:var(--muted);background:transparent;border:1px solid var(--line);border-radius:20px;padding:5px 11px;cursor:pointer;transition:.15s}.ov-sugg button:hover{border-color:var(--accent);color:#cfe3f2}
+.ov-task .when{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--subtle);flex:none}
 .rd-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:1400px}
 @media(max-width:820px){.rd-grid{grid-template-columns:1fr}}
 .rd-half{min-width:0}
@@ -1832,7 +1850,8 @@ async function loadInicio(){
   const ask=el('div','ov-ask');const ai=el('input');ai.placeholder='Pergunte à E.V…';const ab=el('button');ab.textContent='Enviar';
   const fire=()=>{const q=ai.value.trim();if(!q)return;ai.value='';switchView('chat');send(q);};
   ab.onclick=fire;ai.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();fire();}});
-  ask.appendChild(ai);ask.appendChild(ab);hero.appendChild(ask);
+  const mic=el('button','mic');mic.appendChild(ficon('mic'));mic.title='Falar com a E.V.';mic.onclick=()=>{const v=$('#vcopen');if(v)v.click();};
+  ask.appendChild(ai);ask.appendChild(mic);ask.appendChild(ab);hero.appendChild(ask);
   const tel=el('div','ov-tel');const chip=(cls,html)=>{const t=el('div','t'+(cls?' '+cls:''));t.innerHTML=html;tel.appendChild(t);};
   chip('on','SISTEMA <b>ONLINE</b>');chip('','IA <b>'+esc(pan.provider||'auto')+'</b>');
   if(pan.model)chip('','MODELO <b>'+esc(pan.model)+'</b>');
@@ -1840,7 +1859,10 @@ async function loadInicio(){
   if(pan.ram&&pan.ram!=='—')chip('','RAM <b>'+esc(pan.ram)+'</b>');
   chip('','MEMÓRIAS <b>'+(o.counts.memories||0)+'</b>');
   if(pan.notifs)chip('','ALERTAS <b>'+pan.notifs+'</b>');
-  hero.appendChild(tel);grid.appendChild(hero);
+  hero.appendChild(tel);
+  const sug=el('div','ov-sugg');
+  [['Resumo do dia','Me dá um resumo do meu dia.'],['O que tenho hoje?','O que eu tenho pra hoje?'],['Gastos do mês','Como estão meus gastos este mês?'],['Clima','Como está o tempo hoje?']].forEach(s=>{const b=el('button');b.textContent=s[0];b.onclick=()=>{switchView('chat');send(s[1]);};sug.appendChild(b);});
+  hero.appendChild(sug);grid.appendChild(hero);
 
   // ---- Tarefas (interativo, alto) ----
   const tt=ovTile('sp4 rw2','list-checks','Tarefas de hoje','tasks');
@@ -1876,12 +1898,31 @@ async function loadInicio(){
   scol.appendChild(el('div','ov-li',(sh.sleep!=null?'Sono: '+sh.sleep+'h':'Sono: —')+(sh.mood?'   ·   Humor '+sh.mood:'')));
   sr.appendChild(scol);st.appendChild(sr);grid.appendChild(st);
 
+  // ---- Lembretes (concluir inline + novo) ----
+  const rt=ovTile('sp4','alarm-clock','Lembretes','rem');
+  if(o.reminders.items.length){o.reminders.items.forEach(r=>{const row=el('div','ov-task');const ck=el('div','ck');ck.appendChild(ficon('check'));ck.title='concluir';
+      ck.onclick=async()=>{row.classList.add('done');sfx('click');await fetch('/api/reminders/delete',{method:'POST',headers:H(),body:JSON.stringify({id:r.id})});setTimeout(loadInicio,340);};
+      row.appendChild(ck);row.appendChild(el('div','tx',r.text));
+      if(r.when){const d=new Date(r.when);if(!isNaN(d))row.appendChild(el('div','when',d.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})));}
+      rt.appendChild(row);});}
+  else rt.appendChild(el('div','ov-li','Sem lembretes ativos.'));
+  const radd=el('div','ov-mini');radd.style.marginTop='8px';const rb=el('button');rb.appendChild(ficon('plus'));rb.appendChild(document.createTextNode('novo lembrete'));rb.onclick=()=>switchView('rem');radd.appendChild(rb);rt.appendChild(radd);
+  grid.appendChild(rt);
+
   // ---- Gastos (total + sparkline 7 dias) ----
   const et=ovTile('sp8','wallet','Gastos · '+esc(o.expenses.label),'exp');
   const ebig=el('div','big');ebig.innerHTML='R$ '+Number(o.expenses.total).toFixed(2)+(o.expenses.top?' <small>· maior: '+esc(o.expenses.top)+'</small>':'');et.appendChild(ebig);
   const days=o.expenses.day||[];const emx=Math.max(1,...days.map(d=>d.value));
   const sp=el('div','spark');days.forEach((d,i)=>{const b=el('div','b'+(i===days.length-1?' today':''));b.style.height=Math.max(3,d.value/emx*100)+'%';b.title='R$ '+Number(d.value).toFixed(2);b.appendChild(el('span','',d.label));sp.appendChild(b);});
-  et.appendChild(sp);grid.appendChild(et);
+  et.appendChild(sp);
+  const eadd=el('form','ov-add');const ei=el('input');ei.placeholder='+ gasto rápido: 50 uber #transporte';const eb=el('button');eb.type='submit';eb.appendChild(ficon('plus'));
+  eadd.onsubmit=async e=>{e.preventDefault();const raw=ei.value.trim();if(!raw)return;
+    const mm=raw.match(/-?\d+[.,]?\d*/);const amount=mm?parseFloat(mm[0].replace(',','.')):0;
+    if(!amount){if(window.toast)toast('informe um valor, ex: 50 uber #transporte');return;}
+    const cat=(raw.match(/#(\S+)/)||[])[1]||'geral';
+    const desc=raw.replace(/#\S+/,'').replace(mm[0],'').trim()||'gasto';
+    ei.value='';await fetch('/api/expenses',{method:'POST',headers:H(),body:JSON.stringify({amount,description:desc,category:cat})});loadInicio();};
+  eadd.appendChild(ei);eadd.appendChild(eb);et.appendChild(eadd);grid.appendChild(et);
 
   // ---- Clima (agora + próximas horas) ----
   const ct=ovTile('sp4','cloud-sun','Clima agora','clima');
@@ -1921,7 +1962,14 @@ async function loadInicio(){
   bt.appendChild(chips);grid.appendChild(bt);
 
   if(window.lucide)lucide.createIcons();
+  startOvPoll();
 }
+let _ovPoll=null;
+function startOvPoll(){if(_ovPoll)return;_ovPoll=setInterval(()=>{
+  if(curView!=='inicio'){clearInterval(_ovPoll);_ovPoll=null;return;}
+  const a=document.activeElement;                       // não recarrega enquanto o usuário digita
+  if(a&&a.closest&&a.closest('#inicioview')&&a.tagName==='INPUT')return;
+  loadInicio();},60000);}
 // --- Clima (painel holográfico estilo Weather) ---
 let _wxCity='';
 async function loadClima(){const body=$('#wx-body');if(!body)return;
