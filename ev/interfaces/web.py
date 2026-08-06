@@ -25,10 +25,19 @@ _DEFAULT_FOLDERS = ["geral", "work", "university", "personal"]
 # Monochrome "core" mark — the E.V. identity, as an inline SVG favicon.
 _FAVICON = (
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
-    '<rect width="64" height="64" rx="14" fill="#0a0a0a"/>'
-    '<circle cx="32" cy="32" r="21" fill="none" stroke="#35c8ff" stroke-opacity=".28" stroke-width="2"/>'
-    '<circle cx="32" cy="32" r="12.5" fill="none" stroke="#35c8ff" stroke-opacity=".55" stroke-width="2"/>'
-    '<circle cx="32" cy="32" r="4.5" fill="#35c8ff"/></svg>'
+    '<rect width="64" height="64" rx="14" fill="#0a0f16"/>'
+    # segmented outer reticle ring (the JARVIS "targeting" ticks)
+    '<circle cx="32" cy="32" r="26" fill="none" stroke="#35c8ff" stroke-opacity=".45"'
+    ' stroke-width="1.6" stroke-dasharray="1.5 5"/>'
+    # hexagonal reactor frame
+    '<polygon points="32,13 48.5,22.5 48.5,41.5 32,51 15.5,41.5 15.5,22.5" fill="none"'
+    ' stroke="#35c8ff" stroke-opacity=".3" stroke-width="1.4"/>'
+    # bright energy arc
+    '<circle cx="32" cy="32" r="22" fill="none" stroke="#35c8ff" stroke-width="2.4"'
+    ' stroke-linecap="round" stroke-dasharray="30 200" transform="rotate(-55 32 32)"/>'
+    # inner ring + diamond core
+    '<circle cx="32" cy="32" r="11" fill="none" stroke="#35c8ff" stroke-opacity=".5" stroke-width="1.6"/>'
+    '<path d="M32 24 L40 32 L32 40 L24 32 Z" fill="#35c8ff"/></svg>'
 )
 
 # Minimal service worker — makes the app installable (needs a fetch handler) and
@@ -158,13 +167,15 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:6;back
 .core .ring.a{inset:0}.core .ring.b{inset:18px;border-color:var(--line)}.core .ring.c{inset:40px;border-color:var(--line-2)}
 .core .arc{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,transparent 0 66%,var(--accent) 84%,transparent 100%);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1px));mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1px));animation:spin 7s linear infinite}
 .core .arc.two{inset:18px;animation-duration:11s;animation-direction:reverse;opacity:.5}
-.core .dot{position:absolute;inset:0;margin:auto;width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 20px 5px var(--glow)}
+.core .dot{position:absolute;inset:0;margin:auto;width:9px;height:9px;border-radius:2px;background:var(--accent);box-shadow:0 0 20px 5px var(--glow);transform:rotate(45deg)}
+.core::before{content:"";position:absolute;inset:2px;border-radius:50%;background:repeating-conic-gradient(from 0deg,var(--accent) 0 1deg,transparent 1deg 11.25deg);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 7px),#000 calc(100% - 6px));mask:radial-gradient(farthest-side,transparent calc(100% - 7px),#000 calc(100% - 6px));opacity:.38;pointer-events:none;animation:spin 60s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes ambpulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.7)}}
 body.listening .core .arc{animation-duration:1.8s}body.thinking .core .arc{animation-duration:2.6s}
 body.speaking .core .arc{animation-duration:1.1s}
-body.listening .core .dot{animation:pulse 1s infinite}@keyframes pulse{50%{transform:scale(1.9);opacity:.55}}
-body.speaking .core .dot{animation:pulse .6s infinite}
+body.listening .core .dot{animation:pulsed 1s infinite}@keyframes pulse{50%{transform:scale(1.9);opacity:.55}}
+@keyframes pulsed{50%{transform:rotate(45deg) scale(1.9);opacity:.55}}
+body.speaking .core .dot{animation:pulsed .6s infinite}
 .state{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);text-align:center}
 .folder{display:flex;align-items:center;gap:9px;font-size:14px;color:var(--muted);padding:9px 11px;border:1px solid transparent;border-radius:10px;cursor:pointer;transition:.15s}
 .folder:hover{background:var(--surface);color:var(--fg)}
@@ -242,9 +253,10 @@ body.speaking .core .dot{animation:pulse .6s infinite}
 .bigcore .ring{position:absolute;border-radius:50%;border:1px solid var(--line-2)}
 .bigcore .r1{inset:0}.bigcore .r2{inset:26px;border-color:var(--line)}.bigcore .r3{inset:60px;border-color:var(--line-2)}
 .bigcore .arc{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,transparent 0 66%,var(--accent) 84%,transparent 100%);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1px));mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1px));animation:spin 8s linear infinite}
-.bigcore .bdot{position:absolute;inset:0;margin:auto;width:14px;height:14px;border-radius:50%;background:var(--accent);box-shadow:0 0 40px 12px var(--glow)}
+.bigcore .bdot{position:absolute;inset:0;margin:auto;width:15px;height:15px;border-radius:3px;background:var(--accent);box-shadow:0 0 40px 12px var(--glow);transform:rotate(45deg)}
+.bigcore::before{content:"";position:absolute;inset:4px;border-radius:50%;background:repeating-conic-gradient(from 0deg,var(--accent) 0 .9deg,transparent .9deg 9deg);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 11px),#000 calc(100% - 10px));mask:radial-gradient(farthest-side,transparent calc(100% - 11px),#000 calc(100% - 10px));opacity:.34;pointer-events:none;animation:spin 80s linear infinite}
 body.listening .bigcore .arc{animation-duration:1.6s}body.speaking .bigcore .arc{animation-duration:1s}
-body.listening .bigcore .bdot{animation:pulse .9s infinite}body.speaking .bigcore .bdot{animation:pulse .55s infinite}
+body.listening .bigcore .bdot{animation:pulsed .9s infinite}body.speaking .bigcore .bdot{animation:pulsed .55s infinite}
 body.speaking .bigcore .ring{animation:ringpulse 1.3s ease-in-out infinite}
 body.speaking .bigcore .r2{animation-delay:.15s}body.speaking .bigcore .r3{animation-delay:.3s}
 @keyframes ringpulse{0%,100%{transform:scale(1);border-color:var(--line-2)}50%{transform:scale(1.05);border-color:var(--accent)}}
@@ -396,16 +408,50 @@ body.speaking .bigcore .r2{animation-delay:.15s}body.speaking .bigcore .r3{anima
 .tab.on{background:var(--fg);color:var(--ink)}
 #chatview{flex:1;display:flex;flex-direction:column;min-height:0}
 #taskview,#kbview,#expview,#remview,#memview,#calview,#lnkview,#habview,#jouview,#subview,#orcview,#monview,#actview,#pageview,#musicview,#climaview,#metasview,#saudeview,#cofreview,#painelview,#inicioview{flex:1;min-height:0;overflow:auto;padding:24px;display:none}
-.ov-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;max-width:1500px}
-.ov-card{border:1px solid var(--line);border-radius:15px;background:linear-gradient(160deg,rgba(18,34,52,.4),rgba(10,20,32,.35));padding:16px 18px;cursor:pointer;transition:border-color .15s,transform .15s}
-.ov-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 8px 26px -18px var(--glow)}
-.ov-card .h{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--subtle);margin-bottom:8px;display:flex;align-items:center;gap:7px}
+.ov-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px;max-width:1500px;grid-auto-rows:minmax(58px,auto);grid-auto-flow:row dense}
+.sp3{grid-column:span 3}.sp4{grid-column:span 4}.sp5{grid-column:span 5}.sp6{grid-column:span 6}.sp7{grid-column:span 7}.sp8{grid-column:span 8}.sp12{grid-column:span 12}.rw2{grid-row:span 2}
+@media(max-width:1100px){.sp3,.sp4,.sp5,.sp7,.sp8{grid-column:span 6}}
+@media(max-width:720px){.ov-grid{grid-template-columns:1fr}.sp3,.sp4,.sp5,.sp6,.sp7,.sp8,.sp12{grid-column:span 1}.rw2{grid-row:auto}}
+.ov-card{position:relative;border:1px solid var(--line);border-radius:14px;background:linear-gradient(160deg,rgba(18,34,52,.42),rgba(9,17,28,.4));padding:15px 17px;transition:border-color .15s,box-shadow .15s;overflow:hidden}
+.ov-card::before,.ov-card::after{content:"";position:absolute;width:11px;height:11px;border:1px solid var(--accent);opacity:.4;pointer-events:none}
+.ov-card::before{top:7px;left:7px;border-right:0;border-bottom:0}.ov-card::after{bottom:7px;right:7px;border-left:0;border-top:0}
+.ov-card:hover{border-color:var(--accent);box-shadow:0 10px 30px -20px var(--glow),inset 0 0 44px -34px var(--glow)}
+.ov-card .h{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--subtle);margin-bottom:10px;display:flex;align-items:center;gap:7px}
 .ov-card .h svg{width:14px;height:14px;color:var(--accent)}
-.ov-card .big{font-family:var(--disp);font-size:30px;color:#eaf4fb;line-height:1.1}
-.ov-card .big small{font-size:14px;color:var(--muted)}
-.ov-li{font-size:13px;color:var(--muted);padding:3px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ov-card .obar{height:6px;background:var(--elev);border-radius:4px;overflow:hidden;margin:6px 0}.ov-card .obar i{display:block;height:100%;background:linear-gradient(90deg,#4dd0e1,#5ee6a3)}
-.ov-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}.ov-chip{font-family:var(--mono);font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:3px 8px}
+.ov-card .h .go{margin-left:auto;cursor:pointer;color:var(--muted);display:flex;opacity:.55}.ov-card .h .go:hover{color:var(--accent);opacity:1}
+.ov-card .big{font-family:var(--disp);font-size:29px;color:#eaf4fb;line-height:1.05}.ov-card .big small{font-size:13px;color:var(--muted)}
+.ov-li{font-size:13px;color:var(--muted);padding:2px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ov-card .obar{height:6px;background:var(--elev);border-radius:4px;overflow:hidden;margin:5px 0}.ov-card .obar i{display:block;height:100%;background:linear-gradient(90deg,#4dd0e1,#5ee6a3)}
+.ov-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}.ov-chip{font-family:var(--mono);font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:3px 8px}
+.ov-hero{grid-column:span 12;display:flex;align-items:center;gap:18px;flex-wrap:wrap;border:1px solid var(--line);border-radius:16px;background:radial-gradient(120% 200% at 0% 0%,rgba(18,40,60,.55),rgba(9,16,26,.4));padding:16px 20px;position:relative;overflow:hidden}
+.ov-hero .core{width:52px;height:52px;flex:none;border-radius:50%;background:radial-gradient(circle,var(--accent),transparent 62%);animation:corepulse 3.5s ease-in-out infinite}
+.ov-hero .hz{flex:1;min-width:210px}.ov-hero .hz .g{font-family:var(--disp);font-size:20px;color:#eaf4fb}.ov-hero .hz .s{font-size:13px;color:var(--muted);margin-top:3px}
+.ov-ask{display:flex;gap:8px;flex:1;min-width:230px;max-width:440px}
+.ov-ask input{flex:1;background:var(--surface);border:1px solid var(--line);border-radius:10px;color:#eaf4fb;padding:9px 12px;font-size:14px}.ov-ask input:focus{border-color:var(--accent);outline:none}
+.ov-ask button{background:var(--accent);border:0;border-radius:10px;color:#04121e;padding:0 14px;cursor:pointer;font-weight:600}
+@keyframes corepulse{0%,100%{box-shadow:0 0 22px -6px var(--glow)}50%{box-shadow:0 0 34px 2px var(--glow)}}
+.ov-tel{display:flex;gap:6px;flex-wrap:wrap;width:100%;margin-top:2px}
+.ov-tel .t{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;color:var(--subtle);border:1px solid var(--line);border-radius:7px;padding:4px 8px;display:flex;gap:6px;align-items:center}
+.ov-tel .t b{color:var(--accent);font-weight:600}.ov-tel .t.on b{color:#5ee6a3}
+.ov-tel .t.on::before{content:"";width:6px;height:6px;border-radius:50%;background:#5ee6a3;box-shadow:0 0 6px #5ee6a3;animation:pulse2 2s infinite}
+.ring{width:72px;height:72px;flex:none;border-radius:50%;background:conic-gradient(var(--accent) calc(var(--p,0)*1%),var(--elev) 0);display:flex;align-items:center;justify-content:center;position:relative}
+.ring::before{content:"";position:absolute;inset:7px;border-radius:50%;background:#0a1420}.ring .rv{position:relative;font-family:var(--disp);font-size:16px;color:#eaf4fb;text-align:center;line-height:1}.ring .rv small{font-size:9px;color:var(--muted)}
+.ov-row2{display:flex;align-items:center;gap:14px}
+.spark{display:flex;align-items:flex-end;gap:5px;height:54px;margin:10px 0 16px}
+.spark .b{flex:1;background:linear-gradient(180deg,var(--accent),rgba(77,208,225,.22));border-radius:3px 3px 0 0;min-height:3px;position:relative}
+.spark .b span{position:absolute;bottom:-15px;left:0;right:0;text-align:center;font-family:var(--mono);font-size:9px;color:var(--subtle)}
+.spark .b.today{background:linear-gradient(180deg,#5ee6a3,rgba(94,230,163,.28))}
+.ov-task{display:flex;align-items:center;gap:9px;padding:5px 0;font-size:13.5px;color:#cfe3f2}
+.ov-task .ck{width:18px;height:18px;border:1.5px solid var(--line-2);border-radius:6px;flex:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s}.ov-task .ck:hover{border-color:var(--accent)}
+.ov-task .ck svg{width:12px;height:12px;color:#04121e;opacity:0}.ov-task.done .ck{background:var(--accent);border-color:var(--accent)}.ov-task.done .ck svg{opacity:1}.ov-task.done .tx{text-decoration:line-through;color:var(--subtle)}
+.ov-hab{display:flex;flex-wrap:wrap;gap:7px;margin-top:4px}
+.ov-hab .c{font-size:12.5px;color:var(--muted);border:1px solid var(--line);border-radius:20px;padding:5px 11px;cursor:pointer;display:flex;gap:6px;align-items:center;transition:.15s}.ov-hab .c:hover{border-color:var(--accent);color:#cfe3f2}
+.ov-hab .c.done{background:rgba(94,230,163,.14);border-color:#5ee6a3;color:#bff3d6}.ov-hab .c svg{width:13px;height:13px}
+.ov-mini{display:flex;gap:7px;flex-wrap:wrap}.ov-mini button{background:var(--surface);border:1px solid var(--line);border-radius:9px;color:#cfe3f2;padding:8px 11px;font-size:12.5px;cursor:pointer;display:flex;gap:7px;align-items:center;transition:.15s}.ov-mini button:hover{border-color:var(--accent);color:#eaf4fb}.ov-mini button svg{width:14px;height:14px;color:var(--accent)}
+.ov-add{display:flex;gap:7px;margin-top:9px}.ov-add input{flex:1;background:var(--surface);border:1px solid var(--line);border-radius:9px;color:#eaf4fb;padding:7px 10px;font-size:13px}.ov-add input:focus{border-color:var(--accent);outline:none}
+.ov-add button{background:var(--surface);border:1px solid var(--line);border-radius:9px;color:var(--accent);padding:0 12px;cursor:pointer}
+.ov-hours{display:flex;gap:10px;overflow:auto;margin-top:8px}.ov-hours .hh{flex:none;text-align:center;font-size:11px;color:var(--muted)}.ov-hours .hh svg{width:20px;height:20px;color:var(--accent);margin:3px 0}.ov-hours .hh b{color:#eaf4fb;font-weight:600}
+.ov-feed{max-height:190px;overflow:auto}.ov-feed .f{display:flex;gap:9px;align-items:center;padding:5px 0;font-size:12.5px;color:var(--muted)}.ov-feed .f svg{width:14px;height:14px;color:var(--accent);flex:none}.ov-feed .f .w{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--subtle);flex:none}
 .rd-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:1400px}
 @media(max-width:820px){.rd-grid{grid-template-columns:1fr}}
 .rd-half{min-width:0}
@@ -557,7 +603,7 @@ body.talking .core .arc,body.talking .core .arc.two{opacity:calc(.4 + var(--talk
 body.heard .core{animation:heardpulse .66s ease-out}
 @keyframes heardpulse{0%{filter:drop-shadow(0 0 4px var(--glow))}35%{filter:drop-shadow(0 0 34px var(--glow)) brightness(1.5)}100%{filter:drop-shadow(0 0 4px var(--glow))}}
 .mchips{display:flex;flex-wrap:wrap;gap:7px;margin:3px 0 10px}
-.mchip{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:12px;color:var(--fg);background:var(--elev);border:1px solid var(--line);border-radius:999px;padding:6px 12px;cursor:pointer;position:relative;overflow:hidden;transition:background .15s,border-color .15s,color .15s}
+.mchip{display:inline-flex;align-items:center;align-self:center;gap:6px;font-family:var(--mono);font-size:12px;color:var(--fg);background:var(--elev);border:1px solid var(--line);border-radius:999px;padding:6px 12px;cursor:pointer;position:relative;overflow:hidden;transition:background .15s,border-color .15s,color .15s}
 .mchip:hover,.mchip:active{background:var(--fg);color:var(--ink);border-color:var(--fg)}
 .mchip svg{width:14px;height:14px}.mchip:hover svg{color:var(--ink)}
 body.term .mchip{border-radius:4px}
@@ -945,7 +991,6 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
       <div id="cf-list"></div>
     </div>
     <div id="inicioview">
-      <div id="ov-greet" class="tv-h" style="margin-bottom:16px">Início</div>
       <div id="ov-grid" class="ov-grid"></div>
     </div>
     <div id="painelview">
@@ -1758,33 +1803,121 @@ function switchView(v){const isPage=(''+v).indexOf('page:')===0;
   const pv=$('#pageview');if(pv)pv.style.display=isPage?'block':'none';
   if(isPage){renderPage(v.slice(5));return;}
   ({inicio:loadInicio,tasks:loadTasks,exp:loadExp,rem:loadRem,mem:loadMem,kb:loadKB,cal:loadCal,lnk:loadLinks,hab:loadHabits,jou:loadJournal,sub:loadSub,orc:loadOrc,mon:loadMon,act:loadAct,map:loadMap,brain:loadBrain,graf:loadCharts,musica:loadMusic,clima:loadClima,metas:loadGoals,saude:loadSaude,cofre:loadCofre,painel:loadPainel}[v]||function(){})();}
-// --- Início (painel de uso: resumo de tudo) ---
-function ovCard(view,icon,title,big,lines){
-  const c=el('div','ov-card');c.onclick=()=>switchView(view);
-  let h='<div class="h"><i data-lucide="'+icon+'"></i>'+title+'</div>';
-  if(big!=null)h+='<div class="big">'+big+'</div>';
-  (lines||[]).forEach(l=>{h+='<div class="ov-li">'+l+'</div>';});
-  c.innerHTML=h;return c;
+// --- Início (command center: painel de uso interativo, pegada JARVIS) ---
+function ovTile(spanCls,icon,title,view){
+  const c=el('div','ov-card '+spanCls);
+  const h=el('div','h');h.innerHTML='<i data-lucide="'+icon+'"></i>'+title;
+  if(view){const go=el('span','go');go.title='abrir';go.appendChild(ficon('arrow-up-right'));go.onclick=()=>switchView(view);h.appendChild(go);}
+  c.appendChild(h);return c;
 }
+function ovRing(pct,label){pct=Math.min(100,Math.max(0,pct||0));
+  const r=el('div','ring');r.style.setProperty('--p',pct);
+  const v=el('div','rv');v.innerHTML=Math.round(pct)+'%<br><small>'+esc(label||'')+'</small>';r.appendChild(v);return r;}
 async function loadInicio(){
-  const g=$('#ov-greet'),grid=$('#ov-grid');const hr=new Date().getHours();
-  g.textContent=(hr<12?'Bom dia':hr<18?'Boa tarde':'Boa noite')+' — painel de uso da E.V.';
-  grid.innerHTML='<div class="tv-empty">Carregando…</div>';
-  let o;try{const r=await fetch('/api/overview',{headers:H()});o=await r.json();if(!r.ok||!o||!o.tasks)throw 0;}catch(e){grid.innerHTML='<div class="tv-empty">Não consegui carregar o painel.</div>';return;}
+  const grid=$('#ov-grid');const hr=new Date().getHours();
+  grid.innerHTML='<div class="tv-empty">Sincronizando sistemas…</div>';
+  let o,pan={};
+  try{const r=await fetch('/api/overview',{headers:H()});o=await r.json();if(!r.ok||!o||!o.tasks)throw 0;}
+  catch(e){grid.innerHTML='<div class="tv-empty">Não consegui carregar o painel.</div>';return;}
+  try{pan=await (await fetch('/api/panel',{headers:H()})).json();}catch(e){}
   grid.innerHTML='';
-  grid.appendChild(ovCard('tasks','list-checks','Tarefas',o.tasks.count+' <small>abertas</small>',o.tasks.items.map(esc)));
-  grid.appendChild(ovCard('rem','alarm-clock','Lembretes',o.reminders.count+' <small>ativos</small>',o.reminders.items.map(esc)));
-  grid.appendChild(ovCard('exp','wallet','Gastos '+esc(o.expenses.label),'R$ '+Number(o.expenses.total).toFixed(2),[o.expenses.top?'Maior categoria: '+esc(o.expenses.top):'Sem gastos ainda']));
-  const hb=o.habits;grid.appendChild(ovCard('hab','repeat','Hábitos',hb.done+'/'+hb.total+' <small>hoje</small>',[hb.pending.length?'Faltam: '+hb.pending.map(esc).join(', '):(hb.total?'Tudo feito ✓':'Nenhum hábito ainda')]));
-  if(o.goals.length){const c=el('div','ov-card');c.onclick=()=>switchView('metas');let h='<div class="h"><i data-lucide="target"></i>Metas</div>';o.goals.forEach(gg=>{h+='<div class="ov-li">'+esc(gg.name)+' — '+gg.pct+'%</div><div class="obar"><i style="width:'+Math.min(100,Math.max(0,gg.pct))+'%"></i></div>';});c.innerHTML=h;grid.appendChild(c);}
-  else grid.appendChild(ovCard('metas','target','Metas','—',['Nenhuma meta ainda']));
-  const s=o.health||{};grid.appendChild(ovCard('saude','heart-pulse','Saúde',(s.water||0)+" <small>copos d'água</small>",[s.sleep!=null?'Sono: '+s.sleep+'h':'Sono: —',s.mood!=null?'Humor: '+s.mood+'/5':'Humor: —']));
-  const wc=ovCard('clima','cloud-sun','Clima','…',['carregando']);grid.appendChild(wc);
-  fetch('/api/weather',{headers:H()}).then(r=>r.json()).then(w=>{if(w&&w.current){wc.querySelector('.big').innerHTML=w.current.temp+'°<small> '+esc(w.current.desc||'')+'</small>';const li=wc.querySelector('.ov-li');if(li&&w.current.high!=null)li.textContent='máx '+w.current.high+'° · mín '+w.current.low+'° · '+esc(w.location||'');}}).catch(()=>{});
-  const cc=o.counts;const base=el('div','ov-card');base.onclick=()=>switchView('mem');
-  base.innerHTML='<div class="h"><i data-lucide="database"></i>Base de conhecimento</div><div class="ov-chips">'+
-    '<span class="ov-chip">'+cc.memories+' memórias</span><span class="ov-chip">'+cc.kb+' fontes</span><span class="ov-chip">'+cc.links+' links</span><span class="ov-chip">'+cc.journal+' diário</span><span class="ov-chip">'+cc.places+' lugares</span><span class="ov-chip">'+cc.subs+' assinaturas</span><span class="ov-chip">'+cc.automations+' automações</span></div>';
-  grid.appendChild(base);
+
+  // ---- HERO: núcleo + saudação + comando + telemetria ----
+  const hero=el('div','ov-hero');hero.appendChild(el('div','core'));
+  const hz=el('div','hz');const saud=(hr<12?'Bom dia':hr<18?'Boa tarde':'Boa noite');
+  hz.innerHTML='<div class="g">'+saud+', Ryan.</div><div class="s">'+esc(o.greeting||'Sistemas online. Tudo pronto pra você.')+'</div>';
+  hero.appendChild(hz);
+  const ask=el('div','ov-ask');const ai=el('input');ai.placeholder='Pergunte à E.V…';const ab=el('button');ab.textContent='Enviar';
+  const fire=()=>{const q=ai.value.trim();if(!q)return;ai.value='';switchView('chat');send(q);};
+  ab.onclick=fire;ai.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();fire();}});
+  ask.appendChild(ai);ask.appendChild(ab);hero.appendChild(ask);
+  const tel=el('div','ov-tel');const chip=(cls,html)=>{const t=el('div','t'+(cls?' '+cls:''));t.innerHTML=html;tel.appendChild(t);};
+  chip('on','SISTEMA <b>ONLINE</b>');chip('','IA <b>'+esc(pan.provider||'auto')+'</b>');
+  if(pan.model)chip('','MODELO <b>'+esc(pan.model)+'</b>');
+  if(pan.uptime)chip('','UPTIME <b>'+esc(pan.uptime)+'</b>');
+  if(pan.ram&&pan.ram!=='—')chip('','RAM <b>'+esc(pan.ram)+'</b>');
+  chip('','MEMÓRIAS <b>'+(o.counts.memories||0)+'</b>');
+  if(pan.notifs)chip('','ALERTAS <b>'+pan.notifs+'</b>');
+  hero.appendChild(tel);grid.appendChild(hero);
+
+  // ---- Tarefas (interativo, alto) ----
+  const tt=ovTile('sp4 rw2','list-checks','Tarefas de hoje','tasks');
+  const tbig=el('div','big');tbig.innerHTML=o.tasks.count+' <small>abertas</small>';tt.appendChild(tbig);
+  const tlist=el('div','');tlist.style.margin='8px 0 2px';
+  o.tasks.items.forEach(t=>{const row=el('div','ov-task');const ck=el('div','ck');ck.appendChild(ficon('check'));
+    ck.onclick=async()=>{row.classList.add('done');sfx('click');await fetch('/api/tasks/complete',{method:'POST',headers:H(),body:JSON.stringify({id:t.id})});setTimeout(loadInicio,340);};
+    row.appendChild(ck);row.appendChild(el('div','tx',t.text));tlist.appendChild(row);});
+  if(!o.tasks.items.length)tlist.appendChild(el('div','ov-li','Nada pendente. 🎉'));
+  tt.appendChild(tlist);
+  const tadd=el('form','ov-add');const ti=el('input');ti.placeholder='Nova tarefa…';const tb=el('button');tb.type='submit';tb.appendChild(ficon('plus'));
+  tadd.onsubmit=async e=>{e.preventDefault();const v=ti.value.trim();if(!v)return;ti.value='';await fetch('/api/tasks',{method:'POST',headers:H(),body:JSON.stringify({text:v,category:'',recur:'',due:''})});loadInicio();};
+  tadd.appendChild(ti);tadd.appendChild(tb);tt.appendChild(tadd);grid.appendChild(tt);
+
+  // ---- Hábitos (anel + chips clicáveis) ----
+  const hb=o.habits;const ht=ovTile('sp4','repeat','Hábitos de hoje','hab');
+  const hr2=el('div','ov-row2');hr2.appendChild(ovRing(hb.total?hb.done/hb.total*100:0,hb.done+'/'+hb.total));
+  const hcol=el('div','');hcol.style.flex='1';
+  if(hb.items&&hb.items.length){const wrap=el('div','ov-hab');hb.items.forEach(h=>{const c=el('div','c'+(h.done?' done':''));c.appendChild(ficon(h.done?'check-circle-2':'circle'));c.appendChild(document.createTextNode(h.name));
+      c.onclick=async()=>{if(h.done)return;c.classList.add('done');sfx('click');await fetch('/api/habits/done',{method:'POST',headers:H(),body:JSON.stringify({id:h.id})});setTimeout(loadInicio,340);};wrap.appendChild(c);});hcol.appendChild(wrap);}
+  else hcol.appendChild(el('div','ov-li','Nenhum hábito ainda — crie na aba Hábitos.'));
+  hr2.appendChild(hcol);ht.appendChild(hr2);grid.appendChild(ht);
+
+  // ---- Saúde & água (anel + controles) ----
+  const sh=o.health||{};const st=ovTile('sp4','heart-pulse','Saúde & água','saude');
+  const sr=el('div','ov-row2');sr.appendChild(ovRing(Math.min(100,(sh.water||0)/8*100),(sh.water||0)+'/8'));
+  const scol=el('div','');scol.style.flex='1';const smini=el('div','ov-mini');
+  const wp=el('button');wp.appendChild(ficon('plus'));wp.appendChild(document.createTextNode('copo'));
+  wp.onclick=async()=>{sfx('click');await fetch('/api/saude',{method:'POST',headers:H(),body:JSON.stringify({water_inc:1})});loadInicio();};
+  const wm=el('button');wm.appendChild(ficon('minus'));
+  wm.onclick=async()=>{await fetch('/api/saude',{method:'POST',headers:H(),body:JSON.stringify({water_inc:-1})});loadInicio();};
+  smini.appendChild(wp);smini.appendChild(wm);scol.appendChild(smini);
+  scol.appendChild(el('div','ov-li',(sh.sleep!=null?'Sono: '+sh.sleep+'h':'Sono: —')+(sh.mood?'   ·   Humor '+sh.mood:'')));
+  sr.appendChild(scol);st.appendChild(sr);grid.appendChild(st);
+
+  // ---- Gastos (total + sparkline 7 dias) ----
+  const et=ovTile('sp8','wallet','Gastos · '+esc(o.expenses.label),'exp');
+  const ebig=el('div','big');ebig.innerHTML='R$ '+Number(o.expenses.total).toFixed(2)+(o.expenses.top?' <small>· maior: '+esc(o.expenses.top)+'</small>':'');et.appendChild(ebig);
+  const days=o.expenses.day||[];const emx=Math.max(1,...days.map(d=>d.value));
+  const sp=el('div','spark');days.forEach((d,i)=>{const b=el('div','b'+(i===days.length-1?' today':''));b.style.height=Math.max(3,d.value/emx*100)+'%';b.title='R$ '+Number(d.value).toFixed(2);b.appendChild(el('span','',d.label));sp.appendChild(b);});
+  et.appendChild(sp);grid.appendChild(et);
+
+  // ---- Clima (agora + próximas horas) ----
+  const ct=ovTile('sp4','cloud-sun','Clima agora','clima');
+  const cbig=el('div','big');cbig.innerHTML='…';ct.appendChild(cbig);
+  const cli=el('div','ov-li','carregando previsão');ct.appendChild(cli);const chrs=el('div','ov-hours');ct.appendChild(chrs);grid.appendChild(ct);
+  fetch('/api/weather',{headers:H()}).then(r=>r.json()).then(w=>{if(w&&w.current){cbig.innerHTML=w.current.temp+'°<small> '+esc(w.current.desc||'')+'</small>';cli.textContent='máx '+w.current.high+'° · mín '+w.current.low+'° · '+esc(w.location||'');
+    (w.hourly||[]).slice(0,6).forEach(h=>{const hh=el('div','hh');hh.appendChild(el('div','',h.time));hh.appendChild(ficon(h.icon));const tv=el('div','');tv.innerHTML='<b>'+h.temp+'°</b>';hh.appendChild(tv);chrs.appendChild(hh);});
+    if(window.lucide)lucide.createIcons();}}).catch(()=>{});
+
+  // ---- Ações rápidas (executam de verdade) ----
+  const qt=ovTile('sp4','zap','Ações rápidas');const qm=el('div','ov-mini');
+  const qb=(icon,label,fn)=>{const b=el('button');b.appendChild(ficon(icon));b.appendChild(document.createTextNode(label));b.onclick=fn;qm.appendChild(b);};
+  qb('sunrise','Plano do dia',()=>{switchView('chat');send('Monte meu plano do dia.');});
+  qb('bell-ring','Pendências',()=>{switchView('chat');send('O que está pendente pra hoje?');});
+  qb('timer','Pomodoro',()=>{openPomo(25);});
+  qb('newspaper','Notícias',()=>{switchView('chat');send('Me dá as notícias de hoje.');});
+  qb('bar-chart-3','Relatório',()=>{switchView('graf');});
+  qt.appendChild(qm);grid.appendChild(qt);
+
+  // ---- Metas (só se houver) ----
+  if(o.goals.length){const gt=ovTile('sp4','target','Metas','metas');o.goals.forEach(gg=>{gt.appendChild(el('div','ov-li',esc(gg.name)+' — '+gg.pct+'%'));const bar=el('div','obar');const bi=el('i');bi.style.width=Math.min(100,Math.max(0,gg.pct))+'%';bar.appendChild(bi);gt.appendChild(bar);});grid.appendChild(gt);}
+
+  // ---- Agenda de hoje ----
+  const at=ovTile('sp4','calendar','Agenda de hoje','cal');const abig=el('div','big');abig.innerHTML=(pan.agenda||0)+' <small>eventos</small>';at.appendChild(abig);
+  at.appendChild(el('div','ov-li',pan.agenda?'Toque para ver a agenda completa':'Conecte o Google Agenda em Chaves de API'));grid.appendChild(at);
+
+  // ---- Atividade recente (feed) ----
+  const ft=ovTile('sp8','activity','Atividade recente','act');const feed=el('div','ov-feed');ft.appendChild(feed);grid.appendChild(ft);
+  fetch('/api/activity',{headers:H()}).then(r=>r.json()).then(d=>{const items=(d.items||[]).slice(0,8);
+    if(!items.length){feed.appendChild(el('div','ov-li','Nada registrado ainda. Suas ações aparecem aqui.'));return;}
+    items.forEach(a=>{const meta=ACT_ICON[a.action]||['activity',a.action];const f=el('div','f');f.appendChild(ficon(meta[0]));f.appendChild(el('div','',meta[1]+': '+a.label));const w=a.created?new Date(a.created):null;f.appendChild(el('div','w',(w&&!isNaN(w))?w.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):''));feed.appendChild(f);});
+    if(window.lucide)lucide.createIcons();}).catch(()=>{});
+
+  // ---- Base de conhecimento (chips) ----
+  const cc=o.counts;const bt=ovTile('sp4','database','Base de conhecimento','mem');const chips=el('div','ov-chips');
+  [['memórias',cc.memories],['fontes',cc.kb],['links',cc.links],['diário',cc.journal],['lugares',cc.places],['assinaturas',cc.subs],['automações',cc.automations]].forEach(x=>chips.appendChild(el('span','ov-chip',(x[1]||0)+' '+x[0])));
+  bt.appendChild(chips);grid.appendChild(bt);
+
   if(window.lucide)lucide.createIcons();
 }
 // --- Clima (painel holográfico estilo Weather) ---

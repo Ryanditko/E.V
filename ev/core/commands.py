@@ -1040,6 +1040,7 @@ class Commands:
             now = datetime.now(tz)
         except Exception:
             now = datetime.now(timezone.utc)
+        from datetime import timedelta
         today = now.strftime("%Y-%m-%d")
         tasks = self._memory.open_tasks(user_id)
         rems = self._memory.open_reminders(user_id)
@@ -1049,16 +1050,32 @@ class Commands:
         for e in exps:
             bycat[e["category"]] = bycat.get(e["category"], 0) + (e["amount"] or 0)
         top = max(bycat.items(), key=lambda x: x[1])[0] if bycat else None
+        # last-7-days expense series (for the sparkline)
+        _wd = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"]
+        days7 = [(now.date() - timedelta(days=i)) for i in range(6, -1, -1)]
+        ex7 = self._memory.expenses_since(user_id, days7[0].isoformat())
+        byday = {d.isoformat(): 0.0 for d in days7}
+        for e in ex7:
+            k = (e.get("created") or "")[:10]
+            if k in byday:
+                byday[k] += (e["amount"] or 0)
+        exp_day = [{"label": _wd[d.weekday()], "value": round(byday[d.isoformat()], 2)}
+                   for d in days7]
         habits = self._memory.list_habits(user_id)
-        pending = [h["name"] for h in habits if today not in self._memory.habit_days(h["id"])]
+        hdone = {h["id"]: (today in self._memory.habit_days(h["id"])) for h in habits}
+        pending = [h["name"] for h in habits if not hdone[h["id"]]]
         goals = self._memory.list_goals(user_id)
         return {
-            "tasks": {"count": len(tasks), "items": [t["text"] for t in tasks[:4]]},
+            "greeting": self.spoken_status(user_id),
+            "tasks": {"count": len(tasks),
+                      "items": [{"id": t["id"], "text": t["text"]} for t in tasks[:5]]},
             "reminders": {"count": len(rems), "items": [r["text"] for r in rems[:4]]},
             "expenses": {"total": round(sum(e["amount"] or 0 for e in exps), 2),
-                         "top": top, "label": label},
+                         "top": top, "label": label, "day": exp_day},
             "habits": {"pending": pending[:5], "done": len(habits) - len(pending),
-                       "total": len(habits)},
+                       "total": len(habits),
+                       "items": [{"id": h["id"], "name": h["name"], "done": hdone[h["id"]]}
+                                 for h in habits[:8]]},
             "goals": [{"name": g["name"],
                        "pct": (round(g["saved"] / g["target"] * 100) if g["target"] else 0)}
                       for g in goals[:3]],
