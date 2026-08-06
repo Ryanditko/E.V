@@ -206,7 +206,7 @@ class Config:
             reminder_poll_seconds=_get_int("EV_REMINDER_POLL_SECONDS", 30),
             briefing_hour=briefing_hour,
             checkin_hour=checkin_hour,
-            city=os.getenv("EV_CITY", "").strip(),
+            city=os.getenv("EV_CITY", "").strip() or "São Paulo",
             news_topic=os.getenv("EV_NEWS_TOPIC", "").strip(),
             weekly_day=weekly_day,
             weekly_hour=_get_int("EV_WEEKLY_HOUR", 20),

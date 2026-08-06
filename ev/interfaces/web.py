@@ -337,7 +337,7 @@ body.speaking .bigcore .r2{animation-delay:.15s}body.speaking .bigcore .r3{anima
 #standby .sb-top{position:absolute;top:26px;font-family:var(--mono);letter-spacing:.24em;color:var(--accent);font-size:12px}
 #standby .sb-top b{color:#5ee6a3}
 #standby .bigcore{transform:scale(.85);margin-bottom:2px}
-#sb-clock{font-family:var(--disp);font-size:min(18vw,140px);line-height:1;color:#eaf4fb;text-shadow:0 0 36px rgba(53,200,255,.42);letter-spacing:.02em}
+#sb-clock{font-family:var(--disp);font-size:min(14vw,120px);line-height:1;color:#eaf4fb;text-shadow:0 0 36px rgba(53,200,255,.42);letter-spacing:.02em}
 #sb-date{font-family:var(--mono);letter-spacing:.2em;color:var(--muted);text-transform:uppercase;font-size:13px}
 #sb-status{font-family:var(--body);color:var(--fg);font-size:16px;text-align:center;max-width:82vw;text-shadow:0 0 16px rgba(53,200,255,.3)}
 #standby .sb-load{width:min(320px,60vw);height:4px;background:var(--surface);border-radius:3px;overflow:hidden;margin-top:6px}
@@ -411,7 +411,7 @@ body.speaking .bigcore .r2{animation-delay:.15s}body.speaking .bigcore .r3{anima
 .ov-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px;max-width:1500px;grid-auto-rows:minmax(58px,auto);grid-auto-flow:row dense}
 .sp3{grid-column:span 3}.sp4{grid-column:span 4}.sp5{grid-column:span 5}.sp6{grid-column:span 6}.sp7{grid-column:span 7}.sp8{grid-column:span 8}.sp12{grid-column:span 12}.rw2{grid-row:span 2}
 @media(max-width:1100px){.sp3,.sp4,.sp5,.sp7,.sp8{grid-column:span 6}}
-@media(max-width:720px){.ov-grid{grid-template-columns:1fr}.sp3,.sp4,.sp5,.sp6,.sp7,.sp8,.sp12{grid-column:span 1}.rw2{grid-row:auto}}
+@media(max-width:760px){.ov-grid{grid-template-columns:1fr}.ov-hero,.sp3,.sp4,.sp5,.sp6,.sp7,.sp8,.sp12{grid-column:1/-1}.rw2{grid-row:auto}.ov-hero{flex-direction:column;align-items:flex-start;gap:12px}.ov-ask{max-width:none;width:100%}}
 .ov-card{position:relative;border:1px solid var(--line);border-radius:14px;background:linear-gradient(160deg,rgba(18,34,52,.42),rgba(9,17,28,.4));padding:15px 17px;transition:border-color .15s,box-shadow .15s;overflow:hidden}
 .ov-card::before,.ov-card::after{content:"";position:absolute;width:11px;height:11px;border:1px solid var(--accent);opacity:.4;pointer-events:none}
 .ov-card::before{top:7px;left:7px;border-right:0;border-bottom:0}.ov-card::after{bottom:7px;right:7px;border-left:0;border-top:0}
@@ -448,7 +448,7 @@ body.speaking .bigcore .r2{animation-delay:.15s}body.speaking .bigcore .r3{anima
 .ov-hab .c{font-size:12.5px;color:var(--muted);border:1px solid var(--line);border-radius:20px;padding:5px 11px;cursor:pointer;display:flex;gap:6px;align-items:center;transition:.15s}.ov-hab .c:hover{border-color:var(--accent);color:#cfe3f2}
 .ov-hab .c.done{background:rgba(94,230,163,.14);border-color:#5ee6a3;color:#bff3d6}.ov-hab .c svg{width:13px;height:13px}
 .ov-mini{display:flex;gap:7px;flex-wrap:wrap}.ov-mini button{background:var(--surface);border:1px solid var(--line);border-radius:9px;color:#cfe3f2;padding:8px 11px;font-size:12.5px;cursor:pointer;display:flex;gap:7px;align-items:center;transition:.15s}.ov-mini button:hover{border-color:var(--accent);color:#eaf4fb}.ov-mini button svg{width:14px;height:14px;color:var(--accent)}
-.ov-add{display:flex;gap:7px;margin-top:9px}.ov-add input{flex:1;background:var(--surface);border:1px solid var(--line);border-radius:9px;color:#eaf4fb;padding:7px 10px;font-size:13px}.ov-add input:focus{border-color:var(--accent);outline:none}
+.ov-add{display:flex;gap:7px;margin-top:9px}.ov-add input{flex:1;min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:9px;color:#eaf4fb;padding:7px 10px;font-size:13px}.ov-add input:focus{border-color:var(--accent);outline:none}
 .ov-add button{background:var(--surface);border:1px solid var(--line);border-radius:9px;color:var(--accent);padding:0 12px;cursor:pointer}
 .ov-hours{display:flex;gap:10px;overflow:auto;margin-top:8px}.ov-hours .hh{flex:none;text-align:center;font-size:11px;color:var(--muted)}.ov-hours .hh svg{width:20px;height:20px;color:var(--accent);margin:3px 0}.ov-hours .hh b{color:#eaf4fb;font-weight:600}
 .ov-feed{max-height:190px;overflow:auto}.ov-feed .f{display:flex;gap:9px;align-items:center;padding:5px 0;font-size:12.5px;color:var(--muted)}.ov-feed .f svg{width:14px;height:14px;color:var(--accent);flex:none}.ov-feed .f .w{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--subtle);flex:none}
@@ -1081,7 +1081,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
 <div id="standby">
   <div class="sb-top">E.V. // <b>ONLINE</b></div>
   <div class="bigcore"><div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div><div class="arc"></div><div class="bdot"></div></div>
-  <div id="sb-clock">--:--</div>
+  <div id="sb-clock">--:--:--</div>
   <div id="sb-date"></div>
   <div id="sb-status"></div>
   <div class="sb-load"><i></i></div>
@@ -2626,7 +2626,7 @@ let _idleT=null,_sbClock=null;const _IDLE_MS=30000;
 function sbBusy(){const q=id=>{const e=document.getElementById(id);return e&&e.classList.contains('on');};
   return q('login')||q('welcome')||q('cam')||q('street')||q('modal')||(typeof vc!=='undefined'&&vc&&vc.classList.contains('on'));}
 function showStandby(){const st=$('#standby');if(!st||st.classList.contains('on')||sbBusy())return;
-  const upd=()=>{const d=new Date();const c=$('#sb-clock');if(c)c.textContent=d.toTimeString().slice(0,5);
+  const upd=()=>{const d=new Date();const c=$('#sb-clock');if(c)c.textContent=d.toTimeString().slice(0,8);
     const dt=$('#sb-date');if(dt)dt.textContent=d.toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'});};
   upd();_sbClock=setInterval(upd,1000);
   const t=(_counts.tasks||0),l=(_counts.reminders||0),ss=$('#sb-status');
