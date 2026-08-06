@@ -68,6 +68,95 @@ def weather(city: str) -> str:
         return f"não consegui o clima agora ({exc})"
 
 
+def _wicon(code: int, is_day: bool = True) -> str:
+    """Open-Meteo weather code -> a lucide icon name for the dashboard."""
+    if code == 0:
+        return "sun" if is_day else "moon"
+    if code in (1, 2):
+        return "cloud-sun" if is_day else "cloud-moon"
+    if code == 3:
+        return "cloud"
+    if code in (45, 48):
+        return "cloud-fog"
+    if code in (51, 53, 55, 56, 57):
+        return "cloud-drizzle"
+    if code in (61, 63, 65, 66, 67, 80, 81, 82):
+        return "cloud-rain"
+    if code in (71, 73, 75, 77, 85, 86):
+        return "snowflake"
+    if code in (95, 96, 99):
+        return "cloud-lightning"
+    return "cloud"
+
+
+def weather_full(city: str) -> dict:
+    """Rich structured weather for a dashboard (open-meteo, no key).
+    Returns {} on failure. Current + next hours + 10-day forecast."""
+    import httpx
+    from datetime import datetime
+    try:
+        geo = httpx.get(
+            "https://geocoding-api.open-meteo.com/v1/search",
+            params={"name": city, "count": 1, "language": "pt", "format": "json"},
+            timeout=15).json()
+        if not geo.get("results"):
+            return {}
+        loc = geo["results"][0]
+        r = httpx.get("https://api.open-meteo.com/v1/forecast", params={
+            "latitude": loc["latitude"], "longitude": loc["longitude"],
+            "current": "temperature_2m,apparent_temperature,weather_code,is_day",
+            "hourly": "temperature_2m,weather_code",
+            "daily": "temperature_2m_max,temperature_2m_min,weather_code",
+            "timezone": "auto", "forecast_days": 10}, timeout=15).json()
+        cur = r.get("current", {})
+        day = bool(cur.get("is_day", 1))
+        code = int(cur.get("weather_code", 3))
+        daily = r.get("daily", {})
+        # hourly slice: next 12 hours from the current time
+        htimes = (r.get("hourly", {}) or {}).get("time", [])
+        htemp = (r.get("hourly", {}) or {}).get("temperature_2m", [])
+        hcode = (r.get("hourly", {}) or {}).get("weather_code", [])
+        now_iso = cur.get("time", "")
+        start = 0
+        for i, t in enumerate(htimes):
+            if t >= now_iso:
+                start = i
+                break
+        hourly = []
+        for i in range(start, min(start + 12, len(htimes))):
+            hh = htimes[i][11:16]
+            hourly.append({"time": hh, "temp": round(htemp[i]),
+                           "icon": _wicon(int(hcode[i]), day)})
+        _WD = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"]
+        days = []
+        dt = daily.get("time", [])
+        for i in range(len(dt)):
+            try:
+                lbl = "Hoje" if i == 0 else _WD[datetime.fromisoformat(dt[i]).weekday()]
+            except Exception:
+                lbl = dt[i][5:]
+            days.append({"day": lbl,
+                         "min": round(daily["temperature_2m_min"][i]),
+                         "max": round(daily["temperature_2m_max"][i]),
+                         "icon": _wicon(int(daily["weather_code"][i]), True)})
+        name = loc["name"] + (f", {loc.get('admin1')}" if loc.get("admin1") else "")
+        return {
+            "location": name,
+            "current": {
+                "temp": round(cur.get("temperature_2m", 0)),
+                "feels": round(cur.get("apparent_temperature", 0)),
+                "desc": _WEATHER_CODES.get(code, ""),
+                "icon": _wicon(code, day),
+                "high": round(daily["temperature_2m_max"][0]) if dt else None,
+                "low": round(daily["temperature_2m_min"][0]) if dt else None,
+            },
+            "hourly": hourly, "daily": days,
+        }
+    except Exception as exc:
+        log.warning("weather_full failed (%s)", exc)
+        return {}
+
+
 _RAIN_CODES = {51, 53, 55, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99}
 
 
