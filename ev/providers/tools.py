@@ -104,9 +104,12 @@ def weather_full(city: str) -> dict:
         loc = geo["results"][0]
         r = httpx.get("https://api.open-meteo.com/v1/forecast", params={
             "latitude": loc["latitude"], "longitude": loc["longitude"],
-            "current": "temperature_2m,apparent_temperature,weather_code,is_day",
-            "hourly": "temperature_2m,weather_code",
-            "daily": "temperature_2m_max,temperature_2m_min,weather_code",
+            "current": ("temperature_2m,apparent_temperature,weather_code,is_day,"
+                        "relative_humidity_2m,wind_speed_10m,wind_direction_10m,"
+                        "wind_gusts_10m,surface_pressure,cloud_cover"),
+            "hourly": "temperature_2m,weather_code,precipitation_probability,uv_index",
+            "daily": ("temperature_2m_max,temperature_2m_min,weather_code,sunrise,"
+                      "sunset,uv_index_max,precipitation_probability_max"),
             "timezone": "auto", "forecast_days": 10}, timeout=15).json()
         cur = r.get("current", {})
         day = bool(cur.get("is_day", 1))
@@ -140,6 +143,10 @@ def weather_full(city: str) -> dict:
                          "max": round(daily["temperature_2m_max"][i]),
                          "icon": _wicon(int(daily["weather_code"][i]), True)})
         name = loc["name"] + (f", {loc.get('admin1')}" if loc.get("admin1") else "")
+        _DIRS = ["N", "NE", "L", "SE", "S", "SO", "O", "NO"]
+        wdeg = cur.get("wind_direction_10m", 0)
+        uvnow = round(hcode and (r.get("hourly", {}).get("uv_index", []) or [0])[start] or 0, 1) if htimes else 0
+        prob = ((r.get("hourly", {}).get("precipitation_probability", []) or [0])[start]) if htimes else 0
         return {
             "location": name,
             "current": {
@@ -149,6 +156,19 @@ def weather_full(city: str) -> dict:
                 "icon": _wicon(code, day),
                 "high": round(daily["temperature_2m_max"][0]) if dt else None,
                 "low": round(daily["temperature_2m_min"][0]) if dt else None,
+                "humidity": cur.get("relative_humidity_2m"),
+                "wind": round(cur.get("wind_speed_10m", 0)),
+                "wind_dir": _DIRS[round(wdeg / 45) % 8], "wind_deg": round(wdeg),
+                "gusts": round(cur.get("wind_gusts_10m", 0)),
+                "pressure": round(cur.get("surface_pressure", 0)),
+                "cloud": cur.get("cloud_cover"),
+                "uv": uvnow, "precip_prob": prob,
+            },
+            "today": {
+                "sunrise": (daily.get("sunrise", [""])[0] or "")[11:16],
+                "sunset": (daily.get("sunset", [""])[0] or "")[11:16],
+                "uv_max": round((daily.get("uv_index_max", [0]) or [0])[0], 1),
+                "rain_chance": (daily.get("precipitation_probability_max", [0]) or [0])[0],
             },
             "hourly": hourly, "daily": days,
         }

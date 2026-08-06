@@ -396,22 +396,33 @@ body.speaking .bigcore .r2{animation-delay:.15s}body.speaking .bigcore .r3{anima
 .tab.on{background:var(--fg);color:var(--ink)}
 #chatview{flex:1;display:flex;flex-direction:column;min-height:0}
 #taskview,#kbview,#expview,#remview,#memview,#calview,#lnkview,#habview,#jouview,#subview,#orcview,#monview,#actview,#pageview,#musicview,#climaview{flex:1;min-height:0;overflow:auto;padding:24px;display:none}
-.wx-cur{max-width:760px;display:flex;align-items:center;gap:22px;border:1px solid var(--line-2);border-radius:18px;padding:22px 26px;margin-bottom:14px;background:linear-gradient(150deg,rgba(24,44,68,.6),rgba(10,20,32,.5));box-shadow:0 0 40px -22px var(--glow)}
-.wx-cur .ic svg{width:66px;height:66px;color:var(--accent);filter:drop-shadow(0 0 12px var(--glow))}
+#wx-body{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;align-items:start;max-width:1500px}
+.wx-cur{grid-column:1/-1;display:flex;align-items:center;gap:24px;border:1px solid var(--line-2);border-radius:18px;padding:26px 30px;background:linear-gradient(150deg,rgba(24,44,68,.6),rgba(10,20,32,.5));box-shadow:0 0 44px -22px var(--glow)}
+.wx-cur .ic svg{width:80px;height:80px;color:var(--accent);filter:drop-shadow(0 0 14px var(--glow))}
 .wx-loc{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--subtle)}
-.wx-temp{font-family:var(--disp);font-size:60px;line-height:1;color:#eaf4fb;text-shadow:0 0 22px rgba(53,200,255,.3)}
-.wx-desc{color:var(--fg);margin-top:2px}.wx-hl{color:var(--muted);font-family:var(--mono);font-size:12px;margin-top:4px}
-.wx-card{max-width:760px;border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:14px 16px;margin-bottom:14px}
-.wx-ct{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--subtle);margin-bottom:10px}
+.wx-temp{font-family:var(--disp);font-size:72px;line-height:1;color:#eaf4fb;text-shadow:0 0 22px rgba(53,200,255,.3)}
+.wx-desc{color:var(--fg);margin-top:2px;font-size:17px}.wx-hl{color:var(--muted);font-family:var(--mono);font-size:12px;margin-top:5px}
+.wx-card{border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:14px 16px}
+.wx-card.wide{grid-column:1/-1}.wx-card.span2{grid-column:span 2}
+.wx-ct{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--subtle);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.wx-ct svg{width:13px;height:13px}
 .wx-hours{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}.wx-hours::-webkit-scrollbar{display:none}
 .wx-h{flex:none;width:66px;text-align:center;padding:8px 0;border:1px solid var(--line);border-radius:12px;background:var(--elev)}
-.wx-h .t{font-family:var(--mono);font-size:11px;color:var(--muted)}.wx-h svg{width:22px;height:22px;color:var(--accent);margin:6px 0}.wx-h .d{font-size:14px;color:#eaf4fb}
+.wx-h .t{font-family:var(--mono);font-size:11px;color:var(--muted)}.wx-h svg{width:22px;height:22px;color:var(--accent);margin:6px 0}.wx-h .d{font-size:14px;color:#eaf4fb}.wx-h .p{font-size:10px;color:#5ec8ff}
 .wx-d{display:flex;align-items:center;gap:12px;padding:7px 0;border-bottom:1px solid var(--line)}
 .wx-d .dn{width:52px;color:var(--fg)}.wx-d svg{width:20px;height:20px;color:var(--accent);flex:none}
 .wx-d .mn{width:38px;text-align:right;color:var(--muted);font-family:var(--mono);font-size:13px}
 .wx-d .mx{width:38px;color:#eaf4fb;font-family:var(--mono);font-size:13px}
 .wx-track{flex:1;height:6px;background:var(--elev);border-radius:4px;position:relative}
 .wx-track i{position:absolute;height:100%;border-radius:4px;background:linear-gradient(90deg,#4dd0e1,#ffb35e)}
+.wx-m .big{font-family:var(--disp);font-size:32px;color:#eaf4fb;line-height:1.1;margin-top:2px}
+.wx-m .sub{color:var(--muted);font-size:12px;margin-top:6px}
+.wx-m .bar{height:5px;background:var(--elev);border-radius:3px;overflow:hidden;margin-top:8px}
+.wx-m .bar i{display:block;height:100%;background:linear-gradient(90deg,#4dd0e1,var(--accent));box-shadow:0 0 6px var(--glow)}
+.wx-sun{display:flex;justify-content:space-between;margin-top:4px}.wx-sun .v{font-family:var(--disp);font-size:24px;color:#eaf4fb}.wx-sun .l{font-size:11px;color:var(--muted)}
+.wx-compass{width:64px;height:64px;border-radius:50%;border:1px solid var(--line-2);position:relative;margin-top:4px}
+.wx-compass .nd{position:absolute;top:2px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--subtle)}
+.wx-compass .ar{position:absolute;top:50%;left:50%;width:2px;height:26px;background:var(--accent);transform-origin:bottom center;box-shadow:0 0 6px var(--glow)}
 #mu-player{max-width:760px;margin-bottom:16px}
 #mu-player iframe{width:100%;height:352px;border:0;border-radius:14px;box-shadow:0 0 30px -18px var(--glow)}
 #mu-player.compact iframe{height:152px}
@@ -1685,27 +1696,38 @@ async function loadClima(){const body=$('#wx-body');if(!body)return;
   let d;try{d=await (await fetch('/api/weather'+(city?('?city='+encodeURIComponent(city)):''),{headers:H()})).json();}catch(e){body.innerHTML='<div class="tv-empty">não consegui o clima.</div>';return;}
   if(d.error){body.innerHTML='<div class="tv-empty">'+esc(d.error)+'</div>';return;}
   _wxCity=d.location;if(inp&&!inp.value)inp.value=d.location;
-  body.textContent='';
-  // current
-  const cur=el('div','wx-cur');const ic=el('div','ic');ic.appendChild(ficon(d.current.icon));cur.appendChild(ic);
+  body.textContent='';const C=d.current,T=d.today||{};
+  const ct=(ic,title)=>{const t=el('div','wx-ct');t.appendChild(ficon(ic));t.appendChild(document.createTextNode(title));return t;};
+  // current (full width)
+  const cur=el('div','wx-cur');const ic=el('div','ic');ic.appendChild(ficon(C.icon));cur.appendChild(ic);
   const info=el('div','');info.style.flex='1';
-  info.appendChild(el('div','wx-loc',d.location));
-  const tp=el('div','wx-temp',d.current.temp+'°');info.appendChild(tp);
-  info.appendChild(el('div','wx-desc',d.current.desc));
-  info.appendChild(el('div','wx-hl','sensação '+d.current.feels+'°  ·  máx '+d.current.high+'°  mín '+d.current.low+'°'));
+  info.appendChild(el('div','wx-loc',d.location));info.appendChild(el('div','wx-temp',C.temp+'°'));
+  info.appendChild(el('div','wx-desc',C.desc));
+  info.appendChild(el('div','wx-hl','sensação '+C.feels+'°  ·  máx '+C.high+'°  mín '+C.low+'°'));
   cur.appendChild(info);body.appendChild(cur);
-  // hourly
-  if((d.hourly||[]).length){const c=el('div','wx-card');c.appendChild(el('div','wx-ct','Próximas horas'));const strip=el('div','wx-hours');
+  // hourly (full width)
+  if((d.hourly||[]).length){const c=el('div','wx-card wide');c.appendChild(ct('clock','Próximas horas'));const strip=el('div','wx-hours');
     d.hourly.forEach(h=>{const b=el('div','wx-h');b.appendChild(el('div','t',h.time));b.appendChild(ficon(h.icon));b.appendChild(el('div','d',h.temp+'°'));strip.appendChild(b);});
     c.appendChild(strip);body.appendChild(c);}
-  // 10-day
-  if((d.daily||[]).length){const c=el('div','wx-card');c.appendChild(el('div','wx-ct','Previsão de 10 dias'));
+  // 10-day (span 2)
+  if((d.daily||[]).length){const c=el('div','wx-card span2');c.appendChild(ct('calendar-days','Previsão de 10 dias'));
     const gmin=Math.min.apply(null,d.daily.map(x=>x.min)),gmax=Math.max.apply(null,d.daily.map(x=>x.max)),span=Math.max(1,gmax-gmin);
     d.daily.forEach(x=>{const row=el('div','wx-d');row.appendChild(el('span','dn',x.day));row.appendChild(ficon(x.icon));
       row.appendChild(el('span','mn',x.min+'°'));const tr=el('span','wx-track');const i=document.createElement('i');
       i.style.left=((x.min-gmin)/span*100)+'%';i.style.right=((gmax-x.max)/span*100)+'%';tr.appendChild(i);row.appendChild(tr);
       row.appendChild(el('span','mx',x.max+'°'));c.appendChild(row);});
     body.appendChild(c);}
+  // metric cards
+  const uvL=u=>u<3?'baixo':u<6?'moderado':u<8?'alto':u<11?'muito alto':'extremo';
+  const metric=(ic,title,html)=>{const c=el('div','wx-card wx-m');c.appendChild(ct(ic,title));const b=document.createElement('div');b.innerHTML=html;c.appendChild(b);body.appendChild(c);};
+  metric('umbrella','Chance de chuva','<div class="big">'+(C.precip_prob||0)+'%</div><div class="bar"><i style="width:'+(C.precip_prob||0)+'%"></i></div><div class="sub">até '+(T.rain_chance||0)+'% ao longo do dia</div>');
+  metric('wind','Vento','<div class="big">'+C.wind+'<span style="font-size:15px"> km/h</span></div><div class="sub">'+C.wind_dir+' ('+C.wind_deg+'°) · rajadas '+C.gusts+' km/h</div>');
+  metric('droplets','Umidade','<div class="big">'+(C.humidity||0)+'%</div><div class="bar"><i style="width:'+(C.humidity||0)+'%"></i></div>');
+  metric('sun','Índice UV','<div class="big">'+C.uv+'</div><div class="sub">'+uvL(C.uv)+' · máx hoje '+(T.uv_max||0)+'</div>');
+  metric('sunrise','Sol','<div class="wx-sun"><div><div class="l">nascer</div><div class="v">'+(T.sunrise||'--')+'</div></div><div style="text-align:right"><div class="l">pôr</div><div class="v">'+(T.sunset||'--')+'</div></div></div>');
+  metric('thermometer','Sensação','<div class="big">'+C.feels+'°</div><div class="sub">temperatura real '+C.temp+'°</div>');
+  metric('cloud','Nebulosidade','<div class="big">'+(C.cloud||0)+'%</div><div class="bar"><i style="width:'+(C.cloud||0)+'%"></i></div>');
+  metric('gauge','Pressão','<div class="big">'+C.pressure+'<span style="font-size:14px"> hPa</span></div>');
   window.lucide&&lucide.createIcons();}
 (function(){const g=$('#wx-go');if(g)g.onclick=()=>loadClima();const i=$('#wx-city');if(i)i.addEventListener('keydown',e=>{if(e.key==='Enter')loadClima();});})();
 // --- Música (Spotify embed player) ---
