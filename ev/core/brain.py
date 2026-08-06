@@ -796,6 +796,26 @@ class Brain:
             return (f"tocando a playlist '{nome}'." if r.status_code in (200, 202, 204)
                     else "não consegui tocar agora.")
 
+        def tocar_musica(busca: str) -> str:
+            """Busca e toca QUALQUER música no Spotify (por nome de faixa/artista).
+            Use para 'toca Bohemian Rhapsody', 'bota um som do Djavan'.
+
+            Args:
+                busca: o que tocar (faixa e/ou artista).
+            """
+            from ..providers import spotify as _sp
+            tok = _sp.access_token(self._memory, self._config)
+            if not tok:
+                return "o Spotify não está conectado — conecte na aba Música."
+            uri = _sp.first_track_uri(tok, busca)
+            if not uri:
+                return f"não achei '{busca}' no Spotify."
+            r = _sp.api("PUT", "/me/player/play", tok, json={"uris": [uri]})
+            if r.status_code == 404:
+                return "não há dispositivo ativo. Abre o Spotify ou o player da E.V. e tenta de novo."
+            return (f"tocando '{busca}'." if r.status_code in (200, 202, 204)
+                    else "não consegui tocar agora.")
+
         def controlar_musica(acao: str) -> str:
             """Controla o playback do Spotify: pausar, continuar, próxima, anterior.
 
@@ -901,6 +921,7 @@ class Brain:
             "consultar_conector": consultar_conector,
             "criar_pagina": criar_pagina,
             "tocar_playlist": tocar_playlist,
+            "tocar_musica": tocar_musica,
             "controlar_musica": controlar_musica,
             "musica_atual": musica_atual,
             "anotar_pessoa": anotar_pessoa,
@@ -1000,6 +1021,14 @@ class Brain:
                 "conectado + Premium. Use para 'toca minha playlist X', 'bota um som'.",
                 {"nome": {"type": s, "description": "nome/parte da playlist"}},
                 ["nome"],
+            ),
+            fn(
+                "tocar_musica",
+                "Busca e toca QUALQUER música no Spotify por nome (faixa/artista). "
+                "Use para 'toca Bohemian Rhapsody', 'bota um som do X'. Requer "
+                "Spotify conectado + Premium.",
+                {"busca": {"type": s, "description": "faixa e/ou artista"}},
+                ["busca"],
             ),
             fn(
                 "controlar_musica",
