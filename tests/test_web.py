@@ -53,6 +53,18 @@ def _auth():
     return {"Authorization": "Bearer secret"}
 
 
+def test_overview_dashboard(tmp_path):
+    client, _ = _client(tmp_path)
+    client.post("/api/cmd", json={"command": "tarefa comprar pão"}, headers=_auth())
+    client.post("/api/cmd", json={"command": "gasto 30 ifood #comida"}, headers=_auth())
+    assert client.get("/api/overview").status_code == 401  # needs auth
+    o = client.get("/api/overview", headers=_auth()).json()
+    assert o["tasks"]["count"] == 1 and "comprar pão" in o["tasks"]["items"]
+    assert o["expenses"]["total"] == 30.0 and o["expenses"]["top"] == "comida"
+    for k in ("reminders", "habits", "goals", "health", "counts"):
+        assert k in o
+
+
 def test_brain_edit_and_delete(tmp_path):
     client, _ = _client(tmp_path)
     # create a task, then edit + delete it straight from the brain
