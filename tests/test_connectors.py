@@ -36,3 +36,16 @@ def test_connector_crud(tmp_path):
     assert m.get_connector("u", "dólar")["path"] == "rates.BRL"
     assert m.delete_connector("u", cid) is True
     assert m.list_connectors("u") == []
+
+
+def test_pages_crud(tmp_path):
+    m = Memory(tmp_path / "p.db")
+    pid = m.add_page("u", "Faculdade", [
+        {"type": "tasks", "category": "faculdade"}, {"type": "chart"}])
+    pages = m.list_pages("u")
+    assert len(pages) == 1 and pages[0]["name"] == "Faculdade"
+    assert pages[0]["widgets"][0]["type"] == "tasks"
+    assert m.update_page("u", pid, name="Fac 2") is True
+    assert m.list_pages("u")[0]["name"] == "Fac 2"
+    assert m.delete_page("u", pid) is True
+    assert m.list_pages("u") == []

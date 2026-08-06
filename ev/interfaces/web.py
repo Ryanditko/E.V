@@ -395,7 +395,16 @@ body.speaking .bigcore .r2{animation-delay:.15s}body.speaking .bigcore .r3{anima
 .tab-edit{opacity:.5;font-size:14px;padding:6px 11px}.tab-edit:hover{opacity:1;color:var(--fg)}
 .tab.on{background:var(--fg);color:var(--ink)}
 #chatview{flex:1;display:flex;flex-direction:column;min-height:0}
-#taskview,#kbview,#expview,#remview,#memview,#calview,#lnkview,#habview,#jouview,#subview,#orcview,#monview,#actview{flex:1;min-height:0;overflow:auto;padding:24px;display:none}
+#taskview,#kbview,#expview,#remview,#memview,#calview,#lnkview,#habview,#jouview,#subview,#orcview,#monview,#actview,#pageview{flex:1;min-height:0;overflow:auto;padding:24px;display:none}
+.pg-card{max-width:760px;border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:16px 18px;margin-bottom:14px}
+.pg-wt{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--subtle);margin-bottom:9px}
+.pg-li{padding:5px 0;line-height:1.4;border-bottom:1px solid var(--line)}
+.pg-big{font-family:var(--disp);font-size:30px;color:#eaf4fb;text-shadow:0 0 18px rgba(53,200,255,.3)}
+.pg-bar{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.pg-bar .l{width:120px;font-family:var(--mono);font-size:11px;color:var(--muted);text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:none}
+.pg-bar .t{flex:1;height:9px;background:var(--elev);border-radius:5px;overflow:hidden}
+.pg-bar .t i{display:block;height:100%;background:var(--accent);box-shadow:0 0 8px var(--glow)}
+.pg-bar .v{width:74px;font-family:var(--mono);font-size:11px;flex:none}
 .cal-head{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:18px}
 .cal-send{display:flex;gap:8px;justify-content:center;margin:-6px 0 16px;flex-wrap:wrap}
 .cal-send .mbtn2{display:inline-flex;align-items:center;gap:7px}
@@ -813,12 +822,15 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
       <div class="chart-card"><div class="chart-t">Gastos ao longo do período</div><canvas id="ch-day"></canvas></div>
       <div class="chart-card"><div class="chart-t">Hábitos (dias marcados no período)</div><canvas id="ch-hab"></canvas></div>
     </div>
+    <div id="pageview"></div>
   </main>
   <aside id="right" class="rail">
     <div class="eyebrow">Sistema <span class="mini" id="edit-stats">editar</span></div>
     <div id="stats"></div>
     <div class="eyebrow">Ações rápidas <span class="mini" id="edit-acts">editar</span></div>
     <div class="grid2" id="acts"></div>
+    <div class="eyebrow">Páginas <span class="mini" id="new-page">+ nova</span></div>
+    <div id="pages-nav"></div>
     <div class="eyebrow">Provedor de IA</div>
     <select id="prov"><option>auto</option><option>gemini</option><option>groq</option><option>openrouter</option><option>ollama</option></select>
     <button class="act" id="btn-voice" style="margin-top:12px;width:100%"><i data-lucide="mic-vocal"></i>Voz da E.V.</button>
@@ -1305,6 +1317,56 @@ function openForm(title,fields,onSave,onDelete){const m=$('#modal');m.textConten
   bar.appendChild(c);bar.appendChild(s);card.appendChild(bar);m.appendChild(card);m.classList.add('on');
   setTimeout(()=>{const f=inp[fields[0].key];f.focus();if(f.select)f.select();},60);}
 $('#edit-acts').onclick=()=>openPicker('Ações rápidas','Escolha os atalhos do painel.',Object.keys(CAT).map(k=>({key:k,label:CAT[k][0]})),config.actions,async l=>{config.actions=l;await saveConfig();renderActs();});
+// --- custom pages (declarative dashboards) ---
+let _pages=[];
+async function loadPages(){try{_pages=(await (await fetch('/api/pages',{headers:H()})).json()).items||[];}catch(e){_pages=[];}renderPagesNav();}
+function renderPagesNav(){const box=$('#pages-nav');if(!box)return;box.textContent='';
+  if(!_pages.length){const h=el('div','tv-empty');h.style.cssText='font-size:11px;padding:2px 2px 6px';h.textContent='nenhuma ainda';box.appendChild(h);return;}
+  _pages.forEach(p=>{const b=el('button','act');b.style.cssText='width:100%;margin-bottom:6px;justify-content:space-between';
+    const l=el('span','');l.appendChild(ficon('layout-dashboard'));l.appendChild(document.createTextNode(' '+p.name));l.style.cssText='display:flex;align-items:center;gap:8px';
+    const ed=document.createElement('span');ed.textContent='✎';ed.style.cssText='opacity:.5;cursor:pointer';ed.onclick=e=>{e.stopPropagation();openPageBuilder(p);};
+    b.appendChild(l);b.appendChild(ed);b.onclick=e=>{ripple(b,e);switchView('page:'+p.id);};box.appendChild(b);});}
+async function renderPage(id){const pv=$('#pageview');if(!pv)return;pv.textContent='';
+  const p=_pages.find(x=>String(x.id)===String(id));if(!p){pv.appendChild(el('div','tv-empty','Página não encontrada.'));return;}
+  const h=el('div','tv-h');h.textContent=p.name;pv.appendChild(h);
+  for(const w of (p.widgets||[])){const card=el('div','pg-card');pv.appendChild(card);try{await renderWidget(card,w);}catch(e){}}
+}
+async function renderWidget(card,w){
+  if(w.type==='note'){card.appendChild(el('div','pg-wt','Nota'));const b=el('div','');renderReply(b,w.text||'');card.appendChild(b);}
+  else if(w.type==='tasks'){card.appendChild(el('div','pg-wt','Tarefas'+(w.category?(' · '+w.category):'')));
+    const ts=(await (await fetch('/api/tasks',{headers:H()})).json()).tasks||[];
+    const f=ts.filter(t=>!w.category||(t.category||'').toLowerCase()===String(w.category).toLowerCase());
+    if(!f.length)card.appendChild(el('div','tv-empty','Sem tarefas.'));else f.forEach(t=>{const r=el('div','pg-li');r.textContent=t.text;card.appendChild(r);});}
+  else if(w.type==='connector'){card.appendChild(el('div','pg-wt',w.name||'Conector'));const v=el('div','pg-big','…');card.appendChild(v);
+    try{const r=await (await fetch('/api/connectors/run',{method:'POST',headers:H(),body:JSON.stringify({name:w.name})})).json();v.textContent=r.ok?r.value:('erro: '+r.error);}catch(e){v.textContent='erro';}}
+  else if(w.type==='command'){const b=el('button','act');b.appendChild(ficon(w.icon||'zap'));b.appendChild(document.createTextNode(' '+(w.label||w.cmd)));b.onclick=e=>{ripple(b,e);runCmd(w.cmd);};card.appendChild(b);}
+  else if(w.type==='chart'){card.appendChild(el('div','pg-wt','Gastos por categoria'));
+    try{const d=await (await fetch('/api/charts',{headers:H()})).json();const cs=(d.exp_cat||[]).slice(0,8);const mx=Math.max(1,...cs.map(c=>c.value));
+      if(!cs.length)card.appendChild(el('div','tv-empty','Sem gastos no período.'));
+      cs.forEach(c=>{const row=el('div','pg-bar');const l=el('span','l');l.textContent=c.label;const t=el('span','t');const i=document.createElement('i');i.style.width=Math.round(c.value/mx*100)+'%';t.appendChild(i);const v=el('span','v','R$ '+c.value);row.appendChild(l);row.appendChild(t);row.appendChild(v);card.appendChild(row);});}catch(e){}}
+}
+function openPageBuilder(page){const m=$('#modal');m.textContent='';const card=el('div','mcard');
+  card.appendChild(el('div','mtitle',page?'Editar página':'Nova página'));
+  const nm=document.createElement('input');nm.className='minput';nm.placeholder='nome da página (ex: Faculdade)';nm.style.marginBottom='10px';if(page)nm.value=page.name;card.appendChild(nm);
+  let widgets=page?JSON.parse(JSON.stringify(page.widgets||[])):[];
+  const list=el('div','vlist');
+  const draw=()=>{list.textContent='';if(!widgets.length)list.appendChild(el('div','tv-empty','Sem widgets. Adicione abaixo.'));
+    widgets.forEach((w,i)=>{const row=el('div','vrow');row.appendChild(el('span','vname',w.type+(w.category?(' · '+w.category):w.name?(' · '+w.name):w.cmd?(' · '+w.cmd):w.text?' · nota':'')));
+      const del=el('button','vplay');del.appendChild(ficon('trash-2'));del.onclick=()=>{widgets.splice(i,1);draw();};row.appendChild(del);list.appendChild(row);});};
+  draw();card.appendChild(el('div','tv-cat','Widgets'));card.appendChild(list);
+  const sel=document.createElement('select');sel.className='minput';['note','tasks','connector','command','chart'].forEach(t=>{const o=document.createElement('option');o.value=t;o.textContent={note:'Nota',tasks:'Tarefas',connector:'Conector',command:'Botão de comando',chart:'Gráfico de gastos'}[t];sel.appendChild(o);});sel.style.margin='8px 0 6px';card.appendChild(sel);
+  const arg=document.createElement('input');arg.className='minput';arg.placeholder='detalhe (categoria / nome do conector / comando / texto)';card.appendChild(arg);
+  const add=el('button','mbtn2','+ adicionar widget');add.style.marginTop='6px';add.onclick=()=>{const t=sel.value,a=(arg.value||'').trim();const w={type:t};
+    if(t==='tasks')w.category=a;else if(t==='connector')w.name=a;else if(t==='command'){w.cmd=a;w.label=a;}else if(t==='note')w.text=a;
+    widgets.push(w);arg.value='';draw();};card.appendChild(add);
+  const bar=el('div','mbar');const cl=el('button','mbtn2','Cancelar');cl.onclick=()=>m.classList.remove('on');
+  if(page){const dl=el('button','mbtn2','Apagar');dl.onclick=async()=>{await fetch('/api/pages/delete',{method:'POST',headers:H(),body:JSON.stringify({id:page.id})});m.classList.remove('on');await loadPages();if(curView==='page:'+page.id)switchView('chat');};bar.appendChild(dl);}
+  const sv=el('button','mbtn','Salvar');sv.onclick=async()=>{if(!nm.value.trim()){toast('dê um nome');return;}
+    const body={name:nm.value.trim(),widgets};if(page)body.id=page.id;
+    const j=await (await fetch('/api/pages',{method:'POST',headers:H(),body:JSON.stringify(body)})).json();
+    m.classList.remove('on');sfx('confirm');await loadPages();switchView('page:'+(page?page.id:j.id));};
+  bar.appendChild(cl);bar.appendChild(sv);card.appendChild(bar);m.appendChild(card);m.classList.add('on');window.lucide&&lucide.createIcons();}
+$('#new-page')&&($('#new-page').onclick=()=>openPageBuilder(null));
 $('#edit-stats').onclick=()=>openPicker('Sistema','Escolha os indicadores exibidos.',Object.keys(SM).map(k=>({key:k,label:SM[k][0]})),config.stats,async l=>{config.stats=l;await saveConfig();renderStats();});
 const PT=$('#pomo-time'),PL=$('#pomo-label'),PG=$('#pomo-toggle'),PBOX=$('#pomo-timebox'),PW=$('#pomo');
 let pomo={rem:1500,total:1500,brk:300,phase:'focus',run:false,timer:null};
@@ -1553,10 +1615,13 @@ function renderTabs(){const box=$('#tabs');if(!box)return;box.textContent='';
 renderTabs();
 $('#mnav').onchange=()=>switchView($('#mnav').value);
 const VIEWS={chat:'#chatview',tasks:'#taskview',exp:'#expview',rem:'#remview',cal:'#calview',mem:'#memview',lnk:'#lnkview',hab:'#habview',jou:'#jouview',sub:'#subview',orc:'#orcview',mon:'#monview',kb:'#kbview',act:'#actview',map:'#mapview',brain:'#brainview',graf:'#chartsview'};
-function switchView(v){if(!VIEWS[v])v='chat';curView=v;document.querySelectorAll('#tabs .tab').forEach(t=>t.classList.toggle('on',t.dataset.view===v));
-  const mn=$('#mnav');if(mn&&mn.value!==v)mn.value=v;
+function switchView(v){const isPage=(''+v).indexOf('page:')===0;
+  if(!isPage&&!VIEWS[v])v='chat';curView=v;document.querySelectorAll('#tabs .tab').forEach(t=>t.classList.toggle('on',t.dataset.view===v));
+  const mn=$('#mnav');if(mn&&!isPage&&mn.value!==v)mn.value=v;
   document.body.classList.remove('m-left','m-right');
   Object.entries(VIEWS).forEach(([k,sel])=>{const el2=$(sel);if(el2)el2.style.display=(k===v)?((k==='chat'||k==='brain')?'flex':'block'):'none';});
+  const pv=$('#pageview');if(pv)pv.style.display=isPage?'block':'none';
+  if(isPage){renderPage(v.slice(5));return;}
   ({tasks:loadTasks,exp:loadExp,rem:loadRem,mem:loadMem,kb:loadKB,cal:loadCal,lnk:loadLinks,hab:loadHabits,jou:loadJournal,sub:loadSub,orc:loadOrc,mon:loadMon,act:loadAct,map:loadMap,brain:loadBrain,graf:loadCharts}[v]||function(){})();}
 // --- Mapa + localização (Leaflet + OSM; lugares e pontos dentro da própria E.V.) ---
 let _map=null,_marker=null,_loc=null,_nearLayer=null,_savedLayer=null,_addMode=false,_pendingNear=null;
@@ -2234,7 +2299,7 @@ async function pollTick(){try{
   const now=Date.now();
   items.forEach(r=>{if(!r.when_iso)return;const due=new Date(r.when_iso).getTime();const key=r.id+'@'+r.when_iso;
     if(due<=now&&(now-due)<3600000&&!_notified.has(key)){_notified.add(key);_saveNotified();notify('⏰ Lembrete',r.text);}});
-  loadPanel();speakNewNotifs();
+  loadPanel();speakNewNotifs();loadPages();
   // live sync: refresh the current data view, unless a modal is open or the user is typing
   const modalOpen=$('#modal').classList.contains('on');
   const typing=['INPUT','TEXTAREA','SELECT'].includes((document.activeElement||{}).tagName);
@@ -2435,7 +2500,7 @@ function toastUndo(msg,onUndo){let t=document.getElementById('_toast');if(!t){t=
 async function delU(delUrl,delBody,recUrl,recBody,reload,label){await fetch(delUrl,{method:'POST',headers:H(),body:JSON.stringify(delBody)});reload();loadPanel();
   toastUndo((label||'Item')+' apagado',async()=>{await fetch(recUrl,{method:'POST',headers:H(),body:JSON.stringify(recBody)});reload();loadPanel();});}
 async function startApp(){try{COMMANDS=(await (await fetch('/api/commands',{headers:H()})).json()).commands;}catch(e){}
-  scopeEl.textContent='Conversa · '+thread;await loadFolders();await loadHistory();await loadConfig();loadPanel();
+  scopeEl.textContent='Conversa · '+thread;await loadFolders();await loadHistory();await loadConfig();loadPanel();loadPages();
   initPWA();startPoll();startEvents();window.lucide&&lucide.createIcons();}
 function enter(){$('#login').classList.remove('on');startApp();welcome();}
 async function doLogin(){const inp=$('#login-token');const tok=((inp&&inp.value.trim())||token);if(!tok){$('#login-err').textContent='Informe o token.';if(inp)inp.style.display='block';return;}
@@ -3390,6 +3455,42 @@ def create_app(config: Config, brain: Brain | None = None):
         if isinstance(val, (dict, list)):
             val = json.dumps(val, ensure_ascii=False)[:800]
         return {"ok": True, "value": str(val)[:800]}
+
+    # --- custom pages (declarative dashboards, no code) --------------------
+    _WIDGET_TYPES = {"note", "tasks", "connector", "command", "chart"}
+
+    def _clean_widgets(raw):
+        out = []
+        for w in (raw or [])[:20]:
+            if not isinstance(w, dict) or w.get("type") not in _WIDGET_TYPES:
+                continue
+            out.append({k: v for k, v in w.items()
+                        if k in ("type", "text", "category", "name", "cmd", "label", "icon")})
+        return out
+
+    @app.get("/api/pages")
+    async def pages_list(request: Request):
+        _check(request.headers.get("authorization"))
+        return {"items": memory.list_pages(owner)}
+
+    @app.post("/api/pages")
+    async def pages_save(request: Request):
+        _check(request.headers.get("authorization"))
+        d = await _body(request)
+        name = (d.get("name") or "").strip()
+        if not name:
+            raise HTTPException(status_code=400, detail="nome obrigatório")
+        widgets = _clean_widgets(d.get("widgets"))
+        if d.get("id"):
+            memory.update_page(owner, int(d["id"]), name=name, widgets=widgets)
+            return {"ok": True, "id": int(d["id"])}
+        return {"ok": True, "id": memory.add_page(owner, name[:60], widgets)}
+
+    @app.post("/api/pages/delete")
+    async def pages_del(request: Request):
+        _check(request.headers.get("authorization"))
+        memory.delete_page(owner, int((await _body(request)).get("id") or 0))
+        return {"ok": True}
 
     # --- Links / Habits / Journal CRUD -------------------------------------
     @app.get("/api/links")

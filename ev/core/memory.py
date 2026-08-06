@@ -294,6 +294,14 @@ class Memory:
                 path     TEXT NOT NULL DEFAULT '',
                 created  TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS pages (
+                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id  TEXT NOT NULL,
+                name     TEXT NOT NULL,
+                widgets  TEXT NOT NULL DEFAULT '[]',
+                created  TEXT NOT NULL
+            );
             """
         )
         # Migrations for older DBs.
@@ -501,6 +509,49 @@ class Memory:
     def delete_connector(self, user_id: str, conn_id: int) -> bool:
         cur = self._conn.execute(
             "DELETE FROM connectors WHERE id = ? AND user_id = ?", (conn_id, user_id))
+        self._conn.commit()
+        return cur.rowcount > 0
+
+    # --- custom pages (declarative dashboards) -----------------------------
+
+    def add_page(self, user_id: str, name: str, widgets: list) -> int:
+        cur = self._conn.execute(
+            "INSERT INTO pages (user_id, name, widgets, created) VALUES (?, ?, ?, ?)",
+            (user_id, name, json.dumps(widgets or []), self._now()))
+        self._conn.commit()
+        return int(cur.lastrowid)
+
+    def list_pages(self, user_id: str) -> list[dict]:
+        rows = self._conn.execute(
+            "SELECT id, name, widgets, created FROM pages WHERE user_id = ? ORDER BY id",
+            (user_id,)).fetchall()
+        out = []
+        for r in rows:
+            d = dict(r)
+            try:
+                d["widgets"] = json.loads(d.get("widgets") or "[]")
+            except (ValueError, TypeError):
+                d["widgets"] = []
+            out.append(d)
+        return out
+
+    def update_page(self, user_id: str, page_id: int, name=None, widgets=None) -> bool:
+        sets, params = [], []
+        if name is not None:
+            sets.append("name = ?"); params.append(name)
+        if widgets is not None:
+            sets.append("widgets = ?"); params.append(json.dumps(widgets))
+        if not sets:
+            return False
+        params += [page_id, user_id]
+        cur = self._conn.execute(
+            f"UPDATE pages SET {', '.join(sets)} WHERE id = ? AND user_id = ?", params)
+        self._conn.commit()
+        return cur.rowcount > 0
+
+    def delete_page(self, user_id: str, page_id: int) -> bool:
+        cur = self._conn.execute(
+            "DELETE FROM pages WHERE id = ? AND user_id = ?", (page_id, user_id))
         self._conn.commit()
         return cur.rowcount > 0
 
