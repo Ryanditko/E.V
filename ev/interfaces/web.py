@@ -402,6 +402,16 @@ body.speaking .bigcore .r2{animation-delay:.15s}body.speaking .bigcore .r3{anima
 .mu-row{display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;background:var(--surface);max-width:760px;cursor:pointer;transition:border-color .15s}
 .mu-row:hover{border-color:var(--line-2)}.mu-row.on{border-color:var(--accent);box-shadow:0 0 16px -8px var(--glow)}
 .mu-row .n{flex:1}.mu-row .k{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--subtle)}
+.sp-np{display:flex;gap:14px;align-items:center;border:1px solid var(--line-2);border-radius:16px;padding:14px;background:linear-gradient(180deg,rgba(18,34,52,.5),rgba(10,20,32,.4))}
+.sp-np img{width:92px;height:92px;border-radius:10px;object-fit:cover;flex:none;display:none;box-shadow:0 0 20px -8px var(--glow)}
+.sp-info{flex:1;min-width:0}
+.sp-tt{font-family:var(--disp);font-size:18px;color:#eaf4fb;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sp-ar{color:var(--muted);font-size:13px;margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sp-prog{height:4px;background:var(--surface);border-radius:3px;overflow:hidden;margin-bottom:10px}
+.sp-prog i{display:block;height:100%;background:var(--accent);box-shadow:0 0 8px var(--glow);width:0;transition:width .6s linear}
+.sp-ctl{display:flex;gap:8px;align-items:center}
+.sp-ctl .vcbtn{width:40px;height:40px}
+.sp-ctl #sp-like.on{color:#ff6ec7;border-color:#ff6ec7;box-shadow:0 0 12px -4px #ff6ec7}
 .pg-card{max-width:760px;border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:16px 18px;margin-bottom:14px}
 .pg-wt{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--subtle);margin-bottom:9px}
 .pg-li{padding:5px 0;line-height:1.4;border-bottom:1px solid var(--line)}
@@ -1662,13 +1672,25 @@ async function loadSpotify(){const box=$('#sp-section');if(!box)return;box.textC
   if(!st.configured){const h=el('div','tv-empty');h.innerHTML='Pra puxar suas playlists e controlar por voz (Premium): cole o <b>Spotify Client ID/Secret</b> em <b>Chaves de API</b> e registre a Redirect URI <code>'+esc(st.redirect_uri)+'</code> no painel do Spotify.';box.appendChild(h);return;}
   if(!st.connected){const b=el('button','mbtn');b.textContent='Conectar meu Spotify';b.onclick=()=>{window.open('/spotify/connect','_blank');};box.appendChild(b);
     const h=el('div','tv-empty');h.style.marginTop='8px';h.innerHTML='Registre esta Redirect URI no seu app do Spotify: <code>'+esc(st.redirect_uri)+'</code>';box.appendChild(h);return;}
-  // connected → controls + playlists + SDK device
-  const bar=el('div','');bar.style.cssText='display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap';
-  const mkc=(ic,fn)=>{const b=el('button','vcbtn');b.style.cssText='width:44px;height:44px';b.appendChild(ficon(ic));b.onclick=fn;return b;};
-  bar.appendChild(mkc('skip-back',()=>spCtl('prev')));bar.appendChild(mkc('play',()=>spCtl('resume')));bar.appendChild(mkc('pause',()=>spCtl('pause')));bar.appendChild(mkc('skip-forward',()=>spCtl('next')));
-  const now=el('span','eyebrow');now.id='sp-now';now.style.margin='0 0 0 6px';bar.appendChild(now);
-  const dc=el('button','mchip');dc.style.marginLeft='auto';dc.textContent='desconectar';dc.onclick=async()=>{await fetch('/api/spotify/disconnect',{method:'POST',headers:H()});loadSpotify();};bar.appendChild(dc);
-  box.appendChild(bar);
+  // connected → now-playing card + device/volume + search + playlists + SDK
+  box.insertAdjacentHTML('beforeend',
+    '<div id="sp-np" class="sp-np"><img id="sp-art" alt=""><div class="sp-info">'
+    +'<div class="sp-tt" id="sp-tt">—</div><div class="sp-ar" id="sp-ar"></div>'
+    +'<div class="sp-prog"><i id="sp-prog"></i></div>'
+    +'<div class="sp-ctl"><button class="vcbtn" id="sp-prev"></button><button class="vcbtn" id="sp-toggle"></button>'
+    +'<button class="vcbtn" id="sp-next"></button><button class="vcbtn" id="sp-like"></button></div></div></div>');
+  $('#sp-prev').appendChild(ficon('skip-back'));$('#sp-next').appendChild(ficon('skip-forward'));
+  $('#sp-toggle').appendChild(ficon('play'));$('#sp-like').appendChild(ficon('heart'));
+  $('#sp-prev').onclick=()=>spCtl('prev');$('#sp-next').onclick=()=>spCtl('next');
+  $('#sp-toggle').onclick=()=>spCtl(_spPlaying?'pause':'resume');
+  $('#sp-like').onclick=()=>spLike();
+  const row=el('div','');row.style.cssText='display:flex;gap:8px;align-items:center;margin:10px 0;flex-wrap:wrap';
+  const dev=document.createElement('select');dev.id='sp-dev';dev.className='tv-search';dev.style.maxWidth='190px';row.appendChild(dev);
+  dev.onchange=()=>{};
+  const vol=document.createElement('input');vol.type='range';vol.id='sp-vol';vol.min=0;vol.max=100;vol.value=60;vol.style.cssText='flex:1;min-width:120px;accent-color:var(--accent)';
+  vol.onchange=()=>{fetch('/api/spotify/volume',{method:'POST',headers:H(),body:JSON.stringify({percent:parseInt(vol.value)})});};row.appendChild(vol);
+  const dc=el('button','mchip');dc.textContent='desconectar';dc.onclick=async()=>{await fetch('/api/spotify/disconnect',{method:'POST',headers:H()});loadSpotify();};row.appendChild(dc);
+  box.appendChild(row);loadSpDevices();
   // search & play anything
   const sf=el('div','');sf.style.cssText='display:flex;gap:8px;margin-bottom:10px';
   const si=document.createElement('input');si.className='tv-search';si.placeholder='buscar e tocar (ex: Bohemian Rhapsody)';si.style.flex='1';
@@ -1676,7 +1698,9 @@ async function loadSpotify(){const box=$('#sp-section');if(!box)return;box.textC
   const doSearch=async()=>{const q=(si.value||'').trim();if(!q)return;const res=$('#sp-results');res.textContent='…';
     try{const items=(await (await fetch('/api/spotify/search?q='+encodeURIComponent(q),{headers:H()})).json()).items||[];res.textContent='';
       if(!items.length){res.appendChild(el('div','tv-empty','Nada encontrado.'));return;}
-      items.forEach(t=>{const row=el('div','mu-row');row.appendChild(el('span','n',t.name+' — '+t.artists));row.onclick=()=>{spPlay(t.uri);};res.appendChild(row);});}catch(e){res.textContent='';}};
+      items.forEach(t=>{const row=el('div','mu-row');row.appendChild(el('span','n',t.name+' — '+t.artists));
+        const q=el('button','tv-ic');q.appendChild(ficon('list-plus'));q.title='adicionar à fila';q.onclick=e=>{e.stopPropagation();fetch('/api/spotify/queue',{method:'POST',headers:H(),body:JSON.stringify({uri:t.uri})}).then(()=>{sfx('click');toast('na fila');});};
+        row.appendChild(q);row.onclick=()=>{spPlay(t.uri);};res.appendChild(row);});}catch(e){res.textContent='';}};
   sb.onclick=doSearch;si.addEventListener('keydown',e=>{if(e.key==='Enter')doSearch();});
   sf.appendChild(si);sf.appendChild(sb);box.appendChild(sf);
   const sres=el('div','vlist');sres.id='sp-results';sres.style.maxHeight='26vh';box.appendChild(sres);
@@ -1685,10 +1709,26 @@ async function loadSpotify(){const box=$('#sp-section');if(!box)return;box.textC
     if(!pls.length)pl.appendChild(el('div','tv-empty','Nenhuma playlist encontrada.'));
     pls.forEach(p=>{const row=el('div','mu-row');const n=el('span','n',p.name);const k=el('span','k',p.tracks+' faixas');
       row.appendChild(n);row.appendChild(k);row.onclick=()=>spPlay(p.uri);pl.appendChild(row);});}catch(e){}
-  spInitSDK();spNow();}
+  spInitSDK();spNow();startSpPoll();}
 async function spCtl(action){try{await fetch('/api/spotify/control',{method:'POST',headers:H(),body:JSON.stringify({action})});}catch(e){}sfx('click');setTimeout(spNow,600);}
-async function spPlay(uri){try{const r=await (await fetch('/api/spotify/play',{method:'POST',headers:H(),body:JSON.stringify({uri,device_id:_spDevice})})).json();if(!r.ok)toast(r.error||'não consegui tocar');else{sfx('confirm');setTimeout(spNow,700);}}catch(e){}}
-async function spNow(){const n=$('#sp-now');if(!n)return;try{const j=await (await fetch('/api/spotify/current',{headers:H()})).json();n.textContent=j.track?('♪ '+j.track):'';}catch(e){}}
+async function spPlay(uri){const sel=$('#sp-dev');const dev=(sel&&sel.value)||_spDevice;
+  try{const r=await (await fetch('/api/spotify/play',{method:'POST',headers:H(),body:JSON.stringify({uri,device_id:dev})})).json();if(!r.ok)toast(r.error||'não consegui tocar');else{sfx('confirm');setTimeout(spNow,700);}}catch(e){}}
+let _spPlaying=false,_spTrackId=null,_spPoll=null;
+async function spNow(){if(!$('#sp-np'))return;try{const j=await (await fetch('/api/spotify/nowplaying',{headers:H()})).json();
+  if(!$('#sp-np'))return;_spPlaying=!!j.playing;_spTrackId=j.id||null;
+  $('#sp-tt').textContent=j.name||'—';$('#sp-ar').textContent=j.artists||'';
+  const art=$('#sp-art');if(j.image){art.src=j.image;art.style.display='block';}else art.style.display='none';
+  const p=$('#sp-prog');if(p)p.style.width=(j.duration?Math.min(100,j.progress/j.duration*100):0)+'%';
+  const tg=$('#sp-toggle');if(tg){tg.innerHTML='';tg.appendChild(ficon(_spPlaying?'pause':'play'));}
+  const lk=$('#sp-like');if(lk)lk.classList.toggle('on',!!j.liked);
+  const vol=$('#sp-vol');if(vol&&document.activeElement!==vol&&j.volume!=null)vol.value=j.volume;
+  window.lucide&&lucide.createIcons();}catch(e){}}
+function spLike(){if(!_spTrackId)return;const lk=$('#sp-like');const on=!lk.classList.contains('on');
+  fetch('/api/spotify/like',{method:'POST',headers:H(),body:JSON.stringify({id:_spTrackId,on})}).then(()=>{lk.classList.toggle('on',on);sfx('click');});}
+async function loadSpDevices(){try{const ds=(await (await fetch('/api/spotify/devices',{headers:H()})).json()).items||[];const sel=$('#sp-dev');if(!sel)return;sel.innerHTML='';
+  const o0=document.createElement('option');o0.value='';o0.textContent='dispositivo ativo';sel.appendChild(o0);
+  ds.forEach(x=>{const o=document.createElement('option');o.value=x.id;o.textContent=x.name+(x.active?' ✓':'');if(x.active)o.selected=true;sel.appendChild(o);});}catch(e){}}
+function startSpPoll(){if(_spPoll)return;_spPoll=setInterval(()=>{if(curView==='musica'&&$('#sp-np'))spNow();else{clearInterval(_spPoll);_spPoll=null;}},3000);}
 function spInitSDK(){if(_spPlayer||_spSdkLoading||!window.isSecureContext)return;_spSdkLoading=true;
   window.onSpotifyWebPlaybackSDKReady=()=>{try{
     _spPlayer=new Spotify.Player({name:'E.V.',getOAuthToken:cb=>{fetch('/api/spotify/token',{headers:H()}).then(r=>r.json()).then(j=>{if(j.token)cb(j.token);});},volume:0.8});
@@ -3770,6 +3810,86 @@ def create_app(config: Config, brain: Brain | None = None):
         if not tok:
             return {"track": ""}
         return {"track": await asyncio.to_thread(_sp.current_track, tok)}
+
+    @app.get("/api/spotify/nowplaying")
+    async def spotify_nowplaying(request: Request):
+        _check(request.headers.get("authorization"))
+        tok = await asyncio.to_thread(_sp_access)
+        if not tok:
+            return {"playing": False, "connected": False}
+        def _work():
+            r = _sp_api("GET", "/me/player", tok)
+            if r.status_code != 200:
+                return {"playing": False, "connected": True}
+            d = r.json() or {}
+            it = d.get("item") or {}
+            imgs = (it.get("album") or {}).get("images") or []
+            tid = it.get("id")
+            liked = False
+            if tid:
+                try:
+                    lr = _sp_api("GET", "/me/tracks/contains?ids=" + tid, tok)
+                    liked = bool((lr.json() or [False])[0]) if lr.status_code == 200 else False
+                except Exception:
+                    pass
+            dev = d.get("device") or {}
+            return {"connected": True, "playing": bool(d.get("is_playing")),
+                    "name": it.get("name"), "id": tid, "liked": liked,
+                    "artists": ", ".join(a.get("name", "") for a in (it.get("artists") or [])),
+                    "image": (imgs[0].get("url") if imgs else ""),
+                    "progress": d.get("progress_ms", 0), "duration": it.get("duration_ms", 0),
+                    "device": dev.get("name", ""), "volume": dev.get("volume_percent", 50)}
+        return await asyncio.to_thread(_work)
+
+    @app.post("/api/spotify/like")
+    async def spotify_like(request: Request):
+        _check(request.headers.get("authorization"))
+        tok = await asyncio.to_thread(_sp_access)
+        if not tok:
+            raise HTTPException(status_code=400, detail="não conectado")
+        d = await _body(request)
+        tid = d.get("id")
+        if not tid:
+            raise HTTPException(status_code=400, detail="sem id")
+        method = "PUT" if d.get("on") else "DELETE"
+        sc = await asyncio.to_thread(lambda: _sp_api(method, "/me/tracks?ids=" + tid, tok).status_code)
+        return {"ok": sc in (200, 201, 202, 204)}
+
+    @app.get("/api/spotify/devices")
+    async def spotify_devices(request: Request):
+        _check(request.headers.get("authorization"))
+        tok = await asyncio.to_thread(_sp_access)
+        if not tok:
+            return {"items": []}
+        def _work():
+            r = _sp_api("GET", "/me/player/devices", tok)
+            return (r.json().get("devices") or []) if r.status_code == 200 else []
+        ds = await asyncio.to_thread(_work)
+        return {"items": [{"id": x.get("id"), "name": x.get("name"),
+                           "active": x.get("is_active")} for x in ds]}
+
+    @app.post("/api/spotify/volume")
+    async def spotify_volume(request: Request):
+        _check(request.headers.get("authorization"))
+        tok = await asyncio.to_thread(_sp_access)
+        if not tok:
+            raise HTTPException(status_code=400, detail="não conectado")
+        pct = max(0, min(100, int((await _body(request)).get("percent") or 0)))
+        sc = await asyncio.to_thread(lambda: _sp_api("PUT", f"/me/player/volume?volume_percent={pct}", tok).status_code)
+        return {"ok": sc in (200, 202, 204)}
+
+    @app.post("/api/spotify/queue")
+    async def spotify_queue(request: Request):
+        _check(request.headers.get("authorization"))
+        tok = await asyncio.to_thread(_sp_access)
+        if not tok:
+            raise HTTPException(status_code=400, detail="não conectado")
+        uri = (await _body(request)).get("uri")
+        if not uri:
+            raise HTTPException(status_code=400, detail="sem uri")
+        import urllib.parse as _up
+        sc = await asyncio.to_thread(lambda: _sp_api("POST", "/me/player/queue?uri=" + _up.quote(uri), tok).status_code)
+        return {"ok": sc in (200, 202, 204)}
 
     @app.post("/api/spotify/control")
     async def spotify_control(request: Request):
