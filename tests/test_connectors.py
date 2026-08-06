@@ -49,3 +49,29 @@ def test_pages_crud(tmp_path):
     assert m.list_pages("u")[0]["name"] == "Fac 2"
     assert m.delete_page("u", pid) is True
     assert m.list_pages("u") == []
+
+
+def test_goals_health_vault(tmp_path):
+    m = Memory(tmp_path / "t3.db")
+    # goals
+    gid = m.add_goal("u", "Viagem", 5000)
+    m.add_to_goal("u", gid, 1200); m.add_to_goal("u", gid, 300)
+    g = m.list_goals("u")[0]
+    assert g["saved"] == 1500 and g["target"] == 5000
+    m.add_to_goal("u", gid, -100000)  # can't go below 0
+    assert m.list_goals("u")[0]["saved"] == 0
+    assert m.delete_goal("u", gid) is True
+    # health
+    assert m.health_water_inc("u", "2026-08-06") == 1
+    m.health_water_inc("u", "2026-08-06", 2)
+    m.health_set("u", "2026-08-06", "sleep", 7.5)
+    m.health_set("u", "2026-08-06", "mood", "🙂")
+    hd = m.health_day("u", "2026-08-06")
+    assert hd["water"] == 3 and hd["sleep"] == 7.5 and hd["mood"] == "🙂"
+    # vault
+    did = m.add_document("u", "rg.jpg", "image/jpeg", b"\x89PNGdata", "documento de identidade")
+    assert len(m.list_documents("u")) == 1
+    assert len(m.list_documents("u", "identidade")) == 1  # search by ocr text
+    assert len(m.list_documents("u", "nada")) == 0
+    assert m.get_document("u", did)["data"] == b"\x89PNGdata"
+    assert m.delete_document("u", did) is True
