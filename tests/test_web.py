@@ -59,8 +59,12 @@ def test_overview_dashboard(tmp_path):
     client.post("/api/cmd", json={"command": "gasto 30 ifood #comida"}, headers=_auth())
     assert client.get("/api/overview").status_code == 401  # needs auth
     o = client.get("/api/overview", headers=_auth()).json()
-    assert o["tasks"]["count"] == 1 and "comprar pão" in o["tasks"]["items"]
+    assert o["tasks"]["count"] == 1
+    assert "comprar pão" in [t["text"] for t in o["tasks"]["items"]]
+    assert o["tasks"]["items"][0]["id"]  # id present for inline actions
     assert o["expenses"]["total"] == 30.0 and o["expenses"]["top"] == "comida"
+    assert len(o["expenses"]["day"]) == 7  # 7-day sparkline series
+    assert o["greeting"] and isinstance(o["greeting"], str)
     for k in ("reminders", "habits", "goals", "health", "counts"):
         assert k in o
 
