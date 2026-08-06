@@ -395,7 +395,14 @@ body.speaking .bigcore .r2{animation-delay:.15s}body.speaking .bigcore .r3{anima
 .tab-edit{opacity:.5;font-size:14px;padding:6px 11px}.tab-edit:hover{opacity:1;color:var(--fg)}
 .tab.on{background:var(--fg);color:var(--ink)}
 #chatview{flex:1;display:flex;flex-direction:column;min-height:0}
-#taskview,#kbview,#expview,#remview,#memview,#calview,#lnkview,#habview,#jouview,#subview,#orcview,#monview,#actview,#pageview,#musicview,#climaview{flex:1;min-height:0;overflow:auto;padding:24px;display:none}
+#taskview,#kbview,#expview,#remview,#memview,#calview,#lnkview,#habview,#jouview,#subview,#orcview,#monview,#actview,#pageview,#musicview,#climaview,#globoview{flex:1;min-height:0;overflow:auto;padding:24px;display:none}
+#globoview{display:none;flex-direction:column}
+#globo-wrap{position:relative;flex:1;min-height:420px;border:1px solid var(--line-2);border-radius:16px;overflow:hidden;background:radial-gradient(80% 80% at 50% 45%,#08131f,#04070c)}
+#globo-canvas{position:absolute;inset:0;width:100%;height:100%;cursor:grab}
+#globo-labels{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:2}
+#globo-labels .gl{position:absolute;left:0;top:0;font-family:var(--mono);font-size:10px;letter-spacing:.05em;color:#bfe6ff;text-shadow:0 0 5px #04070c,0 1px 2px #000;white-space:nowrap;transform:translate(-50%,-50%);will-change:transform,opacity}
+#globo-labels .gl.iss{color:#ffe066;font-weight:700}
+#globo-status{position:absolute;bottom:14px;left:14px;z-index:3;font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:var(--accent);background:rgba(4,7,12,.6);border:1px solid var(--line-2);padding:6px 11px;border-radius:9px}
 #wx-body{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;align-items:start;max-width:1500px}
 .wx-cur{grid-column:1/-1;display:flex;align-items:center;gap:24px;border:1px solid var(--line-2);border-radius:18px;padding:26px 30px;background:linear-gradient(150deg,rgba(24,44,68,.6),rgba(10,20,32,.5));box-shadow:0 0 44px -22px var(--glow)}
 .wx-cur .ic svg{width:80px;height:80px;color:var(--accent);filter:drop-shadow(0 0 14px var(--glow))}
@@ -693,7 +700,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
     <div class="topbar">
       <button class="tbtn ico" id="tgl-left" title="Ocultar/mostrar pastas"><i data-lucide="panel-left"></i></button>
       <div class="tabs" id="tabs"></div>
-      <select id="mnav" class="mnav" title="Ir para"><option value="chat">Conversa</option><option value="tasks">Tarefas</option><option value="exp">Gastos</option><option value="rem">Lembretes</option><option value="cal">Agenda</option><option value="mem">Memórias</option><option value="lnk">Links</option><option value="hab">Hábitos</option><option value="jou">Diário</option><option value="sub">Assinaturas</option><option value="orc">Orçamentos</option><option value="mon">Monitores</option><option value="act">Histórico</option><option value="kb">Base</option><option value="map">Mapa</option><option value="brain">Cérebro</option><option value="graf">Gráficos</option><option value="musica">Música</option><option value="clima">Clima</option></select>
+      <select id="mnav" class="mnav" title="Ir para"><option value="chat">Conversa</option><option value="tasks">Tarefas</option><option value="exp">Gastos</option><option value="rem">Lembretes</option><option value="cal">Agenda</option><option value="mem">Memórias</option><option value="lnk">Links</option><option value="hab">Hábitos</option><option value="jou">Diário</option><option value="sub">Assinaturas</option><option value="orc">Orçamentos</option><option value="mon">Monitores</option><option value="act">Histórico</option><option value="kb">Base</option><option value="map">Mapa</option><option value="brain">Cérebro</option><option value="graf">Gráficos</option><option value="musica">Música</option><option value="clima">Clima</option><option value="globo">Globo</option></select>
       <span class="eyebrow" id="scope">geral</span>
       <button class="tbtn ico" id="gsearch" title="Buscar em tudo"><i data-lucide="search"></i></button>
       <button class="tbtn ic-txt" id="vcopen" title="Falar"><i data-lucide="mic"></i><span>FALAR</span></button>
@@ -866,6 +873,12 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
       <div class="chart-card"><div class="chart-t">Hábitos (dias marcados no período)</div><canvas id="ch-hab"></canvas></div>
     </div>
     <div id="pageview"></div>
+    <div id="globoview">
+      <div class="tv-h">Globo · visão planetária</div>
+      <div id="globo-wrap"><canvas id="globo-canvas"></canvas><div id="globo-labels"></div>
+        <span class="brain-corner tl"></span><span class="brain-corner tr"></span><span class="brain-corner bl"></span><span class="brain-corner br"></span>
+        <div id="globo-status">ISS · localizando…</div></div>
+    </div>
     <div id="climaview">
       <div class="tv-form" style="gap:8px;margin-bottom:14px;flex-wrap:wrap">
         <input id="wx-city" class="tv-search" placeholder="cidade (ex: São Paulo)" style="max-width:260px">
@@ -1223,7 +1236,7 @@ f.onsubmit=e=>{e.preventDefault();if(slash.style.display==='block'&&slSel>=0){pi
   txt.value='';hideSlash();if(!m)return;sfx('send');
   if(m.startsWith('/'))runCmd(m.slice(1));else send(m);};
 
-const CAT={plano:['Plano do dia','sunrise'],pendencias:['Pendências','bell-ring'],padroes:['Padrões','sparkles'],automacoes:['Automações','zap'],bak:['Backup','database-backup'],tarefas:['Tarefas','list-checks'],lembretes:['Lembretes','alarm-clock'],gastos:['Gastos','wallet'],memorias:['Memórias','brain'],kb:['Base','book-open'],map:['Mapa','map'],graf:['Gráficos','bar-chart-3'],brain:['Cérebro','brain-circuit'],musica:['Música','music'],cam:['Câmera','camera'],buscar:['Buscar web','search'],noticias:['Notícias','newspaper'],clima:['Clima','cloud-sun'],relatorio:['Relatório','bar-chart-3'],status:['Status','activity'],semana:['Semana','calendar-days'],foco:['Pomodoro','timer'],procurar:['Procurar','file-search'],calendario:['Agenda','calendar'],habitos:['Hábitos','repeat'],diario:['Diário','notebook-pen'],orcamentos:['Orçamentos','piggy-bank'],assinaturas:['Assinaturas','credit-card'],dados:['Meus dados','database'],insights:['Insights','sparkles'],quiz:['Quiz','graduation-cap']};
+const CAT={plano:['Plano do dia','sunrise'],pendencias:['Pendências','bell-ring'],padroes:['Padrões','sparkles'],automacoes:['Automações','zap'],bak:['Backup','database-backup'],tarefas:['Tarefas','list-checks'],lembretes:['Lembretes','alarm-clock'],gastos:['Gastos','wallet'],memorias:['Memórias','brain'],kb:['Base','book-open'],map:['Mapa','map'],graf:['Gráficos','bar-chart-3'],brain:['Cérebro','brain-circuit'],musica:['Música','music'],globo:['Globo','globe'],cam:['Câmera','camera'],buscar:['Buscar web','search'],noticias:['Notícias','newspaper'],clima:['Clima','cloud-sun'],relatorio:['Relatório','bar-chart-3'],status:['Status','activity'],semana:['Semana','calendar-days'],foco:['Pomodoro','timer'],procurar:['Procurar','file-search'],calendario:['Agenda','calendar'],habitos:['Hábitos','repeat'],diario:['Diário','notebook-pen'],orcamentos:['Orçamentos','piggy-bank'],assinaturas:['Assinaturas','credit-card'],dados:['Meus dados','database'],insights:['Insights','sparkles'],quiz:['Quiz','graduation-cap']};
 const SM={tasks:['Tarefas','list-checks','tarefas'],reminders:['Lembretes','alarm-clock','lembretes'],expenses:['Gastos · mês','wallet','gastos'],memories:['Memórias','brain','memorias'],kb:['Base','book-open','kb'],kbfiles:['Arquivos','file-text','kb'],links:['Links','link','links'],habits:['Hábitos','repeat','habitos'],journal:['Diário','notebook-pen','diario'],subscriptions:['Assinaturas','credit-card','assinaturas'],budgets:['Orçamentos','piggy-bank','orcamentos'],watches:['Monitores','radar','monitores'],agenda:['Agenda · 7d','calendar','calendario'],activity:['Histórico · 24h','history','status'],provider:['Provedor','cpu','status'],model:['Modelo','box','modelo'],disk:['Disco','hard-drive','status'],ram:['RAM','memory-stick','status'],uptime:['Uptime','clock','status']};
 const RECUR=[{v:'',l:'Uma vez'},{v:'daily',l:'Diário'},{v:'weekly',l:'Semanal'},{v:'monthly',l:'Mensal'}];
 const RECUR_LBL={daily:'repete diário',weekly:'repete semanal',monthly:'repete mensal'};
@@ -1671,7 +1684,7 @@ function toggleAmb(){if(!SR){toast('Presença ambiente precisa do Chrome, Edge o
 $('#amb').onclick=toggleAmb;
 renderAmbBtn();
 // view tabs — customizable: pick which appear in the header (minimalist)
-const VIEW_LABELS={chat:'Conversa',tasks:'Tarefas',exp:'Gastos',rem:'Lembretes',cal:'Agenda',mem:'Memórias',lnk:'Links',hab:'Hábitos',jou:'Diário',sub:'Assinaturas',orc:'Orçamentos',mon:'Monitores',act:'Histórico',kb:'Base',map:'Mapa',brain:'Cérebro',graf:'Gráficos',musica:'Música',clima:'Clima'};
+const VIEW_LABELS={chat:'Conversa',tasks:'Tarefas',exp:'Gastos',rem:'Lembretes',cal:'Agenda',mem:'Memórias',lnk:'Links',hab:'Hábitos',jou:'Diário',sub:'Assinaturas',orc:'Orçamentos',mon:'Monitores',act:'Histórico',kb:'Base',map:'Mapa',brain:'Cérebro',graf:'Gráficos',musica:'Música',clima:'Clima',globo:'Globo'};
 let curView='chat',tabsShown;try{tabsShown=JSON.parse(localStorage.getItem('ev_tabs'));}catch(e){}
 if(!Array.isArray(tabsShown)||!tabsShown.length)tabsShown=['chat','tasks','exp','rem','cal','brain'];
 function renderTabs(){const box=$('#tabs');if(!box)return;box.textContent='';
@@ -1679,7 +1692,7 @@ function renderTabs(){const box=$('#tabs');if(!box)return;box.textContent='';
   const ed=el('button','tab tab-edit','+');ed.title='Escolher abas';ed.onclick=()=>openPicker('Abas do topo','Escolha quais abas aparecem no topo.',Object.keys(VIEW_LABELS).map(k=>({key:k,label:VIEW_LABELS[k]})),tabsShown,l=>{tabsShown=l.length?l:['chat'];localStorage.setItem('ev_tabs',JSON.stringify(tabsShown));renderTabs();});box.appendChild(ed);}
 renderTabs();
 $('#mnav').onchange=()=>switchView($('#mnav').value);
-const VIEWS={chat:'#chatview',tasks:'#taskview',exp:'#expview',rem:'#remview',cal:'#calview',mem:'#memview',lnk:'#lnkview',hab:'#habview',jou:'#jouview',sub:'#subview',orc:'#orcview',mon:'#monview',kb:'#kbview',act:'#actview',map:'#mapview',brain:'#brainview',graf:'#chartsview',musica:'#musicview',clima:'#climaview'};
+const VIEWS={chat:'#chatview',tasks:'#taskview',exp:'#expview',rem:'#remview',cal:'#calview',mem:'#memview',lnk:'#lnkview',hab:'#habview',jou:'#jouview',sub:'#subview',orc:'#orcview',mon:'#monview',kb:'#kbview',act:'#actview',map:'#mapview',brain:'#brainview',graf:'#chartsview',musica:'#musicview',clima:'#climaview',globo:'#globoview'};
 function switchView(v){const isPage=(''+v).indexOf('page:')===0;
   if(!isPage&&!VIEWS[v])v='chat';curView=v;document.querySelectorAll('#tabs .tab').forEach(t=>t.classList.toggle('on',t.dataset.view===v));
   const mn=$('#mnav');if(mn&&!isPage&&mn.value!==v)mn.value=v;
@@ -1687,7 +1700,7 @@ function switchView(v){const isPage=(''+v).indexOf('page:')===0;
   Object.entries(VIEWS).forEach(([k,sel])=>{const el2=$(sel);if(el2)el2.style.display=(k===v)?((k==='chat'||k==='brain')?'flex':'block'):'none';});
   const pv=$('#pageview');if(pv)pv.style.display=isPage?'block':'none';
   if(isPage){renderPage(v.slice(5));return;}
-  ({tasks:loadTasks,exp:loadExp,rem:loadRem,mem:loadMem,kb:loadKB,cal:loadCal,lnk:loadLinks,hab:loadHabits,jou:loadJournal,sub:loadSub,orc:loadOrc,mon:loadMon,act:loadAct,map:loadMap,brain:loadBrain,graf:loadCharts,musica:loadMusic,clima:loadClima}[v]||function(){})();}
+  ({tasks:loadTasks,exp:loadExp,rem:loadRem,mem:loadMem,kb:loadKB,cal:loadCal,lnk:loadLinks,hab:loadHabits,jou:loadJournal,sub:loadSub,orc:loadOrc,mon:loadMon,act:loadAct,map:loadMap,brain:loadBrain,graf:loadCharts,musica:loadMusic,clima:loadClima,globo:loadGlobo}[v]||function(){})();}
 // --- Clima (painel holográfico estilo Weather) ---
 let _wxCity='';
 async function loadClima(){const body=$('#wx-body');if(!body)return;
@@ -1730,6 +1743,57 @@ async function loadClima(){const body=$('#wx-body');if(!body)return;
   metric('gauge','Pressão','<div class="big">'+C.pressure+'<span style="font-size:14px"> hPa</span></div>');
   window.lucide&&lucide.createIcons();}
 (function(){const g=$('#wx-go');if(g)g.onclick=()=>loadClima();const i=$('#wx-city');if(i)i.addEventListener('keydown',e=>{if(e.key==='Enter')loadClima();});})();
+// --- Globo 3D holográfico (Terra + você + pontos + ISS ao vivo) ---
+let _gTH=null,gScene=null,gCam=null,gRend=null,gRoot=null,gRAF=null,gBuilt=false,gDrag=false,gLast={x:0,y:0},gAuto=true,gLabels=[],gIssMesh=null,gIssLabel=null,gIssPoll=null;
+function gll2v(lat,lng,r){const la=lat*Math.PI/180,lo=lng*Math.PI/180;return new _gTH.Vector3(r*Math.cos(la)*Math.cos(lo),r*Math.sin(la),-r*Math.cos(la)*Math.sin(lo));}
+function gSunDir(){const now=new Date();const start=new Date(Date.UTC(now.getUTCFullYear(),0,0));const doy=Math.floor((now-start)/864e5);
+  const decl=-23.44*Math.cos((2*Math.PI/365)*(doy+10));const utc=now.getUTCHours()+now.getUTCMinutes()/60;return gll2v(decl,-(utc-12)*15,1).normalize();}
+function gResize(){if(!gRend)return;const w=$('#globo-wrap');if(!w)return;const W=w.clientWidth||600,H=w.clientHeight||400;gRend.setSize(W,H,false);gCam.aspect=W/H;gCam.updateProjectionMatrix();}
+async function loadGlobo(){const cv=$('#globo-canvas');if(!cv)return;
+  let THREE;try{THREE=await loadThree();_gTH=THREE;}catch(e){const s=$('#globo-status');if(s)s.textContent='globo indisponível (sem Three.js)';return;}
+  if(!gBuilt)buildGlobe(THREE);gResize();if(!gRAF)gRAF=requestAnimationFrame(gTick);startIssPoll();}
+function buildGlobe(THREE){const cv=$('#globo-canvas'),w=$('#globo-wrap');const W=w.clientWidth||600,HT=w.clientHeight||400,R=8;
+  gRend=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true});gRend.setPixelRatio(Math.min(2,devicePixelRatio));gRend.setSize(W,HT,false);
+  gScene=new THREE.Scene();gCam=new THREE.PerspectiveCamera(42,W/HT,0.1,200);gCam.position.set(0,3,26);
+  gRoot=new THREE.Group();gScene.add(gRoot);
+  gRoot.add(new THREE.Mesh(new THREE.SphereGeometry(R,40,26),new THREE.MeshBasicMaterial({color:0x35c8ff,wireframe:true,transparent:true,opacity:0.16,blending:THREE.AdditiveBlending,depthWrite:false})));
+  gRoot.add(new THREE.Points(new THREE.SphereGeometry(R,72,48),new THREE.PointsMaterial({color:0x8fe3ff,size:0.06,transparent:true,opacity:0.5,blending:THREE.AdditiveBlending,depthWrite:false})));
+  gScene.add(new THREE.Mesh(new THREE.SphereGeometry(R*1.09,48,32),new THREE.MeshBasicMaterial({color:0x35c8ff,transparent:true,opacity:0.09,side:THREE.BackSide,blending:THREE.AdditiveBlending,depthWrite:false})));
+  gScene.add(new THREE.Mesh(new THREE.SphereGeometry(R*1.006,48,32),new THREE.ShaderMaterial({transparent:true,depthWrite:false,uniforms:{uSun:{value:gSunDir()}},
+    vertexShader:'varying vec3 vN;void main(){vN=normalize(mat3(modelMatrix)*normal);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
+    fragmentShader:'uniform vec3 uSun;varying vec3 vN;void main(){float d=dot(normalize(vN),normalize(uSun));float n=smoothstep(0.12,-0.3,d);gl_FragColor=vec4(0.0,0.015,0.05,n*0.6);}'})));
+  gBuilt=true;gLabels=[];const lbox=$('#globo-labels');if(lbox)lbox.textContent='';
+  const pin=(lat,lng,name,color)=>{const p=gll2v(lat,lng,R*1.01);
+    const mk=new THREE.Mesh(new THREE.IcosahedronGeometry(0.1,1),new THREE.MeshBasicMaterial({color}));mk.position.copy(p);gRoot.add(mk);
+    const halo=new THREE.Mesh(new THREE.IcosahedronGeometry(0.1,1),new THREE.MeshBasicMaterial({color,transparent:true,opacity:0.25,blending:THREE.AdditiveBlending,depthWrite:false}));halo.position.copy(p);halo.scale.setScalar(2.6);gRoot.add(halo);
+    const d=el('div','gl');d.textContent=name;if(lbox)lbox.appendChild(d);gLabels.push({pos:p,el:d});};
+  if(typeof _loc!=='undefined'&&_loc)pin(_loc[0],_loc[1],'você',0x35c8ff);
+  fetch('/api/places',{headers:H()}).then(r=>r.json()).then(d=>{(d.items||[]).forEach(p=>pin(p.lat,p.lng,p.name,0x5ee6a3));}).catch(()=>{});
+  gIssMesh=new THREE.Mesh(new THREE.IcosahedronGeometry(0.17,1),new THREE.MeshBasicMaterial({color:0xffe066}));gIssMesh.visible=false;gRoot.add(gIssMesh);
+  const il=el('div','gl iss');il.textContent='🛰️ ISS';if(lbox)lbox.appendChild(il);gIssLabel=il;
+  gInitControls(cv);}
+let gT0=null;
+function gTick(ts){if(curView!=='globo'){gRAF=null;return;}
+  if(gRoot&&gAuto&&!gDrag)gRoot.rotation.y+=0.0009;
+  if(gRend&&gScene&&gCam)gRend.render(gScene,gCam);
+  gSyncLabels();gRAF=requestAnimationFrame(gTick);}
+function gSyncLabels(){if(!gCam||!_gTH||!gRoot)return;const w=$('#globo-wrap');if(!w)return;const W=w.clientWidth,H=w.clientHeight,v=new _gTH.Vector3();
+  const all=gLabels.slice();if(gIssLabel){if(gIssMesh&&gIssMesh.visible)all.push({pos:gIssMesh.position,el:gIssLabel});else gIssLabel.style.opacity='0';}
+  for(const L of all){v.copy(L.pos).applyMatrix4(gRoot.matrixWorld);
+    const toCam=gCam.position.clone().sub(v).normalize(),facing=v.clone().normalize().dot(toCam);v.project(gCam);
+    if(v.z>1||facing<0.06){L.el.style.opacity='0';continue;}
+    L.el.style.transform='translate(-50%,-50%) translate('+((v.x*0.5+0.5)*W)+'px,'+((-v.y*0.5+0.5)*H)+'px)';L.el.style.opacity='0.95';}}
+function startIssPoll(){if(gIssPoll)return;const upd=async()=>{if(curView!=='globo'){clearInterval(gIssPoll);gIssPoll=null;return;}
+  try{const d=await (await fetch('/api/iss',{headers:H()})).json();if(d&&d.lat!=null&&gIssMesh){gIssMesh.position.copy(gll2v(+d.lat,+d.lng,8*1.14));gIssMesh.visible=true;
+    const st=$('#globo-status');if(st)st.textContent='🛰️ ISS  '+(+d.lat).toFixed(1)+'°, '+(+d.lng).toFixed(1)+'°  ·  '+d.alt+' km  ·  '+d.vel+' km/h';}}catch(e){}};
+  upd();gIssPoll=setInterval(upd,5000);}
+function gInitControls(cv){
+  cv.addEventListener('pointerdown',e=>{gDrag=true;gLast={x:e.clientX,y:e.clientY};try{cv.setPointerCapture(e.pointerId);}catch(_){}});
+  cv.addEventListener('pointermove',e=>{if(!gDrag||!gRoot)return;const dx=e.clientX-gLast.x,dy=e.clientY-gLast.y;
+    gRoot.rotation.y+=dx*0.005;gRoot.rotation.x=Math.max(-1.3,Math.min(1.3,gRoot.rotation.x+dy*0.005));gLast={x:e.clientX,y:e.clientY};});
+  const end=()=>{gDrag=false;};cv.addEventListener('pointerup',end);cv.addEventListener('pointercancel',end);
+  cv.addEventListener('wheel',e=>{e.preventDefault();if(gCam)gCam.position.z=Math.min(60,Math.max(12,gCam.position.z*(e.deltaY<0?0.9:1.1)));},{passive:false});}
+window.addEventListener('resize',()=>{if(curView==='globo')gResize();});
 // --- Música (Spotify embed player) ---
 let _music=[];
 function playEmbed(embed,compact){const box=$('#mu-player');if(!box)return;box.classList.toggle('compact',!!compact);
@@ -3702,6 +3766,20 @@ def create_app(config: Config, brain: Brain | None = None):
         _check(request.headers.get("authorization"))
         memory.delete_page(owner, int((await _body(request)).get("id") or 0))
         return {"ok": True}
+
+    @app.get("/api/iss")
+    async def iss_ep(request: Request):
+        _check(request.headers.get("authorization"))
+        import httpx
+        def _work():
+            try:
+                r = httpx.get("https://api.wheretheiss.at/v1/satellites/25544",
+                              timeout=10).json()
+                return {"lat": r.get("latitude"), "lng": r.get("longitude"),
+                        "alt": round(r.get("altitude", 0)), "vel": round(r.get("velocity", 0))}
+            except Exception:
+                return {}
+        return await asyncio.to_thread(_work)
 
     @app.get("/api/weather")
     async def weather_ep(request: Request):
