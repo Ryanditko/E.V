@@ -395,7 +395,23 @@ body.speaking .bigcore .r2{animation-delay:.15s}body.speaking .bigcore .r3{anima
 .tab-edit{opacity:.5;font-size:14px;padding:6px 11px}.tab-edit:hover{opacity:1;color:var(--fg)}
 .tab.on{background:var(--fg);color:var(--ink)}
 #chatview{flex:1;display:flex;flex-direction:column;min-height:0}
-#taskview,#kbview,#expview,#remview,#memview,#calview,#lnkview,#habview,#jouview,#subview,#orcview,#monview,#actview,#pageview,#musicview{flex:1;min-height:0;overflow:auto;padding:24px;display:none}
+#taskview,#kbview,#expview,#remview,#memview,#calview,#lnkview,#habview,#jouview,#subview,#orcview,#monview,#actview,#pageview,#musicview,#climaview{flex:1;min-height:0;overflow:auto;padding:24px;display:none}
+.wx-cur{max-width:760px;display:flex;align-items:center;gap:22px;border:1px solid var(--line-2);border-radius:18px;padding:22px 26px;margin-bottom:14px;background:linear-gradient(150deg,rgba(24,44,68,.6),rgba(10,20,32,.5));box-shadow:0 0 40px -22px var(--glow)}
+.wx-cur .ic svg{width:66px;height:66px;color:var(--accent);filter:drop-shadow(0 0 12px var(--glow))}
+.wx-loc{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--subtle)}
+.wx-temp{font-family:var(--disp);font-size:60px;line-height:1;color:#eaf4fb;text-shadow:0 0 22px rgba(53,200,255,.3)}
+.wx-desc{color:var(--fg);margin-top:2px}.wx-hl{color:var(--muted);font-family:var(--mono);font-size:12px;margin-top:4px}
+.wx-card{max-width:760px;border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:14px 16px;margin-bottom:14px}
+.wx-ct{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--subtle);margin-bottom:10px}
+.wx-hours{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}.wx-hours::-webkit-scrollbar{display:none}
+.wx-h{flex:none;width:66px;text-align:center;padding:8px 0;border:1px solid var(--line);border-radius:12px;background:var(--elev)}
+.wx-h .t{font-family:var(--mono);font-size:11px;color:var(--muted)}.wx-h svg{width:22px;height:22px;color:var(--accent);margin:6px 0}.wx-h .d{font-size:14px;color:#eaf4fb}
+.wx-d{display:flex;align-items:center;gap:12px;padding:7px 0;border-bottom:1px solid var(--line)}
+.wx-d .dn{width:52px;color:var(--fg)}.wx-d svg{width:20px;height:20px;color:var(--accent);flex:none}
+.wx-d .mn{width:38px;text-align:right;color:var(--muted);font-family:var(--mono);font-size:13px}
+.wx-d .mx{width:38px;color:#eaf4fb;font-family:var(--mono);font-size:13px}
+.wx-track{flex:1;height:6px;background:var(--elev);border-radius:4px;position:relative}
+.wx-track i{position:absolute;height:100%;border-radius:4px;background:linear-gradient(90deg,#4dd0e1,#ffb35e)}
 #mu-player{max-width:760px;margin-bottom:16px}
 #mu-player iframe{width:100%;height:352px;border:0;border-radius:14px;box-shadow:0 0 30px -18px var(--glow)}
 #mu-player.compact iframe{height:152px}
@@ -666,7 +682,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
     <div class="topbar">
       <button class="tbtn ico" id="tgl-left" title="Ocultar/mostrar pastas"><i data-lucide="panel-left"></i></button>
       <div class="tabs" id="tabs"></div>
-      <select id="mnav" class="mnav" title="Ir para"><option value="chat">Conversa</option><option value="tasks">Tarefas</option><option value="exp">Gastos</option><option value="rem">Lembretes</option><option value="cal">Agenda</option><option value="mem">Memórias</option><option value="lnk">Links</option><option value="hab">Hábitos</option><option value="jou">Diário</option><option value="sub">Assinaturas</option><option value="orc">Orçamentos</option><option value="mon">Monitores</option><option value="act">Histórico</option><option value="kb">Base</option><option value="map">Mapa</option><option value="brain">Cérebro</option><option value="graf">Gráficos</option><option value="musica">Música</option></select>
+      <select id="mnav" class="mnav" title="Ir para"><option value="chat">Conversa</option><option value="tasks">Tarefas</option><option value="exp">Gastos</option><option value="rem">Lembretes</option><option value="cal">Agenda</option><option value="mem">Memórias</option><option value="lnk">Links</option><option value="hab">Hábitos</option><option value="jou">Diário</option><option value="sub">Assinaturas</option><option value="orc">Orçamentos</option><option value="mon">Monitores</option><option value="act">Histórico</option><option value="kb">Base</option><option value="map">Mapa</option><option value="brain">Cérebro</option><option value="graf">Gráficos</option><option value="musica">Música</option><option value="clima">Clima</option></select>
       <span class="eyebrow" id="scope">geral</span>
       <button class="tbtn ico" id="gsearch" title="Buscar em tudo"><i data-lucide="search"></i></button>
       <button class="tbtn ic-txt" id="vcopen" title="Falar"><i data-lucide="mic"></i><span>FALAR</span></button>
@@ -839,6 +855,13 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
       <div class="chart-card"><div class="chart-t">Hábitos (dias marcados no período)</div><canvas id="ch-hab"></canvas></div>
     </div>
     <div id="pageview"></div>
+    <div id="climaview">
+      <div class="tv-form" style="gap:8px;margin-bottom:14px;flex-wrap:wrap">
+        <input id="wx-city" class="tv-search" placeholder="cidade (ex: São Paulo)" style="max-width:260px">
+        <button class="mchip" id="wx-go" type="button"><i data-lucide="search"></i>Ver</button>
+      </div>
+      <div id="wx-body"></div>
+    </div>
     <div id="musicview">
       <div class="tv-h">Música · Spotify</div>
       <div id="sp-section" style="max-width:760px;margin-bottom:16px"></div>
@@ -1637,7 +1660,7 @@ function toggleAmb(){if(!SR){toast('Presença ambiente precisa do Chrome, Edge o
 $('#amb').onclick=toggleAmb;
 renderAmbBtn();
 // view tabs — customizable: pick which appear in the header (minimalist)
-const VIEW_LABELS={chat:'Conversa',tasks:'Tarefas',exp:'Gastos',rem:'Lembretes',cal:'Agenda',mem:'Memórias',lnk:'Links',hab:'Hábitos',jou:'Diário',sub:'Assinaturas',orc:'Orçamentos',mon:'Monitores',act:'Histórico',kb:'Base',map:'Mapa',brain:'Cérebro',graf:'Gráficos',musica:'Música'};
+const VIEW_LABELS={chat:'Conversa',tasks:'Tarefas',exp:'Gastos',rem:'Lembretes',cal:'Agenda',mem:'Memórias',lnk:'Links',hab:'Hábitos',jou:'Diário',sub:'Assinaturas',orc:'Orçamentos',mon:'Monitores',act:'Histórico',kb:'Base',map:'Mapa',brain:'Cérebro',graf:'Gráficos',musica:'Música',clima:'Clima'};
 let curView='chat',tabsShown;try{tabsShown=JSON.parse(localStorage.getItem('ev_tabs'));}catch(e){}
 if(!Array.isArray(tabsShown)||!tabsShown.length)tabsShown=['chat','tasks','exp','rem','cal','brain'];
 function renderTabs(){const box=$('#tabs');if(!box)return;box.textContent='';
@@ -1645,7 +1668,7 @@ function renderTabs(){const box=$('#tabs');if(!box)return;box.textContent='';
   const ed=el('button','tab tab-edit','+');ed.title='Escolher abas';ed.onclick=()=>openPicker('Abas do topo','Escolha quais abas aparecem no topo.',Object.keys(VIEW_LABELS).map(k=>({key:k,label:VIEW_LABELS[k]})),tabsShown,l=>{tabsShown=l.length?l:['chat'];localStorage.setItem('ev_tabs',JSON.stringify(tabsShown));renderTabs();});box.appendChild(ed);}
 renderTabs();
 $('#mnav').onchange=()=>switchView($('#mnav').value);
-const VIEWS={chat:'#chatview',tasks:'#taskview',exp:'#expview',rem:'#remview',cal:'#calview',mem:'#memview',lnk:'#lnkview',hab:'#habview',jou:'#jouview',sub:'#subview',orc:'#orcview',mon:'#monview',kb:'#kbview',act:'#actview',map:'#mapview',brain:'#brainview',graf:'#chartsview',musica:'#musicview'};
+const VIEWS={chat:'#chatview',tasks:'#taskview',exp:'#expview',rem:'#remview',cal:'#calview',mem:'#memview',lnk:'#lnkview',hab:'#habview',jou:'#jouview',sub:'#subview',orc:'#orcview',mon:'#monview',kb:'#kbview',act:'#actview',map:'#mapview',brain:'#brainview',graf:'#chartsview',musica:'#musicview',clima:'#climaview'};
 function switchView(v){const isPage=(''+v).indexOf('page:')===0;
   if(!isPage&&!VIEWS[v])v='chat';curView=v;document.querySelectorAll('#tabs .tab').forEach(t=>t.classList.toggle('on',t.dataset.view===v));
   const mn=$('#mnav');if(mn&&!isPage&&mn.value!==v)mn.value=v;
@@ -1653,7 +1676,38 @@ function switchView(v){const isPage=(''+v).indexOf('page:')===0;
   Object.entries(VIEWS).forEach(([k,sel])=>{const el2=$(sel);if(el2)el2.style.display=(k===v)?((k==='chat'||k==='brain')?'flex':'block'):'none';});
   const pv=$('#pageview');if(pv)pv.style.display=isPage?'block':'none';
   if(isPage){renderPage(v.slice(5));return;}
-  ({tasks:loadTasks,exp:loadExp,rem:loadRem,mem:loadMem,kb:loadKB,cal:loadCal,lnk:loadLinks,hab:loadHabits,jou:loadJournal,sub:loadSub,orc:loadOrc,mon:loadMon,act:loadAct,map:loadMap,brain:loadBrain,graf:loadCharts,musica:loadMusic}[v]||function(){})();}
+  ({tasks:loadTasks,exp:loadExp,rem:loadRem,mem:loadMem,kb:loadKB,cal:loadCal,lnk:loadLinks,hab:loadHabits,jou:loadJournal,sub:loadSub,orc:loadOrc,mon:loadMon,act:loadAct,map:loadMap,brain:loadBrain,graf:loadCharts,musica:loadMusic,clima:loadClima}[v]||function(){})();}
+// --- Clima (painel holográfico estilo Weather) ---
+let _wxCity='';
+async function loadClima(){const body=$('#wx-body');if(!body)return;
+  const inp=$('#wx-city');const city=(inp&&inp.value.trim())||_wxCity||'';
+  body.innerHTML='<div class="tv-empty">carregando…</div>';
+  let d;try{d=await (await fetch('/api/weather'+(city?('?city='+encodeURIComponent(city)):''),{headers:H()})).json();}catch(e){body.innerHTML='<div class="tv-empty">não consegui o clima.</div>';return;}
+  if(d.error){body.innerHTML='<div class="tv-empty">'+esc(d.error)+'</div>';return;}
+  _wxCity=d.location;if(inp&&!inp.value)inp.value=d.location;
+  body.textContent='';
+  // current
+  const cur=el('div','wx-cur');const ic=el('div','ic');ic.appendChild(ficon(d.current.icon));cur.appendChild(ic);
+  const info=el('div','');info.style.flex='1';
+  info.appendChild(el('div','wx-loc',d.location));
+  const tp=el('div','wx-temp',d.current.temp+'°');info.appendChild(tp);
+  info.appendChild(el('div','wx-desc',d.current.desc));
+  info.appendChild(el('div','wx-hl','sensação '+d.current.feels+'°  ·  máx '+d.current.high+'°  mín '+d.current.low+'°'));
+  cur.appendChild(info);body.appendChild(cur);
+  // hourly
+  if((d.hourly||[]).length){const c=el('div','wx-card');c.appendChild(el('div','wx-ct','Próximas horas'));const strip=el('div','wx-hours');
+    d.hourly.forEach(h=>{const b=el('div','wx-h');b.appendChild(el('div','t',h.time));b.appendChild(ficon(h.icon));b.appendChild(el('div','d',h.temp+'°'));strip.appendChild(b);});
+    c.appendChild(strip);body.appendChild(c);}
+  // 10-day
+  if((d.daily||[]).length){const c=el('div','wx-card');c.appendChild(el('div','wx-ct','Previsão de 10 dias'));
+    const gmin=Math.min.apply(null,d.daily.map(x=>x.min)),gmax=Math.max.apply(null,d.daily.map(x=>x.max)),span=Math.max(1,gmax-gmin);
+    d.daily.forEach(x=>{const row=el('div','wx-d');row.appendChild(el('span','dn',x.day));row.appendChild(ficon(x.icon));
+      row.appendChild(el('span','mn',x.min+'°'));const tr=el('span','wx-track');const i=document.createElement('i');
+      i.style.left=((x.min-gmin)/span*100)+'%';i.style.right=((gmax-x.max)/span*100)+'%';tr.appendChild(i);row.appendChild(tr);
+      row.appendChild(el('span','mx',x.max+'°'));c.appendChild(row);});
+    body.appendChild(c);}
+  window.lucide&&lucide.createIcons();}
+(function(){const g=$('#wx-go');if(g)g.onclick=()=>loadClima();const i=$('#wx-city');if(i)i.addEventListener('keydown',e=>{if(e.key==='Enter')loadClima();});})();
 // --- Música (Spotify embed player) ---
 let _music=[];
 function playEmbed(embed,compact){const box=$('#mu-player');if(!box)return;box.classList.toggle('compact',!!compact);
@@ -3626,6 +3680,15 @@ def create_app(config: Config, brain: Brain | None = None):
         _check(request.headers.get("authorization"))
         memory.delete_page(owner, int((await _body(request)).get("id") or 0))
         return {"ok": True}
+
+    @app.get("/api/weather")
+    async def weather_ep(request: Request):
+        _check(request.headers.get("authorization"))
+        city = (request.query_params.get("city") or getattr(config, "city", "") or "").strip()
+        if not city:
+            return {"error": "defina uma cidade (EV_CITY) ou busque uma no campo acima"}
+        data = await asyncio.to_thread(tools_mod.weather_full, city)
+        return data or {"error": f"não consegui o clima de '{city}'"}
 
     # --- music (Spotify embed player) --------------------------------------
     from ..providers import spotify as _sp
