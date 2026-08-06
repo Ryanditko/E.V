@@ -1032,6 +1032,48 @@ class Commands:
                 parts.append(tab)
         return "\n".join(parts)
 
+    def overview(self, user_id: str) -> dict:
+        """One-shot summary of everything in E.V. for the home dashboard (DB only,
+        no network — fast). Counts + short previews per domain."""
+        try:
+            tz = ZoneInfo(self._config.timezone) if ZoneInfo else None
+            now = datetime.now(tz)
+        except Exception:
+            now = datetime.now(timezone.utc)
+        today = now.strftime("%Y-%m-%d")
+        tasks = self._memory.open_tasks(user_id)
+        rems = self._memory.open_reminders(user_id)
+        label, start, _end = self._month_bounds(0)
+        exps = self._memory.expenses_since(user_id, start)
+        bycat: dict = {}
+        for e in exps:
+            bycat[e["category"]] = bycat.get(e["category"], 0) + (e["amount"] or 0)
+        top = max(bycat.items(), key=lambda x: x[1])[0] if bycat else None
+        habits = self._memory.list_habits(user_id)
+        pending = [h["name"] for h in habits if today not in self._memory.habit_days(h["id"])]
+        goals = self._memory.list_goals(user_id)
+        return {
+            "tasks": {"count": len(tasks), "items": [t["text"] for t in tasks[:4]]},
+            "reminders": {"count": len(rems), "items": [r["text"] for r in rems[:4]]},
+            "expenses": {"total": round(sum(e["amount"] or 0 for e in exps), 2),
+                         "top": top, "label": label},
+            "habits": {"pending": pending[:5], "done": len(habits) - len(pending),
+                       "total": len(habits)},
+            "goals": [{"name": g["name"],
+                       "pct": (round(g["saved"] / g["target"] * 100) if g["target"] else 0)}
+                      for g in goals[:3]],
+            "health": self._memory.health_day(user_id, today),
+            "counts": {
+                "memories": len(self._memory.list_facts(user_id)),
+                "kb": len(self._memory.list_sources(user_id)),
+                "links": len(self._memory.list_links(user_id)),
+                "journal": len(self._memory.recent_journal(user_id, 999)),
+                "places": len(self._memory.list_places(user_id)),
+                "subs": len(self._memory.list_recurring(user_id)),
+                "automations": len(self._memory.list_automations(user_id)),
+            },
+        }
+
     def spoken_status(self, user_id: str) -> str:
         """Short, TTS-friendly boot briefing (deterministic, no LLM): time-of-day
         greeting + today's open loops + birthdays. Written to be HEARD."""

@@ -395,7 +395,17 @@ body.speaking .bigcore .r2{animation-delay:.15s}body.speaking .bigcore .r3{anima
 .tab-edit{opacity:.5;font-size:14px;padding:6px 11px}.tab-edit:hover{opacity:1;color:var(--fg)}
 .tab.on{background:var(--fg);color:var(--ink)}
 #chatview{flex:1;display:flex;flex-direction:column;min-height:0}
-#taskview,#kbview,#expview,#remview,#memview,#calview,#lnkview,#habview,#jouview,#subview,#orcview,#monview,#actview,#pageview,#musicview,#climaview,#metasview,#saudeview,#cofreview,#painelview{flex:1;min-height:0;overflow:auto;padding:24px;display:none}
+#taskview,#kbview,#expview,#remview,#memview,#calview,#lnkview,#habview,#jouview,#subview,#orcview,#monview,#actview,#pageview,#musicview,#climaview,#metasview,#saudeview,#cofreview,#painelview,#inicioview{flex:1;min-height:0;overflow:auto;padding:24px;display:none}
+.ov-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;max-width:1500px}
+.ov-card{border:1px solid var(--line);border-radius:15px;background:linear-gradient(160deg,rgba(18,34,52,.4),rgba(10,20,32,.35));padding:16px 18px;cursor:pointer;transition:border-color .15s,transform .15s}
+.ov-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 8px 26px -18px var(--glow)}
+.ov-card .h{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--subtle);margin-bottom:8px;display:flex;align-items:center;gap:7px}
+.ov-card .h svg{width:14px;height:14px;color:var(--accent)}
+.ov-card .big{font-family:var(--disp);font-size:30px;color:#eaf4fb;line-height:1.1}
+.ov-card .big small{font-size:14px;color:var(--muted)}
+.ov-li{font-size:13px;color:var(--muted);padding:3px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ov-card .obar{height:6px;background:var(--elev);border-radius:4px;overflow:hidden;margin:6px 0}.ov-card .obar i{display:block;height:100%;background:linear-gradient(90deg,#4dd0e1,#5ee6a3)}
+.ov-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}.ov-chip{font-family:var(--mono);font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:3px 8px}
 .rd-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:1400px}
 @media(max-width:820px){.rd-grid{grid-template-columns:1fr}}
 .rd-half{min-width:0}
@@ -681,7 +691,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
   body.m-left #mbackdrop,body.m-right #mbackdrop{display:block;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:55}
   .topbar{padding:11px 12px;gap:5px}
   #slash{left:14px;right:14px}
-  #taskview,#kbview,#expview,#remview,#memview,#calview,#lnkview,#habview,#jouview,#subview,#orcview,#monview,#actview,#brainview,#pageview,#musicview,#climaview,#metasview,#saudeview,#cofreview,#painelview{padding:16px 14px}
+  #taskview,#kbview,#expview,#remview,#memview,#calview,#lnkview,#habview,#jouview,#subview,#orcview,#monview,#actview,#brainview,#pageview,#musicview,#climaview,#metasview,#saudeview,#cofreview,#painelview,#inicioview{padding:16px 14px}
   #log{padding:14px 14px}
   .msg{max-width:92%!important}
   #calgrid{gap:3px}.cal-cell{min-height:62px;padding:4px}
@@ -719,7 +729,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
     <div class="topbar">
       <button class="tbtn ico" id="tgl-left" title="Ocultar/mostrar pastas"><i data-lucide="panel-left"></i></button>
       <div class="tabs" id="tabs"></div>
-      <select id="mnav" class="mnav" title="Ir para"><option value="chat">Conversa</option><option value="tasks">Tarefas</option><option value="exp">Gastos</option><option value="rem">Lembretes</option><option value="cal">Agenda</option><option value="mem">Memórias</option><option value="lnk">Links</option><option value="hab">Hábitos</option><option value="jou">Diário</option><option value="sub">Assinaturas</option><option value="orc">Orçamentos</option><option value="mon">Monitores</option><option value="act">Histórico</option><option value="kb">Base</option><option value="map">Mapa</option><option value="brain">Cérebro</option><option value="graf">Gráficos</option><option value="musica">Música</option><option value="clima">Clima</option><option value="metas">Metas</option><option value="saude">Saúde</option><option value="cofre">Cofre</option><option value="painel">Painel</option></select>
+      <select id="mnav" class="mnav" title="Ir para"><option value="chat">Conversa</option><option value="inicio">Início</option><option value="tasks">Tarefas</option><option value="exp">Gastos</option><option value="rem">Lembretes</option><option value="cal">Agenda</option><option value="mem">Memórias</option><option value="lnk">Links</option><option value="hab">Hábitos</option><option value="jou">Diário</option><option value="sub">Assinaturas</option><option value="orc">Orçamentos</option><option value="mon">Monitores</option><option value="act">Histórico</option><option value="kb">Base</option><option value="map">Mapa</option><option value="brain">Cérebro</option><option value="graf">Gráficos</option><option value="musica">Música</option><option value="clima">Clima</option><option value="metas">Metas</option><option value="saude">Saúde</option><option value="cofre">Cofre</option><option value="painel">Painel</option></select>
       <span class="eyebrow" id="scope">geral</span>
       <button class="tbtn ico" id="gsearch" title="Buscar em tudo"><i data-lucide="search"></i></button>
       <button class="tbtn ic-txt" id="vcopen" title="Falar"><i data-lucide="mic"></i><span>FALAR</span></button>
@@ -933,6 +943,10 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
         <input id="cf-file" type="file" style="display:none">
       </div>
       <div id="cf-list"></div>
+    </div>
+    <div id="inicioview">
+      <div id="ov-greet" class="tv-h" style="margin-bottom:16px">Início</div>
+      <div id="ov-grid" class="ov-grid"></div>
     </div>
     <div id="painelview">
       <div class="tv-h">Painel · astronomia & mundo</div>
@@ -1279,7 +1293,7 @@ f.onsubmit=e=>{e.preventDefault();if(slash.style.display==='block'&&slSel>=0){pi
   txt.value='';hideSlash();if(!m)return;sfx('send');
   if(m.startsWith('/'))runCmd(m.slice(1));else send(m);};
 
-const CAT={plano:['Plano do dia','sunrise'],pendencias:['Pendências','bell-ring'],padroes:['Padrões','sparkles'],automacoes:['Automações','zap'],bak:['Backup','database-backup'],tarefas:['Tarefas','list-checks'],lembretes:['Lembretes','alarm-clock'],gastos:['Gastos','wallet'],memorias:['Memórias','brain'],kb:['Base','book-open'],map:['Mapa','map'],graf:['Gráficos','bar-chart-3'],brain:['Cérebro','brain-circuit'],musica:['Música','music'],metas:['Metas','target'],saude:['Saúde','heart-pulse'],cofre:['Cofre','folder-lock'],painel:['Painel','satellite-dish'],cam:['Câmera','camera'],buscar:['Buscar web','search'],noticias:['Notícias','newspaper'],clima:['Clima','cloud-sun'],relatorio:['Relatório','bar-chart-3'],status:['Status','activity'],semana:['Semana','calendar-days'],foco:['Pomodoro','timer'],procurar:['Procurar','file-search'],calendario:['Agenda','calendar'],habitos:['Hábitos','repeat'],diario:['Diário','notebook-pen'],orcamentos:['Orçamentos','piggy-bank'],assinaturas:['Assinaturas','credit-card'],dados:['Meus dados','database'],insights:['Insights','sparkles'],quiz:['Quiz','graduation-cap']};
+const CAT={inicio:['Início','layout-dashboard'],plano:['Plano do dia','sunrise'],pendencias:['Pendências','bell-ring'],padroes:['Padrões','sparkles'],automacoes:['Automações','zap'],bak:['Backup','database-backup'],tarefas:['Tarefas','list-checks'],lembretes:['Lembretes','alarm-clock'],gastos:['Gastos','wallet'],memorias:['Memórias','brain'],kb:['Base','book-open'],map:['Mapa','map'],graf:['Gráficos','bar-chart-3'],brain:['Cérebro','brain-circuit'],musica:['Música','music'],metas:['Metas','target'],saude:['Saúde','heart-pulse'],cofre:['Cofre','folder-lock'],painel:['Painel','satellite-dish'],cam:['Câmera','camera'],buscar:['Buscar web','search'],noticias:['Notícias','newspaper'],clima:['Clima','cloud-sun'],relatorio:['Relatório','bar-chart-3'],status:['Status','activity'],semana:['Semana','calendar-days'],foco:['Pomodoro','timer'],procurar:['Procurar','file-search'],calendario:['Agenda','calendar'],habitos:['Hábitos','repeat'],diario:['Diário','notebook-pen'],orcamentos:['Orçamentos','piggy-bank'],assinaturas:['Assinaturas','credit-card'],dados:['Meus dados','database'],insights:['Insights','sparkles'],quiz:['Quiz','graduation-cap']};
 const SM={tasks:['Tarefas','list-checks','tarefas'],reminders:['Lembretes','alarm-clock','lembretes'],expenses:['Gastos · mês','wallet','gastos'],memories:['Memórias','brain','memorias'],kb:['Base','book-open','kb'],kbfiles:['Arquivos','file-text','kb'],links:['Links','link','links'],habits:['Hábitos','repeat','habitos'],journal:['Diário','notebook-pen','diario'],subscriptions:['Assinaturas','credit-card','assinaturas'],budgets:['Orçamentos','piggy-bank','orcamentos'],watches:['Monitores','radar','monitores'],agenda:['Agenda · 7d','calendar','calendario'],activity:['Histórico · 24h','history','status'],provider:['Provedor','cpu','status'],model:['Modelo','box','modelo'],disk:['Disco','hard-drive','status'],ram:['RAM','memory-stick','status'],uptime:['Uptime','clock','status']};
 const RECUR=[{v:'',l:'Uma vez'},{v:'daily',l:'Diário'},{v:'weekly',l:'Semanal'},{v:'monthly',l:'Mensal'}];
 const RECUR_LBL={daily:'repete diário',weekly:'repete semanal',monthly:'repete mensal'};
@@ -1727,7 +1741,7 @@ function toggleAmb(){if(!SR){toast('Presença ambiente precisa do Chrome, Edge o
 $('#amb').onclick=toggleAmb;
 renderAmbBtn();
 // view tabs — customizable: pick which appear in the header (minimalist)
-const VIEW_LABELS={chat:'Conversa',tasks:'Tarefas',exp:'Gastos',rem:'Lembretes',cal:'Agenda',mem:'Memórias',lnk:'Links',hab:'Hábitos',jou:'Diário',sub:'Assinaturas',orc:'Orçamentos',mon:'Monitores',act:'Histórico',kb:'Base',map:'Mapa',brain:'Cérebro',graf:'Gráficos',musica:'Música',clima:'Clima',metas:'Metas',saude:'Saúde',cofre:'Cofre',painel:'Painel'};
+const VIEW_LABELS={chat:'Conversa',inicio:'Início',tasks:'Tarefas',exp:'Gastos',rem:'Lembretes',cal:'Agenda',mem:'Memórias',lnk:'Links',hab:'Hábitos',jou:'Diário',sub:'Assinaturas',orc:'Orçamentos',mon:'Monitores',act:'Histórico',kb:'Base',map:'Mapa',brain:'Cérebro',graf:'Gráficos',musica:'Música',clima:'Clima',metas:'Metas',saude:'Saúde',cofre:'Cofre',painel:'Painel'};
 let curView='chat',tabsShown;try{tabsShown=JSON.parse(localStorage.getItem('ev_tabs'));}catch(e){}
 if(!Array.isArray(tabsShown)||!tabsShown.length)tabsShown=['chat','tasks','exp','rem','cal','brain'];
 function renderTabs(){const box=$('#tabs');if(!box)return;box.textContent='';
@@ -1735,7 +1749,7 @@ function renderTabs(){const box=$('#tabs');if(!box)return;box.textContent='';
   const ed=el('button','tab tab-edit','+');ed.title='Escolher abas';ed.onclick=()=>openPicker('Abas do topo','Escolha quais abas aparecem no topo.',Object.keys(VIEW_LABELS).map(k=>({key:k,label:VIEW_LABELS[k]})),tabsShown,l=>{tabsShown=l.length?l:['chat'];localStorage.setItem('ev_tabs',JSON.stringify(tabsShown));renderTabs();});box.appendChild(ed);}
 renderTabs();
 $('#mnav').onchange=()=>switchView($('#mnav').value);
-const VIEWS={chat:'#chatview',tasks:'#taskview',exp:'#expview',rem:'#remview',cal:'#calview',mem:'#memview',lnk:'#lnkview',hab:'#habview',jou:'#jouview',sub:'#subview',orc:'#orcview',mon:'#monview',kb:'#kbview',act:'#actview',map:'#mapview',brain:'#brainview',graf:'#chartsview',musica:'#musicview',clima:'#climaview',metas:'#metasview',saude:'#saudeview',cofre:'#cofreview',painel:'#painelview'};
+const VIEWS={chat:'#chatview',inicio:'#inicioview',tasks:'#taskview',exp:'#expview',rem:'#remview',cal:'#calview',mem:'#memview',lnk:'#lnkview',hab:'#habview',jou:'#jouview',sub:'#subview',orc:'#orcview',mon:'#monview',kb:'#kbview',act:'#actview',map:'#mapview',brain:'#brainview',graf:'#chartsview',musica:'#musicview',clima:'#climaview',metas:'#metasview',saude:'#saudeview',cofre:'#cofreview',painel:'#painelview'};
 function switchView(v){const isPage=(''+v).indexOf('page:')===0;
   if(!isPage&&!VIEWS[v])v='chat';curView=v;document.querySelectorAll('#tabs .tab').forEach(t=>t.classList.toggle('on',t.dataset.view===v));
   const mn=$('#mnav');if(mn&&!isPage&&mn.value!==v)mn.value=v;
@@ -1743,7 +1757,36 @@ function switchView(v){const isPage=(''+v).indexOf('page:')===0;
   Object.entries(VIEWS).forEach(([k,sel])=>{const el2=$(sel);if(el2)el2.style.display=(k===v)?((k==='chat'||k==='brain')?'flex':'block'):'none';});
   const pv=$('#pageview');if(pv)pv.style.display=isPage?'block':'none';
   if(isPage){renderPage(v.slice(5));return;}
-  ({tasks:loadTasks,exp:loadExp,rem:loadRem,mem:loadMem,kb:loadKB,cal:loadCal,lnk:loadLinks,hab:loadHabits,jou:loadJournal,sub:loadSub,orc:loadOrc,mon:loadMon,act:loadAct,map:loadMap,brain:loadBrain,graf:loadCharts,musica:loadMusic,clima:loadClima,metas:loadGoals,saude:loadSaude,cofre:loadCofre,painel:loadPainel}[v]||function(){})();}
+  ({inicio:loadInicio,tasks:loadTasks,exp:loadExp,rem:loadRem,mem:loadMem,kb:loadKB,cal:loadCal,lnk:loadLinks,hab:loadHabits,jou:loadJournal,sub:loadSub,orc:loadOrc,mon:loadMon,act:loadAct,map:loadMap,brain:loadBrain,graf:loadCharts,musica:loadMusic,clima:loadClima,metas:loadGoals,saude:loadSaude,cofre:loadCofre,painel:loadPainel}[v]||function(){})();}
+// --- Início (painel de uso: resumo de tudo) ---
+function ovCard(view,icon,title,big,lines){
+  const c=el('div','ov-card');c.onclick=()=>switchView(view);
+  let h='<div class="h"><i data-lucide="'+icon+'"></i>'+title+'</div>';
+  if(big!=null)h+='<div class="big">'+big+'</div>';
+  (lines||[]).forEach(l=>{h+='<div class="ov-li">'+l+'</div>';});
+  c.innerHTML=h;return c;
+}
+async function loadInicio(){
+  const g=$('#ov-greet'),grid=$('#ov-grid');const hr=new Date().getHours();
+  g.textContent=(hr<12?'Bom dia':hr<18?'Boa tarde':'Boa noite')+' — painel de uso da E.V.';
+  grid.innerHTML='<div class="tv-empty">Carregando…</div>';
+  let o;try{const r=await fetch('/api/overview',{headers:H()});o=await r.json();if(!r.ok||!o||!o.tasks)throw 0;}catch(e){grid.innerHTML='<div class="tv-empty">Não consegui carregar o painel.</div>';return;}
+  grid.innerHTML='';
+  grid.appendChild(ovCard('tasks','list-checks','Tarefas',o.tasks.count+' <small>abertas</small>',o.tasks.items.map(esc)));
+  grid.appendChild(ovCard('rem','alarm-clock','Lembretes',o.reminders.count+' <small>ativos</small>',o.reminders.items.map(esc)));
+  grid.appendChild(ovCard('exp','wallet','Gastos '+esc(o.expenses.label),'R$ '+Number(o.expenses.total).toFixed(2),[o.expenses.top?'Maior categoria: '+esc(o.expenses.top):'Sem gastos ainda']));
+  const hb=o.habits;grid.appendChild(ovCard('hab','repeat','Hábitos',hb.done+'/'+hb.total+' <small>hoje</small>',[hb.pending.length?'Faltam: '+hb.pending.map(esc).join(', '):(hb.total?'Tudo feito ✓':'Nenhum hábito ainda')]));
+  if(o.goals.length){const c=el('div','ov-card');c.onclick=()=>switchView('metas');let h='<div class="h"><i data-lucide="target"></i>Metas</div>';o.goals.forEach(gg=>{h+='<div class="ov-li">'+esc(gg.name)+' — '+gg.pct+'%</div><div class="obar"><i style="width:'+Math.min(100,Math.max(0,gg.pct))+'%"></i></div>';});c.innerHTML=h;grid.appendChild(c);}
+  else grid.appendChild(ovCard('metas','target','Metas','—',['Nenhuma meta ainda']));
+  const s=o.health||{};grid.appendChild(ovCard('saude','heart-pulse','Saúde',(s.water||0)+" <small>copos d'água</small>",[s.sleep!=null?'Sono: '+s.sleep+'h':'Sono: —',s.mood!=null?'Humor: '+s.mood+'/5':'Humor: —']));
+  const wc=ovCard('clima','cloud-sun','Clima','…',['carregando']);grid.appendChild(wc);
+  fetch('/api/weather',{headers:H()}).then(r=>r.json()).then(w=>{if(w&&w.current){wc.querySelector('.big').innerHTML=w.current.temp+'°<small> '+esc(w.current.desc||'')+'</small>';const li=wc.querySelector('.ov-li');if(li&&w.current.high!=null)li.textContent='máx '+w.current.high+'° · mín '+w.current.low+'° · '+esc(w.location||'');}}).catch(()=>{});
+  const cc=o.counts;const base=el('div','ov-card');base.onclick=()=>switchView('mem');
+  base.innerHTML='<div class="h"><i data-lucide="database"></i>Base de conhecimento</div><div class="ov-chips">'+
+    '<span class="ov-chip">'+cc.memories+' memórias</span><span class="ov-chip">'+cc.kb+' fontes</span><span class="ov-chip">'+cc.links+' links</span><span class="ov-chip">'+cc.journal+' diário</span><span class="ov-chip">'+cc.places+' lugares</span><span class="ov-chip">'+cc.subs+' assinaturas</span><span class="ov-chip">'+cc.automations+' automações</span></div>';
+  grid.appendChild(base);
+  if(window.lucide)lucide.createIcons();
+}
 // --- Clima (painel holográfico estilo Weather) ---
 let _wxCity='';
 async function loadClima(){const body=$('#wx-body');if(!body)return;
@@ -3940,6 +3983,12 @@ def create_app(config: Config, brain: Brain | None = None):
             return datetime.now(ZoneInfo(getattr(config, "timezone", "UTC"))).date().isoformat()
         except Exception:
             return datetime.now(_tz.utc).date().isoformat()
+
+    # --- home dashboard overview -------------------------------------------
+    @app.get("/api/overview")
+    async def overview_ep(request: Request):
+        _check(request.headers.get("authorization"))
+        return commands.overview(owner)
 
     # --- financial goals (cofrinho) ----------------------------------------
     @app.get("/api/goals")
