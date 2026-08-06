@@ -88,6 +88,8 @@ class Config:
     imap_address: str          # Gmail address for reading mail via IMAP
     imap_password: str         # Gmail "app password" (not the account password)
     mapillary_token: str       # Mapillary access token for in-app street-level view
+    spotify_client_id: str     # Spotify app client id (OAuth, playlists + playback)
+    spotify_client_secret: str
     db_path: Path
 
     @property
@@ -237,5 +239,7 @@ class Config:
             imap_address=os.getenv("EV_IMAP_ADDRESS", "").strip(),
             imap_password=os.getenv("EV_IMAP_PASSWORD", "").strip(),
             mapillary_token=os.getenv("EV_MAPILLARY_TOKEN", "").strip(),
+            spotify_client_id=os.getenv("EV_SPOTIFY_CLIENT_ID", "").strip(),
+            spotify_client_secret=os.getenv("EV_SPOTIFY_CLIENT_SECRET", "").strip(),
             db_path=_PROJECT_ROOT / "ev_memory.db",
         )

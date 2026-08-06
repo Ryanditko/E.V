@@ -831,7 +831,8 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
     <div id="pageview"></div>
     <div id="musicview">
       <div class="tv-h">Música · Spotify</div>
-      <div class="eyebrow" style="margin:-8px 0 12px">Cole o link de uma playlist, faixa, álbum ou artista do Spotify. Toca a faixa inteira se você estiver logado no Spotify neste navegador.</div>
+      <div id="sp-section" style="max-width:760px;margin-bottom:16px"></div>
+      <div class="eyebrow" style="margin:-8px 0 12px">Ou cole o link de uma playlist/faixa/álbum do Spotify (player embutido, sem Premium):</div>
       <div class="tv-form" style="gap:8px;flex-wrap:wrap;margin-bottom:12px">
         <input class="tv-search" id="mu-url" placeholder="https://open.spotify.com/playlist/..." style="flex:1;min-width:200px">
         <input class="tv-search" id="mu-label" placeholder="apelido (opcional)" style="max-width:170px">
@@ -1652,7 +1653,38 @@ function renderMusic(){const list=$('#mu-list');if(!list)return;list.textContent
     row.onclick=()=>{[...list.children].forEach(c=>c.classList&&c.classList.remove('on'));row.classList.add('on');playEmbed(m.embed,m.kind==='track'||m.kind==='episode');sfx('click');};
     list.appendChild(row);});}
 async function loadMusic(){try{_music=(await (await fetch('/api/music',{headers:H()})).json()).items||[];}catch(e){_music=[];}
-  renderMusic();if(_music.length&&!$('#mu-player').children.length)playEmbed(_music[0].embed,_music[0].kind==='track'||_music[0].kind==='episode');}
+  renderMusic();if(_music.length&&!$('#mu-player').children.length)playEmbed(_music[0].embed,_music[0].kind==='track'||_music[0].kind==='episode');
+  loadSpotify();}
+// --- Spotify Web API (Premium: playlists do perfil + controle de playback) ---
+let _spDevice=null,_spPlayer=null,_spSdkLoading=false;
+async function loadSpotify(){const box=$('#sp-section');if(!box)return;box.textContent='';
+  let st;try{st=await (await fetch('/api/spotify/status',{headers:H()})).json();}catch(e){return;}
+  if(!st.configured){const h=el('div','tv-empty');h.innerHTML='Pra puxar suas playlists e controlar por voz (Premium): cole o <b>Spotify Client ID/Secret</b> em <b>Chaves de API</b> e registre a Redirect URI <code>'+esc(st.redirect_uri)+'</code> no painel do Spotify.';box.appendChild(h);return;}
+  if(!st.connected){const b=el('button','mbtn');b.textContent='Conectar meu Spotify';b.onclick=()=>{window.open('/spotify/connect','_blank');};box.appendChild(b);
+    const h=el('div','tv-empty');h.style.marginTop='8px';h.innerHTML='Registre esta Redirect URI no seu app do Spotify: <code>'+esc(st.redirect_uri)+'</code>';box.appendChild(h);return;}
+  // connected → controls + playlists + SDK device
+  const bar=el('div','');bar.style.cssText='display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap';
+  const mkc=(ic,fn)=>{const b=el('button','vcbtn');b.style.cssText='width:44px;height:44px';b.appendChild(ficon(ic));b.onclick=fn;return b;};
+  bar.appendChild(mkc('skip-back',()=>spCtl('prev')));bar.appendChild(mkc('play',()=>spCtl('resume')));bar.appendChild(mkc('pause',()=>spCtl('pause')));bar.appendChild(mkc('skip-forward',()=>spCtl('next')));
+  const now=el('span','eyebrow');now.id='sp-now';now.style.margin='0 0 0 6px';bar.appendChild(now);
+  const dc=el('button','mchip');dc.style.marginLeft='auto';dc.textContent='desconectar';dc.onclick=async()=>{await fetch('/api/spotify/disconnect',{method:'POST',headers:H()});loadSpotify();};bar.appendChild(dc);
+  box.appendChild(bar);
+  box.appendChild(el('div','tv-cat','Minhas playlists'));const pl=el('div','vlist');pl.style.maxHeight='34vh';box.appendChild(pl);
+  try{const pls=(await (await fetch('/api/spotify/playlists',{headers:H()})).json()).items||[];
+    if(!pls.length)pl.appendChild(el('div','tv-empty','Nenhuma playlist encontrada.'));
+    pls.forEach(p=>{const row=el('div','mu-row');const n=el('span','n',p.name);const k=el('span','k',p.tracks+' faixas');
+      row.appendChild(n);row.appendChild(k);row.onclick=()=>spPlay(p.uri);pl.appendChild(row);});}catch(e){}
+  spInitSDK();spNow();}
+async function spCtl(action){try{await fetch('/api/spotify/control',{method:'POST',headers:H(),body:JSON.stringify({action})});}catch(e){}sfx('click');setTimeout(spNow,600);}
+async function spPlay(uri){try{const r=await (await fetch('/api/spotify/play',{method:'POST',headers:H(),body:JSON.stringify({uri,device_id:_spDevice})})).json();if(!r.ok)toast(r.error||'não consegui tocar');else{sfx('confirm');setTimeout(spNow,700);}}catch(e){}}
+async function spNow(){const n=$('#sp-now');if(!n)return;try{const j=await (await fetch('/api/spotify/current',{headers:H()})).json();n.textContent=j.track?('♪ '+j.track):'';}catch(e){}}
+function spInitSDK(){if(_spPlayer||_spSdkLoading||!window.isSecureContext)return;_spSdkLoading=true;
+  window.onSpotifyWebPlaybackSDKReady=()=>{try{
+    _spPlayer=new Spotify.Player({name:'E.V.',getOAuthToken:cb=>{fetch('/api/spotify/token',{headers:H()}).then(r=>r.json()).then(j=>{if(j.token)cb(j.token);});},volume:0.8});
+    _spPlayer.addListener('ready',({device_id})=>{_spDevice=device_id;});
+    _spPlayer.addListener('not_ready',()=>{_spDevice=null;});
+    _spPlayer.connect();}catch(e){}};
+  const s=document.createElement('script');s.src='https://sdk.scdn.co/spotify-player.js';s.async=true;document.head.appendChild(s);}
 async function addMusic(){const u=$('#mu-url'),l=$('#mu-label');const url=(u.value||'').trim();if(!url)return;
   const r=await fetch('/api/music',{method:'POST',headers:H(),body:JSON.stringify({url,label:(l.value||'').trim()})});
   const j=await r.json().catch(()=>({}));
@@ -3351,6 +3383,8 @@ def create_app(config: Config, brain: Brain | None = None):
         ("imap_address", "EV_IMAP_ADDRESS", "E-mail Gmail (leitura)"),
         ("imap_password", "EV_IMAP_PASSWORD", "Senha de app Gmail (leitura)"),
         ("mapillary_token", "EV_MAPILLARY_TOKEN", "Mapillary (ver rua integrado)"),
+        ("spotify_client_id", "EV_SPOTIFY_CLIENT_ID", "Spotify Client ID"),
+        ("spotify_client_secret", "EV_SPOTIFY_CLIENT_SECRET", "Spotify Client Secret"),
     ]
 
     def _env_write(var, value):
@@ -3561,6 +3595,164 @@ def create_app(config: Config, brain: Brain | None = None):
         _check(request.headers.get("authorization"))
         memory.delete_music(owner, int((await _body(request)).get("id") or 0))
         return {"ok": True}
+
+    # --- Spotify OAuth + Web API (Premium: read playlists + control playback) --
+    import time as _time
+
+    def _sp_redirect(request: Request) -> str:
+        return _sp.norm_redirect(config.web_base_url or str(request.base_url))
+
+    def _sp_save(tokens: dict):
+        memory.set_setting("spotify_tokens", json.dumps(tokens))
+
+    def _sp_tokens() -> dict:
+        try:
+            return json.loads(memory.get_setting("spotify_tokens") or "{}")
+        except (ValueError, TypeError):
+            return {}
+
+    def _sp_access() -> str | None:
+        """A valid access token, refreshing with the refresh_token if expired."""
+        import httpx
+        t = _sp_tokens()
+        if not t.get("refresh"):
+            return None
+        if t.get("access") and t.get("exp", 0) > _time.time() + 30:
+            return t["access"]
+        try:
+            r = httpx.post("https://accounts.spotify.com/api/token", data={
+                "grant_type": "refresh_token", "refresh_token": t["refresh"],
+                "client_id": config.spotify_client_id,
+                "client_secret": config.spotify_client_secret}, timeout=15).json()
+        except Exception:
+            return None
+        if not r.get("access_token"):
+            return None
+        t["access"] = r["access_token"]
+        t["exp"] = _time.time() + int(r.get("expires_in", 3600))
+        if r.get("refresh_token"):
+            t["refresh"] = r["refresh_token"]
+        _sp_save(t)
+        return t["access"]
+
+    def _sp_api(method: str, path: str, token: str, **kw):
+        import httpx
+        url = path if path.startswith("http") else ("https://api.spotify.com/v1" + path)
+        return httpx.request(method, url, headers={"Authorization": "Bearer " + token},
+                             timeout=15, **kw)
+
+    @app.get("/spotify/connect")
+    async def spotify_connect(request: Request):
+        if not config.spotify_client_id:
+            return _login_denied_html("Configure o Spotify Client ID em Chaves de API.")
+        state = _secrets.token_urlsafe(16); _oauth_states.add(state)
+        return RedirectResponse(_sp.auth_url(
+            config.spotify_client_id, _sp_redirect(request), state))
+
+    @app.get("/spotify/callback")
+    async def spotify_callback(request: Request):
+        import httpx
+        code = request.query_params.get("code")
+        state = request.query_params.get("state")
+        if not code or state not in _oauth_states:
+            return _login_denied_html("Sessão do Spotify inválida. Tente de novo.")
+        _oauth_states.discard(state)
+        redirect = _sp_redirect(request)
+
+        def _work():
+            r = httpx.post("https://accounts.spotify.com/api/token", data={
+                "grant_type": "authorization_code", "code": code,
+                "redirect_uri": redirect, "client_id": config.spotify_client_id,
+                "client_secret": config.spotify_client_secret}, timeout=15).json()
+            return r
+        try:
+            r = await asyncio.to_thread(_work)
+        except Exception as exc:
+            return _login_denied_html(f"Falha ao conectar o Spotify: {exc}")
+        if not r.get("refresh_token"):
+            return _login_denied_html("Spotify não devolveu o token. Confira o Client Secret e a Redirect URI.")
+        _sp_save({"access": r.get("access_token"), "refresh": r["refresh_token"],
+                  "exp": _time.time() + int(r.get("expires_in", 3600))})
+        return HTMLResponse("<script>location.href='/'</script>Spotify conectado! Redirecionando…")
+
+    @app.get("/api/spotify/status")
+    async def spotify_status(request: Request):
+        _check(request.headers.get("authorization"))
+        return {"configured": bool(config.spotify_client_id),
+                "connected": bool(_sp_tokens().get("refresh")),
+                "redirect_uri": _sp_redirect(request)}
+
+    @app.post("/api/spotify/disconnect")
+    async def spotify_disconnect(request: Request):
+        _check(request.headers.get("authorization"))
+        memory.set_setting("spotify_tokens", "")
+        return {"ok": True}
+
+    @app.get("/api/spotify/token")
+    async def spotify_token(request: Request):
+        # fresh access token for the Web Playback SDK (client-side)
+        _check(request.headers.get("authorization"))
+        tok = await asyncio.to_thread(_sp_access)
+        if not tok:
+            raise HTTPException(status_code=400, detail="não conectado")
+        return {"token": tok}
+
+    @app.get("/api/spotify/playlists")
+    async def spotify_playlists(request: Request):
+        _check(request.headers.get("authorization"))
+        tok = await asyncio.to_thread(_sp_access)
+        if not tok:
+            raise HTTPException(status_code=400, detail="não conectado")
+        def _work():
+            r = _sp_api("GET", "/me/playlists?limit=50", tok)
+            return r.json() if r.status_code == 200 else {}
+        data = await asyncio.to_thread(_work)
+        items = [{"name": p.get("name"), "uri": p.get("uri"),
+                  "id": (p.get("id") or ""), "tracks": (p.get("tracks") or {}).get("total", 0)}
+                 for p in (data.get("items") or []) if p]
+        return {"items": items}
+
+    @app.post("/api/spotify/play")
+    async def spotify_play(request: Request):
+        _check(request.headers.get("authorization"))
+        tok = await asyncio.to_thread(_sp_access)
+        if not tok:
+            raise HTTPException(status_code=400, detail="não conectado")
+        d = await _body(request)
+        body, dev = {}, d.get("device_id")
+        if d.get("uri"):
+            body["context_uri"] = d["uri"]
+        def _work():
+            path = "/me/player/play" + (f"?device_id={dev}" if dev else "")
+            r = _sp_api("PUT", path, tok, json=body)
+            return r.status_code
+        sc = await asyncio.to_thread(_work)
+        if sc == 404:
+            return {"ok": False, "error": "nenhum dispositivo ativo — abra o Spotify ou use o player da E.V."}
+        return {"ok": sc in (200, 202, 204)}
+
+    @app.get("/api/spotify/current")
+    async def spotify_current(request: Request):
+        _check(request.headers.get("authorization"))
+        tok = await asyncio.to_thread(_sp_access)
+        if not tok:
+            return {"track": ""}
+        return {"track": await asyncio.to_thread(_sp.current_track, tok)}
+
+    @app.post("/api/spotify/control")
+    async def spotify_control(request: Request):
+        _check(request.headers.get("authorization"))
+        tok = await asyncio.to_thread(_sp_access)
+        if not tok:
+            raise HTTPException(status_code=400, detail="não conectado")
+        act = (await _body(request)).get("action")
+        M = {"pause": ("PUT", "/me/player/pause"), "resume": ("PUT", "/me/player/play"),
+             "next": ("POST", "/me/player/next"), "prev": ("POST", "/me/player/previous")}
+        if act not in M:
+            raise HTTPException(status_code=400, detail="ação inválida")
+        method, path = M[act]
+        sc = await asyncio.to_thread(lambda: _sp_api(method, path, tok).status_code)
+        return {"ok": sc in (200, 202, 204)}
 
     # --- Links / Habits / Journal CRUD -------------------------------------
     @app.get("/api/links")
