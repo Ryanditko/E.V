@@ -68,6 +68,22 @@ def weather(city: str) -> str:
         return f"não consegui o clima agora ({exc})"
 
 
+def moon_phase() -> dict:
+    """Current moon phase name + illumination % (computed, no API)."""
+    import math
+    from datetime import datetime, timezone
+    known = datetime(2000, 1, 6, 18, 14, tzinfo=timezone.utc)  # a known new moon
+    days = (datetime.now(timezone.utc) - known).total_seconds() / 86400
+    syn = 29.53058867
+    pos = (days % syn) / syn                                   # 0..1 through the cycle
+    illum = round((1 - math.cos(2 * math.pi * pos)) / 2 * 100)
+    table = [(0.02, "Lua nova"), (0.24, "Crescente côncava"), (0.28, "Quarto crescente"),
+             (0.48, "Crescente gibosa"), (0.52, "Lua cheia"), (0.72, "Minguante gibosa"),
+             (0.78, "Quarto minguante"), (0.98, "Minguante côncava"), (1.01, "Lua nova")]
+    name = next((nm for th, nm in table if pos <= th), "Lua nova")
+    return {"phase": name, "illum": illum, "waxing": pos < 0.5}
+
+
 def _wicon(code: int, is_day: bool = True) -> str:
     """Open-Meteo weather code -> a lucide icon name for the dashboard."""
     if code == 0:

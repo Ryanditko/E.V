@@ -395,7 +395,23 @@ body.speaking .bigcore .r2{animation-delay:.15s}body.speaking .bigcore .r3{anima
 .tab-edit{opacity:.5;font-size:14px;padding:6px 11px}.tab-edit:hover{opacity:1;color:var(--fg)}
 .tab.on{background:var(--fg);color:var(--ink)}
 #chatview{flex:1;display:flex;flex-direction:column;min-height:0}
-#taskview,#kbview,#expview,#remview,#memview,#calview,#lnkview,#habview,#jouview,#subview,#orcview,#monview,#actview,#pageview,#musicview,#climaview,#metasview,#saudeview,#cofreview{flex:1;min-height:0;overflow:auto;padding:24px;display:none}
+#taskview,#kbview,#expview,#remview,#memview,#calview,#lnkview,#habview,#jouview,#subview,#orcview,#monview,#actview,#pageview,#musicview,#climaview,#metasview,#saudeview,#cofreview,#painelview{flex:1;min-height:0;overflow:auto;padding:24px;display:none}
+.rd-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:1400px}
+@media(max-width:820px){.rd-grid{grid-template-columns:1fr}}
+.rd-half{min-width:0}
+.pd-t{font-family:var(--disp);font-size:16px;color:#eaf4fb;margin-bottom:12px;text-shadow:0 0 14px rgba(53,200,255,.25)}
+.pd-card{border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:15px 17px;margin-bottom:12px}
+.pd-card .l{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--subtle);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.pd-card .l svg{width:13px;height:13px}
+.pd-moon{display:flex;align-items:center;gap:16px}
+.pd-moon .disc{width:64px;height:64px;border-radius:50%;flex:none;background:radial-gradient(circle at 35% 35%,#eaf4fb,#7d93aa);box-shadow:0 0 22px -4px var(--glow),inset -14px 0 16px -6px rgba(4,7,12,.85)}
+.pd-moon .big{font-family:var(--disp);font-size:26px;color:#eaf4fb}.pd-moon .sub{color:var(--muted);font-size:13px}
+.pd-sun{display:flex;justify-content:space-between}.pd-sun .v{font-family:var(--disp);font-size:24px;color:#eaf4fb}.pd-sun .k{font-size:11px;color:var(--muted)}
+.pd-clocks{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pd-clock{display:flex;justify-content:space-between;align-items:baseline;padding:7px 11px;border:1px solid var(--line);border-radius:10px;background:var(--elev)}
+.pd-clock .c{font-family:var(--mono);letter-spacing:.1em;color:var(--subtle);font-size:11px}.pd-clock .h{font-family:var(--disp);font-size:18px;color:#eaf4fb}
+.pd-rate{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:14px}.pd-rate b{color:var(--accent)}
+.pd-hl a{display:block;padding:6px 0;border-bottom:1px solid var(--line);color:var(--fg);font-size:13px;text-decoration:none;line-height:1.4}.pd-hl a:hover{color:var(--accent)}
 .goal{max-width:640px;border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:15px 18px;margin-bottom:12px}
 .goal .gh{display:flex;justify-content:space-between;align-items:baseline}.goal .gn{font-size:16px;color:#eaf4fb}.goal .gv{font-family:var(--mono);font-size:13px;color:var(--accent)}
 .goal .gbar{height:9px;background:var(--elev);border-radius:5px;overflow:hidden;margin:9px 0}.goal .gbar i{display:block;height:100%;background:linear-gradient(90deg,#4dd0e1,#5ee6a3);box-shadow:0 0 8px var(--glow)}
@@ -665,7 +681,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
   body.m-left #mbackdrop,body.m-right #mbackdrop{display:block;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:55}
   .topbar{padding:11px 12px;gap:5px}
   #slash{left:14px;right:14px}
-  #taskview,#kbview,#expview,#remview,#memview,#calview,#lnkview,#habview,#jouview,#subview,#orcview,#monview,#actview,#brainview,#pageview,#musicview,#climaview,#metasview,#saudeview,#cofreview{padding:16px 14px}
+  #taskview,#kbview,#expview,#remview,#memview,#calview,#lnkview,#habview,#jouview,#subview,#orcview,#monview,#actview,#brainview,#pageview,#musicview,#climaview,#metasview,#saudeview,#cofreview,#painelview{padding:16px 14px}
   #log{padding:14px 14px}
   .msg{max-width:92%!important}
   #calgrid{gap:3px}.cal-cell{min-height:62px;padding:4px}
@@ -703,7 +719,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
     <div class="topbar">
       <button class="tbtn ico" id="tgl-left" title="Ocultar/mostrar pastas"><i data-lucide="panel-left"></i></button>
       <div class="tabs" id="tabs"></div>
-      <select id="mnav" class="mnav" title="Ir para"><option value="chat">Conversa</option><option value="tasks">Tarefas</option><option value="exp">Gastos</option><option value="rem">Lembretes</option><option value="cal">Agenda</option><option value="mem">Memórias</option><option value="lnk">Links</option><option value="hab">Hábitos</option><option value="jou">Diário</option><option value="sub">Assinaturas</option><option value="orc">Orçamentos</option><option value="mon">Monitores</option><option value="act">Histórico</option><option value="kb">Base</option><option value="map">Mapa</option><option value="brain">Cérebro</option><option value="graf">Gráficos</option><option value="musica">Música</option><option value="clima">Clima</option><option value="metas">Metas</option><option value="saude">Saúde</option><option value="cofre">Cofre</option></select>
+      <select id="mnav" class="mnav" title="Ir para"><option value="chat">Conversa</option><option value="tasks">Tarefas</option><option value="exp">Gastos</option><option value="rem">Lembretes</option><option value="cal">Agenda</option><option value="mem">Memórias</option><option value="lnk">Links</option><option value="hab">Hábitos</option><option value="jou">Diário</option><option value="sub">Assinaturas</option><option value="orc">Orçamentos</option><option value="mon">Monitores</option><option value="act">Histórico</option><option value="kb">Base</option><option value="map">Mapa</option><option value="brain">Cérebro</option><option value="graf">Gráficos</option><option value="musica">Música</option><option value="clima">Clima</option><option value="metas">Metas</option><option value="saude">Saúde</option><option value="cofre">Cofre</option><option value="painel">Painel</option></select>
       <span class="eyebrow" id="scope">geral</span>
       <button class="tbtn ico" id="gsearch" title="Buscar em tudo"><i data-lucide="search"></i></button>
       <button class="tbtn ic-txt" id="vcopen" title="Falar"><i data-lucide="mic"></i><span>FALAR</span></button>
@@ -917,6 +933,13 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
         <input id="cf-file" type="file" style="display:none">
       </div>
       <div id="cf-list"></div>
+    </div>
+    <div id="painelview">
+      <div class="tv-h">Painel · astronomia & mundo</div>
+      <div class="rd-grid">
+        <div class="rd-half"><div class="pd-t">☾ Astronomia</div><div id="pd-astro"></div></div>
+        <div class="rd-half"><div class="pd-t">◎ Radar do mundo</div><div id="pd-radar"></div></div>
+      </div>
     </div>
   </main>
   <aside id="right" class="rail">
@@ -1256,7 +1279,7 @@ f.onsubmit=e=>{e.preventDefault();if(slash.style.display==='block'&&slSel>=0){pi
   txt.value='';hideSlash();if(!m)return;sfx('send');
   if(m.startsWith('/'))runCmd(m.slice(1));else send(m);};
 
-const CAT={plano:['Plano do dia','sunrise'],pendencias:['Pendências','bell-ring'],padroes:['Padrões','sparkles'],automacoes:['Automações','zap'],bak:['Backup','database-backup'],tarefas:['Tarefas','list-checks'],lembretes:['Lembretes','alarm-clock'],gastos:['Gastos','wallet'],memorias:['Memórias','brain'],kb:['Base','book-open'],map:['Mapa','map'],graf:['Gráficos','bar-chart-3'],brain:['Cérebro','brain-circuit'],musica:['Música','music'],metas:['Metas','target'],saude:['Saúde','heart-pulse'],cofre:['Cofre','folder-lock'],cam:['Câmera','camera'],buscar:['Buscar web','search'],noticias:['Notícias','newspaper'],clima:['Clima','cloud-sun'],relatorio:['Relatório','bar-chart-3'],status:['Status','activity'],semana:['Semana','calendar-days'],foco:['Pomodoro','timer'],procurar:['Procurar','file-search'],calendario:['Agenda','calendar'],habitos:['Hábitos','repeat'],diario:['Diário','notebook-pen'],orcamentos:['Orçamentos','piggy-bank'],assinaturas:['Assinaturas','credit-card'],dados:['Meus dados','database'],insights:['Insights','sparkles'],quiz:['Quiz','graduation-cap']};
+const CAT={plano:['Plano do dia','sunrise'],pendencias:['Pendências','bell-ring'],padroes:['Padrões','sparkles'],automacoes:['Automações','zap'],bak:['Backup','database-backup'],tarefas:['Tarefas','list-checks'],lembretes:['Lembretes','alarm-clock'],gastos:['Gastos','wallet'],memorias:['Memórias','brain'],kb:['Base','book-open'],map:['Mapa','map'],graf:['Gráficos','bar-chart-3'],brain:['Cérebro','brain-circuit'],musica:['Música','music'],metas:['Metas','target'],saude:['Saúde','heart-pulse'],cofre:['Cofre','folder-lock'],painel:['Painel','satellite-dish'],cam:['Câmera','camera'],buscar:['Buscar web','search'],noticias:['Notícias','newspaper'],clima:['Clima','cloud-sun'],relatorio:['Relatório','bar-chart-3'],status:['Status','activity'],semana:['Semana','calendar-days'],foco:['Pomodoro','timer'],procurar:['Procurar','file-search'],calendario:['Agenda','calendar'],habitos:['Hábitos','repeat'],diario:['Diário','notebook-pen'],orcamentos:['Orçamentos','piggy-bank'],assinaturas:['Assinaturas','credit-card'],dados:['Meus dados','database'],insights:['Insights','sparkles'],quiz:['Quiz','graduation-cap']};
 const SM={tasks:['Tarefas','list-checks','tarefas'],reminders:['Lembretes','alarm-clock','lembretes'],expenses:['Gastos · mês','wallet','gastos'],memories:['Memórias','brain','memorias'],kb:['Base','book-open','kb'],kbfiles:['Arquivos','file-text','kb'],links:['Links','link','links'],habits:['Hábitos','repeat','habitos'],journal:['Diário','notebook-pen','diario'],subscriptions:['Assinaturas','credit-card','assinaturas'],budgets:['Orçamentos','piggy-bank','orcamentos'],watches:['Monitores','radar','monitores'],agenda:['Agenda · 7d','calendar','calendario'],activity:['Histórico · 24h','history','status'],provider:['Provedor','cpu','status'],model:['Modelo','box','modelo'],disk:['Disco','hard-drive','status'],ram:['RAM','memory-stick','status'],uptime:['Uptime','clock','status']};
 const RECUR=[{v:'',l:'Uma vez'},{v:'daily',l:'Diário'},{v:'weekly',l:'Semanal'},{v:'monthly',l:'Mensal'}];
 const RECUR_LBL={daily:'repete diário',weekly:'repete semanal',monthly:'repete mensal'};
@@ -1704,7 +1727,7 @@ function toggleAmb(){if(!SR){toast('Presença ambiente precisa do Chrome, Edge o
 $('#amb').onclick=toggleAmb;
 renderAmbBtn();
 // view tabs — customizable: pick which appear in the header (minimalist)
-const VIEW_LABELS={chat:'Conversa',tasks:'Tarefas',exp:'Gastos',rem:'Lembretes',cal:'Agenda',mem:'Memórias',lnk:'Links',hab:'Hábitos',jou:'Diário',sub:'Assinaturas',orc:'Orçamentos',mon:'Monitores',act:'Histórico',kb:'Base',map:'Mapa',brain:'Cérebro',graf:'Gráficos',musica:'Música',clima:'Clima',metas:'Metas',saude:'Saúde',cofre:'Cofre'};
+const VIEW_LABELS={chat:'Conversa',tasks:'Tarefas',exp:'Gastos',rem:'Lembretes',cal:'Agenda',mem:'Memórias',lnk:'Links',hab:'Hábitos',jou:'Diário',sub:'Assinaturas',orc:'Orçamentos',mon:'Monitores',act:'Histórico',kb:'Base',map:'Mapa',brain:'Cérebro',graf:'Gráficos',musica:'Música',clima:'Clima',metas:'Metas',saude:'Saúde',cofre:'Cofre',painel:'Painel'};
 let curView='chat',tabsShown;try{tabsShown=JSON.parse(localStorage.getItem('ev_tabs'));}catch(e){}
 if(!Array.isArray(tabsShown)||!tabsShown.length)tabsShown=['chat','tasks','exp','rem','cal','brain'];
 function renderTabs(){const box=$('#tabs');if(!box)return;box.textContent='';
@@ -1712,7 +1735,7 @@ function renderTabs(){const box=$('#tabs');if(!box)return;box.textContent='';
   const ed=el('button','tab tab-edit','+');ed.title='Escolher abas';ed.onclick=()=>openPicker('Abas do topo','Escolha quais abas aparecem no topo.',Object.keys(VIEW_LABELS).map(k=>({key:k,label:VIEW_LABELS[k]})),tabsShown,l=>{tabsShown=l.length?l:['chat'];localStorage.setItem('ev_tabs',JSON.stringify(tabsShown));renderTabs();});box.appendChild(ed);}
 renderTabs();
 $('#mnav').onchange=()=>switchView($('#mnav').value);
-const VIEWS={chat:'#chatview',tasks:'#taskview',exp:'#expview',rem:'#remview',cal:'#calview',mem:'#memview',lnk:'#lnkview',hab:'#habview',jou:'#jouview',sub:'#subview',orc:'#orcview',mon:'#monview',kb:'#kbview',act:'#actview',map:'#mapview',brain:'#brainview',graf:'#chartsview',musica:'#musicview',clima:'#climaview',metas:'#metasview',saude:'#saudeview',cofre:'#cofreview'};
+const VIEWS={chat:'#chatview',tasks:'#taskview',exp:'#expview',rem:'#remview',cal:'#calview',mem:'#memview',lnk:'#lnkview',hab:'#habview',jou:'#jouview',sub:'#subview',orc:'#orcview',mon:'#monview',kb:'#kbview',act:'#actview',map:'#mapview',brain:'#brainview',graf:'#chartsview',musica:'#musicview',clima:'#climaview',metas:'#metasview',saude:'#saudeview',cofre:'#cofreview',painel:'#painelview'};
 function switchView(v){const isPage=(''+v).indexOf('page:')===0;
   if(!isPage&&!VIEWS[v])v='chat';curView=v;document.querySelectorAll('#tabs .tab').forEach(t=>t.classList.toggle('on',t.dataset.view===v));
   const mn=$('#mnav');if(mn&&!isPage&&mn.value!==v)mn.value=v;
@@ -1720,7 +1743,7 @@ function switchView(v){const isPage=(''+v).indexOf('page:')===0;
   Object.entries(VIEWS).forEach(([k,sel])=>{const el2=$(sel);if(el2)el2.style.display=(k===v)?((k==='chat'||k==='brain')?'flex':'block'):'none';});
   const pv=$('#pageview');if(pv)pv.style.display=isPage?'block':'none';
   if(isPage){renderPage(v.slice(5));return;}
-  ({tasks:loadTasks,exp:loadExp,rem:loadRem,mem:loadMem,kb:loadKB,cal:loadCal,lnk:loadLinks,hab:loadHabits,jou:loadJournal,sub:loadSub,orc:loadOrc,mon:loadMon,act:loadAct,map:loadMap,brain:loadBrain,graf:loadCharts,musica:loadMusic,clima:loadClima,metas:loadGoals,saude:loadSaude,cofre:loadCofre}[v]||function(){})();}
+  ({tasks:loadTasks,exp:loadExp,rem:loadRem,mem:loadMem,kb:loadKB,cal:loadCal,lnk:loadLinks,hab:loadHabits,jou:loadJournal,sub:loadSub,orc:loadOrc,mon:loadMon,act:loadAct,map:loadMap,brain:loadBrain,graf:loadCharts,musica:loadMusic,clima:loadClima,metas:loadGoals,saude:loadSaude,cofre:loadCofre,painel:loadPainel}[v]||function(){})();}
 // --- Clima (painel holográfico estilo Weather) ---
 let _wxCity='';
 async function loadClima(){const body=$('#wx-body');if(!body)return;
@@ -1810,6 +1833,34 @@ async function loadCofre(){const box=$('#cf-list');if(!box)return;box.textConten
 (function(){const f=$('#cf-file');if(f)f.onchange=async e=>{const file=e.target.files[0];if(!file)return;const fd=new FormData();fd.append('file',file);
   toast('enviando…');try{const r=await fetch('/api/vault',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd});if(r.ok){sfx('confirm');loadCofre();}else{const j=await r.json().catch(()=>({}));toast(j.detail||'falhou');}}catch(_){toast('falhou');}e.target.value='';};
   const q=$('#cf-q');if(q)q.addEventListener('input',()=>{clearTimeout(q._t);q._t=setTimeout(loadCofre,300);});})();
+// --- Painel (astronomia + radar do mundo, meio a meio) ---
+let _pdClock=null;
+function pdL(icon,text){const l=el('div','l');l.appendChild(ficon(icon));l.appendChild(document.createTextNode(text));return l;}
+function tickClocks(){document.querySelectorAll('#pd-clocks .h[data-tz]').forEach(h=>{try{h.textContent=new Date().toLocaleTimeString('pt-BR',{timeZone:h.getAttribute('data-tz'),hour:'2-digit',minute:'2-digit'});}catch(e){}});}
+function startClocks(){if(_pdClock)return;_pdClock=setInterval(()=>{if(curView==='painel')tickClocks();else{clearInterval(_pdClock);_pdClock=null;}},1000);tickClocks();}
+async function loadPainel(){const A=$('#pd-astro'),R=$('#pd-radar');if(!A||!R)return;
+  A.innerHTML='<div class="tv-empty">carregando…</div>';R.innerHTML='<div class="tv-empty">carregando…</div>';
+  const zones=[['SÃO PAULO','America/Sao_Paulo'],['NOVA YORK','America/New_York'],['LONDRES','Europe/London'],['TÓQUIO','Asia/Tokyo']];
+  fetch('/api/astro',{headers:H()}).then(r=>r.json()).then(d=>{A.textContent='';const moon=d.moon||{};
+    const mc=el('div','pd-card');mc.appendChild(pdL('moon','Lua'));const mrow=el('div','pd-moon');mrow.appendChild(el('div','disc'));
+    const mi=el('div','');mi.appendChild(el('div','big',(moon.illum||0)+'%'));mi.appendChild(el('div','sub',(moon.phase||'')+' · '+(moon.waxing?'crescendo':'minguando')));mrow.appendChild(mi);mc.appendChild(mrow);A.appendChild(mc);
+    if(d.sun&&d.sun.sunrise){const sc=el('div','pd-card');sc.appendChild(pdL('sunrise','Sol'+(d.city?(' · '+d.city):'')));const sr=el('div','pd-sun');
+      sr.innerHTML='<div><div class="k">nascer</div><div class="v">'+d.sun.sunrise+'</div></div><div style="text-align:right"><div class="k">pôr</div><div class="v">'+d.sun.sunset+'</div></div>';sc.appendChild(sr);A.appendChild(sc);}
+    if(d.iss&&d.iss.lat!=null){const ic=el('div','pd-card');ic.appendChild(pdL('satellite','Estação Espacial (ISS)'));
+      const iv=el('div','');iv.style.cssText='font-family:var(--mono);font-size:13px;color:var(--fg)';iv.textContent=d.iss.lat+'°, '+d.iss.lng+'°  ·  '+d.iss.alt+' km de altitude';ic.appendChild(iv);A.appendChild(ic);}
+    window.lucide&&lucide.createIcons();}).catch(()=>{A.innerHTML='<div class="tv-empty">astronomia indisponível.</div>';});
+  fetch('/api/radar',{headers:H()}).then(r=>r.json()).then(d=>{R.textContent='';
+    const cc=el('div','pd-card');cc.appendChild(pdL('clock','Relógios'));const cg=el('div','pd-clocks');cg.id='pd-clocks';
+    zones.forEach(z=>{const cl=el('div','pd-clock');cl.appendChild(el('span','c',z[0]));const h=el('span','h','--:--');h.setAttribute('data-tz',z[1]);cl.appendChild(h);cg.appendChild(cl);});cc.appendChild(cg);R.appendChild(cc);
+    const rt=d.rates||{},rc=el('div','pd-card');rc.appendChild(pdL('trending-up','Cotações'));
+    const mk=(k,v)=>{const r=el('div','pd-rate');r.appendChild(el('span','',k));const b=document.createElement('b');b.textContent=v;r.appendChild(b);rc.appendChild(r);};
+    if(rt.usd)mk('Dólar','R$ '+rt.usd);if(rt.eur)mk('Euro','R$ '+rt.eur);if(rt.btc)mk('Bitcoin','R$ '+rt.btc.toLocaleString('pt-BR'));
+    if(!rt.usd&&!rt.btc)rc.appendChild(el('div','tv-empty','cotações indisponíveis'));R.appendChild(rc);
+    const hc=el('div','pd-card');hc.appendChild(pdL('newspaper','Manchetes · TabNews'));const hl=el('div','pd-hl');
+    (d.headlines||[]).forEach(x=>{const a=document.createElement('a');a.href=x.url;a.target='_blank';a.rel='noopener';a.textContent=x.title;hl.appendChild(a);});
+    if(!(d.headlines||[]).length)hl.appendChild(el('div','tv-empty','sem manchetes'));hc.appendChild(hl);R.appendChild(hc);
+    startClocks();window.lucide&&lucide.createIcons();}).catch(()=>{R.innerHTML='<div class="tv-empty">radar indisponível.</div>';});
+}
 // --- Música (Spotify embed player) ---
 let _music=[];
 function playEmbed(embed,compact){const box=$('#mu-player');if(!box)return;box.classList.toggle('compact',!!compact);
@@ -3782,6 +3833,63 @@ def create_app(config: Config, brain: Brain | None = None):
         _check(request.headers.get("authorization"))
         memory.delete_page(owner, int((await _body(request)).get("id") or 0))
         return {"ok": True}
+
+    @app.get("/api/astro")
+    async def astro_ep(request: Request):
+        _check(request.headers.get("authorization"))
+        import httpx
+        city = (request.query_params.get("city") or getattr(config, "city", "") or "").strip()
+        moon = tools_mod.moon_phase()
+        sun = {}
+        if city:
+            try:
+                wf = await asyncio.to_thread(tools_mod.weather_full, city)
+                t = wf.get("today", {})
+                sun = {"sunrise": t.get("sunrise"), "sunset": t.get("sunset")}
+            except Exception:
+                pass
+        iss = {}
+        try:
+            r = await asyncio.to_thread(
+                lambda: httpx.get("https://api.wheretheiss.at/v1/satellites/25544", timeout=8).json())
+            iss = {"lat": round(r.get("latitude", 0), 1), "lng": round(r.get("longitude", 0), 1),
+                   "alt": round(r.get("altitude", 0))}
+        except Exception:
+            pass
+        return {"moon": moon, "sun": sun, "iss": iss, "city": city}
+
+    @app.get("/api/radar")
+    async def radar_ep(request: Request):
+        _check(request.headers.get("authorization"))
+        import httpx
+        def _work():
+            out = {"rates": {}, "headlines": []}
+            try:
+                r = httpx.get("https://open.er-api.com/v6/latest/USD", timeout=10).json().get("rates", {})
+                if r.get("BRL"):
+                    out["rates"]["usd"] = round(r["BRL"], 2)
+                    if r.get("EUR"):
+                        out["rates"]["eur"] = round(r["BRL"] / r["EUR"], 2)
+            except Exception:
+                pass
+            try:
+                b = httpx.get("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=brl",
+                              timeout=10).json()
+                if b.get("bitcoin", {}).get("brl"):
+                    out["rates"]["btc"] = round(b["bitcoin"]["brl"])
+            except Exception:
+                pass
+            try:
+                c = httpx.get("https://www.tabnews.com.br/api/v1/contents?per_page=6&strategy=relevant",
+                              timeout=10).json()
+                for x in (c or [])[:6]:
+                    out["headlines"].append({
+                        "title": x.get("title"),
+                        "url": "https://www.tabnews.com.br/" + (x.get("owner_username") or "") + "/" + (x.get("slug") or "")})
+            except Exception:
+                pass
+            return out
+        return await asyncio.to_thread(_work)
 
     @app.get("/api/weather")
     async def weather_ep(request: Request):
