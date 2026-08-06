@@ -822,6 +822,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
     <div class="eyebrow">Provedor de IA</div>
     <select id="prov"><option>auto</option><option>gemini</option><option>groq</option><option>openrouter</option><option>ollama</option></select>
     <button class="act" id="btn-voice" style="margin-top:12px;width:100%"><i data-lucide="mic-vocal"></i>Voz da E.V.</button>
+    <button class="act" id="btn-conn" style="margin-top:8px;width:100%"><i data-lucide="plug-zap"></i>Conectores de API</button>
     <button class="act" id="btn-keys" style="margin-top:8px;width:100%"><i data-lucide="key-round"></i>Chaves de API</button>
     <button class="act" id="btn-notifs" style="margin-top:8px;width:100%"><i data-lucide="bell"></i>Notificações<span id="notif-badge" class="nbadge"></span></button>
   </aside>
@@ -1176,6 +1177,50 @@ async function openKeys(){let d;try{d=await (await fetch('/api/keys',{headers:H(
     if(Object.keys(body).length){const r=await (await fetch('/api/keys',{method:'POST',headers:H(),body:JSON.stringify(body)})).json();sys('Chaves atualizadas: '+(r.changed||[]).join(', '));loadPanel();}});}
 $('#btn-keys').onclick=openKeys;
 $('#btn-voice').onclick=openVoicePicker;
+$('#btn-conn').onclick=openConnectors;
+async function openConnectors(){
+  let conns=[],keys=[];
+  try{conns=(await (await fetch('/api/connectors',{headers:H()})).json()).items||[];}catch(e){}
+  try{keys=(await (await fetch('/api/keys/custom',{headers:H()})).json()).keys||[];}catch(e){}
+  const m=$('#modal');m.textContent='';const card=el('div','mcard');
+  card.appendChild(el('div','mtitle','Conectores de API'));
+  card.appendChild(el('div','mconf','Conecte qualquer API HTTPS pela interface — sem código. Guarde a chave aqui e use {{NOME_DA_CHAVE}} na URL ou nos headers.'));
+  // --- secret keys ---
+  card.appendChild(el('div','tv-cat','Chaves guardadas'));
+  const klist=el('div','vlist');
+  const drawKeys=()=>{klist.textContent='';if(!keys.length)klist.appendChild(el('div','tv-empty','Nenhuma chave ainda.'));
+    keys.forEach(k=>{const row=el('div','vrow');row.appendChild(el('span','vname',k.name+(k.set?' ✓':'')));
+      const del=el('button','vplay');del.appendChild(ficon('trash-2'));del.onclick=async()=>{await fetch('/api/keys/custom',{method:'POST',headers:H(),body:JSON.stringify({name:k.name,clear:true})});keys=keys.filter(x=>x.name!==k.name);drawKeys();};
+      row.appendChild(del);klist.appendChild(row);});};
+  drawKeys();card.appendChild(klist);
+  const kf=el('div','vrange');const kn=document.createElement('input');kn.className='minput';kn.placeholder='NOME_DA_CHAVE (ex: OPENWEATHER_KEY)';kn.style.marginBottom='6px';
+  const kv=document.createElement('input');kv.className='minput';kv.placeholder='valor da chave';kv.type='password';
+  const kb=el('button','mbtn2','Guardar chave');kb.style.marginTop='6px';
+  kb.onclick=async()=>{const nm=(kn.value||'').trim().toUpperCase();if(!nm||!kv.value)return;
+    const r=await fetch('/api/keys/custom',{method:'POST',headers:H(),body:JSON.stringify({name:nm,value:kv.value})});
+    if(r.ok){if(!keys.find(x=>x.name===nm))keys.push({name:nm,set:true});kn.value='';kv.value='';drawKeys();sfx('confirm');}else{const e=await r.json().catch(()=>({}));toast(e.detail||'nome inválido');}};
+  kf.appendChild(kn);kf.appendChild(kv);kf.appendChild(kb);card.appendChild(kf);
+  // --- connectors ---
+  card.appendChild(el('div','tv-cat','Conectores'));
+  const clist=el('div','vlist');
+  const drawConns=()=>{clist.textContent='';if(!conns.length)clist.appendChild(el('div','tv-empty','Nenhum conector ainda.'));
+    conns.forEach(c=>{const row=el('div','vrow');row.appendChild(el('span','vname',c.name));
+      const test=el('button','vplay');test.appendChild(ficon('play'));test.onclick=async()=>{test.classList.add('busy');const r=await (await fetch('/api/connectors/run',{method:'POST',headers:H(),body:JSON.stringify({name:c.name})})).json();test.classList.remove('busy');toast(r.ok?('→ '+r.value):('erro: '+r.error));};
+      const del=el('button','vplay');del.appendChild(ficon('trash-2'));del.onclick=async()=>{await fetch('/api/connectors/delete',{method:'POST',headers:H(),body:JSON.stringify({id:c.id})});conns=conns.filter(x=>x.id!==c.id);drawConns();};
+      row.appendChild(test);row.appendChild(del);clist.appendChild(row);});};
+  drawConns();card.appendChild(clist);
+  const mk=(ph,val)=>{const i=document.createElement('input');i.className='minput';i.placeholder=ph;i.style.marginBottom='6px';if(val)i.value=val;return i;};
+  const cn=mk('nome (ex: Cotação dólar)'),cu=mk('https://api.exemplo.com/... (pode usar {{CHAVE}})'),ch=mk('header opcional  ex: Authorization: Bearer {{CHAVE}}'),cp=mk('caminho no JSON (ex: rates.BRL ou data[0].price)');
+  [cn,cu,ch,cp].forEach(i=>card.appendChild(i));
+  const parseH=()=>{const t=(ch.value||'').trim();if(!t)return{};const i=t.indexOf(':');return i>0?{[t.slice(0,i).trim()]:t.slice(i+1).trim()}:{};};
+  const bar=el('div','mbar');
+  const tb=el('button','mbtn2','Testar');tb.onclick=async()=>{const r=await (await fetch('/api/connectors/run',{method:'POST',headers:H(),body:JSON.stringify({url:cu.value.trim(),headers:parseH(),path:cp.value.trim()})})).json();toast(r.ok?('→ '+r.value):('erro: '+r.error));};
+  const sv=el('button','mbtn','Salvar conector');sv.onclick=async()=>{if(!cn.value.trim()||!cu.value.trim().startsWith('https://')){toast('nome e URL https são obrigatórios');return;}
+    const r=await fetch('/api/connectors',{method:'POST',headers:H(),body:JSON.stringify({name:cn.value.trim(),url:cu.value.trim(),headers:parseH(),path:cp.value.trim()})});
+    if(r.ok){const j=await r.json();conns.push({id:j.id,name:cn.value.trim(),url:cu.value.trim(),headers:parseH(),path:cp.value.trim()});cn.value=cu.value=ch.value=cp.value='';drawConns();sfx('confirm');}};
+  const cl=el('button','mbtn2','Fechar');cl.onclick=()=>m.classList.remove('on');
+  bar.appendChild(cl);bar.appendChild(tb);bar.appendChild(sv);card.appendChild(bar);
+  m.appendChild(card);m.classList.add('on');window.lucide&&lucide.createIcons();}
 async function openVoicePicker(){
   let d;try{d=await (await fetch('/api/voice',{headers:H()})).json();}catch(e){return;}
   const m=$('#modal');m.textContent='';const card=el('div','mcard');
@@ -3247,6 +3292,104 @@ def create_app(config: Config, brain: Brain | None = None):
                 except Exception:
                     pass
         return {"ok": bool(changed), "changed": changed, "keys": _keys_state()}
+
+    # --- dynamic keys + connectors (self-service integrations, no code) -----
+    import os as _os
+    import re as _re
+    from ..providers import connectors as conn_mod
+
+    def _custom_keys():
+        try:
+            return json.loads(memory.get_setting("custom_keys") or "[]")
+        except (ValueError, TypeError):
+            return []
+
+    @app.get("/api/keys/custom")
+    async def custom_keys_get(request: Request):
+        _check(request.headers.get("authorization"))
+        names = _custom_keys()
+        return {"keys": [{"name": n, "set": bool(_os.environ.get(n))} for n in names]}
+
+    @app.post("/api/keys/custom")
+    async def custom_keys_set(request: Request):
+        _check(request.headers.get("authorization"))
+        d = await _body(request)
+        name = (d.get("name") or "").strip().upper()
+        if not _re.match(r"^[A-Z][A-Z0-9_]{1,39}$", name):
+            raise HTTPException(status_code=400, detail="nome inválido (use MAIÚSCULAS_E_UNDERSCORE)")
+        names = _custom_keys()
+        if d.get("clear"):
+            _os.environ.pop(name, None)
+            try:
+                _env_write(name, "")
+            except Exception:
+                pass
+            names = [n for n in names if n != name]
+            memory.set_setting("custom_keys", json.dumps(names))
+            return {"ok": True, "removed": name}
+        val = (d.get("value") or "").strip()
+        if not val:
+            raise HTTPException(status_code=400, detail="valor vazio")
+        _os.environ[name] = val                      # live for connectors, no restart
+        try:
+            _env_write(name, val)                    # persist to .env
+        except Exception:
+            pass
+        if name not in names:
+            names.append(name)
+            memory.set_setting("custom_keys", json.dumps(names))
+        return {"ok": True, "name": name}
+
+    def _subst(s: str) -> str:
+        # replace {{SECRET_NAME}} with the value from the environment (never logged)
+        return _re.sub(r"\{\{\s*([A-Z][A-Z0-9_]{1,39})\s*\}\}",
+                       lambda m: _os.environ.get(m.group(1), ""), s or "")
+
+    @app.get("/api/connectors")
+    async def connectors_list(request: Request):
+        _check(request.headers.get("authorization"))
+        return {"items": memory.list_connectors(owner)}
+
+    @app.post("/api/connectors")
+    async def connectors_add(request: Request):
+        _check(request.headers.get("authorization"))
+        d = await _body(request)
+        name = (d.get("name") or "").strip()
+        url = (d.get("url") or "").strip()
+        if not name or not url.startswith("https://"):
+            raise HTTPException(status_code=400, detail="nome e URL https são obrigatórios")
+        headers = d.get("headers") if isinstance(d.get("headers"), dict) else {}
+        cid = memory.add_connector(owner, name[:60], url, headers, (d.get("path") or "").strip())
+        return {"ok": True, "id": cid}
+
+    @app.post("/api/connectors/delete")
+    async def connectors_del(request: Request):
+        _check(request.headers.get("authorization"))
+        memory.delete_connector(owner, int((await _body(request)).get("id") or 0))
+        return {"ok": True}
+
+    @app.post("/api/connectors/run")
+    async def connectors_run(request: Request):
+        _check(request.headers.get("authorization"))
+        d = await _body(request)
+        # run either a saved connector (by name) or an ad-hoc test payload
+        if d.get("name"):
+            c = memory.get_connector(owner, d["name"])
+            if not c:
+                raise HTTPException(status_code=404, detail="conector não encontrado")
+            url, headers, path = c["url"], c["headers"], c["path"]
+        else:
+            url = (d.get("url") or "").strip()
+            headers = d.get("headers") if isinstance(d.get("headers"), dict) else {}
+            path = (d.get("path") or "").strip()
+        url = _subst(url)
+        headers = {k: _subst(v) for k, v in (headers or {}).items()}
+        val, err = await asyncio.to_thread(conn_mod.fetch, url, headers, path)
+        if err:
+            return {"ok": False, "error": err}
+        if isinstance(val, (dict, list)):
+            val = json.dumps(val, ensure_ascii=False)[:800]
+        return {"ok": True, "value": str(val)[:800]}
 
     # --- Links / Habits / Journal CRUD -------------------------------------
     @app.get("/api/links")

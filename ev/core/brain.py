@@ -775,6 +775,36 @@ class Brain:
                 message=(mensagem or None), command=(comando or None))
             return ("automação criada: " + msg) if aid else ("não consegui criar: " + msg)
 
+        def consultar_conector(nome: str) -> str:
+            """Consulta um conector de API que o usuário criou (pelo nome) e retorna
+            o valor atual. Use quando ele perguntar algo que um conector dele cobre
+            (ex 'qual a cotação do dólar?' se ele tiver um conector de cotação).
+
+            Args:
+                nome: o nome do conector configurado.
+            """
+            import os as _os
+            import re as _re
+            import json as _json
+            from ..providers import connectors as _cn
+            c = self._memory.get_connector(user_id, nome)
+            if not c:
+                av = [x["name"] for x in self._memory.list_connectors(user_id)]
+                return (f"não achei o conector '{nome}'."
+                        + (f" Você tem: {', '.join(av)}." if av else
+                           " Você ainda não criou conectores (aba Conectores)."))
+            def sub(s):
+                return _re.sub(r"\{\{\s*([A-Z][A-Z0-9_]{1,39})\s*\}\}",
+                               lambda m: _os.environ.get(m.group(1), ""), s or "")
+            val, err = _cn.fetch(sub(c["url"]),
+                                 {k: sub(v) for k, v in (c["headers"] or {}).items()},
+                                 c["path"])
+            if err:
+                return f"não consegui consultar '{c['name']}': {err}"
+            if isinstance(val, (dict, list)):
+                val = _json.dumps(val, ensure_ascii=False)[:600]
+            return f"{c['name']}: {str(val)[:600]}"
+
         def planejar_dia() -> str:
             """Monta um plano acionável para o dia do usuário, juntando as tarefas
             abertas, os lembretes, a agenda, o clima e a localização atual, e
@@ -786,6 +816,7 @@ class Brain:
             "executar_comando": executar_comando,
             "planejar_dia": planejar_dia,
             "criar_automacao": criar_automacao,
+            "consultar_conector": consultar_conector,
             "anotar_pessoa": anotar_pessoa,
             "sobre_pessoa": sobre_pessoa,
             "minha_localizacao": minha_localizacao,
@@ -876,6 +907,14 @@ class Brain:
                 "Monta um plano acionável do dia do usuário juntando tarefas, "
                 "lembretes, agenda, clima e localização. Use para 'resolve minha "
                 "manhã', 'plano do dia', 'organiza meu dia', 'o que faço hoje'.",
+            ),
+            fn(
+                "consultar_conector",
+                "Consulta um conector de API que o usuário criou (pelo nome) e "
+                "retorna o valor atual. Use quando a pergunta dele bate com um "
+                "conector configurado.",
+                {"nome": {"type": s, "description": "nome do conector"}},
+                ["nome"],
             ),
             fn(
                 "criar_automacao",

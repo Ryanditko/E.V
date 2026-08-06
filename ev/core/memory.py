@@ -284,6 +284,16 @@ class Memory:
                 state    TEXT NOT NULL DEFAULT '{}',
                 created  TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS connectors (
+                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id  TEXT NOT NULL,
+                name     TEXT NOT NULL,
+                url      TEXT NOT NULL,
+                headers  TEXT NOT NULL DEFAULT '{}',
+                path     TEXT NOT NULL DEFAULT '',
+                created  TEXT NOT NULL
+            );
             """
         )
         # Migrations for older DBs.
@@ -456,6 +466,43 @@ class Memory:
         self._conn.execute("UPDATE automations SET state = ? WHERE id = ?",
                            (json.dumps(state), auto_id))
         self._conn.commit()
+
+    # --- connectors (user-defined API integrations) ------------------------
+
+    def add_connector(self, user_id: str, name: str, url: str,
+                      headers: dict, path: str) -> int:
+        cur = self._conn.execute(
+            "INSERT INTO connectors (user_id, name, url, headers, path, created) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (user_id, name, url, json.dumps(headers or {}), path or "", self._now()))
+        self._conn.commit()
+        return int(cur.lastrowid)
+
+    def list_connectors(self, user_id: str) -> list[dict]:
+        rows = self._conn.execute(
+            "SELECT id, name, url, headers, path, created FROM connectors "
+            "WHERE user_id = ? ORDER BY name", (user_id,)).fetchall()
+        out = []
+        for r in rows:
+            d = dict(r)
+            try:
+                d["headers"] = json.loads(d.get("headers") or "{}")
+            except (ValueError, TypeError):
+                d["headers"] = {}
+            out.append(d)
+        return out
+
+    def get_connector(self, user_id: str, name: str) -> dict | None:
+        for c in self.list_connectors(user_id):
+            if c["name"].lower() == (name or "").lower():
+                return c
+        return None
+
+    def delete_connector(self, user_id: str, conn_id: int) -> bool:
+        cur = self._conn.execute(
+            "DELETE FROM connectors WHERE id = ? AND user_id = ?", (conn_id, user_id))
+        self._conn.commit()
+        return cur.rowcount > 0
 
     def expenses_after_id(self, user_id: str, after_id: int) -> list[dict]:
         rows = self._conn.execute(
