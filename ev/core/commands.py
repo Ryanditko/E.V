@@ -1213,7 +1213,8 @@ class Commands:
 
     def create_automation(self, user_id: str, trigger: str, action: str, *,
                           hour=None, minute=0, weekday=-1, amount=None,
-                          category=None, message=None, command=None):
+                          category=None, message=None, command=None,
+                          playlist=None, musica=None):
         """Deterministic constructor used by the AI tool + web form. Validates,
         seeds trigger state (e.g. current max expense id, so it never fires on
         past data). Returns (id_or_None, human_message)."""
@@ -1245,7 +1246,15 @@ class Commands:
         elif action == "reschedule":
             if trigger != "task_overdue":
                 return None, "‘remarcar’ só funciona com o gatilho de tarefa vencida"
-        name = (message or (f"/{command}" if command else action))[:80]
+        elif action == "play":
+            if playlist:
+                act_cfg = {"playlist": playlist}
+            elif musica:
+                act_cfg = {"query": musica}
+            else:
+                return None, "diga a playlist ou a música pra tocar"
+        name = (message or ("tocar " + (playlist or musica) if action == "play" and (playlist or musica)
+                            else (f"/{command}" if command else action)))[:80]
         aid = self._memory.add_automation(
             user_id, name, trigger, trig_cfg, action, act_cfg, state)
         a = {"id": aid, "trig": trigger, "trig_cfg": trig_cfg, "act": action,

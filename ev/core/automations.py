@@ -7,7 +7,7 @@ module only decides *whether* a trigger fires and describes automations.
 from __future__ import annotations
 
 TRIGGERS = ("time", "expense_over", "task_overdue")
-ACTIONS = ("notify", "command", "reschedule")
+ACTIONS = ("notify", "command", "reschedule", "play")
 
 _WD_PT = ["segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo"]
 
@@ -57,6 +57,8 @@ def describe(auto: dict) -> str:
         faca = f"rodar /{ac.get('command', '')}"
     elif a == "reschedule":
         faca = "remarcar pro dia seguinte"
+    elif a == "play":
+        faca = f"tocar '{ac.get('playlist') or ac.get('query') or '?'}' no Spotify"
     else:
         faca = a or "?"
     status = "" if auto.get("enabled", True) else " (pausada)"
