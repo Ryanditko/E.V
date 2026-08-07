@@ -412,8 +412,16 @@ body.speaking .bigcore .r2{animation-delay:.15s}body.speaking .bigcore .r3{anima
    são contra-rotacionados para não distorcer. */
 body.serious{filter:hue-rotate(163deg) saturate(1.12);transition:filter .5s}
 body.serious img,body.serious video,body.serious #serfx{filter:hue-rotate(-163deg) saturate(.89)}
-/* exceções: status/sucesso continuam VERDE (contra-rotaciona pra cor real) */
-body.serious #s-status,body.serious #s-status::before,body.serious .ov-tel .t.on b,body.serious .ov-tel .t.on::before,body.serious .spark .b.today,body.serious .ov-hab .c.done,body.serious #standby .sb-top b{filter:hue-rotate(-163deg) saturate(.89)}
+/* embed do Spotify (iframe cross-origin) não é alcançado pelo filtro do body;
+   aplico um filtro direto pra levar o verde do player -> vermelho */
+body.serious iframe[src*="spotify"]{filter:hue-rotate(-140deg) saturate(1.15)}
+/* verdes de status/sucesso -> vermelho (usam o accent, que o filtro leva a
+   vermelho); evita o magenta E o verde destoante no modo sério */
+body.serious #s-status,body.serious .ov-tel .t.on b,body.serious #standby .sb-top b{color:var(--accent)}
+body.serious #s-status::before,body.serious .ov-tel .t.on::before{background:var(--accent);box-shadow:0 0 7px var(--glow)}
+body.serious .spark .b.today{background:linear-gradient(180deg,var(--accent),rgba(var(--accent-rgb),.28))}
+body.serious .ov-hab .c.done{background:rgba(var(--accent-rgb),.14);border-color:var(--accent);color:#f4d7d9}
+body.serious .ov-card .obar i,body.serious .ov-sp-bar i,body.serious .goal .gbar i{background:var(--accent)}
 #serfx{position:fixed;inset:0;pointer-events:none;z-index:38;opacity:0;transition:opacity .5s;border:1px solid transparent}
 body.serious #serfx{opacity:1;box-shadow:inset 0 0 150px -50px rgba(255,45,55,.6);border-color:rgba(255,60,70,.12)}
 #serfx.sweep{animation:seriousSweep 1.15s ease-out}
@@ -1354,7 +1362,16 @@ function revealReply(box,text){
     pre.textContent=s;if(log)log.scrollTop=log.scrollHeight;
   },26);
 }
-async function speak(t,force){if((!voiceOn&&!force)||!t)return;try{const r=await fetch('/api/tts',{method:'POST',headers:H(),body:JSON.stringify({text:t})});if(!r.ok)return;const url=URL.createObjectURL(await r.blob());if(!_audio)_audio=new Audio();ensureViz();resumeAudioCtx();_audio.src=url;_speaking=true;document.body.classList.add('speaking');if(stateEl)stateEl.textContent='falando';_audio.onended=()=>{_speaking=false;document.body.classList.remove('speaking');_idleLabel();};await _audio.play().catch(()=>{_speaking=false;document.body.classList.remove('speaking');_idleLabel();if(!_audioMsg){_audioMsg=true;sys('O navegador bloqueou o áudio automático. Toque uma vez na tela e a E.V. volta a falar.');}});}catch(e){_speaking=false;document.body.classList.remove('speaking');_idleLabel();}}
+// canal único de voz: SEMPRE para o áudio anterior antes de tocar o novo,
+// pra E.V. nunca falar por cima de si mesma (saudação, TTS, modo sério…).
+let _speakSeq=0;
+function playVoice(url){if(!_audio)_audio=new Audio();
+  try{_audio.pause();_audio.currentTime=0;}catch(e){}
+  const seq=++_speakSeq;ensureViz();resumeAudioCtx();_audio.src=url;
+  _speaking=true;document.body.classList.add('speaking');if(stateEl)stateEl.textContent='falando';
+  _audio.onended=()=>{if(seq!==_speakSeq)return;_speaking=false;document.body.classList.remove('speaking');_idleLabel();};
+  return _audio.play().catch(()=>{if(seq!==_speakSeq)return;_speaking=false;document.body.classList.remove('speaking');_idleLabel();if(!_audioMsg){_audioMsg=true;sys('O navegador bloqueou o áudio automático. Toque uma vez na tela e a E.V. volta a falar.');}});}
+async function speak(t,force){if((!voiceOn&&!force)||!t)return;try{const r=await fetch('/api/tts',{method:'POST',headers:H(),body:JSON.stringify({text:t})});if(!r.ok)return;await playVoice(URL.createObjectURL(await r.blob()));}catch(e){_speaking=false;document.body.classList.remove('speaking');_idleLabel();}}
 
 async function send(msg){if(!msg)return;you(msg);const p=thinking();setState('thinking');
   try{const r=await fetch('/api/chat/stream',{method:'POST',headers:H(),body:JSON.stringify({message:msg,thread})});
@@ -1416,7 +1433,7 @@ f.onsubmit=e=>{e.preventDefault();if(slash.style.display==='block'&&slSel>=0){pi
   if(m.startsWith('/')){const raw=m.slice(1).trim().toLowerCase();
     if(raw==='modo'||raw.startsWith('modo ')){
       const arg=raw.split(/\s+/)[1]||'';const on=arg==='off'?false:arg==='on'?true:!_serious;
-      applySerious(on);fetch('/api/serious',{method:'POST',headers:H(),body:JSON.stringify({on})}).catch(()=>{});
+      applySerious(on,true);fetch('/api/serious',{method:'POST',headers:H(),body:JSON.stringify({on})}).catch(()=>{});
       sys(on?'Modo sério ativado.':'Modo sério desativado.');return;}
     runCmd(m.slice(1));}
   else send(m);};
@@ -1435,11 +1452,14 @@ function renderActs(){const box=$('#acts');box.textContent='';config.actions.for
   const b=el('button','act');b.appendChild(ficon(m[1]));b.appendChild(document.createTextNode(m[0]));
   b.onclick=e=>{if(cmd==='foco'){openPomo(25);return;}ripple(b,e);if(cmd==='cam'){$('#cambtn').click();return;}if(cmd==='bak'){window.location='/api/backup?k='+encodeURIComponent(token);toast('Baixando backup cifrado…');return;}if(VIEWS[cmd]){switchView(cmd);return;}runCmd(cmd,b,e);};box.appendChild(b);});window.lucide&&lucide.createIcons();}
 let _serious=false;
-function applySerious(on){on=!!on;document.body.classList.toggle('serious',on);
+// announce=true só quando o usuário aciona (toggle/comando). No carregamento
+// (sync via loadPanel) NÃO fala nem anima — pra não atropelar a saudação.
+function applySerious(on,announce){on=!!on;document.body.classList.toggle('serious',on);
   if(on===_serious)return;_serious=on;
+  if(!announce)return;
   const fx=$('#serfx');if(fx){fx.classList.remove('sweep');void fx.offsetWidth;fx.classList.add('sweep');}
   try{if(window.speak)speak(on?'Modo sério ativado. Foco total.':'Modo sério desativado. De volta ao normal.');}catch(e){}}
-function toggleSerious(){const on=!_serious;applySerious(on);
+function toggleSerious(){const on=!_serious;applySerious(on,true);
   fetch('/api/serious',{method:'POST',headers:H(),body:JSON.stringify({on})}).catch(()=>{});}
 async function loadPanel(){const _t0=(window.performance||Date).now();try{const r=await fetch('/api/panel',{headers:H()});if(!r.ok)return;_counts=await r.json();
   applySerious(_counts.serious);
@@ -2778,7 +2798,7 @@ function welcome(){const w=$('#welcome'),txt=$('#welcome-txt');
   w.classList.add('on');sfx('boot');window.lucide&&lucide.createIcons();
   // live spoken briefing (status of the day) — shown AND spoken
   fetch('/api/briefing',{headers:H()}).then(r=>r.ok?r.json():null).then(j=>{if(j&&j.text&&txt)txt.textContent=j.text;}).catch(()=>{});
-  fetch('/api/greeting',{headers:H()}).then(r=>r.ok?r.blob():null).then(b=>{if(b&&b.size>0)new Audio(URL.createObjectURL(b)).play().catch(()=>{});}).catch(()=>{});
+  fetch('/api/greeting',{headers:H()}).then(r=>r.ok?r.blob():null).then(b=>{if(b&&b.size>0)playVoice(URL.createObjectURL(b));}).catch(()=>{});
   setTimeout(()=>w.classList.remove('on'),4400);}
 // --- standby / ambient HUD (idle) ---
 let _idleT=null,_sbClock=null;const _IDLE_MS=30000;
