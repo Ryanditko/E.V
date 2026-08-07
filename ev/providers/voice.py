@@ -144,22 +144,37 @@ def _gemini_tts_sync(text: str, api_key: str, voice: str, model: str) -> bytes:
     return _wav(raw)
 
 
+# Vozes pré-definidas do Gemini TTS (id, descrição curta p/ o seletor).
+GEMINI_VOICES = [
+    ("Kore", "firme e neutra"),
+    ("Aoede", "leve e agradável"),
+    ("Leda", "jovem"),
+    ("Zephyr", "brilhante"),
+    ("Puck", "animada"),
+    ("Charon", "grave e calma"),
+    ("Fenrir", "grave e intensa"),
+    ("Orus", "grave e serena"),
+]
+
+
 async def synth_web(config, text: str, voice: str | None = None,
                     rate: str | None = None, pitch: str | None = None,
-                    fixes=None) -> tuple[bytes, str]:
-    """Return (audio_bytes, mime) for the web. Uses Gemini TTS when enabled
-    (mais natural); cai no edge-tts (Thalita/Francisca) em qualquer erro/quota.
-    Um `voice` pt-BR explícito (preview do seletor) força o edge-tts."""
+                    fixes=None, gvoice: str | None = None) -> tuple[bytes, str]:
+    """Return (audio_bytes, mime) for the web. Usa Gemini TTS quando ligado
+    (mais natural) e cai no edge-tts (Thalita/Francisca) em qualquer erro/quota.
+    - `voice` pt-BR explícito (preview do seletor) força o edge-tts.
+    - `gvoice` força o Gemini com aquela voz (preview do seletor Gemini)."""
     fixes = config.voice_fixes if fixes is None else fixes
     rate = rate or config.voice_rate
     pitch = pitch or config.voice_pitch
     explicit = bool(voice)
-    if getattr(config, "gemini_tts", False) and config.gemini_api_key and not explicit:
+    want_gemini = bool(gvoice) or (getattr(config, "gemini_tts", False) and not explicit)
+    if want_gemini and config.gemini_api_key:
         try:
             spoken = _apply_fixes(say_name(clean_for_speech(text)), fixes) or "..."
             data = await asyncio.to_thread(
                 _gemini_tts_sync, spoken, config.gemini_api_key,
-                config.gemini_tts_voice, config.gemini_tts_model)
+                gvoice or config.gemini_tts_voice, config.gemini_tts_model)
             return data, "audio/wav"
         except Exception:
             log.warning("Gemini TTS indisponível; usando edge-tts", exc_info=True)
