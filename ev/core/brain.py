@@ -444,11 +444,11 @@ class Brain:
     def _system_instruction(self, user_id: str, query: str | None) -> str:
         system = SYSTEM_PROMPT
 
-        # MODO SÉRIO — muda o tom das respostas enquanto ativo.
+        # MODO MORTE SÚBITA — muda o tom das respostas enquanto ativo.
         if self._memory.get_setting("serious_mode") == "1":
             system += (
-                "\n\n## MODO SÉRIO ATIVO\n"
-                "O usuário ativou o modo sério. Responda de forma direta, "
+                "\n\n## MODO MORTE SÚBITA ATIVO\n"
+                "O usuário ativou o modo morte súbita. Responda de forma direta, "
                 "concisa e tática — sem piadas, sem floreio, sem emojis. Vá "
                 "direto ao ponto, tom de operação/missão, frases curtas. "
                 "Continue prestativa e precisa, só que séria e focada."
@@ -508,19 +508,19 @@ class Brain:
             return "ok, memorizado"
 
         def modo_serio(ativar: bool = True) -> str:
-            """Ativa ou desativa o MODO SÉRIO da E.V.: a interface inteira entra
+            """Ativa ou desativa o MODO MORTE SÚBITA da E.V.: a interface inteira entra
             em alerta (azul -> vermelho) e o tom das respostas fica direto,
-            tático e sem piadas. Use quando o usuário pedir 'modo sério', 'fica
+            tático e sem piadas. Use quando o usuário pedir 'modo morte súbita', 'fica
             séria', 'modo de combate', 'modo foco total', ou para desligar:
-            'volta ao normal', 'desativa o modo sério', 'relaxa'.
+            'volta ao normal', 'desativa o modo morte súbita', 'relaxa'.
 
             Args:
                 ativar: true para ligar, false para voltar ao normal.
             """
             self._memory.set_setting("serious_mode", "1" if ativar else "0")
-            return ("Modo sério ativado. Interface em alerta, foco total."
+            return ("Modo morte súbita ativado. Interface em alerta, foco total."
                     if ativar else
-                    "Modo sério desativado. De volta ao normal.")
+                    "Modo morte súbita desativado. De volta ao normal.")
 
         def criar_lembrete(texto: str, quando: str = "") -> str:
             """Cria um lembrete para o usuário.
@@ -1041,8 +1041,8 @@ class Brain:
         schemas = [
             fn(
                 "modo_serio",
-                "Ativa/desativa o modo sério da E.V. (interface azul->vermelha "
-                "em alerta + tom direto e tático). Use para 'modo sério', 'fica "
+                "Ativa/desativa o modo morte súbita da E.V. (interface azul->vermelha "
+                "em alerta + tom direto e tático). Use para 'modo morte súbita', 'fica "
                 "séria', 'modo de combate', ou desligar: 'volta ao normal'.",
                 {"ativar": {"type": "boolean",
                             "description": "true para ligar, false para desligar"}},

@@ -24,7 +24,7 @@ from .timeparse import add_months, parse_when
 
 # (command, description) — also used to populate Telegram's command menu.
 COMMAND_LIST = [
-    ("modo", "Liga/desliga o MODO SÉRIO (interface vermelha, tom tático)"),
+    ("modo", "Liga/desliga o MODO MORTE SÚBITA (interface vermelha, tom tático)"),
     ("menu", "Abre o menu interativo com botões"),
     ("ev", "Falar com a IA (útil em grupos): /ev sua mensagem"),
     ("plano", "Resolve minha manhã: plano do dia (tarefas + agenda + clima)"),
@@ -1097,7 +1097,7 @@ class Commands:
         }
 
     def modo(self, user_id: str, argstr: str = "") -> str:
-        """Liga/desliga o modo sério. argstr: on/off (vazio = alterna)."""
+        """Liga/desliga o modo morte súbita. argstr: on/off (vazio = alterna)."""
         arg = (argstr or "").strip().lower()
         cur = self._memory.get_setting("serious_mode") == "1"
         if arg in ("on", "ligar", "ativar", "serio", "sério"):
@@ -1107,8 +1107,8 @@ class Commands:
         else:
             on = not cur
         self._memory.set_setting("serious_mode", "1" if on else "0")
-        return ("🔴 Modo sério ativado. Foco total."
-                if on else "Modo sério desativado. De volta ao normal.")
+        return ("🔴 Modo morte súbita ativado. Foco total."
+                if on else "Modo morte súbita desativado. De volta ao normal.")
 
     def subscriptions_due(self, user_id: str, days_ahead: int = 2) -> list:
         """Recurring charges (assinaturas) whose due-day falls within the next
