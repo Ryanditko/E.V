@@ -406,8 +406,8 @@ body.speaking .bigcore .r2{animation-delay:.15s}body.speaking .bigcore .r3{anima
    it for the compact picker and shrink the labelled buttons to icons. */
 /* base: attach "+" and bottom-nav are phone-only (media rules below turn them on) */
 #attach{display:none}#bnav{display:none}
-/* --- MODO SÉRIO (alerta vermelho) — recolore tudo que usa --accent/--glow --- */
-/* MODO SÉRIO: um filtro de matiz recolore TUDO (azul->vermelho), inclusive os
+/* --- MODO MORTE SÚBITA (alerta vermelho) — recolore tudo que usa --accent/--glow --- */
+/* MODO MORTE SÚBITA: um filtro de matiz recolore TUDO (azul->vermelho), inclusive os
    navy hardcoded e as superfícies em canvas. Imagens/vídeo e o efeito de alerta
    são contra-rotacionados para não distorcer. */
 body.serious{filter:hue-rotate(163deg) saturate(1.12);transition:filter .5s}
@@ -416,7 +416,7 @@ body.serious img,body.serious video,body.serious #serfx{filter:hue-rotate(-163de
    aplico um filtro direto pra levar o verde do player -> vermelho */
 body.serious iframe[src*="spotify"]{filter:hue-rotate(-140deg) saturate(1.15)}
 /* verdes de status/sucesso -> vermelho (usam o accent, que o filtro leva a
-   vermelho); evita o magenta E o verde destoante no modo sério */
+   vermelho); evita o magenta E o verde destoante no modo morte súbita */
 body.serious #s-status,body.serious .ov-tel .t.on b,body.serious #standby .sb-top b{color:var(--accent)}
 body.serious #s-status::before,body.serious .ov-tel .t.on::before{background:var(--accent);box-shadow:0 0 7px var(--glow)}
 body.serious .spark .b.today{background:linear-gradient(180deg,var(--accent),rgba(var(--accent-rgb),.28))}
@@ -1178,7 +1178,7 @@ const $=s=>document.querySelector(s), log=$('#log'), txt=$('#txt'), f=$('#f'), m
   vozBtn=$('#voz'), termBtn=$('#term'), stateEl=$('#state'), slash=$('#slash'), scopeEl=$('#scope');
 function setState(s){document.body.classList.remove('listening','thinking');if(s)document.body.classList.add(s);
   stateEl.textContent=s==='listening'?'ouvindo':s==='thinking'?'processando':'em espera';}
-// cor de acento viva (segue o modo sério) — para superfícies em canvas/WebGL
+// cor de acento viva (segue o modo morte súbita) — para superfícies em canvas/WebGL
 function ACC(){return (getComputedStyle(document.body).getPropertyValue('--accent')||'').trim()||'#35c8ff';}
 function ACCN(a){return 'rgba('+((getComputedStyle(document.body).getPropertyValue('--accent-rgb')||'').trim()||'53,200,255')+','+a+')';}
 function _idleLabel(){if(stateEl)stateEl.textContent=(_hf||_ambient||_convo)?'ouvindo':'em espera';}
@@ -1363,7 +1363,7 @@ function revealReply(box,text){
   },26);
 }
 // canal único de voz: SEMPRE para o áudio anterior antes de tocar o novo,
-// pra E.V. nunca falar por cima de si mesma (saudação, TTS, modo sério…).
+// pra E.V. nunca falar por cima de si mesma (saudação, TTS, modo morte súbita…).
 let _speakSeq=0;
 function playVoice(url){if(!_audio)_audio=new Audio();
   try{_audio.pause();_audio.currentTime=0;}catch(e){}
@@ -1434,7 +1434,7 @@ f.onsubmit=e=>{e.preventDefault();if(slash.style.display==='block'&&slSel>=0){pi
     if(raw==='modo'||raw.startsWith('modo ')){
       const arg=raw.split(/\s+/)[1]||'';const on=arg==='off'?false:arg==='on'?true:!_serious;
       applySerious(on,true);fetch('/api/serious',{method:'POST',headers:H(),body:JSON.stringify({on})}).catch(()=>{});
-      sys(on?'Modo sério ativado.':'Modo sério desativado.');return;}
+      sys(on?'Modo morte súbita ativado.':'Modo morte súbita desativado.');return;}
     runCmd(m.slice(1));}
   else send(m);};
 
@@ -1458,7 +1458,7 @@ function applySerious(on,announce){on=!!on;document.body.classList.toggle('serio
   if(on===_serious)return;_serious=on;
   if(!announce)return;
   const fx=$('#serfx');if(fx){fx.classList.remove('sweep');void fx.offsetWidth;fx.classList.add('sweep');}
-  try{if(window.speak)speak(on?'Modo sério ativado. Foco total.':'Modo sério desativado. De volta ao normal.');}catch(e){}}
+  try{if(window.speak)speak(on?'Modo morte súbita ativado. Foco total.':'Modo morte súbita desativado. De volta ao normal.');}catch(e){}}
 function toggleSerious(){const on=!_serious;applySerious(on,true);
   fetch('/api/serious',{method:'POST',headers:H(),body:JSON.stringify({on})}).catch(()=>{});}
 async function loadPanel(){const _t0=(window.performance||Date).now();try{const r=await fetch('/api/panel',{headers:H()});if(!r.ok)return;_counts=await r.json();
@@ -2775,7 +2775,7 @@ function filterRows(box,q){if(!box)return;q=(q||'').trim().toLowerCase();let cur
 [['tasks-search','tasklist'],['exp-search','explist'],['rem-search','remlist'],['mem-search','memlist'],['kb-search','kblist'],['lnk-search','lnklist'],['hab-search','hablist'],['jou-search','joulist'],['sub-search','sublist'],['orc-search','orclist'],['mon-search','monlist'],['act-search','actlist']].forEach(p=>{const inp=document.getElementById(p[0]);if(inp)inp.oninput=()=>filterRows(document.getElementById(p[1]),inp.value);});
 // command palette (Ctrl/Cmd+K)
 const CK=$('#cmdk'),CKI=$('#ck-input'),CKL=$('#ck-list');let ckItems=[],ckSel=0;
-function ckBuild(){const nav=[['Conversa',()=>switchView('chat')],['Tarefas',()=>switchView('tasks')],['Gastos',()=>switchView('exp')],['Lembretes',()=>switchView('rem')],['Agenda',()=>switchView('cal')],['Memórias',()=>switchView('mem')],['Links',()=>switchView('lnk')],['Hábitos',()=>switchView('hab')],['Diário',()=>switchView('jou')],['Assinaturas',()=>switchView('sub')],['Orçamentos',()=>switchView('orc')],['Monitores',()=>switchView('mon')],['Base',()=>switchView('kb')],['Cérebro',()=>switchView('brain')],['Pomodoro',()=>openPomo(25)],['Voz ao vivo',()=>$('#vcopen').click()],['Modo sério (liga/desliga)',()=>toggleSerious()],['Chaves de API',()=>openKeys()]];
+function ckBuild(){const nav=[['Conversa',()=>switchView('chat')],['Tarefas',()=>switchView('tasks')],['Gastos',()=>switchView('exp')],['Lembretes',()=>switchView('rem')],['Agenda',()=>switchView('cal')],['Memórias',()=>switchView('mem')],['Links',()=>switchView('lnk')],['Hábitos',()=>switchView('hab')],['Diário',()=>switchView('jou')],['Assinaturas',()=>switchView('sub')],['Orçamentos',()=>switchView('orc')],['Monitores',()=>switchView('mon')],['Base',()=>switchView('kb')],['Cérebro',()=>switchView('brain')],['Pomodoro',()=>openPomo(25)],['Voz ao vivo',()=>$('#vcopen').click()],['Modo morte súbita (liga/desliga)',()=>toggleSerious()],['Chaves de API',()=>openKeys()]];
   return nav.map(n=>({k:'ir',label:n[0],desc:'abrir',run:n[1]})).concat((COMMANDS||[]).map(c=>({k:'/'+c.name,label:c.name,desc:c.desc,run:()=>runCmd(c.name)})));}
 function ckRender(q){ckItems=ckBuild().filter(i=>(i.label+' '+i.k+' '+i.desc).toLowerCase().includes((q||'').toLowerCase())).slice(0,40);ckSel=0;CKL.textContent='';
   ckItems.forEach((i,ix)=>{const r=el('div','ck-item'+(ix===0?' sel':''));r.appendChild(el('span','ck-k',i.k));r.appendChild(el('span','',i.label));r.appendChild(el('span','ck-d',i.desc||''));r.onclick=()=>{ckClose();i.run();};CKL.appendChild(r);});}
@@ -4299,7 +4299,7 @@ def create_app(config: Config, brain: Brain | None = None):
         except Exception:
             return datetime.now(_tz.utc).date().isoformat()
 
-    # --- modo sério (alerta vermelho) --------------------------------------
+    # --- modo morte súbita (alerta vermelho) --------------------------------------
     @app.post("/api/serious")
     async def serious_set(request: Request):
         _check(request.headers.get("authorization"))
