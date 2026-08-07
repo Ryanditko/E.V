@@ -779,6 +779,7 @@ select{width:100%;font-family:var(--mono);font-size:12px;background:var(--surfac
 .vrow:hover{border-color:var(--line-2)}
 .vrow.on{border-color:var(--accent);background:linear-gradient(90deg,rgba(var(--accent-rgb),.12),transparent);box-shadow:0 0 16px -8px var(--glow)}
 .vname{font-size:14px;color:var(--fg)}
+.vgroup{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--subtle);margin:8px 2px 2px}.vgroup:first-child{margin-top:0}
 .vplay{width:34px;height:34px;flex:none;display:grid;place-items:center;border-radius:9px;border:1px solid var(--line-2);background:var(--elev);color:var(--accent);cursor:pointer}
 .vplay:hover{box-shadow:0 0 12px -4px var(--glow)}.vplay.busy{opacity:.5}.vplay svg{width:15px;height:15px}
 .vrange{margin:8px 0}.vrange .vval{float:right;color:var(--accent);font-family:var(--mono);font-size:11px}
@@ -1525,19 +1526,27 @@ async function openVoicePicker(){
   let d;try{d=await (await fetch('/api/voice',{headers:H()})).json();}catch(e){return;}
   const m=$('#modal');m.textContent='';const card=el('div','mcard');
   card.appendChild(el('div','mtitle','Voz da E.V.'));
-  card.appendChild(el('div','mconf','Escolha a voz e ouça uma amostra. Tom e velocidade ajustam o clima.'));
-  let sel=d.voice,rate=d.rate||'+0%',pitch=d.pitch||'+0Hz';
+  card.appendChild(el('div','mconf','Escolha a voz e ouça uma amostra. Gemini soa mais natural (uns segundos a mais); Edge é mais rápida.'));
+  let engine=d.engine||'edge',sel=(engine==='gemini'?d.gvoice:d.voice),rate=d.rate||'+0%',pitch=d.pitch||'+0Hz';
+  const SAMPLE='Olá, Ryan. Sou a E.V., sua inteligência pessoal. Tudo pronto pra você.';
   const list=el('div','vlist');
-  (d.voices||[]).forEach(v=>{const row=el('div','vrow'+(v.id===sel?' on':''));
-    const nm=el('span','vname',v.name+(v.gender==='Female'?' ♀':(v.gender==='Male'?' ♂':'')));
+  const rows=[];
+  function mkRow(id,label,eng,previewBody){
+    const on=(eng===engine&&id===sel);const row=el('div','vrow'+(on?' on':''));
+    row.appendChild(el('span','vname',label));
     const play=el('button','vplay');play.appendChild(ficon('play'));
     play.onclick=async e=>{e.stopPropagation();play.classList.add('busy');
-      try{const r=await fetch('/api/tts',{method:'POST',headers:H(),body:JSON.stringify({text:'Olá, Ryan. Sou a E.V., sua inteligência pessoal. Tudo pronto pra você.',voice:v.id,rate,pitch})});
-        if(r.ok){const a=new Audio(URL.createObjectURL(await r.blob()));a.play().catch(()=>{});}}catch(_){}
-      setTimeout(()=>play.classList.remove('busy'),500);};
-    row.onclick=()=>{sel=v.id;[...list.children].forEach(c=>c.classList.remove('on'));row.classList.add('on');};
-    row.appendChild(nm);row.appendChild(play);list.appendChild(row);});
-  if(!(d.voices||[]).length)list.appendChild(el('div','tv-empty','Não consegui listar as vozes agora.'));
+      try{const r=await fetch('/api/tts',{method:'POST',headers:H(),body:JSON.stringify(Object.assign({text:SAMPLE},previewBody))});
+        if(r.ok)playVoice(URL.createObjectURL(await r.blob()));}catch(_){}
+      setTimeout(()=>play.classList.remove('busy'),600);};
+    row.onclick=()=>{engine=eng;sel=id;rows.forEach(x=>x.classList.remove('on'));row.classList.add('on');};
+    rows.push(row);return row;}
+  if((d.gemini_voices||[]).length){
+    list.appendChild(el('div','vgroup','Gemini · mais natural'));
+    d.gemini_voices.forEach(v=>list.appendChild(mkRow(v.id,v.id+' — '+v.desc,'gemini',{gvoice:v.id})));}
+  list.appendChild(el('div','vgroup','Edge · rápida'));
+  (d.voices||[]).forEach(v=>list.appendChild(mkRow(v.id,v.name+(v.gender==='Female'?' ♀':(v.gender==='Male'?' ♂':'')),'edge',{voice:v.id,rate,pitch})));
+  if(!(d.voices||[]).length&&!(d.gemini_voices||[]).length)list.appendChild(el('div','tv-empty','Não consegui listar as vozes agora.'));
   card.appendChild(list);
   const mkR=(lbl,val,min,max,unit,cb)=>{const w=el('div','vrange');const l=el('label','mlabel');l.textContent=lbl;const out=el('span','vval');out.textContent=val+unit;
     const i=document.createElement('input');i.type='range';i.min=min;i.max=max;i.step=5;i.value=val;i.oninput=()=>{out.textContent=(i.value>=0?'+':'')+i.value+unit;cb(parseInt(i.value));};
@@ -1545,8 +1554,8 @@ async function openVoicePicker(){
   card.appendChild(mkR('Velocidade',parseInt(rate)||0,-40,40,'%',v=>{rate=(v>=0?'+':'')+v+'%';}));
   card.appendChild(mkR('Tom',parseInt(pitch)||0,-40,40,'Hz',v=>{pitch=(v>=0?'+':'')+v+'Hz';}));
   const bar=el('div','mbar');const c=el('button','mbtn2','Cancelar');c.onclick=()=>m.classList.remove('on');
-  const s=el('button','mbtn','Salvar');s.onclick=async()=>{try{await fetch('/api/voice',{method:'POST',headers:H(),body:JSON.stringify({voice:sel,rate,pitch})});}catch(_){}
-    m.classList.remove('on');sfx('confirm');sys('Voz da E.V. atualizada.');};
+  const s=el('button','mbtn','Salvar');s.onclick=async()=>{try{await fetch('/api/voice',{method:'POST',headers:H(),body:JSON.stringify({engine,voice:sel,rate,pitch})});}catch(_){}
+    m.classList.remove('on');sfx('confirm');sys('Voz da E.V. atualizada'+(engine==='gemini'?' (Gemini · '+sel+').':' ('+sel+').'));};
   bar.appendChild(c);bar.appendChild(s);card.appendChild(bar);m.appendChild(card);m.classList.add('on');window.lucide&&lucide.createIcons();}
 function updateNBadge(n){const b=$('#notif-badge');if(!b)return;n=n||0;b.textContent=n>99?'99+':n;b.classList.toggle('on',n>0);}
 function nfmt(iso){try{const d=new Date(iso);const now=new Date();const diff=(now-d)/1000;
@@ -5076,22 +5085,45 @@ def create_app(config: Config, brain: Brain | None = None):
         req_voice = d.get("voice")
         voice = req_voice if str(req_voice or "").startswith("pt-BR") else None
         audio, mime = await voice_mod.synth_web(
-            config, text[:1200], voice=voice,
+            config, text[:1200], voice=voice, gvoice=d.get("gvoice"),
             rate=d.get("rate"), pitch=d.get("pitch"))
         return Response(content=audio, media_type=mime)
 
     @app.get("/api/voice")
     async def voice_get(request: Request):
         _check(request.headers.get("authorization"))
+        gv = ([{"id": i, "desc": d} for i, d in voice_mod.GEMINI_VOICES]
+              if config.gemini_api_key else [])
         return {"voice": config.voice, "rate": config.voice_rate,
                 "pitch": config.voice_pitch,
-                "voices": await voice_mod.list_ptbr_voices()}
+                "voices": await voice_mod.list_ptbr_voices(),
+                "engine": "gemini" if getattr(config, "gemini_tts", False) else "edge",
+                "gvoice": getattr(config, "gemini_tts_voice", "Kore"),
+                "gemini_voices": gv}
 
     @app.post("/api/voice")
     async def voice_set(request: Request):
         _check(request.headers.get("authorization"))
         d = await _body(request)
         voice = (d.get("voice") or "").strip()
+        engine = (d.get("engine") or "").strip()
+        gset = {i for i, _ in voice_mod.GEMINI_VOICES}
+        # --- Gemini voice ---
+        if engine == "gemini" or voice in gset:
+            if voice not in gset:
+                raise HTTPException(status_code=400, detail="invalid gemini voice")
+            for f, env, val in (("gemini_tts", "EV_GEMINI_TTS", True),
+                                ("gemini_tts_voice", "EV_GEMINI_VOICE", voice)):
+                try:
+                    object.__setattr__(config, f, val)
+                except Exception:
+                    pass
+                try:
+                    _env_write(env, "1" if val is True else val)
+                except Exception:
+                    pass
+            return {"ok": True, "engine": "gemini", "voice": voice}
+        # --- edge voice (also turns Gemini off) ---
         voices = {v["id"] for v in await voice_mod.list_ptbr_voices()}
         if not voice.startswith("pt-BR") or (voices and voice not in voices):
             raise HTTPException(status_code=400, detail="invalid voice")
@@ -5099,16 +5131,17 @@ def create_app(config: Config, brain: Brain | None = None):
         pitch = (d.get("pitch") or "+0Hz").strip()
         for f, env, val in (("voice", "EV_VOICE", voice),
                             ("voice_rate", "EV_VOICE_RATE", rate),
-                            ("voice_pitch", "EV_VOICE_PITCH", pitch)):
+                            ("voice_pitch", "EV_VOICE_PITCH", pitch),
+                            ("gemini_tts", "EV_GEMINI_TTS", False)):
             try:
                 object.__setattr__(config, f, val)
             except Exception:
                 pass
             try:
-                _env_write(env, val)
+                _env_write(env, "0" if val is False else val)
             except Exception:
                 pass
-        return {"ok": True, "voice": voice, "rate": rate, "pitch": pitch}
+        return {"ok": True, "engine": "edge", "voice": voice, "rate": rate, "pitch": pitch}
 
     @app.post("/api/vision")
     async def vision(request: Request):
