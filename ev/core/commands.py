@@ -1094,6 +1094,51 @@ class Commands:
             },
         }
 
+    def subscriptions_due(self, user_id: str, days_ahead: int = 2) -> list:
+        """Recurring charges (assinaturas) whose due-day falls within the next
+        `days_ahead` days — a heads-up BEFORE the charge lands. Empty if none."""
+        try:
+            tz = ZoneInfo(self._config.timezone) if ZoneInfo else None
+            now = datetime.now(tz)
+        except Exception:
+            now = datetime.now(timezone.utc)
+        today = now.day
+        import calendar as _cal
+        last_day = _cal.monthrange(now.year, now.month)[1]
+        out = []
+        for r in self._memory.list_recurring(user_id):
+            d = r.get("day") or 0
+            if not d:
+                continue
+            # days until the charge, clamping a day set past month-end to the last day
+            due = min(d, last_day)
+            delta = due - today
+            if 0 < delta <= days_ahead:
+                out.append({"id": r["id"], "description": r["description"],
+                            "amount": r["amount"], "day": due, "days_until": delta})
+        return out
+
+    def budget_alerts(self, user_id: str, warn_pct: int = 80) -> list:
+        """Budgets at/over threshold this month. level='over' (>=100%) or
+        'warn' (>=warn_pct). Empty if all healthy or no budgets."""
+        _, since, _ = self._month_bounds(0)
+        out = []
+        for b in self._memory.list_budgets(user_id):
+            amount = b.get("amount") or 0
+            if amount <= 0:
+                continue
+            spent = self._memory.category_total_since(user_id, b["category"], since)
+            pct = spent / amount * 100
+            if pct >= 100:
+                lvl = "over"
+            elif pct >= warn_pct:
+                lvl = "warn"
+            else:
+                continue
+            out.append({"category": b["category"], "spent": round(spent, 2),
+                        "amount": amount, "pct": round(pct), "level": lvl})
+        return out
+
     def spoken_status(self, user_id: str) -> str:
         """Short, TTS-friendly boot briefing (deterministic, no LLM): time-of-day
         greeting + today's open loops + birthdays. Written to be HEARD."""

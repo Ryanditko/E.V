@@ -113,6 +113,31 @@ def test_learned_patterns_and_persistence(tmp_path):
     assert "conhecendo" in c.learned_text("v").lower()
 
 
+def test_budget_alerts(tmp_path):
+    c = _commands(tmp_path)
+    c.orcamento("u", "comida 100")
+    assert c.budget_alerts("u") == []          # nothing spent yet
+    c.gasto("u", "95 mercado #comida")
+    warn = c.budget_alerts("u")
+    assert warn and warn[0]["level"] == "warn" and warn[0]["pct"] == 95
+    c.gasto("u", "20 doce #comida")
+    over = c.budget_alerts("u")
+    assert over and over[0]["level"] == "over" and over[0]["pct"] >= 100
+
+
+def test_subscriptions_due(tmp_path):
+    from datetime import datetime
+    c = _commands(tmp_path)
+    tomorrow = datetime.now().day + 1
+    c._memory.add_recurring("u", 50, "Netflix", "lazer", tomorrow)
+    due = c.subscriptions_due("u")
+    # a charge set for "day 32+" won't happen this month; guard on that
+    if tomorrow <= 28:
+        assert due and due[0]["description"] == "Netflix" and due[0]["days_until"] == 1
+    far = c.subscriptions_due("u", days_ahead=0)
+    assert far == []
+
+
 def test_task_flow(tmp_path):
     c = _commands(tmp_path)
     assert "adicionada" in c.tarefa("u", "comprar pão")
