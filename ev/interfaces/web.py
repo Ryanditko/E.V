@@ -185,6 +185,7 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:6;back
 @keyframes ambpulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.7)}}
 body.listening .core .arc{animation-duration:1.8s}body.thinking .core .arc{animation-duration:2.6s}
 body.speaking .core .arc{animation-duration:1.1s}
+body.speaking .core .ring{animation:ringpulse 1.15s ease-in-out infinite}body.speaking .core .ring.b{animation-delay:.12s}body.speaking .core .ring.c{animation-delay:.24s}
 body.listening .core .dot{animation:pulsed 1s infinite}@keyframes pulse{50%{transform:scale(1.9);opacity:.55}}
 @keyframes pulsed{50%{transform:rotate(45deg) scale(1.9);opacity:.55}}
 body.speaking .core .dot{animation:pulsed .6s infinite}
@@ -1163,6 +1164,10 @@ const $=s=>document.querySelector(s), log=$('#log'), txt=$('#txt'), f=$('#f'), m
   vozBtn=$('#voz'), termBtn=$('#term'), stateEl=$('#state'), slash=$('#slash'), scopeEl=$('#scope');
 function setState(s){document.body.classList.remove('listening','thinking');if(s)document.body.classList.add(s);
   stateEl.textContent=s==='listening'?'ouvindo':s==='thinking'?'processando':'em espera';}
+// cor de acento viva (segue o modo sério) — para superfícies em canvas/WebGL
+function ACC(){return (getComputedStyle(document.body).getPropertyValue('--accent')||'').trim()||'#35c8ff';}
+function ACCN(a){return 'rgba('+((getComputedStyle(document.body).getPropertyValue('--accent-rgb')||'').trim()||'53,200,255')+','+a+')';}
+function _idleLabel(){if(stateEl)stateEl.textContent=(_hf||_ambient||_convo)?'ouvindo':'em espera';}
 vozBtn.classList.toggle('on',voiceOn);
 vozBtn.onclick=()=>{voiceOn=!voiceOn;localStorage.setItem('ev_voice',voiceOn?'on':'off');vozBtn.classList.toggle('on',voiceOn);};
 termBtn.onclick=()=>{document.body.classList.toggle('term');termBtn.classList.toggle('on',document.body.classList.contains('term'));};
@@ -1239,8 +1244,8 @@ async function loadCharts(){try{await loadChartLib();}catch(e){return;}
   const PAL=['#35c8ff','#7fe3ff','#1f8fbf','#5aa0cf','#2bd6c0','#9d7bff','#ff8a8a','#ffd166'];
   function mk(id,cfg){if(_charts[id])_charts[id].destroy();const cx=document.getElementById(id);if(!cx)return;_charts[id]=new Chart(cx,cfg);}
   const cat=d.exp_cat||[];mk('ch-cat',{type:'doughnut',data:{labels:cat.map(x=>x.label),datasets:[{data:cat.map(x=>x.value),backgroundColor:PAL,borderColor:'#04070c',borderWidth:2}]},options:{plugins:{legend:{position:'right'}}}});
-  const day=d.exp_day||[];mk('ch-day',{type:'bar',data:{labels:day.map(x=>x.label),datasets:[{data:day.map(x=>x.value),backgroundColor:'#35c8ff',borderRadius:4}]},options:{plugins:{legend:{display:false}},scales:{x:{grid:{color:grid}},y:{grid:{color:grid}}}}});
-  const hab=d.habits||[];mk('ch-hab',{type:'bar',data:{labels:hab.map(x=>x.label),datasets:[{data:hab.map(x=>x.value),backgroundColor:'#7fe3ff',borderRadius:4}]},options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{grid:{color:grid}},y:{grid:{color:grid}}}}});}
+  const day=d.exp_day||[];mk('ch-day',{type:'bar',data:{labels:day.map(x=>x.label),datasets:[{data:day.map(x=>x.value),backgroundColor:ACC(),borderRadius:4}]},options:{plugins:{legend:{display:false}},scales:{x:{grid:{color:grid}},y:{grid:{color:grid}}}}});
+  const hab=d.habits||[];mk('ch-hab',{type:'bar',data:{labels:hab.map(x=>x.label),datasets:[{data:hab.map(x=>x.value),backgroundColor:ACC(),borderRadius:4}]},options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{grid:{color:grid}},y:{grid:{color:grid}}}}});}
 (function(){const ps=document.getElementById('ch-period');if(!ps)return;
   ps.onchange=()=>{const cst=ps.value==='custom';const cf=$('#ch-from'),ct=$('#ch-to');if(cf)cf.style.display=cst?'block':'none';if(ct)ct.style.display=cst?'block':'none';if(!cst)loadCharts();};
   const cf=$('#ch-from'),ct=$('#ch-to');if(cf)cf.onchange=()=>{if(ct.value)loadCharts();};if(ct)ct.onchange=()=>{if(cf.value)loadCharts();};})();
@@ -1283,7 +1288,7 @@ function ripple(b,e){const r=el('span','ripple');const q=b.getBoundingClientRect
   r.style.width=r.style.height=s+'px';r.style.left=((e?e.clientX:q.left+q.width/2)-q.left-s/2)+'px';
   r.style.top=((e?e.clientY:q.top+q.height/2)-q.top-s/2)+'px';b.appendChild(r);setTimeout(()=>r.remove(),500);sfx('click');}
 let _audio=null,_audioMsg=false,_speaking=false;
-function stopSpeaking(){try{if(_audio){_audio.pause();_audio.currentTime=0;}}catch(e){}_speaking=false;document.body.classList.remove('speaking');}
+function stopSpeaking(){try{if(_audio){_audio.pause();_audio.currentTime=0;}}catch(e){}_speaking=false;document.body.classList.remove('speaking');_idleLabel();}
 // audio-reactive visualizer for the live voice screen (Web Audio analyser on _audio)
 let _actx=null,_analyser=null,_vizData=null,_vizSrc=null;
 function ensureViz(){if(_analyser||!_audio)return;
@@ -1304,7 +1309,7 @@ function vizFrame(){requestAnimationFrame(vizFrame);
   const ctx=cv.getContext('2d');const W=cv.width,H=cv.height;ctx.clearRect(0,0,W,H);
   if(!open||!_speaking||!_analyser)return;
   const cx=W/2,cy=H/2,R=Math.min(W,H)*0.24,N=_vizData.length;
-  ctx.lineWidth=3.4;ctx.lineCap='round';ctx.strokeStyle='rgba(53,200,255,.92)';
+  ctx.lineWidth=3.4;ctx.lineCap='round';ctx.strokeStyle=ACCN('.92');
   for(let i=0;i<N;i++){const a=(i/N)*Math.PI*2-Math.PI/2;const v=_vizData[i]/255;const len=R*0.2+v*R*0.95;
     ctx.globalAlpha=0.3+v*0.7;
     ctx.beginPath();ctx.moveTo(cx+Math.cos(a)*R,cy+Math.sin(a)*R);ctx.lineTo(cx+Math.cos(a)*(R+len),cy+Math.sin(a)*(R+len));ctx.stroke();}
@@ -1343,7 +1348,7 @@ function revealReply(box,text){
     pre.textContent=s;if(log)log.scrollTop=log.scrollHeight;
   },26);
 }
-async function speak(t,force){if((!voiceOn&&!force)||!t)return;try{const r=await fetch('/api/tts',{method:'POST',headers:H(),body:JSON.stringify({text:t})});if(!r.ok)return;const url=URL.createObjectURL(await r.blob());if(!_audio)_audio=new Audio();ensureViz();resumeAudioCtx();_audio.src=url;_speaking=true;document.body.classList.add('speaking');_audio.onended=()=>{_speaking=false;document.body.classList.remove('speaking');};await _audio.play().catch(()=>{_speaking=false;document.body.classList.remove('speaking');if(!_audioMsg){_audioMsg=true;sys('O navegador bloqueou o áudio automático. Toque uma vez na tela e a E.V. volta a falar.');}});}catch(e){_speaking=false;document.body.classList.remove('speaking');}}
+async function speak(t,force){if((!voiceOn&&!force)||!t)return;try{const r=await fetch('/api/tts',{method:'POST',headers:H(),body:JSON.stringify({text:t})});if(!r.ok)return;const url=URL.createObjectURL(await r.blob());if(!_audio)_audio=new Audio();ensureViz();resumeAudioCtx();_audio.src=url;_speaking=true;document.body.classList.add('speaking');if(stateEl)stateEl.textContent='falando';_audio.onended=()=>{_speaking=false;document.body.classList.remove('speaking');_idleLabel();};await _audio.play().catch(()=>{_speaking=false;document.body.classList.remove('speaking');_idleLabel();if(!_audioMsg){_audioMsg=true;sys('O navegador bloqueou o áudio automático. Toque uma vez na tela e a E.V. volta a falar.');}});}catch(e){_speaking=false;document.body.classList.remove('speaking');_idleLabel();}}
 
 async function send(msg){if(!msg)return;you(msg);const p=thinking();setState('thinking');
   try{const r=await fetch('/api/chat/stream',{method:'POST',headers:H(),body:JSON.stringify({message:msg,thread})});
@@ -2311,7 +2316,7 @@ async function drawRouteFT(from,to,label){if(!from||!to)return;_routeFT=[from,to
   let r=null;try{r=await (await fetch('/api/route',{method:'POST',headers:H(),body:JSON.stringify({from,to,mode:_routeMode})})).json();}catch(e){}
   if(!r||!r.ok){info.textContent='Não consegui calcular a rota agora.';return;}
   if(_routeLayer)_routeLayer.remove();
-  _routeLayer=L.geoJSON(r.geometry,{style:{color:'#35c8ff',weight:5,opacity:.85}}).addTo(_map);
+  _routeLayer=L.geoJSON(r.geometry,{style:{color:ACC(),weight:5,opacity:.85}}).addTo(_map);
   try{_map.fitBounds(_routeLayer.getBounds(),{padding:[70,70]});}catch(e){}
   const mt=_routeMode==='foot'?' a pé':_routeMode==='bike'?' de bike':' de carro';
   info.textContent=(label?label+' · ':'')+'~'+fmtDur(r.duration)+' · '+fmtDist(r.distance)+mt;
@@ -2338,7 +2343,7 @@ async function showNearby(query){if(!_loc){_pendingNear=query;$('#map-status').t
   $('#map-status').textContent=items.length+' resultado(s) para "'+query+'"';
   const head=el('div','mr-h');head.appendChild(document.createTextNode(query.toUpperCase()));const x=document.createElement('b');x.textContent='fechar';x.onclick=()=>{res.classList.remove('on');if(_nearLayer)_nearLayer.clearLayers();};head.appendChild(x);res.appendChild(head);
   const bounds=[_loc];
-  items.forEach(it=>{const m=L.circleMarker([it.lat,it.lng],{radius:7,weight:2,color:'#8fe0ff',fillColor:'#35c8ff',fillOpacity:.85}).addTo(_nearLayer);
+  items.forEach(it=>{const m=L.circleMarker([it.lat,it.lng],{radius:7,weight:2,color:ACC(),fillColor:ACC(),fillOpacity:.85}).addTo(_nearLayer);
     m.bindPopup(()=>poiPopup(it.name,it.lat,it.lng,it.dist));bounds.push([it.lat,it.lng]);
     const row=el('div','mres');row.appendChild(el('div','mr-n',it.name));row.appendChild(el('div','mr-d','~'+it.dist+' m'));
     row.onclick=()=>{_map.setView([it.lat,it.lng],16);m.openPopup();};res.appendChild(row);});
@@ -2365,9 +2370,9 @@ function showSavedList(){const res=$('#map-results');res.innerHTML='';
 let _accCircle=null,_fixMode=false;
 function setMyLocation(lat,lng,acc){_loc=[lat,lng];
   if(_map){_map.setView(_loc,acc&&acc>1500?14:16);
-    if(_marker)_marker.setLatLng(_loc);else _marker=L.circleMarker(_loc,{radius:9,weight:3,color:'#35c8ff',fillColor:'#35c8ff',fillOpacity:.7}).addTo(_map);
+    if(_marker)_marker.setLatLng(_loc);else _marker=L.circleMarker(_loc,{radius:9,weight:3,color:ACC(),fillColor:ACC(),fillOpacity:.7}).addTo(_map);
     if(_accCircle){_accCircle.remove();_accCircle=null;}
-    if(acc)_accCircle=L.circle(_loc,{radius:acc,color:'#35c8ff',weight:1,fillColor:'#35c8ff',fillOpacity:.07}).addTo(_map);
+    if(acc)_accCircle=L.circle(_loc,{radius:acc,color:ACC(),weight:1,fillColor:ACC(),fillOpacity:.07}).addTo(_map);
     setTimeout(()=>_map.invalidateSize(),80);}
   fetch('/api/location',{method:'POST',headers:H(),body:JSON.stringify({lat,lng})}).catch(()=>{});
   if(_pendingNear){const q=_pendingNear;_pendingNear=null;showNearby(q);}
@@ -2828,7 +2833,7 @@ function ensureBrainGL(THREE){
   brainScene=new THREE.Scene();
   brainCam=new THREE.PerspectiveCamera(45,W/H,0.1,200);brainCam.position.set(0,0,34);
   brainScene.add(new THREE.AmbientLight(0x88bbff,1.4));
-  const pl=new THREE.PointLight(0x35c8ff,2,300);pl.position.set(25,30,40);brainScene.add(pl);
+  const pl=new THREE.PointLight(ACC(),2,300);pl.position.set(25,30,40);brainScene.add(pl);
   brainRoot=new THREE.Group();brainScene.add(brainRoot);
   brainRay=new THREE.Raycaster();
 }
@@ -2879,7 +2884,7 @@ function populateBrain(THREE,data){
     if(lbox&&n.id!=='core'&&!n.id.endsWith(':more')){const d=el('div',n.id.startsWith('g:')?'blab hub':'blab');d.textContent=n.label;lbox.appendChild(d);brainLabels.push({pos:p,el:d});}});
   const lp=[];links.forEach(l=>{const a=pos[l.source],b=pos[l.target];if(a&&b)lp.push(a.x,a.y,a.z,b.x,b.y,b.z);});
   if(lp.length){const lg=new THREE.BufferGeometry();lg.setAttribute('position',new THREE.Float32BufferAttribute(lp,3));
-    brainRoot.add(new THREE.LineSegments(lg,new THREE.LineBasicMaterial({color:0x35c8ff,transparent:true,opacity:0.13,blending:THREE.AdditiveBlending,depthWrite:false})));}
+    brainRoot.add(new THREE.LineSegments(lg,new THREE.LineBasicMaterial({color:ACC(),transparent:true,opacity:0.13,blending:THREE.AdditiveBlending,depthWrite:false})));}
 }
 function brainSyncLabels(){
   if(!brainLabels||!brainLabels.length||!brainCam||!_TH)return;
@@ -3072,8 +3077,8 @@ function drawBox(ctx,bb,color,label){const x=bb.originX*ctx._sx,y=bb.originY*ctx
   ctx.restore();}
 function faceLoop(){if(!_camLive)return;const v=$('#cam-video');
   if(v&&v.videoWidth){const ctx=ovCtx();let nf=0,no=0;const ts=performance.now();
-    if(ctx&&_faceDet){try{(_faceDet.detectForVideo(v,ts).detections||[]).forEach(d=>{if(d.boundingBox){drawBox(ctx,d.boundingBox,'#35c8ff','rosto');nf++;}});}catch(e){}}
-    if(ctx&&_objDet){try{(_objDet.detectForVideo(v,ts).detections||[]).forEach(d=>{const c=(d.categories&&d.categories[0])||{};const nm=OBJ_PT[c.categoryName]||c.categoryName||'objeto';if(nm==='pessoa')return;if(d.boundingBox){drawBox(ctx,d.boundingBox,'#7fe3ff',nm);no++;}});}catch(e){}}
+    if(ctx&&_faceDet){try{(_faceDet.detectForVideo(v,ts).detections||[]).forEach(d=>{if(d.boundingBox){drawBox(ctx,d.boundingBox,ACC(),'rosto');nf++;}});}catch(e){}}
+    if(ctx&&_objDet){try{(_objDet.detectForVideo(v,ts).detections||[]).forEach(d=>{const c=(d.categories&&d.categories[0])||{};const nm=OBJ_PT[c.categoryName]||c.categoryName||'objeto';if(nm==='pessoa')return;if(d.boundingBox){drawBox(ctx,d.boundingBox,ACC(),nm);no++;}});}catch(e){}}
     if(ctx&&_gestDet&&!_camBusy){try{const gr=_gestDet.recognizeForVideo(v,ts);const g=(gr.gestures&&gr.gestures[0]&&gr.gestures[0][0])||null;const nm=(g&&g.score>0.55)?g.categoryName:'';
       if(nm&&nm!=='None'){if(nm===_gestLast)_gestN++;else{_gestLast=nm;_gestN=1;}if(_gestN===5&&performance.now()-_gestFired>2800){_gestFired=performance.now();handleGesture(nm);}}
       else{_gestLast='';_gestN=0;}}catch(e){}}
