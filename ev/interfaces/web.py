@@ -470,6 +470,14 @@ body.speaking .bigcore .r2{animation-delay:.15s}body.speaking .bigcore .r3{anima
 .ov-sugg{display:flex;flex-wrap:wrap;gap:7px;width:100%;margin-top:2px}
 .ov-sugg button{font-family:var(--mono);font-size:11px;color:var(--muted);background:transparent;border:1px solid var(--line);border-radius:20px;padding:5px 11px;cursor:pointer;transition:.15s}.ov-sugg button:hover{border-color:var(--accent);color:#cfe3f2}
 .ov-task .when{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--subtle);flex:none}
+.ov-sp{display:flex;gap:11px;align-items:center;margin-top:2px}
+.ov-sp-art{width:52px;height:52px;border-radius:9px;object-fit:cover;flex:none;background:var(--elev);box-shadow:0 0 16px -8px var(--glow)}
+.ov-sp-info{flex:1;min-width:0}.ov-sp-info .t{color:#eaf4fb;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ov-sp-info .a{color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ov-sp-ctl{display:flex;gap:8px;margin-top:11px}.ov-sp-ctl button{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--accent);cursor:pointer;display:grid;place-items:center}.ov-sp-ctl button:hover{border-color:var(--accent)}.ov-sp-ctl button svg{width:15px;height:15px}
+.ov-sp-bar{height:4px;background:var(--elev);border-radius:3px;overflow:hidden;margin-top:11px}.ov-sp-bar i{display:block;height:100%;background:linear-gradient(90deg,#4dd0e1,#5ee6a3)}
+.ov-astro{display:flex;gap:14px;align-items:center;margin-top:2px}
+.ov-moon{width:58px;height:58px;border-radius:50%;flex:none;background:radial-gradient(circle at 32% 38%,#eef6ff,#a9c0d4 62%,#2f4256);box-shadow:0 0 22px -6px var(--glow),inset -10px -6px 16px -8px #060c14}
+.ov-money{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;color:var(--muted)}.ov-money:last-child{border-bottom:0}.ov-money b{color:#eaf4fb;font-family:var(--disp);font-size:16px}
 .rd-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:1400px}
 @media(max-width:820px){.rd-grid{grid-template-columns:1fr}}
 .rd-half{min-width:0}
@@ -1956,6 +1964,26 @@ async function loadInicio(){
     items.forEach(a=>{const meta=ACT_ICON[a.action]||['activity',a.action];const f=el('div','f');f.appendChild(ficon(meta[0]));f.appendChild(el('div','',meta[1]+': '+a.label));const w=a.created?new Date(a.created):null;f.appendChild(el('div','w',(w&&!isNaN(w))?w.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):''));feed.appendChild(f);});
     if(window.lucide)lucide.createIcons();}).catch(()=>{});
 
+  // ---- Spotify (pronto pra quando conectar) ----
+  const mt=ovTile('sp4','music','Tocando agora','musica');mt.appendChild(el('div','ov-li','carregando…'));grid.appendChild(mt);ovSpotify(mt);
+
+  // ---- Astronomia & pôr do sol ----
+  const ast=ovTile('sp4','moon','Astronomia','painel');const astRow=el('div','ov-astro');astRow.appendChild(el('div','ov-moon'));
+  const astCol=el('div','');astCol.style.flex='1';astCol.appendChild(el('div','big','…'));astCol.appendChild(el('div','ov-li','carregando'));astRow.appendChild(astCol);ast.appendChild(astRow);grid.appendChild(ast);
+  fetch('/api/astro',{headers:H()}).then(r=>r.json()).then(a=>{const m=a.moon||{},s=a.sun||{};
+    astCol.querySelector('.big').innerHTML=(m.illum!=null?m.illum+'% <small>iluminada</small>':'—');
+    const lis=astCol.querySelectorAll('.ov-li');lis[0].textContent=(m.phase||'')+(m.waxing!=null?(m.waxing?' · crescente':' · minguante'):'');
+    if(s.sunrise||s.sunset){const su=el('div','ov-li');su.textContent='☀ nascer '+(s.sunrise||'--')+' · pôr '+(s.sunset||'--');astCol.appendChild(su);}}).catch(()=>{});
+
+  // ---- Cotações ----
+  const cot=ovTile('sp4','trending-up','Cotações','painel');const cotBody=el('div','');cotBody.appendChild(el('div','ov-li','carregando…'));cot.appendChild(cotBody);grid.appendChild(cot);
+  fetch('/api/radar',{headers:H()}).then(r=>r.json()).then(d=>{const rt=(d&&d.rates)||{};cotBody.innerHTML='';
+    const money=(label,val)=>{const row=el('div','ov-money');row.innerHTML='<span>'+label+'</span><b>'+val+'</b>';cotBody.appendChild(row);};
+    if(rt.usd)money('Dólar','R$ '+Number(rt.usd).toFixed(2));
+    if(rt.eur)money('Euro','R$ '+Number(rt.eur).toFixed(2));
+    if(rt.btc)money('Bitcoin','R$ '+Number(rt.btc).toLocaleString('pt-BR'));
+    if(!cotBody.children.length)cotBody.appendChild(el('div','ov-li','indisponível agora'));}).catch(()=>{cotBody.innerHTML='';cotBody.appendChild(el('div','ov-li','indisponível agora'));});
+
   // ---- Base de conhecimento (chips) ----
   const cc=o.counts;const bt=ovTile('sp4','database','Base de conhecimento','mem');const chips=el('div','ov-chips');
   [['memórias',cc.memories],['fontes',cc.kb],['links',cc.links],['diário',cc.journal],['lugares',cc.places],['assinaturas',cc.subs],['automações',cc.automations]].forEach(x=>chips.appendChild(el('span','ov-chip',(x[1]||0)+' '+x[0])));
@@ -1963,6 +1991,21 @@ async function loadInicio(){
 
   if(window.lucide)lucide.createIcons();
   startOvPoll();
+}
+async function ovSpotify(mt){
+  let s;try{s=await (await fetch('/api/spotify/status',{headers:H()})).json();}catch(e){s=null;}
+  mt.innerHTML='';const h=el('div','h');h.innerHTML='<i data-lucide="music"></i>Tocando agora';
+  const go=el('span','go');go.appendChild(ficon('arrow-up-right'));go.title='abrir';go.onclick=()=>switchView('musica');h.appendChild(go);mt.appendChild(h);
+  if(!s||!s.configured){mt.appendChild(el('div','ov-li','Configure o Spotify em Chaves de API pra ouvir aqui.'));if(window.lucide)lucide.createIcons();return;}
+  if(!s.connected){const b=el('button','mchip');b.appendChild(ficon('plug'));b.appendChild(document.createTextNode('Conectar Spotify'));b.style.marginTop='4px';b.onclick=()=>window.open('/spotify/connect','_blank');mt.appendChild(b);if(window.lucide)lucide.createIcons();return;}
+  let j;try{j=await (await fetch('/api/spotify/nowplaying',{headers:H()})).json();}catch(e){j={};}
+  const row=el('div','ov-sp');const img=document.createElement('img');img.className='ov-sp-art';
+  if(j&&j.image)img.src=j.image;else img.style.visibility='hidden';row.appendChild(img);
+  const info=el('div','ov-sp-info');info.innerHTML='<div class="t">'+esc(j&&j.name?j.name:'Nada tocando')+'</div><div class="a">'+esc(j&&j.artists?j.artists:'—')+'</div>';row.appendChild(info);mt.appendChild(row);
+  const ctl=el('div','ov-sp-ctl');const mk=(icon,action)=>{const bb=el('button');bb.appendChild(ficon(icon));bb.onclick=async()=>{await spCtl(action);setTimeout(()=>ovSpotify(mt),700);};ctl.appendChild(bb);};
+  mk('skip-back','prev');mk((j&&j.playing)?'pause':'play',(j&&j.playing)?'pause':'resume');mk('skip-forward','next');mt.appendChild(ctl);
+  if(j&&j.duration){const pb=el('div','ov-sp-bar');const pi=el('i');pi.style.width=Math.min(100,j.progress/j.duration*100)+'%';pb.appendChild(pi);mt.appendChild(pb);}
+  if(window.lucide)lucide.createIcons();
 }
 let _ovPoll=null;
 function startOvPoll(){if(_ovPoll)return;_ovPoll=setInterval(()=>{
