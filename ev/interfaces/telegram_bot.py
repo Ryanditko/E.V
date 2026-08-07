@@ -88,6 +88,8 @@ class TelegramInterface:
         self._last_monthly: str | None = None      # month of the last financial report
         self._last_nudge: str | None = None        # date of the last open-loops nudge
         self._last_insight: str | None = None       # date of the last learned-pattern share
+        self._last_subdue: str | None = None        # date of the last subscription-due heads-up
+        self._alerted_budgets: set[str] = set()      # month:category:level already alerted
         # Keep references to background tasks so they aren't garbage-collected
         # (a GC'd task would silently kill the scheduler).
         self._bg_tasks: list = []
@@ -2053,6 +2055,8 @@ class TelegramInterface:
                     await self._maybe_insight(app)
                     await self._maybe_run_automations(app)
                     await self._maybe_monthly_report(app)
+                    await self._maybe_subscription_due(app)
+                    await self._maybe_budget_alert(app)
             except Exception:
                 log.exception("Briefing loop error")
             await asyncio.sleep(60)
@@ -2130,6 +2134,52 @@ class TelegramInterface:
                 pass
         if len(self._alerted_events) > 500:  # keep the dedupe set bounded
             self._alerted_events.clear()
+
+    async def _proactive_send(self, app: Application, title: str, msg: str) -> None:
+        """Deliver a proactive alert to Telegram + web push + notification center."""
+        cfg = self._config
+        if cfg.owner_id is None:
+            return
+        await self._bot_send(app.bot, cfg.owner_id, msg, self._quick_kb())
+        try:  # send_push also persists to the web notification center
+            from ..providers import push
+            await asyncio.to_thread(push.send_push, cfg, self._memory,
+                                    title, msg, "/", str(cfg.owner_id))
+        except Exception:
+            pass
+
+    async def _maybe_subscription_due(self, app: Application) -> None:
+        cfg = self._config
+        if cfg.owner_id is None:
+            return
+        today = datetime.now(self._tz()).date().isoformat()
+        if self._last_subdue == today:  # one heads-up sweep per day
+            return
+        self._last_subdue = today
+        for s in self._commands.subscriptions_due(str(cfg.owner_id)):
+            when = "amanhã" if s["days_until"] == 1 else f"em {s['days_until']} dias"
+            msg = f"💳 Sua assinatura {s['description']} (R$ {s['amount']:.2f}) vence {when}."
+            await self._proactive_send(app, "💳 Assinatura chegando", msg)
+
+    async def _maybe_budget_alert(self, app: Application) -> None:
+        cfg = self._config
+        if cfg.owner_id is None:
+            return
+        month = datetime.now(self._tz()).strftime("%Y-%m")
+        for a in self._commands.budget_alerts(str(cfg.owner_id)):
+            key = f"{month}:{a['category']}:{a['level']}"
+            if key in self._alerted_budgets:  # once per category/level per month
+                continue
+            self._alerted_budgets.add(key)
+            if a["level"] == "over":
+                msg = (f"🔴 Orçamento estourado — {a['category']}: "
+                       f"R$ {a['spent']:.2f} de R$ {a['amount']:.2f} ({a['pct']:.0f}%).")
+            else:
+                msg = (f"🟡 Atenção ao orçamento — {a['category']} já em {a['pct']:.0f}% "
+                       f"(R$ {a['spent']:.2f} / R$ {a['amount']:.2f}).")
+            await self._proactive_send(app, "💰 Orçamento", msg)
+        if len(self._alerted_budgets) > 500:
+            self._alerted_budgets.clear()
 
     def _log_notif(self, title: str, body: str = "") -> None:
         """Record a proactive alert in the web notification center too."""
