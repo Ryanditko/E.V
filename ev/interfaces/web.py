@@ -407,7 +407,11 @@ body.speaking .bigcore .r2{animation-delay:.15s}body.speaking .bigcore .r3{anima
 /* base: attach "+" and bottom-nav are phone-only (media rules below turn them on) */
 #attach{display:none}#bnav{display:none}
 /* --- MODO SÉRIO (alerta vermelho) — recolore tudo que usa --accent/--glow --- */
-body.serious{--accent:#ff3b46;--accent-rgb:255,59,70;--line-rgb:255,74,86;--accent-dim:#b3202a;--ink:#070304;--panel:#0d0709;--elev:#1c0e11;--surface:#140b0d;--fg:#f4e9ea;--muted:#c39aa0;--subtle:#8a626a}
+/* MODO SÉRIO: um filtro de matiz recolore TUDO (azul->vermelho), inclusive os
+   navy hardcoded e as superfícies em canvas. Imagens/vídeo e o efeito de alerta
+   são contra-rotacionados para não distorcer. */
+body.serious{filter:hue-rotate(163deg) saturate(1.12);transition:filter .5s}
+body.serious img,body.serious video,body.serious #serfx{filter:hue-rotate(-163deg) saturate(.89)}
 #serfx{position:fixed;inset:0;pointer-events:none;z-index:38;opacity:0;transition:opacity .5s;border:1px solid transparent}
 body.serious #serfx{opacity:1;box-shadow:inset 0 0 150px -50px rgba(255,45,55,.6);border-color:rgba(255,60,70,.12)}
 #serfx.sweep{animation:seriousSweep 1.15s ease-out}
