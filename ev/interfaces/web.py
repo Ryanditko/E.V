@@ -491,8 +491,8 @@ body.serious #serfx{opacity:1;box-shadow:inset 0 0 150px -50px rgba(255,45,55,.6
 .ov-tel .t{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;color:var(--subtle);border:1px solid var(--line);border-radius:7px;padding:4px 8px;display:flex;gap:6px;align-items:center}
 .ov-tel .t b{color:var(--accent);font-weight:600}.ov-tel .t.on b{color:#5ee6a3}
 .ov-tel .t.on::before{content:"";width:6px;height:6px;border-radius:50%;background:#5ee6a3;box-shadow:0 0 6px #5ee6a3;animation:pulse2 2s infinite}
-.ring{width:72px;height:72px;flex:none;border-radius:50%;background:conic-gradient(var(--accent) calc(var(--p,0)*1%),var(--elev) 0);display:flex;align-items:center;justify-content:center;position:relative}
-.ring::before{content:"";position:absolute;inset:7px;border-radius:50%;background:#0a1420}.ring .rv{position:relative;font-family:var(--disp);font-size:16px;color:#eaf4fb;text-align:center;line-height:1}.ring .rv small{font-size:9px;color:var(--muted)}
+.ovr{width:72px;height:72px;flex:none;border-radius:50%;background:conic-gradient(var(--accent) calc(var(--p,0)*1%),var(--elev) 0);display:flex;align-items:center;justify-content:center;position:relative}
+.ovr::before{content:"";position:absolute;inset:7px;border-radius:50%;background:#0a1420}.ovr .rv{position:relative;font-family:var(--disp);font-size:16px;color:#eaf4fb;text-align:center;line-height:1}.ovr .rv small{font-size:9px;color:var(--muted)}
 .ov-row2{display:flex;align-items:center;gap:14px}
 .spark{display:flex;align-items:flex-end;gap:5px;height:54px;margin:10px 0 16px}
 .spark .b{flex:1;background:linear-gradient(180deg,var(--accent),rgba(77,208,225,.22));border-radius:3px 3px 0 0;min-height:3px;position:relative}
@@ -1933,7 +1933,7 @@ function ovTile(spanCls,icon,title,view){
   c.appendChild(h);return c;
 }
 function ovRing(pct,label){pct=Math.min(100,Math.max(0,pct||0));
-  const r=el('div','ring');r.style.setProperty('--p',pct);
+  const r=el('div','ovr');r.style.setProperty('--p',pct);
   const v=el('div','rv');v.innerHTML=Math.round(pct)+'%<br><small>'+esc(label||'')+'</small>';r.appendChild(v);return r;}
 async function loadInicio(){
   const grid=$('#ov-grid');const hr=new Date().getHours();
@@ -2800,6 +2800,7 @@ document.querySelectorAll('#bnav button[data-view]').forEach(b=>b.onclick=()=>sw
 {const bm=$('#bnav-more');if(bm)bm.onclick=()=>ckOpen();const at=$('#attach');if(at)at.onclick=()=>document.body.classList.toggle('attach-open');}
 setInterval(()=>{$('#s-clock').textContent=new Date().toTimeString().slice(0,8);},1000);
 const GREETING='Bem-vindo de volta, Ryan. Sistemas online, tudo pronto pra você.';
+let _greeted=false;  // garante saudação única por carregamento
 async function validate(tok){try{return (await fetch('/api/panel',{headers:{'Authorization':'Bearer '+tok}})).status===200;}catch(e){return false;}}
 function welcome(){const w=$('#welcome'),txt=$('#welcome-txt');
   if(txt)txt.textContent=GREETING;
@@ -2807,7 +2808,8 @@ function welcome(){const w=$('#welcome'),txt=$('#welcome-txt');
   w.classList.add('on');sfx('boot');window.lucide&&lucide.createIcons();
   // live spoken briefing (status of the day) — shown AND spoken
   fetch('/api/briefing',{headers:H()}).then(r=>r.ok?r.json():null).then(j=>{if(j&&j.text&&txt)txt.textContent=j.text;}).catch(()=>{});
-  fetch('/api/greeting',{headers:H()}).then(r=>r.ok?r.blob():null).then(b=>{if(b&&b.size>0)playVoice(URL.createObjectURL(b));}).catch(()=>{});
+  if(!_greeted){_greeted=true;   // fala a saudação no máximo UMA vez por carregamento
+    fetch('/api/greeting',{headers:H()}).then(r=>r.ok?r.blob():null).then(b=>{if(b&&b.size>0)playVoice(URL.createObjectURL(b));}).catch(()=>{});}
   setTimeout(()=>w.classList.remove('on'),4400);}
 // --- standby / ambient HUD (idle) ---
 let _idleT=null,_sbClock=null;const _IDLE_MS=30000;
