@@ -403,6 +403,8 @@ body.speaking .bigcore .r2{animation-delay:.15s}body.speaking .bigcore .r3{anima
 @media(max-width:1180px){.topbar #scope{display:none}}
 /* Desktop/tablet keep the scrollable tab strip. Only on phones (<=760px) swap
    it for the compact picker and shrink the labelled buttons to icons. */
+/* base: attach "+" and bottom-nav are phone-only (media rules below turn them on) */
+#attach{display:none}#bnav{display:none}
 @media(max-width:760px){
   .tabs{display:none}
   .mnav{display:block;flex:1 1 auto;min-width:60px}
@@ -414,6 +416,25 @@ body.speaking .bigcore .r2{animation-delay:.15s}body.speaking .bigcore .r3{anima
   .topbar{gap:6px;padding:10px 10px}
   #tgl-left,#tgl-right,#vcopen,#voz{flex:none}
   #tgl-right{margin-left:auto}
+  /* --- composer declutter: hide media buttons behind the "+" (attach) --- */
+  #attach{display:grid}
+  #imgbtn,#cambtn{display:none}
+  body.attach-open #imgbtn,body.attach-open #cambtn{display:grid}
+  form{padding-bottom:calc(14px + env(safe-area-inset-bottom))}
+  /* --- bottom tab bar (thumb-reachable nav) --- */
+  #bnav{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:40;
+    background:linear-gradient(180deg,rgba(9,16,26,.82),rgba(6,11,18,.97));
+    -webkit-backdrop-filter:blur(9px);backdrop-filter:blur(9px);
+    border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
+  #bnav button{flex:1;background:none;border:0;color:var(--muted);cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;gap:3px;
+    font-family:var(--mono);font-size:9px;letter-spacing:.04em;padding:5px 2px}
+  #bnav button svg{width:21px;height:21px}
+  #bnav button.on{color:var(--accent)}
+  #bnav button.on svg{filter:drop-shadow(0 0 6px var(--glow))}
+  body.v-chat #bnav{display:none}   /* na conversa, o composer já ocupa a base */
+  /* espaço p/ o conteúdo não ficar atrás da barra */
+  #taskview,#kbview,#expview,#remview,#memview,#calview,#lnkview,#habview,#jouview,#subview,#orcview,#monview,#actview,#pageview,#musicview,#climaview,#metasview,#saudeview,#cofreview,#painelview,#inicioview{padding-bottom:80px}
 }
 .lnk{color:var(--fg);text-decoration:underline;text-underline-offset:2px}.lnk:hover{opacity:.75}
 .tab{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--muted);border:none;background:transparent;border-radius:8px;padding:7px 13px;cursor:pointer;white-space:nowrap}
@@ -818,6 +839,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
       <div id="audprev"></div>
       <div id="imgprev"></div>
       <form id="f"><div id="slash"></div>
+        <button type="button" class="icon" id="attach" title="Anexar"><i data-lucide="plus"></i></button>
         <button type="button" class="icon mic" id="mic" title="Falar"><span class="mg"><i data-lucide="mic"></i></span><span class="wave"><b></b><b></b><b></b><b></b></span></button>
         <button type="button" class="icon" id="imgbtn" title="Enviar imagem"><i data-lucide="image"></i></button>
         <button type="button" class="icon" id="cambtn" title="Câmera ao vivo"><i data-lucide="camera"></i></button>
@@ -1054,6 +1076,13 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
   <button id="vc-cont" class="tbtn" style="margin-top:14px"><i data-lucide="infinity"></i> Modo contínuo: off</button>
   <button id="vc-convo" class="tbtn" style="margin-top:8px"><i data-lucide="messages-square"></i> Conversa: off</button>
 </div>
+<nav id="bnav">
+  <button data-view="inicio"><i data-lucide="layout-dashboard"></i><span>Início</span></button>
+  <button data-view="chat"><i data-lucide="message-square"></i><span>Conversa</span></button>
+  <button data-view="tasks"><i data-lucide="list-checks"></i><span>Tarefas</span></button>
+  <button data-view="exp"><i data-lucide="wallet"></i><span>Gastos</span></button>
+  <button id="bnav-more"><i data-lucide="menu"></i><span>Mais</span></button>
+</nav>
 <div id="cam">
   <button id="cam-x">FECHAR</button>
   <div id="cam-stage"><video id="cam-video" autoplay playsinline muted></video><canvas id="cam-fx"></canvas></div>
@@ -1825,6 +1854,8 @@ $('#mnav').onchange=()=>switchView($('#mnav').value);
 const VIEWS={chat:'#chatview',inicio:'#inicioview',tasks:'#taskview',exp:'#expview',rem:'#remview',cal:'#calview',mem:'#memview',lnk:'#lnkview',hab:'#habview',jou:'#jouview',sub:'#subview',orc:'#orcview',mon:'#monview',kb:'#kbview',act:'#actview',map:'#mapview',brain:'#brainview',graf:'#chartsview',musica:'#musicview',clima:'#climaview',metas:'#metasview',saude:'#saudeview',cofre:'#cofreview',painel:'#painelview'};
 function switchView(v){const isPage=(''+v).indexOf('page:')===0;
   if(!isPage&&!VIEWS[v])v='chat';curView=v;document.querySelectorAll('#tabs .tab').forEach(t=>t.classList.toggle('on',t.dataset.view===v));
+  document.body.classList.toggle('v-chat',v==='chat');
+  document.querySelectorAll('#bnav button[data-view]').forEach(bb=>bb.classList.toggle('on',bb.dataset.view===v));
   const mn=$('#mnav');if(mn&&!isPage&&mn.value!==v)mn.value=v;
   document.body.classList.remove('m-left','m-right');
   Object.entries(VIEWS).forEach(([k,sel])=>{const el2=$(sel);if(el2)el2.style.display=(k===v)?((k==='chat'||k==='brain')?'flex':'block'):'none';});
@@ -2701,6 +2732,9 @@ CKI.addEventListener('keydown',e=>{if(e.key==='ArrowDown'){e.preventDefault();ck
   [...CKL.children].forEach((c,i)=>c.classList.toggle('sel',i===ckSel));CKL.children[ckSel]&&CKL.children[ckSel].scrollIntoView({block:'nearest'});});
 CK.onclick=e=>{if(e.target===CK)ckClose();};
 window.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();CK.classList.contains('on')?ckClose():ckOpen();}});
+// mobile bottom-nav + composer attach toggle
+document.querySelectorAll('#bnav button[data-view]').forEach(b=>b.onclick=()=>switchView(b.dataset.view));
+{const bm=$('#bnav-more');if(bm)bm.onclick=()=>ckOpen();const at=$('#attach');if(at)at.onclick=()=>document.body.classList.toggle('attach-open');}
 setInterval(()=>{$('#s-clock').textContent=new Date().toTimeString().slice(0,8);},1000);
 const GREETING='Bem-vindo de volta, Ryan. Sistemas online, tudo pronto pra você.';
 async function validate(tok){try{return (await fetch('/api/panel',{headers:{'Authorization':'Bearer '+tok}})).status===200;}catch(e){return false;}}
