@@ -412,6 +412,8 @@ body.speaking .bigcore .r2{animation-delay:.15s}body.speaking .bigcore .r3{anima
    são contra-rotacionados para não distorcer. */
 body.serious{filter:hue-rotate(163deg) saturate(1.12);transition:filter .5s}
 body.serious img,body.serious video,body.serious #serfx{filter:hue-rotate(-163deg) saturate(.89)}
+/* exceções: status/sucesso continuam VERDE (contra-rotaciona pra cor real) */
+body.serious #s-status,body.serious #s-status::before,body.serious .ov-tel .t.on b,body.serious .ov-tel .t.on::before,body.serious .spark .b.today,body.serious .ov-hab .c.done,body.serious #standby .sb-top b{filter:hue-rotate(-163deg) saturate(.89)}
 #serfx{position:fixed;inset:0;pointer-events:none;z-index:38;opacity:0;transition:opacity .5s;border:1px solid transparent}
 body.serious #serfx{opacity:1;box-shadow:inset 0 0 150px -50px rgba(255,45,55,.6);border-color:rgba(255,60,70,.12)}
 #serfx.sweep{animation:seriousSweep 1.15s ease-out}
