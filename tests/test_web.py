@@ -53,6 +53,17 @@ def _auth():
     return {"Authorization": "Bearer secret"}
 
 
+def test_serious_mode(tmp_path):
+    client, _ = _client(tmp_path)
+    assert client.get("/api/panel", headers=_auth()).json()["serious"] is False
+    assert client.post("/api/serious", json={"on": True}).status_code == 401  # needs auth
+    r = client.post("/api/serious", json={"on": True}, headers=_auth()).json()
+    assert r["serious"] is True
+    assert client.get("/api/panel", headers=_auth()).json()["serious"] is True
+    client.post("/api/serious", json={"on": False}, headers=_auth())
+    assert client.get("/api/panel", headers=_auth()).json()["serious"] is False
+
+
 def test_overview_dashboard(tmp_path):
     client, _ = _client(tmp_path)
     client.post("/api/cmd", json={"command": "tarefa comprar pão"}, headers=_auth())

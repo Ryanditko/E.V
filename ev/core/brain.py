@@ -444,6 +444,16 @@ class Brain:
     def _system_instruction(self, user_id: str, query: str | None) -> str:
         system = SYSTEM_PROMPT
 
+        # MODO SÉRIO — muda o tom das respostas enquanto ativo.
+        if self._memory.get_setting("serious_mode") == "1":
+            system += (
+                "\n\n## MODO SÉRIO ATIVO\n"
+                "O usuário ativou o modo sério. Responda de forma direta, "
+                "concisa e tática — sem piadas, sem floreio, sem emojis. Vá "
+                "direto ao ponto, tom de operação/missão, frases curtas. "
+                "Continue prestativa e precisa, só que séria e focada."
+            )
+
         # Current date/time so the model can resolve "tomorrow at 9am" to ISO.
         system += "\n\n## Data e hora atual\n" + self._now_str()
 
@@ -496,6 +506,21 @@ class Brain:
             """
             self._memory.add_fact(user_id, fato, embedding=self._embed(fato))
             return "ok, memorizado"
+
+        def modo_serio(ativar: bool = True) -> str:
+            """Ativa ou desativa o MODO SÉRIO da E.V.: a interface inteira entra
+            em alerta (azul -> vermelho) e o tom das respostas fica direto,
+            tático e sem piadas. Use quando o usuário pedir 'modo sério', 'fica
+            séria', 'modo de combate', 'modo foco total', ou para desligar:
+            'volta ao normal', 'desativa o modo sério', 'relaxa'.
+
+            Args:
+                ativar: true para ligar, false para voltar ao normal.
+            """
+            self._memory.set_setting("serious_mode", "1" if ativar else "0")
+            return ("Modo sério ativado. Interface em alerta, foco total."
+                    if ativar else
+                    "Modo sério desativado. De volta ao normal.")
 
         def criar_lembrete(texto: str, quando: str = "") -> str:
             """Cria um lembrete para o usuário.
@@ -919,6 +944,7 @@ class Brain:
             return self._plan_day_sync(user_id)
 
         callables: dict = {
+            "modo_serio": modo_serio,
             "executar_comando": executar_comando,
             "planejar_dia": planejar_dia,
             "criar_automacao": criar_automacao,
@@ -1013,6 +1039,15 @@ class Brain:
 
         s = "string"
         schemas = [
+            fn(
+                "modo_serio",
+                "Ativa/desativa o modo sério da E.V. (interface azul->vermelha "
+                "em alerta + tom direto e tático). Use para 'modo sério', 'fica "
+                "séria', 'modo de combate', ou desligar: 'volta ao normal'.",
+                {"ativar": {"type": "boolean",
+                            "description": "true para ligar, false para desligar"}},
+                [],
+            ),
             fn(
                 "planejar_dia",
                 "Monta um plano acionável do dia do usuário juntando tarefas, "

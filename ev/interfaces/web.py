@@ -405,6 +405,14 @@ body.speaking .bigcore .r2{animation-delay:.15s}body.speaking .bigcore .r3{anima
    it for the compact picker and shrink the labelled buttons to icons. */
 /* base: attach "+" and bottom-nav are phone-only (media rules below turn them on) */
 #attach{display:none}#bnav{display:none}
+/* --- MODO SÉRIO (alerta vermelho) — recolore tudo que usa --accent/--glow --- */
+body.serious{--accent:#ff3b46;--accent-dim:#b3202a;--glow:rgba(255,59,70,.55)}
+#serfx{position:fixed;inset:0;pointer-events:none;z-index:38;opacity:0;transition:opacity .5s;border:1px solid transparent}
+body.serious #serfx{opacity:1;box-shadow:inset 0 0 150px -50px rgba(255,45,55,.6);border-color:rgba(255,60,70,.12)}
+#serfx.sweep{animation:seriousSweep 1.15s ease-out}
+@keyframes seriousSweep{0%{background:radial-gradient(circle at 50% 46%,rgba(255,55,66,.75),transparent 6%)}
+  45%{background:radial-gradient(circle at 50% 46%,rgba(255,55,66,.45),rgba(255,40,50,.18) 55%,transparent 100%)}
+  100%{background:radial-gradient(circle,transparent,transparent)}}
 @media(max-width:760px){
   .tabs{display:none}
   .mnav{display:block;flex:1 1 auto;min-width:60px}
@@ -1076,6 +1084,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
   <button id="vc-cont" class="tbtn" style="margin-top:14px"><i data-lucide="infinity"></i> Modo contínuo: off</button>
   <button id="vc-convo" class="tbtn" style="margin-top:8px"><i data-lucide="messages-square"></i> Conversa: off</button>
 </div>
+<div id="serfx"></div>
 <nav id="bnav">
   <button data-view="inicio"><i data-lucide="layout-dashboard"></i><span>Início</span></button>
   <button data-view="chat"><i data-lucide="message-square"></i><span>Conversa</span></button>
@@ -1408,7 +1417,15 @@ function renderStats(){const box=$('#stats');box.textContent='';config.stats.for
 function renderActs(){const box=$('#acts');box.textContent='';config.actions.forEach(cmd=>{const m=CAT[cmd]||[cmd,'chevron-right'];
   const b=el('button','act');b.appendChild(ficon(m[1]));b.appendChild(document.createTextNode(m[0]));
   b.onclick=e=>{if(cmd==='foco'){openPomo(25);return;}ripple(b,e);if(cmd==='cam'){$('#cambtn').click();return;}if(cmd==='bak'){window.location='/api/backup?k='+encodeURIComponent(token);toast('Baixando backup cifrado…');return;}if(VIEWS[cmd]){switchView(cmd);return;}runCmd(cmd,b,e);};box.appendChild(b);});window.lucide&&lucide.createIcons();}
+let _serious=false;
+function applySerious(on){on=!!on;document.body.classList.toggle('serious',on);
+  if(on===_serious)return;_serious=on;
+  const fx=$('#serfx');if(fx){fx.classList.remove('sweep');void fx.offsetWidth;fx.classList.add('sweep');}
+  try{if(on&&window.speak)speak('Modo sério ativado.');}catch(e){}}
+function toggleSerious(){const on=!_serious;applySerious(on);
+  fetch('/api/serious',{method:'POST',headers:H(),body:JSON.stringify({on})}).catch(()=>{});}
 async function loadPanel(){const _t0=(window.performance||Date).now();try{const r=await fetch('/api/panel',{headers:H()});if(!r.ok)return;_counts=await r.json();
+  applySerious(_counts.serious);
   renderStats();$('#s-prov').textContent=_counts.provider;$('#s-model').textContent=_counts.model;$('#prov').value=_counts.provider;updateNBadge(_counts.notifs);
   const lat=Math.round((window.performance||Date).now()-_t0),sl=$('#s-lat');if(sl)sl.textContent='~'+lat+'ms';
   const st=$('#s-status');if(st){st.textContent='ONLINE';st.classList.add('on-dot');}
@@ -2721,7 +2738,7 @@ function filterRows(box,q){if(!box)return;q=(q||'').trim().toLowerCase();let cur
 [['tasks-search','tasklist'],['exp-search','explist'],['rem-search','remlist'],['mem-search','memlist'],['kb-search','kblist'],['lnk-search','lnklist'],['hab-search','hablist'],['jou-search','joulist'],['sub-search','sublist'],['orc-search','orclist'],['mon-search','monlist'],['act-search','actlist']].forEach(p=>{const inp=document.getElementById(p[0]);if(inp)inp.oninput=()=>filterRows(document.getElementById(p[1]),inp.value);});
 // command palette (Ctrl/Cmd+K)
 const CK=$('#cmdk'),CKI=$('#ck-input'),CKL=$('#ck-list');let ckItems=[],ckSel=0;
-function ckBuild(){const nav=[['Conversa',()=>switchView('chat')],['Tarefas',()=>switchView('tasks')],['Gastos',()=>switchView('exp')],['Lembretes',()=>switchView('rem')],['Agenda',()=>switchView('cal')],['Memórias',()=>switchView('mem')],['Links',()=>switchView('lnk')],['Hábitos',()=>switchView('hab')],['Diário',()=>switchView('jou')],['Assinaturas',()=>switchView('sub')],['Orçamentos',()=>switchView('orc')],['Monitores',()=>switchView('mon')],['Base',()=>switchView('kb')],['Cérebro',()=>switchView('brain')],['Pomodoro',()=>openPomo(25)],['Voz ao vivo',()=>$('#vcopen').click()],['Chaves de API',()=>openKeys()]];
+function ckBuild(){const nav=[['Conversa',()=>switchView('chat')],['Tarefas',()=>switchView('tasks')],['Gastos',()=>switchView('exp')],['Lembretes',()=>switchView('rem')],['Agenda',()=>switchView('cal')],['Memórias',()=>switchView('mem')],['Links',()=>switchView('lnk')],['Hábitos',()=>switchView('hab')],['Diário',()=>switchView('jou')],['Assinaturas',()=>switchView('sub')],['Orçamentos',()=>switchView('orc')],['Monitores',()=>switchView('mon')],['Base',()=>switchView('kb')],['Cérebro',()=>switchView('brain')],['Pomodoro',()=>openPomo(25)],['Voz ao vivo',()=>$('#vcopen').click()],['Modo sério (liga/desliga)',()=>toggleSerious()],['Chaves de API',()=>openKeys()]];
   return nav.map(n=>({k:'ir',label:n[0],desc:'abrir',run:n[1]})).concat((COMMANDS||[]).map(c=>({k:'/'+c.name,label:c.name,desc:c.desc,run:()=>runCmd(c.name)})));}
 function ckRender(q){ckItems=ckBuild().filter(i=>(i.label+' '+i.k+' '+i.desc).toLowerCase().includes((q||'').toLowerCase())).slice(0,40);ckSel=0;CKL.textContent='';
   ckItems.forEach((i,ix)=>{const r=el('div','ck-item'+(ix===0?' sel':''));r.appendChild(el('span','ck-k',i.k));r.appendChild(el('span','',i.label));r.appendChild(el('span','ck-d',i.desc||''));r.onclick=()=>{ckClose();i.run();};CKL.appendChild(r);});}
@@ -4245,6 +4262,14 @@ def create_app(config: Config, brain: Brain | None = None):
         except Exception:
             return datetime.now(_tz.utc).date().isoformat()
 
+    # --- modo sério (alerta vermelho) --------------------------------------
+    @app.post("/api/serious")
+    async def serious_set(request: Request):
+        _check(request.headers.get("authorization"))
+        body = await request.json()
+        memory.set_setting("serious_mode", "1" if body.get("on") else "0")
+        return {"ok": True, "serious": bool(body.get("on"))}
+
     # --- home dashboard overview -------------------------------------------
     @app.get("/api/overview")
     async def overview_ep(request: Request):
@@ -4889,6 +4914,7 @@ def create_app(config: Config, brain: Brain | None = None):
             "notifs": memory.unread_notifications(owner),
             "provider": prov,
             "model": model,
+            "serious": memory.get_setting("serious_mode") == "1",
         }
 
     # groups shown in the "brain" graph: (key, hub label, view to jump to on
