@@ -3413,12 +3413,10 @@ def create_app(config: Config, brain: Brain | None = None):
         except Exception:
             phrase = "Bem-vindo de volta, Ryan. Sistemas online, tudo pronto pra você."
         try:
-            mp3 = await voice_mod.synthesize(
-                phrase, config.voice, rate=config.voice_rate,
-                pitch=config.voice_pitch, fixes=config.voice_fixes)
+            audio, mime = await voice_mod.synth_web(config, phrase)
         except Exception:
-            mp3 = b""
-        return R(content=mp3, media_type="audio/mpeg")
+            audio, mime = b"", "audio/mpeg"
+        return R(content=audio, media_type=mime)
 
     @app.get("/api/health")
     async def health_ep():
@@ -5074,15 +5072,13 @@ def create_app(config: Config, brain: Brain | None = None):
         text = (d.get("text") or "").strip()
         if not text:
             raise HTTPException(status_code=400, detail="empty")
-        # optional per-request overrides (used by the voice picker for previews)
-        voice = d.get("voice") or config.voice
-        if not str(voice).startswith("pt-BR"):
-            voice = config.voice
-        rate = d.get("rate") or config.voice_rate
-        pitch = d.get("pitch") or config.voice_pitch
-        mp3 = await voice_mod.synthesize(
-            text[:1200], voice, rate=rate, pitch=pitch, fixes=config.voice_fixes)
-        return Response(content=mp3, media_type="audio/mpeg")
+        # optional per-request overrides (voice picker previews force edge-tts)
+        req_voice = d.get("voice")
+        voice = req_voice if str(req_voice or "").startswith("pt-BR") else None
+        audio, mime = await voice_mod.synth_web(
+            config, text[:1200], voice=voice,
+            rate=d.get("rate"), pitch=d.get("pitch"))
+        return Response(content=audio, media_type=mime)
 
     @app.get("/api/voice")
     async def voice_get(request: Request):
