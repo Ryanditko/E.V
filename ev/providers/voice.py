@@ -13,9 +13,13 @@ the user reads. Configure via EV_VOICE_FIXES, e.g. "Ryan=Rian;Nome=Fonetico".
 
 from __future__ import annotations
 
+import asyncio
+import logging
 import re
 
 import edge_tts
+
+log = logging.getLogger("ev.voice")
 
 
 def _apply_fixes(text: str, fixes) -> str:
@@ -98,3 +102,66 @@ async def synthesize(
         if chunk["type"] == "audio":
             audio.extend(chunk["data"])
     return bytes(audio)
+
+
+def _wav(pcm: bytes, rate: int = 24000) -> bytes:
+    """Wrap raw PCM (mono, 16-bit) in a WAV container — Gemini TTS returns PCM."""
+    import io
+    import wave
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(rate)
+        w.writeframes(pcm)
+    return buf.getvalue()
+
+
+def _gemini_tts_sync(text: str, api_key: str, voice: str, model: str) -> bytes:
+    """Synthesize with Gemini TTS -> WAV bytes. Raises on any failure so the
+    caller can fall back to edge-tts."""
+    from google import genai
+    from google.genai import types
+    client = genai.Client(api_key=api_key)
+    resp = client.models.generate_content(
+        model=model,
+        contents=text,
+        config=types.GenerateContentConfig(
+            response_modalities=["AUDIO"],
+            speech_config=types.SpeechConfig(
+                voice_config=types.VoiceConfig(
+                    prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice)
+                )
+            ),
+        ),
+    )
+    raw = resp.candidates[0].content.parts[0].inline_data.data
+    if isinstance(raw, str):
+        import base64
+        raw = base64.b64decode(raw)
+    if not raw:
+        raise ValueError("Gemini TTS returned empty audio")
+    return _wav(raw)
+
+
+async def synth_web(config, text: str, voice: str | None = None,
+                    rate: str | None = None, pitch: str | None = None,
+                    fixes=None) -> tuple[bytes, str]:
+    """Return (audio_bytes, mime) for the web. Uses Gemini TTS when enabled
+    (mais natural); cai no edge-tts (Thalita/Francisca) em qualquer erro/quota.
+    Um `voice` pt-BR explícito (preview do seletor) força o edge-tts."""
+    fixes = config.voice_fixes if fixes is None else fixes
+    rate = rate or config.voice_rate
+    pitch = pitch or config.voice_pitch
+    explicit = bool(voice)
+    if getattr(config, "gemini_tts", False) and config.gemini_api_key and not explicit:
+        try:
+            spoken = _apply_fixes(say_name(clean_for_speech(text)), fixes) or "..."
+            data = await asyncio.to_thread(
+                _gemini_tts_sync, spoken, config.gemini_api_key,
+                config.gemini_tts_voice, config.gemini_tts_model)
+            return data, "audio/wav"
+        except Exception:
+            log.warning("Gemini TTS indisponível; usando edge-tts", exc_info=True)
+    mp3 = await synthesize(text, voice or config.voice, rate=rate, pitch=pitch, fixes=fixes)
+    return mp3, "audio/mpeg"

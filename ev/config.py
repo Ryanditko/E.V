@@ -42,6 +42,9 @@ class Config:
     voice_rate: str
     voice_pitch: str
     voice_fixes: tuple[tuple[str, str], ...]  # TTS-only pronunciation fixes
+    gemini_tts: bool          # use Gemini TTS (mais natural) c/ fallback pro edge-tts
+    gemini_tts_voice: str     # voz pré-definida do Gemini (Kore, Aoede, Leda, ...)
+    gemini_tts_model: str     # modelo de TTS do Gemini
     # Local model (Ollama) — never-runs-out safety net
     ollama_enabled: bool
     ollama_base_url: str
@@ -196,6 +199,10 @@ class Config:
             voice=os.getenv("EV_VOICE", "pt-BR-FranciscaNeural").strip(),
             voice_rate=os.getenv("EV_VOICE_RATE", "+0%").strip(),
             voice_pitch=os.getenv("EV_VOICE_PITCH", "+0Hz").strip(),
+            gemini_tts=_get_bool("EV_GEMINI_TTS", False),
+            gemini_tts_voice=os.getenv("EV_GEMINI_VOICE", "Kore").strip() or "Kore",
+            gemini_tts_model=os.getenv(
+                "EV_GEMINI_TTS_MODEL", "gemini-2.5-flash-preview-tts").strip(),
             voice_fixes=tuple(
                 tuple(p.split("=", 1))  # type: ignore[misc]
                 for p in os.getenv("EV_VOICE_FIXES", "").split(";")
