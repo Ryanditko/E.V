@@ -1414,7 +1414,7 @@ f.onsubmit=e=>{e.preventDefault();if(slash.style.display==='block'&&slSel>=0){pi
   if(_pendingImg){const img=_pendingImg;setPendingImg(null);txt.value='';hideSlash();sendImage(img,m);return;}
   txt.value='';hideSlash();if(!m)return;sfx('send');
   if(m.startsWith('/')){const raw=m.slice(1).trim().toLowerCase();
-    if(raw==='serio'||raw==='sério'||raw.startsWith('serio ')||raw.startsWith('sério ')){
+    if(raw==='modo'||raw.startsWith('modo ')){
       const arg=raw.split(/\s+/)[1]||'';const on=arg==='off'?false:arg==='on'?true:!_serious;
       applySerious(on);fetch('/api/serious',{method:'POST',headers:H(),body:JSON.stringify({on})}).catch(()=>{});
       sys(on?'Modo sério ativado.':'Modo sério desativado.');return;}

@@ -24,6 +24,7 @@ from .timeparse import add_months, parse_when
 
 # (command, description) — also used to populate Telegram's command menu.
 COMMAND_LIST = [
+    ("modo", "Liga/desliga o MODO SÉRIO (interface vermelha, tom tático)"),
     ("menu", "Abre o menu interativo com botões"),
     ("ev", "Falar com a IA (útil em grupos): /ev sua mensagem"),
     ("plano", "Resolve minha manhã: plano do dia (tarefas + agenda + clima)"),
@@ -189,6 +190,7 @@ class Commands:
         on the user's behalf (voice/text). Interface-only commands (documento,
         exportar, status, foco, silenciar, limpar*, dados) are handled elsewhere."""
         return {
+            "modo": lambda u, a: self.modo(u, a),
             "tarefa": lambda u, a: self.tarefa(u, a),
             "tarefas": lambda u, a: self.tarefas(u, a),
             "concluir": lambda u, a: self.concluir(u, a),
@@ -1093,6 +1095,20 @@ class Commands:
                 "automations": len(self._memory.list_automations(user_id)),
             },
         }
+
+    def modo(self, user_id: str, argstr: str = "") -> str:
+        """Liga/desliga o modo sério. argstr: on/off (vazio = alterna)."""
+        arg = (argstr or "").strip().lower()
+        cur = self._memory.get_setting("serious_mode") == "1"
+        if arg in ("on", "ligar", "ativar", "serio", "sério"):
+            on = True
+        elif arg in ("off", "desligar", "desativar", "normal"):
+            on = False
+        else:
+            on = not cur
+        self._memory.set_setting("serious_mode", "1" if on else "0")
+        return ("🔴 Modo sério ativado. Foco total."
+                if on else "Modo sério desativado. De volta ao normal.")
 
     def subscriptions_due(self, user_id: str, days_ahead: int = 2) -> list:
         """Recurring charges (assinaturas) whose due-day falls within the next
