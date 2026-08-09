@@ -4488,10 +4488,12 @@ def create_app(config: Config, brain: Brain | None = None):
         if t.get("access") and t.get("exp", 0) > _time.time() + 30:
             return t["access"]
         try:
-            r = httpx.post("https://accounts.spotify.com/api/token", data={
-                "grant_type": "refresh_token", "refresh_token": t["refresh"],
-                "client_id": config.spotify_client_id,
-                "client_secret": config.spotify_client_secret}, timeout=15).json()
+            data = {"grant_type": "refresh_token", "refresh_token": t["refresh"],
+                    "client_id": config.spotify_client_id}
+            if config.spotify_client_secret:
+                data["client_secret"] = config.spotify_client_secret
+            r = httpx.post("https://accounts.spotify.com/api/token",
+                           data=data, timeout=15).json()
         except Exception:
             return None
         if not r.get("access_token"):
@@ -4514,8 +4516,9 @@ def create_app(config: Config, brain: Brain | None = None):
         if not config.spotify_client_id:
             return _login_denied_html("Configure o Spotify Client ID em Chaves de API.")
         state = _secrets.token_urlsafe(16); _oauth_states.add(state)
+        verifier, challenge = _sp.pkce_pair(); _sp_pkce[state] = verifier
         return RedirectResponse(_sp.auth_url(
-            config.spotify_client_id, _sp_redirect(request), state))
+            config.spotify_client_id, _sp_redirect(request), state, challenge))
 
     @app.get("/spotify/callback")
     async def spotify_callback(request: Request):
@@ -4526,13 +4529,17 @@ def create_app(config: Config, brain: Brain | None = None):
             return _login_denied_html("Sessão do Spotify inválida. Tente de novo.")
         _oauth_states.discard(state)
         redirect = _sp_redirect(request)
+        verifier = _sp_pkce.pop(state, "")
 
         def _work():
-            r = httpx.post("https://accounts.spotify.com/api/token", data={
-                "grant_type": "authorization_code", "code": code,
-                "redirect_uri": redirect, "client_id": config.spotify_client_id,
-                "client_secret": config.spotify_client_secret}, timeout=15).json()
-            return r
+            data = {"grant_type": "authorization_code", "code": code,
+                    "redirect_uri": redirect, "client_id": config.spotify_client_id}
+            if verifier:  # PKCE — sem secret
+                data["code_verifier"] = verifier
+            elif config.spotify_client_secret:
+                data["client_secret"] = config.spotify_client_secret
+            return httpx.post("https://accounts.spotify.com/api/token",
+                              data=data, timeout=15).json()
         try:
             r = await asyncio.to_thread(_work)
         except Exception as exc:
@@ -5515,6 +5522,7 @@ def create_app(config: Config, brain: Brain | None = None):
     import secrets as _secrets
     from fastapi.responses import RedirectResponse
     _oauth_states: set[str] = set()
+    _sp_pkce: dict = {}   # state -> code_verifier (Spotify PKCE, sem secret)
 
     def _base_url(request: Request) -> str:
         return config.web_base_url or str(request.base_url).rstrip("/")

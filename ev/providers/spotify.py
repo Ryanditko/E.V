@@ -37,12 +37,28 @@ def norm_redirect(base: str) -> str:
     return (base or "").replace("http://localhost", "http://127.0.0.1").rstrip("/") + "/spotify/callback"
 
 
-def auth_url(client_id: str, redirect_uri: str, state: str) -> str:
+def pkce_pair() -> tuple[str, str]:
+    """(code_verifier, code_challenge) para o fluxo PKCE — sem client secret."""
+    import base64
+    import hashlib
+    import secrets
+    verifier = secrets.token_urlsafe(64)[:96]
+    challenge = base64.urlsafe_b64encode(
+        hashlib.sha256(verifier.encode()).digest()).decode().rstrip("=")
+    return verifier, challenge
+
+
+def auth_url(client_id: str, redirect_uri: str, state: str,
+             code_challenge: str | None = None) -> str:
     from urllib.parse import urlencode
-    return "https://accounts.spotify.com/authorize?" + urlencode({
+    params = {
         "client_id": client_id, "response_type": "code",
         "redirect_uri": redirect_uri, "scope": SCOPES, "state": state,
-    })
+    }
+    if code_challenge:  # PKCE (recomendado; dispensa o client secret)
+        params["code_challenge_method"] = "S256"
+        params["code_challenge"] = code_challenge
+    return "https://accounts.spotify.com/authorize?" + urlencode(params)
 
 
 # --- shared token + API helpers (used by web endpoints and the voice tools) ---
@@ -61,11 +77,13 @@ def access_token(memory, config):
     if t.get("access") and t.get("exp", 0) > time.time() + 30:
         return t["access"]
     try:
-        r = httpx.post("https://accounts.spotify.com/api/token", data={
-            "grant_type": "refresh_token", "refresh_token": t["refresh"],
-            "client_id": getattr(config, "spotify_client_id", ""),
-            "client_secret": getattr(config, "spotify_client_secret", "")},
-            timeout=15).json()
+        data = {"grant_type": "refresh_token", "refresh_token": t["refresh"],
+                "client_id": getattr(config, "spotify_client_id", "")}
+        sec = getattr(config, "spotify_client_secret", "")
+        if sec:  # PKCE refresh usa só o client_id; secret é opcional
+            data["client_secret"] = sec
+        r = httpx.post("https://accounts.spotify.com/api/token",
+                       data=data, timeout=15).json()
     except Exception:
         return None
     if not r.get("access_token"):
