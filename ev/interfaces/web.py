@@ -1644,6 +1644,9 @@ function openMobileMenu(){const m=$('#modal');m.textContent='';const card=el('di
   row('key-round','Chaves de API',openKeys);
   row('bell','Notificações',openNotifs);
   row('flame','Modo morte súbita',toggleSerious);
+  row('cast','Ouvir na E.V. (controles no bloqueio)',()=>{
+    if(!_spDevice){toast&&toast('Abra a Música uma vez e toque algo pra ativar o player da E.V. (precisa Premium).');return;}
+    fetch('/api/spotify/transfer',{method:'POST',headers:H(),body:JSON.stringify({device_id:_spDevice})}).then(r=>r.json()).then(j=>{toast&&toast(j.ok?'Tocando pela E.V. — controles no bloqueio ativos.':'Não consegui transferir.');setTimeout(npTick,900);}).catch(()=>{});});
   row('music','Mini-player: '+(localStorage.getItem('ev_np_off')==='1'?'desligado':'ligado'),()=>{
     const off=localStorage.getItem('ev_np_off')==='1';localStorage.setItem('ev_np_off',off?'':'1');
     if(off){npTick();}else{const e=$('#np-mini');if(e)e.classList.remove('on');}});
@@ -2424,6 +2427,22 @@ function spInitSDK(){if(_spPlayer||_spSdkLoading||!window.isSecureContext)return
     _spPlayer=new Spotify.Player({name:'E.V.',getOAuthToken:cb=>{fetch('/api/spotify/token',{headers:H()}).then(r=>r.json()).then(j=>{if(j.token)cb(j.token);});},volume:0.8});
     _spPlayer.addListener('ready',({device_id})=>{_spDevice=device_id;});
     _spPlayer.addListener('not_ready',()=>{_spDevice=null;});
+    // toca DENTRO da E.V. -> destrava os controles de mídia do SO (tela de bloqueio)
+    _spPlayer.addListener('player_state_changed',st=>{
+      if(st&&'mediaSession' in navigator){try{
+        const t=st.track_window&&st.track_window.current_track;
+        if(t){navigator.mediaSession.metadata=new MediaMetadata({title:t.name||'',
+          artist:(t.artists||[]).map(a=>a.name).join(', '),album:(t.album&&t.album.name)||'Spotify',
+          artwork:((t.album&&t.album.images)||[]).map(i=>({src:i.url,sizes:(i.width||300)+'x'+(i.height||300),type:'image/png'}))});}
+        navigator.mediaSession.playbackState=st.paused?'paused':'playing';
+        try{navigator.mediaSession.setPositionState({duration:(st.duration||0)/1000,position:(st.position||0)/1000,playbackRate:1});}catch(e){}
+        navigator.mediaSession.setActionHandler('play',()=>_spPlayer.resume());
+        navigator.mediaSession.setActionHandler('pause',()=>_spPlayer.pause());
+        navigator.mediaSession.setActionHandler('nexttrack',()=>_spPlayer.nextTrack());
+        navigator.mediaSession.setActionHandler('previoustrack',()=>_spPlayer.previousTrack());
+        try{navigator.mediaSession.setActionHandler('seekto',e=>{if(e.seekTime!=null)_spPlayer.seek(Math.round(e.seekTime*1000));});}catch(e){}
+      }catch(e){}}
+      try{npTick();}catch(e){}});
     _spPlayer.connect();}catch(e){}};
   const s=document.createElement('script');s.src='https://sdk.scdn.co/spotify-player.js';s.async=true;document.head.appendChild(s);}
 async function addMusic(){const u=$('#mu-url'),l=$('#mu-label');const url=(u.value||'').trim();if(!url)return;
@@ -3316,7 +3335,7 @@ async function delU(delUrl,delBody,recUrl,recBody,reload,label){await fetch(delU
   toastUndo((label||'Item')+' apagado',async()=>{await fetch(recUrl,{method:'POST',headers:H(),body:JSON.stringify(recBody)});reload();loadPanel();});}
 async function startApp(){try{COMMANDS=(await (await fetch('/api/commands',{headers:H()})).json()).commands;}catch(e){}
   scopeEl.textContent='Conversa · '+thread;await loadFolders();await loadHistory();await loadConfig();loadPanel();loadPages();
-  initPWA();startPoll();startEvents();startNpPoll();window.lucide&&lucide.createIcons();
+  initPWA();startPoll();startEvents();startNpPoll();try{spInitSDK();}catch(e){}window.lucide&&lucide.createIcons();
   switchView('inicio');}   // abre no painel de uso (Início)
 function enter(){$('#login').classList.remove('on');startApp();welcome();}
 async function doLogin(){const inp=$('#login-token');const tok=((inp&&inp.value.trim())||token);if(!tok){$('#login-err').textContent='Informe o token.';if(inp)inp.style.display='block';return;}
@@ -4685,6 +4704,20 @@ def create_app(config: Config, brain: Brain | None = None):
         sc = await asyncio.to_thread(_work)
         if sc == 404:
             return {"ok": False, "error": "nenhum dispositivo ativo — abra o Spotify ou use o player da E.V."}
+        return {"ok": sc in (200, 202, 204)}
+
+    @app.post("/api/spotify/transfer")
+    async def spotify_transfer(request: Request):
+        _check(request.headers.get("authorization"))
+        tok = await asyncio.to_thread(_sp_access)
+        if not tok:
+            raise HTTPException(status_code=400, detail="não conectado")
+        dev = (await _body(request)).get("device_id")
+        if not dev:
+            raise HTTPException(status_code=400, detail="sem device da E.V.")
+        # move a reprodução pro device da E.V. (toca in-page -> controles do SO)
+        sc = await asyncio.to_thread(lambda: _sp_api(
+            "PUT", "/me/player", tok, json={"device_ids": [dev], "play": True}).status_code)
         return {"ok": sc in (200, 202, 204)}
 
     @app.get("/api/spotify/search")
