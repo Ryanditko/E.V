@@ -406,6 +406,19 @@ body.speaking .bigcore .r2{animation-delay:.15s}body.speaking .bigcore .r3{anima
    it for the compact picker and shrink the labelled buttons to icons. */
 /* base: attach "+" and bottom-nav are phone-only (media rules below turn them on) */
 #attach{display:none}#bnav{display:none}
+/* mini-player global do Spotify — aparece em qualquer tela quando algo toca */
+#np-mini{position:fixed;right:18px;bottom:18px;z-index:44;display:none;align-items:center;gap:11px;
+  max-width:340px;padding:9px 12px 9px 9px;border:1px solid var(--line-2);border-radius:14px;
+  background:linear-gradient(160deg,rgba(18,34,52,.92),rgba(9,17,28,.94));backdrop-filter:blur(9px);
+  box-shadow:0 16px 40px -22px #000,0 0 30px -20px var(--glow)}
+#np-mini.on{display:flex;animation:sbfade .35s}
+#npm-art{width:44px;height:44px;border-radius:9px;object-fit:cover;flex:none;background:var(--elev)}
+.npm-i{min-width:0;flex:1;cursor:pointer}
+.npm-t{font-size:13px;color:#eaf4fb;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px}
+.npm-a{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px}
+.npm-c{display:flex;gap:4px;flex:none}
+.npm-c button{width:30px;height:30px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--accent);cursor:pointer;display:grid;place-items:center}
+.npm-c button:hover{border-color:var(--accent)}.npm-c button svg{width:14px;height:14px}
 /* --- MODO MORTE SÚBITA (alerta vermelho) — recolore tudo que usa --accent/--glow --- */
 /* MODO MORTE SÚBITA: um filtro de matiz recolore TUDO (azul->vermelho), inclusive os
    navy hardcoded e as superfícies em canvas. Imagens/vídeo e o efeito de alerta
@@ -456,6 +469,8 @@ body.serious #serfx{opacity:1;box-shadow:inset 0 0 150px -50px rgba(255,45,55,.6
   #bnav button.on{color:var(--accent)}
   #bnav button.on svg{filter:drop-shadow(0 0 6px var(--glow))}
   body.v-chat #bnav{display:none}   /* na conversa, o composer já ocupa a base */
+  #np-mini{left:10px;right:10px;max-width:none;bottom:calc(70px + env(safe-area-inset-bottom))}
+  body.v-chat #np-mini{bottom:calc(14px + env(safe-area-inset-bottom))}
   /* espaço p/ o conteúdo não ficar atrás da barra */
   #taskview,#kbview,#expview,#remview,#memview,#calview,#lnkview,#habview,#jouview,#subview,#orcview,#monview,#actview,#pageview,#musicview,#climaview,#metasview,#saudeview,#cofreview,#painelview,#inicioview{padding-bottom:80px}
 }
@@ -1101,6 +1116,15 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
   <button id="vc-convo" class="tbtn" style="margin-top:8px"><i data-lucide="messages-square"></i> Conversa: off</button>
 </div>
 <div id="serfx"></div>
+<div id="np-mini" title="Abrir Música">
+  <img id="npm-art" alt="">
+  <div class="npm-i"><div class="npm-t"></div><div class="npm-a"></div></div>
+  <div class="npm-c">
+    <button id="npm-prev" title="Anterior"></button>
+    <button id="npm-tog" title="Play/Pause"></button>
+    <button id="npm-next" title="Próxima"></button>
+  </div>
+</div>
 <nav id="bnav">
   <button data-view="inicio"><i data-lucide="layout-dashboard"></i><span>Início</span></button>
   <button data-view="chat"><i data-lucide="message-square"></i><span>Conversa</span></button>
@@ -2302,6 +2326,29 @@ async function loadSpDevices(){try{const ds=(await (await fetch('/api/spotify/de
   const o0=document.createElement('option');o0.value='';o0.textContent='dispositivo ativo';sel.appendChild(o0);
   ds.forEach(x=>{const o=document.createElement('option');o.value=x.id;o.textContent=x.name+(x.active?' ✓':'');if(x.active)o.selected=true;sel.appendChild(o);});}catch(e){}}
 function startSpPoll(){if(_spPoll)return;_spPoll=setInterval(()=>{if(curView==='musica'&&$('#sp-np'))spNow();else{clearInterval(_spPoll);_spPoll=null;}},3000);}
+// --- mini-player global (pop em qualquer tela + controles do SO via MediaSession) ---
+let _npPoll=null,_npPlaying=false;
+async function npTick(){const m=$('#np-mini');if(!m)return;
+  let j;try{j=await (await fetch('/api/spotify/nowplaying',{headers:H()})).json();}catch(e){m.classList.remove('on');return;}
+  if(!j||!j.connected||!j.name){m.classList.remove('on');return;}   // esconde se desconectado/nada
+  _npPlaying=!!j.playing;
+  $('#np-mini .npm-t').textContent=j.name;$('#np-mini .npm-a').textContent=j.artists||'';
+  const art=$('#npm-art');if(j.image){art.src=j.image;art.style.display='';}else art.style.display='none';
+  const tg=$('#npm-tog');tg.innerHTML='';tg.appendChild(ficon(j.playing?'pause':'play'));
+  m.classList.add('on');window.lucide&&lucide.createIcons();npMedia(j);}
+function startNpPoll(){if(_npPoll)return;
+  const p=$('#npm-prev'),n=$('#npm-next'),t=$('#npm-tog'),info=document.querySelector('#np-mini .npm-i');
+  if(p)p.onclick=()=>{spCtl('prev');setTimeout(npTick,600);};
+  if(n)n.onclick=()=>{spCtl('next');setTimeout(npTick,600);};
+  if(t)t.onclick=()=>{spCtl(_npPlaying?'pause':'resume');setTimeout(npTick,600);};
+  if(info)info.onclick=()=>switchView('musica');
+  _npPoll=setInterval(npTick,6000);npTick();}
+function npMedia(j){if(!('mediaSession' in navigator))return;try{
+  navigator.mediaSession.metadata=new MediaMetadata({title:j.name||'',artist:j.artists||'',album:'Spotify',
+    artwork:j.image?[{src:j.image,sizes:'300x300',type:'image/jpeg'}]:[]});
+  const acts={play:'resume',pause:'pause',nexttrack:'next',previoustrack:'prev'};
+  for(const a in acts){try{navigator.mediaSession.setActionHandler(a,()=>{spCtl(acts[a]);setTimeout(npTick,600);});}catch(e){}}
+}catch(e){}}
 function spInitSDK(){if(_spPlayer||_spSdkLoading||!window.isSecureContext)return;_spSdkLoading=true;
   window.onSpotifyWebPlaybackSDKReady=()=>{try{
     _spPlayer=new Spotify.Player({name:'E.V.',getOAuthToken:cb=>{fetch('/api/spotify/token',{headers:H()}).then(r=>r.json()).then(j=>{if(j.token)cb(j.token);});},volume:0.8});
@@ -3199,7 +3246,7 @@ async function delU(delUrl,delBody,recUrl,recBody,reload,label){await fetch(delU
   toastUndo((label||'Item')+' apagado',async()=>{await fetch(recUrl,{method:'POST',headers:H(),body:JSON.stringify(recBody)});reload();loadPanel();});}
 async function startApp(){try{COMMANDS=(await (await fetch('/api/commands',{headers:H()})).json()).commands;}catch(e){}
   scopeEl.textContent='Conversa · '+thread;await loadFolders();await loadHistory();await loadConfig();loadPanel();loadPages();
-  initPWA();startPoll();startEvents();window.lucide&&lucide.createIcons();
+  initPWA();startPoll();startEvents();startNpPoll();window.lucide&&lucide.createIcons();
   switchView('inicio');}   // abre no painel de uso (Início)
 function enter(){$('#login').classList.remove('on');startApp();welcome();}
 async function doLogin(){const inp=$('#login-token');const tok=((inp&&inp.value.trim())||token);if(!tok){$('#login-err').textContent='Informe o token.';if(inp)inp.style.display='block';return;}
