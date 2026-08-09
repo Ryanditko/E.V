@@ -454,8 +454,9 @@ body.serious #serfx{opacity:1;box-shadow:inset 0 0 150px -50px rgba(255,45,55,.6
   .tbtn.ic-txt span{display:none}
   .tbtn.ic-txt{padding:9px 10px}
   .topbar{gap:6px;padding:10px 10px}
-  #tgl-left,#tgl-right,#vcopen,#voz{flex:none}
-  #tgl-right{margin-left:auto}
+  #tgl-left,#tgl-right{display:none}   /* barras laterais viram o Menu (botão "Mais" da barra de baixo) */
+  #vcopen,#voz{flex:none}
+  #mnav{margin-left:0}
   /* --- composer declutter: hide media buttons behind the "+" (attach) --- */
   #attach{display:grid}
   #imgbtn,#cambtn{display:none}
@@ -1628,6 +1629,27 @@ async function openNotifs(){const m=$('#modal');m.textContent='';const card=el('
   bar.appendChild(rd);bar.appendChild(cl);bar.appendChild(ok);card.appendChild(bar);
   m.appendChild(card);m.classList.add('on');refresh();}
 $('#btn-notifs').onclick=openNotifs;
+// Menu mobile (abre pelo botão "Mais" da barra de baixo) — substitui as barras laterais no celular
+function openMobileMenu(){const m=$('#modal');m.textContent='';const card=el('div','mcard');
+  card.appendChild(el('div','mtitle','Menu'));
+  const list=el('div','');list.style.cssText='display:flex;flex-direction:column;gap:8px;margin-top:12px';
+  const row=(icon,label,fn)=>{const b=el('button','act');b.style.width='100%';b.appendChild(ficon(icon));b.appendChild(document.createTextNode(label));b.onclick=()=>{m.classList.remove('on');fn();};list.appendChild(b);};
+  row('folder','Conversas & pastas',()=>{document.body.classList.remove('m-right');document.body.classList.add('m-left');});
+  row('layout-dashboard','Início',()=>switchView('inicio'));
+  row('mic-vocal','Voz da E.V.',openVoicePicker);
+  row('plug-zap','Conectores de API',openConnectors);
+  row('key-round','Chaves de API',openKeys);
+  row('bell','Notificações',openNotifs);
+  row('flame','Modo morte súbita',toggleSerious);
+  row('search','Buscar / ir para…',ckOpen);
+  card.appendChild(list);
+  const pl=el('div','');pl.style.marginTop='14px';pl.appendChild(el('label','mlabel','Provedor de IA'));
+  const ps=document.createElement('select');['auto','gemini','groq','openrouter','ollama'].forEach(o=>{const op=document.createElement('option');op.textContent=o;ps.appendChild(op);});
+  try{ps.value=(_counts&&_counts.provider)||'auto';}catch(e){}
+  ps.style.cssText='width:100%;margin-top:6px;background:var(--surface);border:1px solid var(--line);border-radius:10px;color:var(--fg);padding:11px;font-family:var(--mono);cursor:pointer';
+  ps.onchange=()=>{runCmd('provedor '+ps.value);};pl.appendChild(ps);card.appendChild(pl);
+  const bar=el('div','mbar');const c=el('button','mbtn2','Fechar');c.onclick=()=>m.classList.remove('on');bar.appendChild(c);card.appendChild(bar);
+  m.appendChild(card);m.classList.add('on');window.lucide&&lucide.createIcons();}
 function openPicker(title,sub,items,selected,onSave){const m=$('#modal');m.textContent='';const card=el('div','mcard');
   const tt=el('div','mtitle',title);tt.appendChild(el('small','',sub));card.appendChild(tt);const sel=new Set(selected);
   items.forEach(it=>{const row=el('label','mrow');const cb=document.createElement('input');cb.type='checkbox';cb.checked=sel.has(it.key);
@@ -2885,7 +2907,7 @@ CK.onclick=e=>{if(e.target===CK)ckClose();};
 window.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();CK.classList.contains('on')?ckClose():ckOpen();}});
 // mobile bottom-nav + composer attach toggle
 document.querySelectorAll('#bnav button[data-view]').forEach(b=>b.onclick=()=>switchView(b.dataset.view));
-{const bm=$('#bnav-more');if(bm)bm.onclick=()=>ckOpen();const at=$('#attach');if(at)at.onclick=()=>document.body.classList.toggle('attach-open');}
+{const bm=$('#bnav-more');if(bm)bm.onclick=()=>openMobileMenu();const at=$('#attach');if(at)at.onclick=()=>document.body.classList.toggle('attach-open');}
 setInterval(()=>{$('#s-clock').textContent=new Date().toTimeString().slice(0,8);},1000);
 const GREETING='Bem-vindo de volta, Ryan. Sistemas online, tudo pronto pra você.';
 let _greeted=false;  // garante saudação única por carregamento
