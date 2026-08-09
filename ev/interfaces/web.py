@@ -488,7 +488,10 @@ body.serious #serfx{opacity:1;box-shadow:inset 0 0 150px -50px rgba(255,45,55,.6
 .ov-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px;max-width:1500px;grid-auto-rows:minmax(58px,auto);grid-auto-flow:row dense}
 .sp3{grid-column:span 3}.sp4{grid-column:span 4}.sp5{grid-column:span 5}.sp6{grid-column:span 6}.sp7{grid-column:span 7}.sp8{grid-column:span 8}.sp12{grid-column:span 12}.rw2{grid-row:span 2}
 @media(max-width:1100px){.sp3,.sp4,.sp5,.sp7,.sp8{grid-column:span 6}}
-@media(max-width:760px){.ov-grid{grid-template-columns:1fr}.ov-hero,.sp3,.sp4,.sp5,.sp6,.sp7,.sp8,.sp12{grid-column:1/-1}.rw2{grid-row:auto}.ov-hero{flex-direction:column;align-items:flex-start;gap:12px}.ov-ask{max-width:none;width:100%}}
+@media(max-width:760px){
+  #ov-grid{grid-template-columns:1fr !important}
+  #ov-grid>*{grid-column:1 / -1 !important;grid-row:auto !important}
+  .ov-hero{flex-direction:column;align-items:flex-start;gap:12px}.ov-ask{max-width:none;width:100%}}
 .ov-card{position:relative;border:1px solid var(--line);border-radius:14px;background:linear-gradient(160deg,rgba(18,34,52,.42),rgba(9,17,28,.4));padding:15px 17px;transition:border-color .15s,box-shadow .15s;overflow:hidden}
 .ov-card::before,.ov-card::after{content:"";position:absolute;width:11px;height:11px;border:1px solid var(--accent);opacity:.4;pointer-events:none}
 .ov-card::before{top:7px;left:7px;border-right:0;border-bottom:0}.ov-card::after{bottom:7px;right:7px;border-left:0;border-top:0}
@@ -879,7 +882,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
     <div class="topbar">
       <button class="tbtn ico" id="tgl-left" title="Ocultar/mostrar pastas"><i data-lucide="panel-left"></i></button>
       <div class="tabs" id="tabs"></div>
-      <select id="mnav" class="mnav" title="Ir para"><option value="chat">Conversa</option><option value="inicio">Início</option><option value="tasks">Tarefas</option><option value="exp">Gastos</option><option value="rem">Lembretes</option><option value="cal">Agenda</option><option value="mem">Memórias</option><option value="lnk">Links</option><option value="hab">Hábitos</option><option value="jou">Diário</option><option value="sub">Assinaturas</option><option value="orc">Orçamentos</option><option value="mon">Monitores</option><option value="act">Histórico</option><option value="kb">Base</option><option value="map">Mapa</option><option value="brain">Cérebro</option><option value="graf">Gráficos</option><option value="musica">Música</option><option value="clima">Clima</option><option value="metas">Metas</option><option value="saude">Saúde</option><option value="cofre">Cofre</option><option value="painel">Painel</option></select>
+      <select id="mnav" class="mnav" title="Ir para"><option value="inicio">Início</option><option value="chat">Conversa</option><option value="tasks">Tarefas</option><option value="exp">Gastos</option><option value="rem">Lembretes</option><option value="cal">Agenda</option><option value="mem">Memórias</option><option value="lnk">Links</option><option value="hab">Hábitos</option><option value="jou">Diário</option><option value="sub">Assinaturas</option><option value="orc">Orçamentos</option><option value="mon">Monitores</option><option value="act">Histórico</option><option value="kb">Base</option><option value="map">Mapa</option><option value="brain">Cérebro</option><option value="graf">Gráficos</option><option value="musica">Música</option><option value="clima">Clima</option><option value="metas">Metas</option><option value="saude">Saúde</option><option value="cofre">Cofre</option><option value="painel">Painel</option></select>
       <span class="eyebrow" id="scope">geral</span>
       <button class="tbtn ico" id="gsearch" title="Buscar em tudo"><i data-lucide="search"></i></button>
       <button class="tbtn ic-txt" id="vcopen" title="Falar"><i data-lucide="mic"></i><span>FALAR</span></button>
@@ -1641,6 +1644,9 @@ function openMobileMenu(){const m=$('#modal');m.textContent='';const card=el('di
   row('key-round','Chaves de API',openKeys);
   row('bell','Notificações',openNotifs);
   row('flame','Modo morte súbita',toggleSerious);
+  row('music','Mini-player: '+(localStorage.getItem('ev_np_off')==='1'?'desligado':'ligado'),()=>{
+    const off=localStorage.getItem('ev_np_off')==='1';localStorage.setItem('ev_np_off',off?'':'1');
+    if(off){npTick();}else{const e=$('#np-mini');if(e)e.classList.remove('on');}});
   row('search','Buscar / ir para…',ckOpen);
   card.appendChild(list);
   const pl=el('div','');pl.style.marginTop='14px';pl.appendChild(el('label','mlabel','Provedor de IA'));
@@ -2372,6 +2378,7 @@ function npBar(){const i=document.querySelector('#npm-bar i');if(!i||!_npDur)ret
   let pos=_npProg+(_npPlaying?(Date.now()-_npAt):0);pos=Math.max(0,Math.min(_npDur,pos));
   i.style.width=(pos/_npDur*100)+'%';}
 async function npTick(){const m=$('#np-mini');if(!m)return;
+  if(localStorage.getItem('ev_np_off')==='1'){m.classList.remove('on');return;}   // desligado pelo usuário
   let j;try{j=await (await fetch('/api/spotify/nowplaying',{headers:H()})).json();}catch(e){m.classList.remove('on');return;}
   if(!j||!j.connected||!j.name){m.classList.remove('on');return;}   // esconde se desconectado/nada
   _npPlaying=!!j.playing;_npDur=j.duration||0;_npProg=j.progress||0;_npAt=Date.now();
