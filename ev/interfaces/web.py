@@ -407,12 +407,15 @@ body.speaking .bigcore .r2{animation-delay:.15s}body.speaking .bigcore .r3{anima
 /* base: attach "+" and bottom-nav are phone-only (media rules below turn them on) */
 #attach{display:none}#bnav{display:none}
 /* mini-player global do Spotify — aparece em qualquer tela quando algo toca */
-#np-mini{position:fixed;right:18px;bottom:18px;z-index:44;display:none;align-items:center;gap:11px;
+#np-mini{position:fixed;right:18px;bottom:18px;z-index:44;display:none;flex-direction:column;gap:9px;
   cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;
-  max-width:340px;padding:9px 12px 9px 9px;border:1px solid var(--line-2);border-radius:14px;
+  width:320px;max-width:calc(100vw - 24px);padding:9px 12px 11px 9px;border:1px solid var(--line-2);border-radius:14px;
   background:linear-gradient(160deg,rgba(18,34,52,.92),rgba(9,17,28,.94));backdrop-filter:blur(9px);
   box-shadow:0 16px 40px -22px #000,0 0 30px -20px var(--glow)}
 #np-mini.on{display:flex;animation:sbfade .35s}
+.npm-top{display:flex;align-items:center;gap:11px}
+#npm-bar{height:6px;border-radius:4px;background:var(--elev);cursor:pointer;position:relative;overflow:hidden;flex:none}
+#npm-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),#5ee6a3);border-radius:4px;pointer-events:none}
 #npm-art{width:44px;height:44px;border-radius:9px;object-fit:cover;flex:none;background:var(--elev)}
 .npm-i{min-width:0;flex:1;cursor:pointer}
 .npm-t{font-size:13px;color:#eaf4fb;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px}
@@ -1128,14 +1131,17 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
   <button id="vc-convo" class="tbtn" style="margin-top:8px"><i data-lucide="messages-square"></i> Conversa: off</button>
 </div>
 <div id="serfx"></div>
-<div id="np-mini" title="Abrir Música">
-  <img id="npm-art" alt="">
-  <div class="npm-i"><div class="npm-t"></div><div class="npm-a"></div></div>
-  <div class="npm-c">
-    <button id="npm-prev" title="Anterior"></button>
-    <button id="npm-tog" title="Play/Pause"></button>
-    <button id="npm-next" title="Próxima"></button>
+<div id="np-mini">
+  <div class="npm-top">
+    <img id="npm-art" alt="">
+    <div class="npm-i" title="Abrir Música"><div class="npm-t"></div><div class="npm-a"></div></div>
+    <div class="npm-c">
+      <button id="npm-prev" title="Anterior"></button>
+      <button id="npm-tog" title="Play/Pause"></button>
+      <button id="npm-next" title="Próxima"></button>
+    </div>
   </div>
+  <div id="npm-bar" title="Arraste para mudar a posição"><i></i></div>
 </div>
 <nav id="bnav">
   <button data-view="inicio"><i data-lucide="layout-dashboard"></i><span>Início</span></button>
@@ -2339,27 +2345,35 @@ async function loadSpDevices(){try{const ds=(await (await fetch('/api/spotify/de
   ds.forEach(x=>{const o=document.createElement('option');o.value=x.id;o.textContent=x.name+(x.active?' ✓':'');if(x.active)o.selected=true;sel.appendChild(o);});}catch(e){}}
 function startSpPoll(){if(_spPoll)return;_spPoll=setInterval(()=>{if(curView==='musica'&&$('#sp-np'))spNow();else{clearInterval(_spPoll);_spPoll=null;}},3000);}
 // --- mini-player global (pop em qualquer tela + controles do SO via MediaSession) ---
-let _npPoll=null,_npPlaying=false;
+let _npPoll=null,_npPlaying=false,_npDur=0,_npProg=0,_npAt=0,_npTick2=null;
+function npBar(){const i=document.querySelector('#npm-bar i');if(!i||!_npDur)return;
+  let pos=_npProg+(_npPlaying?(Date.now()-_npAt):0);pos=Math.max(0,Math.min(_npDur,pos));
+  i.style.width=(pos/_npDur*100)+'%';}
 async function npTick(){const m=$('#np-mini');if(!m)return;
   let j;try{j=await (await fetch('/api/spotify/nowplaying',{headers:H()})).json();}catch(e){m.classList.remove('on');return;}
   if(!j||!j.connected||!j.name){m.classList.remove('on');return;}   // esconde se desconectado/nada
-  _npPlaying=!!j.playing;
+  _npPlaying=!!j.playing;_npDur=j.duration||0;_npProg=j.progress||0;_npAt=Date.now();
   $('#np-mini .npm-t').textContent=j.name;$('#np-mini .npm-a').textContent=j.artists||'';
   const art=$('#npm-art');if(j.image){art.src=j.image;art.style.display='';}else art.style.display='none';
   const tg=$('#npm-tog');tg.innerHTML='';tg.appendChild(ficon(j.playing?'pause':'play'));
-  m.classList.add('on');window.lucide&&lucide.createIcons();npMedia(j);}
+  m.classList.add('on');window.lucide&&lucide.createIcons();npBar();npMedia(j);}
 function startNpPoll(){if(_npPoll)return;
-  const p=$('#npm-prev'),n=$('#npm-next'),t=$('#npm-tog'),info=document.querySelector('#np-mini .npm-i');
-  if(p)p.onclick=()=>{spCtl('prev');setTimeout(npTick,600);};
-  if(n)n.onclick=()=>{spCtl('next');setTimeout(npTick,600);};
+  const p=$('#npm-prev'),n=$('#npm-next'),t=$('#npm-tog'),info=document.querySelector('#np-mini .npm-i'),bar=$('#npm-bar');
+  if(p){p.innerHTML='';p.appendChild(ficon('skip-back'));p.onclick=()=>{spCtl('prev');setTimeout(npTick,600);};}
+  if(n){n.innerHTML='';n.appendChild(ficon('skip-forward'));n.onclick=()=>{spCtl('next');setTimeout(npTick,600);};}
   if(t)t.onclick=()=>{spCtl(_npPlaying?'pause':'resume');setTimeout(npTick,600);};
+  if(bar)bar.addEventListener('pointerup',e=>{e.stopPropagation();if(!_npDur)return;
+    const r=bar.getBoundingClientRect();const frac=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));
+    const ms=Math.round(frac*_npDur);_npProg=ms;_npAt=Date.now();npBar();
+    fetch('/api/spotify/control',{method:'POST',headers:H(),body:JSON.stringify({action:'seek',ms})}).catch(()=>{});});
+  if(!_npTick2)_npTick2=setInterval(npBar,1000);   // avança a barrinha entre os polls
   if(info)info.onclick=()=>{if($('#np-mini')._moved){$('#np-mini')._moved=false;return;}switchView('musica');};
   npDraggable();
   _npPoll=setInterval(npTick,6000);npTick();}
 function npDraggable(){const m=$('#np-mini');if(!m||m._dnd)return;m._dnd=true;
   try{const p=JSON.parse(localStorage.getItem('ev_np_pos')||'null');if(p){m.style.left=p.x+'px';m.style.top=p.y+'px';m.style.right='auto';m.style.bottom='auto';}}catch(e){}
   let sx,sy,ox,oy,drag=false;
-  m.addEventListener('pointerdown',e=>{if(e.target.closest('.npm-c'))return;   // não arrasta pelos controles
+  m.addEventListener('pointerdown',e=>{if(e.target.closest('.npm-c')||e.target.closest('#npm-bar'))return;   // não arrasta pelos controles nem pela barra
     const r=m.getBoundingClientRect();drag=true;m._moved=false;sx=e.clientX;sy=e.clientY;ox=r.left;oy=r.top;
     m.style.right='auto';m.style.bottom='auto';m.style.cursor='grabbing';try{m.setPointerCapture(e.pointerId);}catch(_){}});
   m.addEventListener('pointermove',e=>{if(!drag)return;
@@ -4609,8 +4623,9 @@ def create_app(config: Config, brain: Brain | None = None):
             r = _sp_api("GET", "/me/playlists?limit=50", tok)
             return r.json() if r.status_code == 200 else {}
         data = await asyncio.to_thread(_work)
-        items = [{"name": p.get("name"), "uri": p.get("uri"),
-                  "id": (p.get("id") or ""), "tracks": (p.get("tracks") or {}).get("total", 0)}
+        items = [{"name": p.get("name"), "uri": p.get("uri"), "id": (p.get("id") or ""),
+                  # a API passou a devolver a contagem em items.total (antes tracks.total)
+                  "tracks": ((p.get("tracks") or p.get("items") or {}).get("total", 0))}
                  for p in (data.get("items") or []) if p]
         return {"items": items}
 
@@ -4748,7 +4763,13 @@ def create_app(config: Config, brain: Brain | None = None):
         tok = await asyncio.to_thread(_sp_access)
         if not tok:
             raise HTTPException(status_code=400, detail="não conectado")
-        act = (await _body(request)).get("action")
+        d = await _body(request)
+        act = d.get("action")
+        if act == "seek":   # pular pra uma posição (ms)
+            ms = max(0, int(d.get("ms") or 0))
+            sc = await asyncio.to_thread(
+                lambda: _sp_api("PUT", f"/me/player/seek?position_ms={ms}", tok).status_code)
+            return {"ok": sc in (200, 202, 204)}
         M = {"pause": ("PUT", "/me/player/pause"), "resume": ("PUT", "/me/player/play"),
              "next": ("POST", "/me/player/next"), "prev": ("POST", "/me/player/previous")}
         if act not in M:
