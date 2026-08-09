@@ -408,6 +408,7 @@ body.speaking .bigcore .r2{animation-delay:.15s}body.speaking .bigcore .r3{anima
 #attach{display:none}#bnav{display:none}
 /* mini-player global do Spotify — aparece em qualquer tela quando algo toca */
 #np-mini{position:fixed;right:18px;bottom:18px;z-index:44;display:none;align-items:center;gap:11px;
+  cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;
   max-width:340px;padding:9px 12px 9px 9px;border:1px solid var(--line-2);border-radius:14px;
   background:linear-gradient(160deg,rgba(18,34,52,.92),rgba(9,17,28,.94));backdrop-filter:blur(9px);
   box-shadow:0 16px 40px -22px #000,0 0 30px -20px var(--glow)}
@@ -469,8 +470,8 @@ body.serious #serfx{opacity:1;box-shadow:inset 0 0 150px -50px rgba(255,45,55,.6
   #bnav button.on{color:var(--accent)}
   #bnav button.on svg{filter:drop-shadow(0 0 6px var(--glow))}
   body.v-chat #bnav{display:none}   /* na conversa, o composer já ocupa a base */
-  #np-mini{left:10px;right:10px;max-width:none;bottom:calc(70px + env(safe-area-inset-bottom))}
-  body.v-chat #np-mini{bottom:calc(14px + env(safe-area-inset-bottom))}
+  #np-mini{right:10px;left:auto;max-width:calc(100vw - 20px);bottom:calc(72px + env(safe-area-inset-bottom))}
+  body.v-chat #np-mini{bottom:calc(16px + env(safe-area-inset-bottom))}
   /* espaço p/ o conteúdo não ficar atrás da barra */
   #taskview,#kbview,#expview,#remview,#memview,#calview,#lnkview,#habview,#jouview,#subview,#orcview,#monview,#actview,#pageview,#musicview,#climaview,#metasview,#saudeview,#cofreview,#painelview,#inicioview{padding-bottom:80px}
 }
@@ -829,6 +830,17 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
   #log{padding:14px 14px}
   .msg{max-width:92%!important}
   #calgrid{gap:3px}.cal-cell{min-height:62px;padding:4px}
+}
+/* Mobile (<=760): barras laterais deslizam DE BAIXO (bottom sheet). Depois do
+   bloco 980 pra vencer a regra de drawer lateral. */
+@media(max-width:760px){
+  #left,#right{top:auto;left:0;right:0;bottom:0;width:auto;max-height:82vh;
+    border:1px solid var(--line);border-bottom:0;border-radius:20px 20px 0 0;
+    transform:translateY(107%);padding:16px 16px calc(20px + env(safe-area-inset-bottom));
+    box-shadow:0 -24px 60px rgba(0,0,0,.72)}
+  #left::before,#right::before{content:"";display:block;flex:none;width:42px;height:4px;
+    border-radius:3px;background:var(--line-2);margin:0 auto 14px}
+  body.m-left #left,body.m-right #right{transform:translateY(0)}
 }
 @media(max-width:520px){
   .topbar{padding:9px 10px;gap:5px}
@@ -2341,8 +2353,23 @@ function startNpPoll(){if(_npPoll)return;
   if(p)p.onclick=()=>{spCtl('prev');setTimeout(npTick,600);};
   if(n)n.onclick=()=>{spCtl('next');setTimeout(npTick,600);};
   if(t)t.onclick=()=>{spCtl(_npPlaying?'pause':'resume');setTimeout(npTick,600);};
-  if(info)info.onclick=()=>switchView('musica');
+  if(info)info.onclick=()=>{if($('#np-mini')._moved){$('#np-mini')._moved=false;return;}switchView('musica');};
+  npDraggable();
   _npPoll=setInterval(npTick,6000);npTick();}
+function npDraggable(){const m=$('#np-mini');if(!m||m._dnd)return;m._dnd=true;
+  try{const p=JSON.parse(localStorage.getItem('ev_np_pos')||'null');if(p){m.style.left=p.x+'px';m.style.top=p.y+'px';m.style.right='auto';m.style.bottom='auto';}}catch(e){}
+  let sx,sy,ox,oy,drag=false;
+  m.addEventListener('pointerdown',e=>{if(e.target.closest('.npm-c'))return;   // não arrasta pelos controles
+    const r=m.getBoundingClientRect();drag=true;m._moved=false;sx=e.clientX;sy=e.clientY;ox=r.left;oy=r.top;
+    m.style.right='auto';m.style.bottom='auto';m.style.cursor='grabbing';try{m.setPointerCapture(e.pointerId);}catch(_){}});
+  m.addEventListener('pointermove',e=>{if(!drag)return;
+    if(Math.abs(e.clientX-sx)+Math.abs(e.clientY-sy)>4)m._moved=true;
+    const x=Math.max(4,Math.min(innerWidth-m.offsetWidth-4,ox+e.clientX-sx));
+    const y=Math.max(4,Math.min(innerHeight-m.offsetHeight-4,oy+e.clientY-sy));
+    m.style.left=x+'px';m.style.top=y+'px';});
+  const end=()=>{if(!drag)return;drag=false;m.style.cursor='grab';
+    if(m._moved){const r=m.getBoundingClientRect();try{localStorage.setItem('ev_np_pos',JSON.stringify({x:Math.round(r.left),y:Math.round(r.top)}));}catch(e){}}};
+  m.addEventListener('pointerup',end);m.addEventListener('pointercancel',end);}
 function npMedia(j){if(!('mediaSession' in navigator))return;try{
   navigator.mediaSession.metadata=new MediaMetadata({title:j.name||'',artist:j.artists||'',album:'Spotify',
     artwork:j.image?[{src:j.image,sizes:'300x300',type:'image/jpeg'}]:[]});
