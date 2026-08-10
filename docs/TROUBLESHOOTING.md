@@ -92,7 +92,7 @@ E.V.'s own footprint is small (~150 MB RAM, a few MB of DB), so disk growth is
 almost always logs — the vacuum above fixes it.
 
 ## Nothing worked?
-Grab the logs and hand them to any AI assistant (Claude Code, etc.):
+Grab the logs and hand them to any AI assistant:
 ```bash
 sudo journalctl -u ev -n 100 --no-pager > ~/ev-logs.txt
 ```

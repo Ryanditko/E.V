@@ -61,8 +61,5 @@ throughout; nothing here requires a paid plan for personal use.
 - **SSH / scp** — deploy transport; **Dependabot** — weekly dependency PRs.
 - One-command scripts: `deploy.sh`, `start.sh`, `deploy/setup_vm.sh`, `deploy/watchdog.sh`.
 
-## Development
-- **Claude Code** — the AI pair-programmer used to design, build, test and operate E.V.
-
 ---
 See also: [../README.md](../README.md) · [architecture.md](architecture.md) · [KEYS.md](KEYS.md) · [WEB.md](WEB.md)
