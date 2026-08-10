@@ -49,6 +49,15 @@ Full guide: [GOOGLE.md](GOOGLE.md). Free, but Google Cloud may ask for billing (
 |---------|----------|------|
 | **open-meteo** | Weather forecast + rain alerts | https://open-meteo.com |
 
+## Mapillary (optional — street-level view on the web console's Mapa tab)
+
+| Step | Link |
+|------|------|
+| Create an app, grab a client token | https://www.mapillary.com/dashboard/developers |
+
+`.env`: `EV_MAPILLARY_TOKEN`. Free. Without it, tapping a saved place opens a Google
+Street View link instead of the embedded viewer — nothing breaks.
+
 ## Spotify (optional — web console playback)
 
 | Step | Link |

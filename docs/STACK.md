@@ -38,6 +38,9 @@ throughout; nothing here requires a paid plan for personal use.
 ## Web frontend (no build step)
 - Self-contained **HTML/CSS/vanilla JS** embedded in `web.py` (single-page app).
 - **Lucide** icons (CDN); fonts **Space Grotesk**, **JetBrains Mono**, **Inter**.
+- **Leaflet** (map tab, CartoDB dark tiles + Esri satellite), **Three.js** (Cérebro
+  3D graph), **Chart.js** (Gráficos tab), **Mapillary JS** (optional street view,
+  falls back to a Google Street View link without a token).
 - Browser APIs: **MediaRecorder** (voice capture → Whisper), Web Audio, Document
   Picture-in-Picture, Notifications.
 
@@ -46,7 +49,11 @@ throughout; nothing here requires a paid plan for personal use.
 - **open-meteo** (weather), news via DuckDuckGo/TabNews.
 - **Google Calendar & Gmail** (optional, OAuth).
 - **Spotify** (optional, OAuth + Web Playback SDK) — now-playing, playback control,
-  search/queue/playlists, and E.V. can act as a playback device herself.
+  search/queue/playlists, and E.V. can act as a playback device herself. Also a
+  separate saved-links player using Spotify's public oEmbed (no OAuth needed).
+- **Mapillary** (optional, `EV_MAPILLARY_TOKEN`) — embedded street-level view on the
+  map tab; free public feeds for the Painel tab's astro (moon/sun/ISS) and radar
+  (rates/news) widgets, no key needed.
 
 ## Networking & access
 - **Tailscale** (`cloudflared` alternative documented) — private HTTPS to the web

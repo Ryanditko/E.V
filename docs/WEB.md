@@ -51,6 +51,45 @@ Telegram bot.
   threshold) alongside regular notifications — computed fresh on every load, not stored,
   so there's no stale/duplicate state to manage.
 
+## Beyond the core tabs
+
+The console has several tabs beyond the everyday CRUD ones, each backed by its own
+table/endpoint:
+
+- **Histórico** — a chronological activity feed (`/api/activity`) logging every
+  create/complete/delete across tasks, reminders, expenses and habits, from both
+  Telegram and the web, filterable by category.
+- **Mapa** — a dark Leaflet map (with a satellite toggle) of saved places
+  (`/api/places`), an address search, and a route planner between two places. Tapping
+  a pin opens a street-level view via the **Mapillary** API if `EV_MAPILLARY_TOKEN`
+  is set, or falls back to a Google Street View link otherwise.
+- **Cérebro** — a 3D WebGL (Three.js) graph (`/api/brain`) of everything you've told
+  her: memories, tasks, reminders, people, links, KB sources, habits, journal entries,
+  subscriptions, budgets, monitors and map places, as connected nodes you can click
+  to open, edit or delete. It's an aggregate view — the more you've used her, the
+  richer the graph.
+- **Gráficos** — Chart.js views (`/api/charts`) of expenses by category/day and habit
+  streaks over a selectable date range.
+- **Música** — a Spotify tab with two parts: the OAuth now-playing/control widget
+  documented above, and a separate saved-links player (`/api/music`) — paste any
+  public Spotify playlist/track/album/artist link and it renders as an embedded
+  player via Spotify's oEmbed, no OAuth needed for that part.
+- **Clima** — a city-search weather tab (open-meteo, no key) with the current
+  forecast.
+- **Metas** — financial goals / "cofrinho" (`/api/goals`): name a goal, set a target,
+  add or withdraw savings towards it, see a progress bar.
+- **Saúde** — a daily tracker (`/api/saude`) for water intake, sleep hours and mood,
+  plus a short history of recent days.
+- **Cofre** — a general document vault (`/api/vault`, table `documents`, distinct
+  from the KB/RAG knowledge base) — upload any file up to 15 MB, get OCR'd text for
+  images so it's searchable by content, and open/download or delete it later.
+- **Painel** — two read-only panels: an astro widget (moon phase, sunrise/sunset,
+  ISS position, all free public feeds, no key) and a radar widget (world clocks,
+  USD/EUR/BTC rates, top headlines).
+
+None of these need extra configuration beyond what's already in `.env.example`,
+except the optional `EV_MAPILLARY_TOKEN` for embedded street view on the map.
+
 ## Run it locally
 
 1. Set a strong token in `.env`:
@@ -95,7 +134,13 @@ travels in cleartext).
 `/api/history` · `/api/search` (Cmd/Ctrl+K content search) · `/api/notifications`
 (regular + ephemeral proactive alerts) · `/api/serious` (serious-mode on/off) ·
 `/spotify/connect` + `/api/spotify/*` (status, nowplaying, control, play, queue, search,
-playlists, devices, transfer, token, disconnect) · plus per-type CRUD under
+playlists, devices, transfer, token, disconnect) · `/api/activity` (Histórico) ·
+`/api/places` + `/api/route` + `/api/mapillary` (Mapa) · `/api/brain`
++ `/api/brain/edit` + `/api/brain/delete` (Cérebro graph) · `/api/charts` (Gráficos) ·
+`/api/music` + `/api/music/delete` (Música saved links) · `/api/goals`
++ `/api/goals/add` + `/api/goals/delete` (Metas) · `/api/saude` (Saúde) ·
+`/api/vault` + `/api/vault/file` + `/api/vault/delete` (Cofre) · `/api/astro`
++ `/api/radar` (Painel) · plus per-type CRUD under
 `/api/{tasks,expenses,reminders,facts,links,habits,journal,recurring,budgets,watches,kb}`
 (list/create/update/delete). All require the bearer token except the static page and
 favicon.
