@@ -27,6 +27,29 @@ Telegram bot.
 - Customizable quick-actions + "Sistema" stat panels, Pomodoro (focus + break),
   clickable links everywhere, PDF/Word open & download from the KB, API-key manager
   (`/api/keys`), in-app confirm/edit modals, favicon, full responsiveness.
+- **Terminal de ação** — a draggable/resizable floating window (desktop only) that shows
+  E.V. "thinking → acting → result" as she runs a command, instead of just the final
+  chat reply. Opened from the chat input; geometry (width/height) persists across
+  sessions via `localStorage['ev_term_geo']`. V1 renders each step after it completes
+  (not truly live token-by-token) — see the "Terminal V1 vs. future streaming" note below.
+- **Modo Morte Súbita ("serious mode")** — a visual tone toggle (`/serious`, the header
+  skull button, or `#mm-badge`) that hue-rotates the whole UI to red/high-contrast for
+  focus sessions. State persists server-side (`/api/serious`) and a pulsing badge stays
+  visible in the header for as long as it's active, so it's obvious at a glance which
+  mode you're in.
+- **Spotify** — connect your account (`/spotify/connect`, OAuth) to see now-playing,
+  control playback, search and queue tracks, browse playlists, and embed a Spotify
+  widget on the dashboard. With the **Web Playback SDK**, E.V. can become a playback
+  device herself (`/api/spotify/transfer`) so you can control Spotify from the lock
+  screen through her.
+- **Dashboard (início)**: cards are draggable to reorder (pointer events, order persists
+  in `localStorage['ev_ov_order']`), and the hero area shows a **today summary** (next
+  reminder + first open task) at a glance.
+- **Cmd/Ctrl+K** searches both views (navigation) **and** your content — tasks, expenses,
+  reminders, memories, journal, links, and recent messages — via `/api/search`.
+- **Notification center** surfaces proactive alerts (subscription due soon, budget over
+  threshold) alongside regular notifications — computed fresh on every load, not stored,
+  so there's no stale/duplicate state to manage.
 
 ## Run it locally
 
@@ -69,6 +92,21 @@ travels in cleartext).
 
 `/` (UI) · `/api/chat` · `/api/cmd` · `/api/stt` (voice→text) · `/api/tts` (text→voice) ·
 `/api/greeting` · `/api/panel` · `/api/config` · `/api/keys` · `/api/threads` (folders) ·
-`/api/history` · plus per-type CRUD under `/api/{tasks,expenses,reminders,facts,links,
-habits,journal,recurring,budgets,watches,kb}` (list/create/update/delete). All require
-the bearer token except the static page and favicon.
+`/api/history` · `/api/search` (Cmd/Ctrl+K content search) · `/api/notifications`
+(regular + ephemeral proactive alerts) · `/api/serious` (serious-mode on/off) ·
+`/spotify/connect` + `/api/spotify/*` (status, nowplaying, control, play, queue, search,
+playlists, devices, transfer, token, disconnect) · plus per-type CRUD under
+`/api/{tasks,expenses,reminders,facts,links,habits,journal,recurring,budgets,watches,kb}`
+(list/create/update/delete). All require the bearer token except the static page and
+favicon.
+
+## Terminal V1 vs. future streaming
+
+The action terminal (V1, shipped) renders each step of a command run — thinking, the
+action taken, the result — as it *completes*, reusing the same `respond()` path every
+other channel uses. It is **not** true token-by-token or live sub-step streaming: for a
+single fast command there's little visible difference from the normal chat reply. A
+"Phase 2" rewrite (true real-time AFC streaming, live narration between actions, a real
+pre-action interrupt) would matter most for long multi-step tasks, but touches the core
+`respond()` path used by Telegram, web and terminal alike — real risk for a benefit that's
+mostly about long-running work. Not planned for now.
