@@ -106,6 +106,16 @@ red-alert mode — so you can see everything she actually does, not just the hig
 |---|---|
 | ![Monitores](docs/screenshots/mon.png) | ![Histórico](docs/screenshots/act.png) |
 
+**On your phone**
+
+| Início | Conversa | Tarefas |
+|---|---|---|
+| ![Dashboard mobile](docs/screenshots/mobile/dashboard.png) | ![Chat mobile](docs/screenshots/mobile/chat.png) | ![Tarefas mobile](docs/screenshots/mobile/tasks.png) |
+
+| Gastos | Mapa | Música |
+|---|---|---|
+| ![Gastos mobile](docs/screenshots/mobile/expenses.png) | ![Mapa mobile](docs/screenshots/mobile/map.png) | ![Música mobile](docs/screenshots/mobile/musica.png) |
+
 </div>
 
 *(All data shown is fictional demo content, not a real account.)*
