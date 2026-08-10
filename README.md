@@ -31,20 +31,26 @@ hands — loyal, warm, playful, and always on your side.
 
 ## Screenshots
 
-Every screen in the web console — 24 tabs plus the Telegram-style terminal and the
+Every screen in the web console — 24 tabs plus the floating action terminal and the
 red-alert mode — so you can see everything she actually does, not just the highlights.
 
 <div align="center">
 
-**Core — chat, dashboard, personas**
+**Core — chat, dashboard, terminal**
 
 | Dashboard | Chat |
 |---|---|
 | ![Dashboard](docs/screenshots/dashboard.png) | ![Chat](docs/screenshots/chat.png) |
 
-| Pessoas (`/pessoa`, no LLM) | Modo Morte Súbita |
+| Terminal de ação | Pessoas (`/pessoas`) |
 |---|---|
-| ![Pessoas](docs/screenshots/terminal.png) | ![Modo Morte Súbita](docs/screenshots/serious-mode.png) |
+| ![Terminal de ação](docs/screenshots/terminal.png) | ![Pessoas](docs/screenshots/pessoas.png) |
+
+**Modo Morte Súbita**
+
+| Modo Morte Súbita |
+|---|
+| ![Modo Morte Súbita](docs/screenshots/serious-mode.png) |
 
 **Productivity & routine**
 
