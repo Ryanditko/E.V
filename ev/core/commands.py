@@ -479,7 +479,8 @@ class Commands:
         labels = [
             ("facts", "🧠 Memórias"), ("tasks", "📋 Tarefas"),
             ("reminders", "⏰ Lembretes"), ("links", "🔗 Links"),
-            ("journal", "📔 Diário"), ("knowledge", "📄 Conhecimento"),
+            ("journal", "📔 Diário"), ("expenses", "💸 Gastos"),
+            ("messages", "💬 Conversas"), ("knowledge", "📄 Conhecimento"),
         ]
         lines = [f"🔎 Resultados para '{term}':"]
         found = False
@@ -490,11 +491,7 @@ class Commands:
             found = True
             lines.append(f"\n{label}:")
             for it in items[:5]:
-                if key == "knowledge":
-                    src, chunk = it
-                    lines.append(f"- [{src}] {chunk[:120]}…")
-                else:
-                    lines.append(f"- {it}")
+                lines.append(f"- {it['text']}")
         if not found:
             return f"Nada encontrado pra '{term}' nos seus dados."
         return "\n".join(lines)
