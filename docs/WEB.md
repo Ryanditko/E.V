@@ -32,7 +32,7 @@ Telegram bot.
   chat reply. Opened from the chat input; geometry (width/height) persists across
   sessions via `localStorage['ev_term_geo']`. V1 renders each step after it completes
   (not truly live token-by-token) — see the "Terminal V1 vs. future streaming" note below.
-- **Modo Morte Súbita ("serious mode")** — a visual tone toggle (`/serious`, the header
+- **Modo Foco ("serious mode")** — a visual tone toggle (`/serious`, the header
   skull button, or `#mm-badge`) that hue-rotates the whole UI to red/high-contrast for
   focus sessions. State persists server-side (`/api/serious`) and a pulsing badge stays
   visible in the header for as long as it's active, so it's obvious at a glance which

@@ -46,11 +46,11 @@ red-alert mode — so you can see everything she actually does, not just the hig
 |---|---|
 | ![Terminal de ação](docs/screenshots/terminal.png) | ![Pessoas](docs/screenshots/pessoas.png) |
 
-**Modo Morte Súbita**
+**Modo Foco**
 
-| Modo Morte Súbita |
+| Modo Foco |
 |---|
-| ![Modo Morte Súbita](docs/screenshots/serious-mode.png) |
+| ![Modo Foco](docs/screenshots/serious-mode.png) |
 
 **Productivity & routine**
 
@@ -167,7 +167,7 @@ is recalled on the phone.
 
 **Web console extras**
 - A **terminal de ação** shows her thinking → acting → result per step for a command.
-- **Modo Morte Súbita** — a focus-mode visual toggle (red/high-contrast) with a
+- **Modo Foco** — a focus-mode visual toggle (red/high-contrast) with a
   persistent header badge.
 - Proactive alerts (subscriptions due, budgets over) surface in the notification center;
   a **Cmd/Ctrl+K** searches your actual data, not just views; dashboard cards are
