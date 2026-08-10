@@ -15,7 +15,7 @@ hands — loyal, warm, playful, and always on your side.
 ![Telegram](https://img.shields.io/badge/Bot-Telegram-1a1a1a?logo=telegram&logoColor=white)
 ![LLMs](https://img.shields.io/badge/LLMs-Gemini·Groq·OpenRouter-1a1a1a)
 ![SQLite](https://img.shields.io/badge/Memory-SQLite%20+%20vectors-1a1a1a?logo=sqlite&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-133%20passing-2e7d32)
+![Tests](https://img.shields.io/badge/tests-185%20passing-2e7d32)
 [![Deploy](https://github.com/Ryanditko/E.V/actions/workflows/deploy.yml/badge.svg)](https://github.com/Ryanditko/E.V/actions/workflows/deploy.yml)
 
 **[Features](#what-she-does) · [Architecture](#architecture) · [Web console](#the-web-console) · [Quick start](#quick-start) · [Deploy 24/7](#run-her-24-7) · [Docs](#documentation)**
@@ -67,9 +67,18 @@ is recalled on the phone.
 
 **Real tools & reach**
 - Web search (**Tavily → Brave → DuckDuckGo**), web-page indexing, document generation
- (PDF/Word), and — with setup — **Google Calendar & Gmail**.
+ (PDF/Word), **Spotify** playback control (web console), and — with setup — **Google
+ Calendar & Gmail**.
 - **Hands-free**: she can *run* any command herself (create/edit/delete) from chat or voice.
 - **Owner-locked** to you (`EV_OWNER_ID`) and works in Telegram topic groups on mention.
+
+**Web console extras**
+- A **terminal de ação** shows her thinking → acting → result per step for a command.
+- **Modo Morte Súbita** — a focus-mode visual toggle (red/high-contrast) with a
+  persistent header badge.
+- Proactive alerts (subscriptions due, budgets over) surface in the notification center;
+  a **Cmd/Ctrl+K** searches your actual data, not just views; dashboard cards are
+  draggable to reorder.
 
 **Runs like a product**
 - **CI/CD** (test-gated auto-deploy), **systemd** services, a **watchdog** that restarts
@@ -297,7 +306,7 @@ E.V/
 │       └── terminal.py      # terminal REPL
 ├── deploy/                  # setup_vm.sh · watchdog.sh · HTTPS runbooks
 ├── docs/                    # full documentation (index below)
-└── tests/                   # 133 tests across 14 files
+└── tests/                   # 185 tests
 ```
 
 ---
@@ -305,7 +314,7 @@ E.V/
 ## Testing
 
 ```bash
-./.venv/bin/python -m pytest -q      # 133 passing
+./.venv/bin/python -m pytest -q      # 185 passing
 ```
 
 CI runs the suite as a **gate before every deploy** — a red test never ships.
@@ -342,9 +351,9 @@ CI runs the suite as a **gate before every deploy** — a red test never ships.
 ## Built with
 
 `Python 3` · `FastAPI` + `uvicorn` · `python-telegram-bot` · `SQLite` · `edge-tts` ·
-`Groq Whisper` · `Google Gemini` · `Groq` · `OpenRouter` · `Ollama` · `pypdf` ·
-`python-docx` · `reportlab` · `Tavily/Brave/DuckDuckGo` · `Tailscale` · `systemd` ·
-`GitHub Actions` · `Lucide` · `pytest`
+`Gemini TTS` · `Groq Whisper` · `Google Gemini` · `Groq` · `OpenRouter` · `Ollama` ·
+`pypdf` · `python-docx` · `reportlab` · `Tavily/Brave/DuckDuckGo` · `Spotify Web API` +
+`Web Playback SDK` · `Tailscale` · `systemd` · `GitHub Actions` · `Lucide` · `pytest`
 
 ---
 
@@ -359,6 +368,10 @@ CI runs the suite as a **gate before every deploy** — a red test never ships.
 - [x] **Web console** (JARVIS-style) with browser voice via Whisper
 - [x] **Private HTTPS** via Tailscale (mic, PiP, notifications unlocked)
 - [x] CI/CD + watchdog + backups
+- [x] **Terminal de ação** (V1) — see the action per step, not just the final reply
+- [x] **Modo Morte Súbita** focus toggle + **Spotify** playback control
+- [x] Dashboard drag-reorder, today summary, content search (Cmd/Ctrl+K), proactive
+      notification alerts
 - [ ] Google Calendar & Gmail live (needs OAuth authorization)
 - [ ] Login via Google/GitHub on the web
 

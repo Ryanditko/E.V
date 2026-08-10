@@ -28,7 +28,12 @@ She is **locked to you** (owner-only) and replies with a natural female voice.
 > for every data type with edit and recurrence. It's served privately over HTTPS via
 > **Tailscale Serve** (`https://ev.<tailnet>.ts.net`, reachable only from your Tailscale
 > devices, no open ports) — which is what unlocks the browser microphone, Picture-in-Picture
-> and notifications. See [WEB.md](WEB.md) and [../deploy/HTTPS_TAILSCALE.md](../deploy/HTTPS_TAILSCALE.md).
+> and notifications. The web console adds a few things Telegram doesn't have: a
+> **terminal de ação** that shows her thinking/acting/result per step, a **Modo Morte
+> Súbita** focus toggle, **Spotify** playback (including acting as the playback device
+> herself), draggable dashboard cards with a today-at-a-glance summary, and a
+> **Cmd/Ctrl+K** that searches your actual data, not just views. See [WEB.md](WEB.md) and
+> [../deploy/HTTPS_TAILSCALE.md](../deploy/HTTPS_TAILSCALE.md).
 
 ## 2. What she does in conversation (AI)
 
@@ -177,7 +182,7 @@ on it. (When you ask via the AI, she can also save it in the same step.)
 | Command | Does |
 |---------|------|
 | `/buscar <termo>` | Web search (with sources) |
-| `/procurar <termo>` | Search across YOUR data (memory, tasks, links, journal, KB...) |
+| `/procurar <termo>` | Search across YOUR data (memory, tasks, links, journal, KB, expenses, messages...) — same engine the web console's Cmd/Ctrl+K uses |
 | `/noticias [assunto]` | Latest news with sources + TabNews (tech) |
 | `/clima [cidade]` | Real weather forecast (today + next days) |
 
@@ -210,7 +215,9 @@ on it. (When you ask via the AI, she can also save it in the same step.)
 | Every ~30 min | Checks web monitors (`/vigiar`) and alerts on real changes |
 | Weekly + on restart | Sends a **DB backup** to your Telegram (off-VM copy) |
 
-All hours/days are configurable in `.env`.
+All hours/days are configurable in `.env`. On the **web console**, subscriptions due
+soon and over-budget categories also show up proactively in the notification center as
+soon as you open it — computed fresh each time, not a scheduled push.
 
 ## 5. What she stores (your data, local SQLite)
 
@@ -227,6 +234,10 @@ Everything is add / list / delete — you can undo anything.
 - **Fallbacks (auto):** Groq (`openai/gpt-oss-120b`, reliable tools) → OpenRouter
  (Nemotron) → **Ollama** (local, never rate-limited — if enabled on a capable host).
 - **Audio transcription:** Groq Whisper. **Embeddings:** Gemini `gemini-embedding-001`.
+- **Voice output:** **edge-tts** (Microsoft neural pt-BR voice, free, no key) by default;
+ optionally **Gemini TTS** (more natural) when `EV_GEMINI_TTS=true` or a specific Gemini
+ voice is picked in the voice selector — falls back to edge-tts automatically on any
+ error or quota limit.
 - If a provider hits its limit, she falls through automatically — she rarely goes
  silent. `/modelo` shows what's active and today's usage.
 

@@ -16,7 +16,7 @@ throughout; nothing here requires a paid plan for personal use.
 | Fallback 3 (local) | **Ollama** | `llama3.1` (disabled on the 1 GB VM) |
 | Speech-to-text | **Groq Whisper** | `whisper-large-v3-turbo` (pt-BR) |
 | Embeddings | **Google Gemini** | `gemini-embedding-001` (semantic memory / RAG) |
-| Text-to-speech | **edge-tts** | Microsoft neural pt-BR voice (free, no key) |
+| Text-to-speech | **edge-tts** (default) / **Gemini TTS** (optional, `EV_GEMINI_TTS=true`) | Microsoft neural pt-BR voice (free, no key) / Gemini native voices (Kore, Aoede, Leda...), falls back to edge-tts on error/quota |
 
 ## Python libraries (`requirements.txt`)
 - **Interfaces:** `python-telegram-bot` (bot), `FastAPI` + `uvicorn` + `python-multipart` (web).
@@ -45,6 +45,8 @@ throughout; nothing here requires a paid plan for personal use.
 - **Tavily → Brave → DuckDuckGo** search chain.
 - **open-meteo** (weather), news via DuckDuckGo/TabNews.
 - **Google Calendar & Gmail** (optional, OAuth).
+- **Spotify** (optional, OAuth + Web Playback SDK) — now-playing, playback control,
+  search/queue/playlists, and E.V. can act as a playback device herself.
 
 ## Networking & access
 - **Tailscale** (`cloudflared` alternative documented) — private HTTPS to the web
