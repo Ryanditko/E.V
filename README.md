@@ -31,19 +31,74 @@ hands — loyal, warm, playful, and always on your side.
 
 ## Screenshots
 
+Every screen in the web console — 24 tabs plus the Telegram-style terminal and the
+red-alert mode — so you can see everything she actually does, not just the highlights.
+
 <div align="center">
+
+**Core — chat, dashboard, personas**
 
 | Dashboard | Chat |
 |---|---|
 | ![Dashboard](docs/screenshots/dashboard.png) | ![Chat](docs/screenshots/chat.png) |
 
-| Tasks | Expenses |
+| Pessoas (`/pessoa`, no LLM) | Modo Morte Súbita |
 |---|---|
-| ![Tasks](docs/screenshots/tasks.png) | ![Expenses](docs/screenshots/expenses.png) |
+| ![Pessoas](docs/screenshots/terminal.png) | ![Modo Morte Súbita](docs/screenshots/serious-mode.png) |
 
-| Action terminal | Modo Morte Súbita |
+**Productivity & routine**
+
+| Tarefas | Lembretes |
 |---|---|
-| ![Action terminal](docs/screenshots/terminal.png) | ![Modo Morte Súbita](docs/screenshots/serious-mode.png) |
+| ![Tarefas](docs/screenshots/tasks.png) | ![Lembretes](docs/screenshots/rem.png) |
+
+| Agenda | Diário |
+|---|---|
+| ![Agenda](docs/screenshots/cal.png) | ![Diário](docs/screenshots/jou.png) |
+
+| Hábitos | Saúde |
+|---|---|
+| ![Hábitos](docs/screenshots/hab.png) | ![Saúde](docs/screenshots/saude.png) |
+
+**Money**
+
+| Gastos | Assinaturas |
+|---|---|
+| ![Gastos](docs/screenshots/expenses.png) | ![Assinaturas](docs/screenshots/sub.png) |
+
+| Orçamentos | Metas |
+|---|---|
+| ![Orçamentos](docs/screenshots/orc.png) | ![Metas](docs/screenshots/metas.png) |
+
+**Memory & knowledge**
+
+| Memórias | Base de conhecimento |
+|---|---|
+| ![Memórias](docs/screenshots/mem.png) | ![Base de conhecimento](docs/screenshots/kb.png) |
+
+| Links | Cofre de documentos |
+|---|---|
+| ![Links](docs/screenshots/lnk.png) | ![Cofre](docs/screenshots/cofre.png) |
+
+**World & data**
+
+| Mapa | Cérebro |
+|---|---|
+| ![Mapa](docs/screenshots/map.png) | ![Cérebro](docs/screenshots/brain.png) |
+
+| Gráficos | Painel |
+|---|---|
+| ![Gráficos](docs/screenshots/graf.png) | ![Painel](docs/screenshots/painel.png) |
+
+| Clima | Música |
+|---|---|
+| ![Clima](docs/screenshots/clima.png) | ![Música](docs/screenshots/musica.png) |
+
+**Automation**
+
+| Monitores web | Histórico de atividade |
+|---|---|
+| ![Monitores](docs/screenshots/mon.png) | ![Histórico](docs/screenshots/act.png) |
 
 </div>
 

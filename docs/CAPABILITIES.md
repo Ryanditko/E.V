@@ -32,7 +32,13 @@ She is **locked to you** (owner-only) and replies with a natural female voice.
 > **terminal de ação** that shows her thinking/acting/result per step, a **Modo Morte
 > Súbita** focus toggle, **Spotify** playback (including acting as the playback device
 > herself), draggable dashboard cards with a today-at-a-glance summary, and a
-> **Cmd/Ctrl+K** that searches your actual data, not just views. See [WEB.md](WEB.md) and
+> **Cmd/Ctrl+K** that searches your actual data, not just views. Beyond the everyday CRUD
+> tabs, it also has: an activity **Histórico**, a **Mapa** of saved places with routes and
+> street view, a 3D **Cérebro** graph of everything she knows about you, **Gráficos** of
+> spending and habit streaks, financial **Metas** ("cofrinho" savings goals), a **Saúde**
+> tracker (water/sleep/mood), a general document **Cofre** (separate from the knowledge
+> base, with OCR on images), a **Clima** tab, and a **Painel** with an astro/ISS widget and
+> a world-clocks/rates/news radar. See [WEB.md](WEB.md) and
 > [../deploy/HTTPS_TAILSCALE.md](../deploy/HTTPS_TAILSCALE.md).
 
 ## 2. What she does in conversation (AI)
@@ -107,6 +113,8 @@ When a reminder fires it comes with quick buttons: ** Feito · +10min · +1h · 
 | `/lembrar <fato>` | Save something to long-term memory |
 | `/memorias` | List what she knows about you |
 | `/esquecer <id>` | Delete a memory |
+| `/pessoa <nome> \| <sobre> \| <aniversário>` | Save a person (a light contacts/CRM entry) |
+| `/pessoas` | List saved people — they also show up as nodes in the web console's Cérebro graph |
 
 ### Knowledge base & study
 | Action | Does |
@@ -225,8 +233,13 @@ Conversation history (auto-pruned to the last N), long-term **facts** (with
 embeddings), **reminders** (one-off + recurring), **tasks** (with categories),
 **links** (by category), **expenses** + **budgets** + **subscriptions**,
 **habits** (+ daily logs & streaks), **journal** entries, **knowledge base**
-(document/web chunks + embeddings), **web monitors**, and usage stats/settings.
-Everything is add / list / delete — you can undo anything.
+(document/web chunks + embeddings), **web monitors**, **people** (a light
+contacts/CRM entry), **goals** (financial "cofrinho" savings targets), **health**
+(daily water/sleep/mood log), **documents** (a general file vault with OCR'd
+text, separate from the knowledge base), **places** (saved map locations),
+**music** (saved Spotify links), an **activity** log of create/complete/delete
+actions, and usage stats/settings. Everything is add / list / delete — you can
+undo anything.
 
 ## 6. AI models & resilience
 
