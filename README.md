@@ -434,26 +434,6 @@ CI runs the suite as a **gate before every deploy** — a red test never ships.
 
 ---
 
-## Roadmap
-
-- [x] Voice & text chat, multi-provider fallback, warm personality
-- [x] Long-term + semantic memory, knowledge base (RAG), vision/OCR
-- [x] Reminders, tasks, expenses, habits, journal, budgets, monitors — full CRUD
-- [x] Recurrence everywhere (reminders, calendar, tasks with due dates)
-- [x] Daily briefing, weekly review, monthly report, insights, Pomodoro
-- [x] Document generation, exports, data control, hands-free actions
-- [x] **Web console** (JARVIS-style) with browser voice via Whisper
-- [x] **Private HTTPS** via Tailscale (mic, PiP, notifications unlocked)
-- [x] CI/CD + watchdog + backups
-- [x] **Terminal de ação** (V1) — see the action per step, not just the final reply
-- [x] **Modo Morte Súbita** focus toggle + **Spotify** playback control
-- [x] Dashboard drag-reorder, today summary, content search (Cmd/Ctrl+K), proactive
-      notification alerts
-- [ ] Google Calendar & Gmail live (needs OAuth authorization)
-- [ ] Login via Google/GitHub on the web
-
----
-
 <div align="center">
 
 **Built by [Ryan](https://github.com/Ryanditko) — one core, many doors.**
