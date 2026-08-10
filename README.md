@@ -18,7 +18,7 @@ hands — loyal, warm, playful, and always on your side.
 ![Tests](https://img.shields.io/badge/tests-185%20passing-2e7d32)
 [![Deploy](https://github.com/Ryanditko/E.V/actions/workflows/deploy.yml/badge.svg)](https://github.com/Ryanditko/E.V/actions/workflows/deploy.yml)
 
-**[Features](#what-she-does) · [Architecture](#architecture) · [Web console](#the-web-console) · [Quick start](#quick-start) · [Deploy 24/7](#run-her-24-7) · [Docs](#documentation)**
+**[Screenshots](#screenshots) · [Features](#what-she-does) · [Quick start](#quick-start) · [Architecture](#architecture) · [Deploy 24/7](#run-her-24-7) · [Docs](#documentation)**
 
 </div>
 
@@ -26,6 +26,28 @@ hands — loyal, warm, playful, and always on your side.
 
 > **Language note.** This documentation is in English. E.V. **talks to you in Brazilian
 > Portuguese** — chat and voice — on purpose; her personality lives in `ev/personality.py`.
+
+---
+
+## Screenshots
+
+<div align="center">
+
+| Dashboard | Chat |
+|---|---|
+| ![Dashboard](docs/screenshots/dashboard.png) | ![Chat](docs/screenshots/chat.png) |
+
+| Tasks | Expenses |
+|---|---|
+| ![Tasks](docs/screenshots/tasks.png) | ![Expenses](docs/screenshots/expenses.png) |
+
+| Action terminal | Modo Morte Súbita |
+|---|---|
+| ![Action terminal](docs/screenshots/terminal.png) | ![Modo Morte Súbita](docs/screenshots/serious-mode.png) |
+
+</div>
+
+*(All data shown is fictional demo content, not a real account.)*
 
 ---
 
@@ -83,6 +105,97 @@ is recalled on the phone.
 **Runs like a product**
 - **CI/CD** (test-gated auto-deploy), **systemd** services, a **watchdog** that restarts
  and alerts, daily DB backups, and **private HTTPS** with zero open ports.
+
+---
+
+## The web console
+
+A self-contained single-page **JARVIS-style monochrome console** (no build step) served by
+FastAPI, backed by the same brain and data as Telegram.
+
+- **Chat** with structured rendering, slash-command autocomplete and a `⌘/Ctrl-K` palette.
+- **Voice** — she reads replies aloud, and takes voice input by recording audio and
+ transcribing it **server-side with Whisper**, so it works in **any browser** (Firefox,
+ Chrome, Safari), not just Chrome.
+- **CRUD tabs** for Tasks, Expenses, Reminders, Calendar, Memories, Links, Habits, Journal,
+ Subscriptions, Budgets and Monitors — create / **edit** / delete, per-tab search,
+ recurrence, drag-and-drop, clickable links, PDF/Word open & download.
+- Customizable quick-actions & system panels, Pomodoro, API-key manager, in-app modals,
+ fully responsive.
+
+**Private HTTPS, no open ports.** It's exposed over **Tailscale Serve** at
+`https://ev.<tailnet>.ts.net` — a valid TLS cert, reachable **only** from your own
+Tailscale devices, with nothing opened on the cloud firewall. The app itself binds to
+`127.0.0.1`. Full runbook: **[deploy/HTTPS_TAILSCALE.md](deploy/HTTPS_TAILSCALE.md)**
+(Cloudflare Tunnel alternative in [deploy/HTTPS_CLOUDFLARE.md](deploy/HTTPS_CLOUDFLARE.md)).
+More: **[docs/WEB.md](docs/WEB.md)**.
+
+---
+
+## Quick start
+
+> Full first-machine walkthrough (every key, Google auth, deploy): **[docs/SETUP.md](docs/SETUP.md)**.
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env          # fill in your keys (below)
+
+python run_telegram.py        # Telegram bot (voice + mobile)
+python run_web.py             # web console at http://localhost:8000
+python run_terminal.py        # terminal REPL
+# or: bash start.sh
+```
+
+### Keys (all free)
+
+Every variable and cost is in **[docs/KEYS.md](docs/KEYS.md)**. The essentials:
+
+| Variable | Where |
+|----------|-------|
+| `TELEGRAM_TOKEN` | [@BotFather](https://t.me/BotFather) |
+| `GEMINI_API_KEY` | https://aistudio.google.com/apikey |
+| `GROQ_API_KEY` | https://console.groq.com/keys |
+| `OPENROUTER_API_KEY` | https://openrouter.ai/keys |
+| `TAVILY_API_KEY` | https://app.tavily.com (better web search) |
+| `EV_WEB_TOKEN` | any long random string (web login) |
+| `EV_OWNER_ID` | your Telegram ID — locks the bot to you |
+
+---
+
+## ⌨ Commands (deterministic, no LLM, zero tokens)
+
+Type `/` for autocomplete, or `/menu` for a button UI. A taste:
+
+| Command | Example |
+|---------|---------|
+| `/lembrete <time> <text>` | `/lembrete amanhã 09:00 reunião` |
+| `/rotina <diario\|semanal\|mensal> …` | recurring reminder |
+| `/tarefa <text>` · `/tarefas` · `/concluir <id>` | to-do list (due dates + recurrence) |
+| `/gasto <v> <desc> #cat` · `/gastos` · `/relatorio` | expenses & **current-month** report |
+| `/orcamento <cat> <v>` · `/orcamentos` | budgets with 80/100% alerts |
+| `/habito` · `/feito` · `/diario` | habits (streaks) & journal |
+| `/lembrar <fact>` · `/memorias` · `/procurar <q>` | memory + unified search |
+| `/kb` · `/kbweb <url>` · `/quiz` | knowledge base (send a PDF) + RAG quiz |
+| `/agenda` · `/evento` · `/email` | Google (after setup) |
+| `/foco` · `/documento` · `/exportar` · `/dados` | Pomodoro · docs · exports · data control |
+
+Time formats: `10m`, `2h`, `1d`, `hoje 18:00`, `amanhã 09:00`, `25/12 14:30`.
+
+---
+
+## AI providers (all free tiers)
+
+| Role | Provider | Model | Why |
+|------|----------|-------|-----|
+| Primary | **Gemini** | `gemini-flash-latest` | Smart, native audio, saves memory |
+| Fallback 1 | **Groq** | `openai/gpt-oss-120b` | Fast, reliable tool calling — the workhorse |
+| Fallback 2 | **OpenRouter** | `nemotron` (free) | Big-context text backstop |
+| Fallback 3 | **Ollama (local)** | `llama3.1` | Never runs out of quota |
+| Transcription | **Groq Whisper** | `whisper-large-v3-turbo` | Voice → text (Telegram + web) |
+| Embeddings | **Gemini / Ollama** | `gemini-embedding-001` | Semantic memory + knowledge base |
+
+Switch or force a provider at runtime with `/provedor` and `/modelo`.
 
 ---
 
@@ -162,97 +275,6 @@ sequenceDiagram
 </details>
 
 > Deep dive: **[docs/architecture.md](docs/architecture.md)** · extend her: **[docs/EXTENDING.md](docs/EXTENDING.md)**
-
----
-
-## The web console
-
-A self-contained single-page **JARVIS-style monochrome console** (no build step) served by
-FastAPI, backed by the same brain and data as Telegram.
-
-- **Chat** with structured rendering, slash-command autocomplete and a `⌘/Ctrl-K` palette.
-- **Voice** — she reads replies aloud, and takes voice input by recording audio and
- transcribing it **server-side with Whisper**, so it works in **any browser** (Firefox,
- Chrome, Safari), not just Chrome.
-- **CRUD tabs** for Tasks, Expenses, Reminders, Calendar, Memories, Links, Habits, Journal,
- Subscriptions, Budgets and Monitors — create / **edit** / delete, per-tab search,
- recurrence, drag-and-drop, clickable links, PDF/Word open & download.
-- Customizable quick-actions & system panels, Pomodoro, API-key manager, in-app modals,
- fully responsive.
-
-**Private HTTPS, no open ports.** It's exposed over **Tailscale Serve** at
-`https://ev.<tailnet>.ts.net` — a valid TLS cert, reachable **only** from your own
-Tailscale devices, with nothing opened on the cloud firewall. The app itself binds to
-`127.0.0.1`. Full runbook: **[deploy/HTTPS_TAILSCALE.md](deploy/HTTPS_TAILSCALE.md)**
-(Cloudflare Tunnel alternative in [deploy/HTTPS_CLOUDFLARE.md](deploy/HTTPS_CLOUDFLARE.md)).
-More: **[docs/WEB.md](docs/WEB.md)**.
-
----
-
-## AI providers (all free tiers)
-
-| Role | Provider | Model | Why |
-|------|----------|-------|-----|
-| Primary | **Gemini** | `gemini-flash-latest` | Smart, native audio, saves memory |
-| Fallback 1 | **Groq** | `openai/gpt-oss-120b` | Fast, reliable tool calling — the workhorse |
-| Fallback 2 | **OpenRouter** | `nemotron` (free) | Big-context text backstop |
-| Fallback 3 | **Ollama (local)** | `llama3.1` | Never runs out of quota |
-| Transcription | **Groq Whisper** | `whisper-large-v3-turbo` | Voice → text (Telegram + web) |
-| Embeddings | **Gemini / Ollama** | `gemini-embedding-001` | Semantic memory + knowledge base |
-
-Switch or force a provider at runtime with `/provedor` and `/modelo`.
-
----
-
-## ⌨ Commands (deterministic, no LLM, zero tokens)
-
-Type `/` for autocomplete, or `/menu` for a button UI. A taste:
-
-| Command | Example |
-|---------|---------|
-| `/lembrete <time> <text>` | `/lembrete amanhã 09:00 reunião` |
-| `/rotina <diario\|semanal\|mensal> …` | recurring reminder |
-| `/tarefa <text>` · `/tarefas` · `/concluir <id>` | to-do list (due dates + recurrence) |
-| `/gasto <v> <desc> #cat` · `/gastos` · `/relatorio` | expenses & **current-month** report |
-| `/orcamento <cat> <v>` · `/orcamentos` | budgets with 80/100% alerts |
-| `/habito` · `/feito` · `/diario` | habits (streaks) & journal |
-| `/lembrar <fact>` · `/memorias` · `/procurar <q>` | memory + unified search |
-| `/kb` · `/kbweb <url>` · `/quiz` | knowledge base (send a PDF) + RAG quiz |
-| `/agenda` · `/evento` · `/email` | Google (after setup) |
-| `/foco` · `/documento` · `/exportar` · `/dados` | Pomodoro · docs · exports · data control |
-
-Time formats: `10m`, `2h`, `1d`, `hoje 18:00`, `amanhã 09:00`, `25/12 14:30`.
-
----
-
-## Quick start
-
-> Full first-machine walkthrough (every key, Google auth, deploy): **[docs/SETUP.md](docs/SETUP.md)**.
-
-```bash
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env          # fill in your keys (below)
-
-python run_telegram.py        # Telegram bot (voice + mobile)
-python run_web.py             # web console at http://localhost:8000
-python run_terminal.py        # terminal REPL
-# or: bash start.sh
-```
-
-### Keys (all free)
-
-Every variable and cost is in **[docs/KEYS.md](docs/KEYS.md)**. The essentials:
-
-| Variable | Where |
-|----------|-------|
-| `TELEGRAM_TOKEN` | [@BotFather](https://t.me/BotFather) |
-| `GEMINI_API_KEY` | https://aistudio.google.com/apikey |
-| `GROQ_API_KEY` | https://console.groq.com/keys |
-| `OPENROUTER_API_KEY` | https://openrouter.ai/keys |
-| `TAVILY_API_KEY` | https://app.tavily.com (better web search) |
-| `EV_WEB_TOKEN` | any long random string (web login) |
-| `EV_OWNER_ID` | your Telegram ID — locks the bot to you |
 
 ---
 
@@ -379,6 +401,6 @@ CI runs the suite as a **gate before every deploy** — a red test never ships.
 
 <div align="center">
 
-**Built by [Ryan](https://github.com/Ryanditko) with [Claude Code](https://claude.com/claude-code) — one core, many doors.**
+**Built by [Ryan](https://github.com/Ryanditko) — one core, many doors.**
 
 </div>
