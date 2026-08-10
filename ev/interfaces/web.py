@@ -448,8 +448,8 @@ body.serious .mm-badge{display:flex}
 .npm-c{display:flex;gap:4px;flex:none}
 .npm-c button{width:30px;height:30px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--accent);cursor:pointer;display:grid;place-items:center}
 .npm-c button:hover{border-color:var(--accent)}.npm-c button svg{width:14px;height:14px}
-/* --- MODO MORTE SÚBITA (alerta vermelho) — recolore tudo que usa --accent/--glow --- */
-/* MODO MORTE SÚBITA: um filtro de matiz recolore TUDO (azul->vermelho), inclusive os
+/* --- MODO FOCO (alerta vermelho) — recolore tudo que usa --accent/--glow --- */
+/* MODO FOCO: um filtro de matiz recolore TUDO (azul->vermelho), inclusive os
    navy hardcoded e as superfícies em canvas. Imagens/vídeo e o efeito de alerta
    são contra-rotacionados para não distorcer. */
 body.serious{filter:hue-rotate(163deg) saturate(1.12);transition:filter .5s}
@@ -458,7 +458,7 @@ body.serious img,body.serious video,body.serious #serfx{filter:hue-rotate(-163de
    aplico um filtro direto pra levar o verde do player -> vermelho */
 body.serious iframe[src*="spotify"]{filter:hue-rotate(-140deg) saturate(1.15)}
 /* verdes de status/sucesso -> vermelho (usam o accent, que o filtro leva a
-   vermelho); evita o magenta E o verde destoante no modo morte súbita */
+   vermelho); evita o magenta E o verde destoante no modo foco */
 body.serious #s-status,body.serious .ov-tel .t.on b,body.serious #standby .sb-top b{color:var(--accent)}
 body.serious #s-status::before,body.serious .ov-tel .t.on::before{background:var(--accent);box-shadow:0 0 7px var(--glow)}
 body.serious .spark .b.today{background:linear-gradient(180deg,var(--accent),rgba(var(--accent-rgb),.28))}
@@ -917,7 +917,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
       <div class="tabs" id="tabs"></div>
       <select id="mnav" class="mnav" title="Ir para"><option value="inicio">Início</option><option value="chat">Conversa</option><option value="tasks">Tarefas</option><option value="exp">Gastos</option><option value="rem">Lembretes</option><option value="cal">Agenda</option><option value="mem">Memórias</option><option value="lnk">Links</option><option value="hab">Hábitos</option><option value="jou">Diário</option><option value="sub">Assinaturas</option><option value="orc">Orçamentos</option><option value="mon">Monitores</option><option value="act">Histórico</option><option value="kb">Base</option><option value="map">Mapa</option><option value="brain">Cérebro</option><option value="graf">Gráficos</option><option value="musica">Música</option><option value="clima">Clima</option><option value="metas">Metas</option><option value="saude">Saúde</option><option value="cofre">Cofre</option><option value="painel">Painel</option></select>
       <span class="eyebrow" id="scope">geral</span>
-      <span class="mm-badge" id="mm-badge" title="Modo morte súbita ativo — clique pra desligar"><i data-lucide="skull"></i>MORTE SÚBITA</span>
+      <span class="mm-badge" id="mm-badge" title="Modo foco ativo — clique pra desligar"><i data-lucide="skull"></i>MODO FOCO</span>
       <button class="tbtn ico" id="gsearch" title="Buscar em tudo"><i data-lucide="search"></i></button>
       <button class="tbtn ic-txt" id="vcopen" title="Falar"><i data-lucide="mic"></i><span>FALAR</span></button>
       <button class="tbtn ic-txt" id="amb" title="Presença ambiente — escuta &quot;E.V. ...&quot; sempre"><i data-lucide="radio"></i><span>AMBIENTE</span></button>
@@ -1260,7 +1260,7 @@ const $=s=>document.querySelector(s), log=$('#log'), txt=$('#txt'), f=$('#f'), m
   vozBtn=$('#voz'), termBtn=$('#term'), stateEl=$('#state'), slash=$('#slash'), scopeEl=$('#scope');
 function setState(s){document.body.classList.remove('listening','thinking');if(s)document.body.classList.add(s);
   stateEl.textContent=s==='listening'?'ouvindo':s==='thinking'?'processando':'em espera';}
-// cor de acento viva (segue o modo morte súbita) — para superfícies em canvas/WebGL
+// cor de acento viva (segue o modo foco) — para superfícies em canvas/WebGL
 function ACC(){return (getComputedStyle(document.body).getPropertyValue('--accent')||'').trim()||'#35c8ff';}
 function ACCN(a){return 'rgba('+((getComputedStyle(document.body).getPropertyValue('--accent-rgb')||'').trim()||'53,200,255')+','+a+')';}
 function _idleLabel(){if(stateEl)stateEl.textContent=(_hf||_ambient||_convo)?'ouvindo':'em espera';}
@@ -1445,7 +1445,7 @@ function revealReply(box,text){
   },26);
 }
 // canal único de voz: SEMPRE para o áudio anterior antes de tocar o novo,
-// pra E.V. nunca falar por cima de si mesma (saudação, TTS, modo morte súbita…).
+// pra E.V. nunca falar por cima de si mesma (saudação, TTS, modo foco…).
 let _speakSeq=0;
 function playVoice(url){if(!_audio)_audio=new Audio();
   try{_audio.pause();_audio.currentTime=0;}catch(e){}
@@ -1516,7 +1516,7 @@ f.onsubmit=e=>{e.preventDefault();if(slash.style.display==='block'&&slSel>=0){pi
     if(raw==='modo'||raw.startsWith('modo ')){
       const arg=raw.split(/\s+/)[1]||'';const on=arg==='off'?false:arg==='on'?true:!_serious;
       applySerious(on,true);fetch('/api/serious',{method:'POST',headers:H(),body:JSON.stringify({on})}).catch(()=>{});
-      sys(on?'Modo morte súbita ativado.':'Modo morte súbita desativado.');return;}
+      sys(on?'Modo foco ativado.':'Modo foco desativado.');return;}
     runCmd(m.slice(1));}
   else send(m);};
 
@@ -1540,7 +1540,7 @@ function applySerious(on,announce){on=!!on;document.body.classList.toggle('serio
   if(on===_serious)return;_serious=on;
   if(!announce)return;
   const fx=$('#serfx');if(fx){fx.classList.remove('sweep');void fx.offsetWidth;fx.classList.add('sweep');}
-  try{if(window.speak)speak(on?'Modo morte súbita ativado. Foco total.':'Modo morte súbita desativado. De volta ao normal.');}catch(e){}}
+  try{if(window.speak)speak(on?'Modo foco ativado. Foco total.':'Modo foco desativado. De volta ao normal.');}catch(e){}}
 function toggleSerious(){const on=!_serious;applySerious(on,true);
   fetch('/api/serious',{method:'POST',headers:H(),body:JSON.stringify({on})}).catch(()=>{});}
 {const mb=$('#mm-badge');if(mb)mb.onclick=()=>toggleSerious();}
@@ -1730,7 +1730,7 @@ function openMobileMenu(){const m=$('#modal');m.textContent='';const card=el('di
   row('plug-zap','Conectores de API',openConnectors);
   row('key-round','Chaves de API',openKeys);
   row('bell','Notificações',openNotifs);
-  row('flame','Modo morte súbita',toggleSerious);
+  row('flame','Modo foco',toggleSerious);
   row('cast','Ouvir na E.V. (controles no bloqueio)',()=>{
     if(!_spDevice){toast&&toast('Abra a Música uma vez e toque algo pra ativar o player da E.V. (precisa Premium).');return;}
     fetch('/api/spotify/transfer',{method:'POST',headers:H(),body:JSON.stringify({device_id:_spDevice})}).then(r=>r.json()).then(j=>{toast&&toast(j.ok?'Tocando pela E.V. — controles no bloqueio ativos.':'Não consegui transferir.');setTimeout(npTick,900);}).catch(()=>{});});
@@ -3052,7 +3052,7 @@ function filterRows(box,q){if(!box)return;q=(q||'').trim().toLowerCase();let cur
 [['tasks-search','tasklist'],['exp-search','explist'],['rem-search','remlist'],['mem-search','memlist'],['kb-search','kblist'],['lnk-search','lnklist'],['hab-search','hablist'],['jou-search','joulist'],['sub-search','sublist'],['orc-search','orclist'],['mon-search','monlist'],['act-search','actlist']].forEach(p=>{const inp=document.getElementById(p[0]);if(inp)inp.oninput=()=>filterRows(document.getElementById(p[1]),inp.value);});
 // command palette (Ctrl/Cmd+K)
 const CK=$('#cmdk'),CKI=$('#ck-input'),CKL=$('#ck-list');let ckItems=[],ckSel=0;
-function ckBuild(){const nav=[['Conversa',()=>switchView('chat')],['Tarefas',()=>switchView('tasks')],['Gastos',()=>switchView('exp')],['Lembretes',()=>switchView('rem')],['Agenda',()=>switchView('cal')],['Memórias',()=>switchView('mem')],['Links',()=>switchView('lnk')],['Hábitos',()=>switchView('hab')],['Diário',()=>switchView('jou')],['Assinaturas',()=>switchView('sub')],['Orçamentos',()=>switchView('orc')],['Monitores',()=>switchView('mon')],['Base',()=>switchView('kb')],['Cérebro',()=>switchView('brain')],['Pomodoro',()=>openPomo(25)],['Terminal de ação da E.V.',()=>openTerminal()],['Voz ao vivo',()=>$('#vcopen').click()],['Modo morte súbita (liga/desliga)',()=>toggleSerious()],['Chaves de API',()=>openKeys()]];
+function ckBuild(){const nav=[['Conversa',()=>switchView('chat')],['Tarefas',()=>switchView('tasks')],['Gastos',()=>switchView('exp')],['Lembretes',()=>switchView('rem')],['Agenda',()=>switchView('cal')],['Memórias',()=>switchView('mem')],['Links',()=>switchView('lnk')],['Hábitos',()=>switchView('hab')],['Diário',()=>switchView('jou')],['Assinaturas',()=>switchView('sub')],['Orçamentos',()=>switchView('orc')],['Monitores',()=>switchView('mon')],['Base',()=>switchView('kb')],['Cérebro',()=>switchView('brain')],['Pomodoro',()=>openPomo(25)],['Terminal de ação da E.V.',()=>openTerminal()],['Voz ao vivo',()=>$('#vcopen').click()],['Modo foco (liga/desliga)',()=>toggleSerious()],['Chaves de API',()=>openKeys()]];
   return nav.map(n=>({k:'ir',label:n[0],desc:'abrir',run:n[1]})).concat((COMMANDS||[]).map(c=>({k:'/'+c.name,label:c.name,desc:c.desc,run:()=>runCmd(c.name)})));}
 let _ckSeq=0;
 function ckRender(q){ckItems=ckBuild().filter(i=>(i.label+' '+i.k+' '+i.desc).toLowerCase().includes((q||'').toLowerCase())).slice(0,40);ckSel=0;CKL.textContent='';
@@ -4604,7 +4604,7 @@ def create_app(config: Config, brain: Brain | None = None):
         except Exception:
             return datetime.now(_tz.utc).date().isoformat()
 
-    # --- modo morte súbita (alerta vermelho) --------------------------------------
+    # --- modo foco (alerta vermelho) --------------------------------------
     @app.post("/api/serious")
     async def serious_set(request: Request):
         _check(request.headers.get("authorization"))
