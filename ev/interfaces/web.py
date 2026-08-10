@@ -416,6 +416,26 @@ body.speaking .bigcore .r2{animation-delay:.15s}body.speaking .bigcore .r3{anima
 .npm-top{display:flex;align-items:center;gap:11px}
 #npm-bar{height:6px;border-radius:4px;background:var(--elev);cursor:pointer;position:relative;overflow:hidden;flex:none}
 #npm-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),#5ee6a3);border-radius:4px;pointer-events:none}
+/* --- Terminal de ação da E.V. (janela flutuante, movível/redimensionável, SÓ DESKTOP) --- */
+.eterm{position:fixed;z-index:45;width:520px;height:360px;min-width:320px;min-height:220px;max-width:96vw;max-height:88vh;
+  display:flex;flex-direction:column;overflow:hidden;resize:both;font-family:var(--mono);
+  background:linear-gradient(180deg,rgba(10,16,24,.97),rgba(6,10,16,.98));
+  border:1px solid var(--line-2);border-radius:12px;box-shadow:0 30px 80px -30px #000,0 0 40px -26px var(--glow)}
+.eterm .et-head{display:flex;align-items:center;gap:7px;padding:8px 10px;border-bottom:1px solid var(--line);cursor:grab;background:rgba(var(--accent-rgb),.06);flex:none}
+.eterm .et-head svg{width:14px;height:14px;color:var(--accent)}
+.eterm .et-title{font-size:11px;letter-spacing:.12em;color:var(--accent);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.eterm .et-head button{width:26px;height:26px;border-radius:7px;border:1px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;display:grid;place-items:center;flex:none}
+.eterm .et-head button:hover{color:var(--accent);border-color:var(--accent)}.eterm .et-head button svg{width:12px;height:12px;color:inherit}
+.eterm .et-body{flex:1;min-height:0;overflow:auto;padding:12px 13px;font-size:12.5px;line-height:1.55;color:#cfe3f2;white-space:pre-wrap;word-break:break-word}
+.eterm .et-line{padding:1px 0}
+.eterm .et-user{color:#eaf4fb}.eterm .et-think{color:var(--muted)}
+.eterm .et-act{color:var(--accent)}.eterm .et-act b{color:#eaf4fb;font-weight:600}
+.eterm .et-res{color:#dfeaf5;margin-top:5px}.eterm .et-err{color:#ff6b6b}
+.eterm .et-form{display:flex;gap:7px;padding:9px 10px;border-top:1px solid var(--line);flex:none}
+.eterm .et-form input{flex:1;min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:8px;color:#eaf4fb;padding:8px 10px;font-family:var(--mono);font-size:12.5px}
+.eterm .et-form input:focus{outline:none;border-color:var(--accent)}
+.eterm .et-form button{background:var(--accent);border:0;border-radius:8px;color:#04121e;padding:0 13px;cursor:pointer;font-weight:700}
+@media(max-width:760px){.eterm{display:none !important}}
 #npm-art{width:44px;height:44px;border-radius:9px;object-fit:cover;flex:none;background:var(--elev)}
 .npm-i{min-width:0;flex:1;cursor:pointer}
 .npm-t{font-size:13px;color:#eaf4fb;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px}
@@ -1121,6 +1141,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
     <button class="act" id="btn-voice" style="margin-top:12px;width:100%"><i data-lucide="mic-vocal"></i>Voz da E.V.</button>
     <button class="act" id="btn-conn" style="margin-top:8px;width:100%"><i data-lucide="plug-zap"></i>Conectores de API</button>
     <button class="act" id="btn-keys" style="margin-top:8px;width:100%"><i data-lucide="key-round"></i>Chaves de API</button>
+    <button class="act" id="btn-term" style="margin-top:8px;width:100%"><i data-lucide="square-terminal"></i>Terminal de ação</button>
     <button class="act" id="btn-notifs" style="margin-top:8px;width:100%"><i data-lucide="bell"></i>Notificações<span id="notif-badge" class="nbadge"></span></button>
   </aside>
 </div>
@@ -1632,6 +1653,44 @@ async function openNotifs(){const m=$('#modal');m.textContent='';const card=el('
   bar.appendChild(rd);bar.appendChild(cl);bar.appendChild(ok);card.appendChild(bar);
   m.appendChild(card);m.classList.add('on');refresh();}
 $('#btn-notifs').onclick=openNotifs;
+// --- Terminal de ação da E.V. (janela flutuante; multi; interromper) — só desktop ---
+let _etSeq=0,_etN=0;
+function openTerminal(prompt){
+  const w=el('div','eterm');const id=++_etSeq;
+  w.style.left=Math.max(8,Math.min(innerWidth-540,120+(_etN%4)*36))+'px';w.style.top=(84+(_etN%4)*30)+'px';_etN++;
+  const head=el('div','et-head');head.appendChild(ficon('square-terminal'));
+  head.appendChild(el('div','et-title','E.V. // terminal '+id));
+  const mk=(icon,title,fn)=>{const b=document.createElement('button');b.title=title;b.appendChild(ficon(icon));b.onclick=e=>{e.stopPropagation();fn();};head.appendChild(b);return b;};
+  mk('plus','Novo terminal',()=>openTerminal());
+  mk('square','Interromper',()=>{if(w._abort)w._abort.abort();});
+  mk('x','Fechar',()=>{if(w._abort)w._abort.abort();w.remove();});
+  w.appendChild(head);
+  const body=el('div','et-body');w.appendChild(body);
+  const form=el('form','et-form');const inp=document.createElement('input');inp.placeholder='pedir algo à E.V…';
+  const snd=document.createElement('button');snd.type='submit';snd.textContent='▸';form.appendChild(inp);form.appendChild(snd);w.appendChild(form);
+  form.onsubmit=e=>{e.preventDefault();const v=inp.value.trim();if(!v||w._abort)return;inp.value='';etRun(w,body,v);};
+  document.body.appendChild(w);etDraggable(w,head);window.lucide&&lucide.createIcons();
+  if(prompt){etRun(w,body,prompt);}else setTimeout(()=>inp.focus(),30);
+  return w;}
+function etLine(body,cls,text){const d=el('div','et-line '+(cls||''));if(text!=null)d.textContent=text;body.appendChild(d);body.scrollTop=body.scrollHeight;return d;}
+async function etRun(w,body,prompt){
+  etLine(body,'et-user','❯ '+prompt);const think=etLine(body,'et-think','▸ pensando…');
+  const ac=new AbortController();w._abort=ac;
+  try{
+    const r=await fetch('/api/chat',{method:'POST',headers:H(),body:JSON.stringify({message:prompt,thread}),signal:ac.signal});
+    const j=await r.json();think.remove();
+    for(const s of (j.steps||[])){await new Promise(rz=>setTimeout(rz,200));if(ac.signal.aborted)break;
+      const args=Object.entries(s.args||{}).map(([k,v])=>k+'='+(typeof v==='string'?'"'+v+'"':JSON.stringify(v))).join(', ');
+      const ln=etLine(body,'et-act','▸ ');const b=document.createElement('b');b.textContent=s.tool;ln.appendChild(b);
+      ln.appendChild(document.createTextNode('('+args+')'+(s.result?'  ✓':'')));body.scrollTop=body.scrollHeight;}
+    etLine(body,'et-res','◇ '+(j.reply||'…'));try{speak(j.reply);}catch(e){}loadPanel();
+  }catch(e){think.remove();etLine(body,'et-err',ac.signal.aborted?'■ interrompido.':'erro: '+e);}
+  finally{w._abort=null;}}
+function etDraggable(w,handle){let sx,sy,ox,oy,drag=false;
+  handle.addEventListener('pointerdown',e=>{if(e.target.closest('button'))return;const r=w.getBoundingClientRect();drag=true;sx=e.clientX;sy=e.clientY;ox=r.left;oy=r.top;handle.style.cursor='grabbing';try{handle.setPointerCapture(e.pointerId);}catch(_){}});
+  handle.addEventListener('pointermove',e=>{if(!drag)return;w.style.left=Math.max(4,Math.min(innerWidth-90,ox+e.clientX-sx))+'px';w.style.top=Math.max(4,Math.min(innerHeight-40,oy+e.clientY-sy))+'px';});
+  const end=()=>{drag=false;handle.style.cursor='grab';};handle.addEventListener('pointerup',end);handle.addEventListener('pointercancel',end);}
+const _btnTerm=$('#btn-term');if(_btnTerm)_btnTerm.onclick=()=>openTerminal();
 // Menu mobile (abre pelo botão "Mais" da barra de baixo) — substitui as barras laterais no celular
 function openMobileMenu(){const m=$('#modal');m.textContent='';const card=el('div','mcard');
   card.appendChild(el('div','mtitle','Menu'));
@@ -2920,7 +2979,7 @@ function filterRows(box,q){if(!box)return;q=(q||'').trim().toLowerCase();let cur
 [['tasks-search','tasklist'],['exp-search','explist'],['rem-search','remlist'],['mem-search','memlist'],['kb-search','kblist'],['lnk-search','lnklist'],['hab-search','hablist'],['jou-search','joulist'],['sub-search','sublist'],['orc-search','orclist'],['mon-search','monlist'],['act-search','actlist']].forEach(p=>{const inp=document.getElementById(p[0]);if(inp)inp.oninput=()=>filterRows(document.getElementById(p[1]),inp.value);});
 // command palette (Ctrl/Cmd+K)
 const CK=$('#cmdk'),CKI=$('#ck-input'),CKL=$('#ck-list');let ckItems=[],ckSel=0;
-function ckBuild(){const nav=[['Conversa',()=>switchView('chat')],['Tarefas',()=>switchView('tasks')],['Gastos',()=>switchView('exp')],['Lembretes',()=>switchView('rem')],['Agenda',()=>switchView('cal')],['Memórias',()=>switchView('mem')],['Links',()=>switchView('lnk')],['Hábitos',()=>switchView('hab')],['Diário',()=>switchView('jou')],['Assinaturas',()=>switchView('sub')],['Orçamentos',()=>switchView('orc')],['Monitores',()=>switchView('mon')],['Base',()=>switchView('kb')],['Cérebro',()=>switchView('brain')],['Pomodoro',()=>openPomo(25)],['Voz ao vivo',()=>$('#vcopen').click()],['Modo morte súbita (liga/desliga)',()=>toggleSerious()],['Chaves de API',()=>openKeys()]];
+function ckBuild(){const nav=[['Conversa',()=>switchView('chat')],['Tarefas',()=>switchView('tasks')],['Gastos',()=>switchView('exp')],['Lembretes',()=>switchView('rem')],['Agenda',()=>switchView('cal')],['Memórias',()=>switchView('mem')],['Links',()=>switchView('lnk')],['Hábitos',()=>switchView('hab')],['Diário',()=>switchView('jou')],['Assinaturas',()=>switchView('sub')],['Orçamentos',()=>switchView('orc')],['Monitores',()=>switchView('mon')],['Base',()=>switchView('kb')],['Cérebro',()=>switchView('brain')],['Pomodoro',()=>openPomo(25)],['Terminal de ação da E.V.',()=>openTerminal()],['Voz ao vivo',()=>$('#vcopen').click()],['Modo morte súbita (liga/desliga)',()=>toggleSerious()],['Chaves de API',()=>openKeys()]];
   return nav.map(n=>({k:'ir',label:n[0],desc:'abrir',run:n[1]})).concat((COMMANDS||[]).map(c=>({k:'/'+c.name,label:c.name,desc:c.desc,run:()=>runCmd(c.name)})));}
 function ckRender(q){ckItems=ckBuild().filter(i=>(i.label+' '+i.k+' '+i.desc).toLowerCase().includes((q||'').toLowerCase())).slice(0,40);ckSel=0;CKL.textContent='';
   ckItems.forEach((i,ix)=>{const r=el('div','ck-item'+(ix===0?' sel':''));r.appendChild(el('span','ck-k',i.k));r.appendChild(el('span','',i.label));r.appendChild(el('span','ck-d',i.desc||''));r.onclick=()=>{ckClose();i.run();};CKL.appendChild(r);});}
@@ -3633,7 +3692,8 @@ def create_app(config: Config, brain: Brain | None = None):
         reply = await brain.respond(owner, conv_id=_conv(data.get("thread")), text=text)
         brain.pop_documents()
         brain.pop_actions()
-        return {"reply": reply}
+        steps = brain.pop_steps() if hasattr(brain, "pop_steps") else []
+        return {"reply": reply, "steps": steps}
 
     @app.post("/api/chat/stream")
     async def chat_stream(request: Request):

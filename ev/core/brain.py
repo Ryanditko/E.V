@@ -72,6 +72,14 @@ class Brain:
         # Interface-level commands the LLM requested (foco, exportar, status...).
         # The interface drains these after respond() and runs them with chat context.
         self._last_actions: list[dict] = []
+        # Tool calls made during the last turn (for the live "terminal" view).
+        self._last_steps: list[dict] = []
+
+    def pop_steps(self) -> list[dict]:
+        """Return and clear the tool-call steps of the last turn (para o terminal).
+        Cada item: {tool, args, result}."""
+        st, self._last_steps = self._last_steps, []
+        return st
 
     def pop_documents(self) -> list[dict]:
         """Return and clear the documents generated during the last turn.
@@ -365,6 +373,7 @@ class Brain:
     ) -> str:
         self._last_documents = []  # fresh per turn; interface drains after respond()
         self._last_actions = []
+        self._last_steps = []
         # Semantic recall uses the text query; audio/image-through-Gemini has none yet.
         system_instruction = self._system_instruction(user_id, text)
         if text is not None:
@@ -1313,10 +1322,16 @@ class Brain:
                     if fc:
                         log.info("[gemini-afc] chamou %s args=%s", fc.name,
                                  dict(fc.args or {}))
+                        self._last_steps.append({"tool": fc.name,
+                                                 "args": dict(fc.args or {})})
                     fr = getattr(part, "function_response", None)
                     if fr:
-                        log.info("[gemini-afc] resultado %s: %s", fr.name,
-                                 str(getattr(fr, "response", ""))[:160])
+                        res = str(getattr(fr, "response", ""))[:200]
+                        log.info("[gemini-afc] resultado %s: %s", fr.name, res)
+                        for s in reversed(self._last_steps):   # anexa ao passo correspondente
+                            if s.get("tool") == fr.name and "result" not in s:
+                                s["result"] = res
+                                break
         except Exception:
             pass
         return (response.text or "").strip() or "…"
