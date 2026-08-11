@@ -407,7 +407,14 @@ body.serious .mm-badge{display:flex}
   body.hide-left.hide-right #app{grid-template-columns:1fr}
 }
 .tabs{display:flex;gap:3px;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:3px 3px 7px;overflow-x:auto;scrollbar-width:thin;scrollbar-color:rgba(var(--accent-rgb),.55) transparent;min-width:0;flex:0 1 auto}
-.mnav{display:none;background:var(--surface);border:1px solid var(--line);border-radius:10px;color:var(--fg);font:inherit;font-size:14px;padding:10px 12px;font-family:var(--mono);cursor:pointer}
+.mnav{display:none;background:var(--surface);border:1px solid var(--line);border-radius:10px;color:var(--fg);font:inherit;font-size:14px;padding:10px 12px;font-family:var(--mono);cursor:pointer;align-items:center;justify-content:space-between;gap:8px}
+.mnav i{width:15px;height:15px;opacity:.6;flex:none}
+.msheet-label{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);opacity:.6;margin:14px 0 4px;padding:0 2px}
+.msheet-label:first-child{margin-top:2px}
+.msheet-row{display:flex;align-items:center;gap:11px;width:100%;text-align:left;background:transparent;border:none;color:var(--fg);font:inherit;font-size:14px;padding:10px 8px;border-radius:9px;cursor:pointer}
+.msheet-row:hover,.msheet-row.on{background:var(--surface)}
+.msheet-row.on{color:var(--accent)}
+.msheet-row i{width:17px;height:17px;flex:none;opacity:.8}
 /* visible horizontal scrollbar — all sections stay reachable by scrolling
    the strip instead of having to hide/remove tabs for space. */
 .tabs::-webkit-scrollbar{height:6px}
@@ -483,7 +490,7 @@ body.serious #serfx{opacity:1;box-shadow:inset 0 0 150px -50px rgba(255,45,55,.6
 @media(max-width:760px){
   .tabs{display:none}
   .tabs-nav{display:none}
-  .mnav{display:block;flex:1 1 auto;min-width:60px}
+  .mnav{display:flex;flex:1 1 auto;min-width:60px}
   /* declutter the phone header so the folder/panel toggles never get clipped
      (keep Terminal available on mobile; only drop search + clean-mode) */
   #gsearch,#tgl-zen,#amb,#sfx{display:none}
@@ -519,6 +526,8 @@ body.serious #serfx{opacity:1;box-shadow:inset 0 0 150px -50px rgba(255,45,55,.6
 .tab{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--muted);border:none;background:transparent;border-radius:8px;padding:7px 13px;cursor:pointer;white-space:nowrap}
 .tab-edit{opacity:.5;font-size:14px;padding:6px 11px}.tab-edit:hover{opacity:1;color:var(--fg)}
 .tab.on{background:var(--fg);color:var(--ink)}
+.tab-group-label{flex:none;align-self:center;font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);opacity:.45;padding:0 6px 0 9px;white-space:nowrap;pointer-events:none;border-left:1px solid var(--line);margin-left:2px}
+.tab-group-label:first-child{border-left:none;margin-left:0;padding-left:2px}
 /* click-to-scroll arrows for the tab strip — a scrollbar affordance that
    doesn't depend on the browser/OS's own (often near-invisible) scrollbar
    rendering. Shown/hidden and enabled/disabled from JS based on scroll pos. */
@@ -934,7 +943,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
       <button class="tbtn ico tabs-nav" id="tabs-prev" title="Rolar abas pra esquerda"><i data-lucide="chevron-left"></i></button>
       <div class="tabs" id="tabs"></div>
       <button class="tbtn ico tabs-nav" id="tabs-next" title="Rolar abas pra direita"><i data-lucide="chevron-right"></i></button>
-      <select id="mnav" class="mnav" title="Ir para"><option value="inicio">Início</option><option value="chat">Conversa</option><option value="tasks">Tarefas</option><option value="exp">Gastos</option><option value="rem">Lembretes</option><option value="cal">Agenda</option><option value="mem">Memórias</option><option value="lnk">Links</option><option value="hab">Hábitos</option><option value="jou">Diário</option><option value="sub">Assinaturas</option><option value="orc">Orçamentos</option><option value="mon">Monitores</option><option value="act">Histórico</option><option value="kb">Base</option><option value="map">Mapa</option><option value="brain">Cérebro</option><option value="graf">Gráficos</option><option value="musica">Música</option><option value="clima">Clima</option><option value="metas">Metas</option><option value="saude">Saúde</option><option value="cofre">Cofre</option><option value="painel">Painel</option></select>
+      <button id="mnav" class="mnav" type="button" title="Ir para"><span id="mnav-lbl">Início</span><i data-lucide="chevron-down"></i></button>
       <span class="eyebrow" id="scope">geral</span>
       <span class="mm-badge" id="mm-badge" title="Modo foco ativo — clique pra desligar"><i data-lucide="skull"></i>MODO FOCO</span>
       <button class="tbtn ico" id="gsearch" title="Buscar em tudo"><i data-lucide="search"></i></button>
@@ -2086,12 +2095,17 @@ $('#amb').onclick=toggleAmb;
 renderAmbBtn();
 // view tabs — customizable: pick which appear in the header (minimalist)
 const VIEW_LABELS={chat:'Conversa',inicio:'Início',tasks:'Tarefas',exp:'Gastos',rem:'Lembretes',cal:'Agenda',mem:'Memórias',lnk:'Links',hab:'Hábitos',jou:'Diário',sub:'Assinaturas',orc:'Orçamentos',mon:'Monitores',act:'Histórico',kb:'Base',map:'Mapa',brain:'Cérebro',graf:'Gráficos',musica:'Música',clima:'Clima',metas:'Metas',saude:'Saúde',cofre:'Cofre',painel:'Painel'};
+// groups only drive tab ORDER + subtle separators in the topbar strip — tabsShown still controls visibility
+const VIEW_GROUPS=[['Principal',['chat','inicio']],['Produtividade',['tasks','rem','cal','hab','jou','metas','saude']],['Financeiro',['exp','sub','orc','cofre']],['Conhecimento',['mem','lnk','kb','brain','act']],['Explorar',['map','graf','musica','clima','mon','painel']]];
+const VIEW_ICONS={chat:'message-square',inicio:'layout-dashboard',tasks:'list-checks',exp:'wallet',rem:'alarm-clock',cal:'calendar',mem:'database',lnk:'link',hab:'repeat',jou:'book-open',sub:'credit-card',orc:'pie-chart',mon:'radar',act:'activity',kb:'library',map:'map',brain:'brain',graf:'bar-chart-3',musica:'music',clima:'cloud-sun',metas:'target',saude:'heart-pulse',cofre:'lock',painel:'layout-panel-top'};
 let curView='chat',tabsShown;try{tabsShown=JSON.parse(localStorage.getItem('ev_tabs'));}catch(e){}
 // default to every section — the tab strip scrolls horizontally, so nothing
 // needs to be hidden just to make room; "+" still lets you trim it down.
 if(!Array.isArray(tabsShown)||!tabsShown.length)tabsShown=Object.keys(VIEW_LABELS);
 function renderTabs(){const box=$('#tabs');if(!box)return;box.textContent='';
-  tabsShown.forEach(v=>{if(!VIEW_LABELS[v])return;const b=el('button','tab'+(v===curView?' on':''),VIEW_LABELS[v]);b.dataset.view=v;b.onclick=()=>switchView(v);box.appendChild(b);});
+  VIEW_GROUPS.forEach(g=>{const vis=g[1].filter(v=>tabsShown.includes(v)&&VIEW_LABELS[v]);if(!vis.length)return;
+    box.appendChild(el('span','tab-group-label',g[0]));
+    vis.forEach(v=>{const b=el('button','tab'+(v===curView?' on':''),VIEW_LABELS[v]);b.dataset.view=v;b.onclick=()=>switchView(v);box.appendChild(b);});});
   const ed=el('button','tab tab-edit','+');ed.title='Escolher abas';ed.onclick=()=>openPicker('Abas do topo','Escolha quais abas aparecem no topo.',Object.keys(VIEW_LABELS).map(k=>({key:k,label:VIEW_LABELS[k]})),tabsShown,l=>{tabsShown=l.length?l:['chat'];localStorage.setItem('ev_tabs',JSON.stringify(tabsShown));renderTabs();});box.appendChild(ed);
   updateTabsNav();}
 // click-to-scroll arrows: shown only while the strip actually overflows,
@@ -2105,13 +2119,21 @@ function updateTabsNav(){const box=$('#tabs'),prev=$('#tabs-prev'),next=$('#tabs
   next.onclick=()=>box.scrollBy({left:240,behavior:'smooth'});
   box.addEventListener('scroll',updateTabsNav);window.addEventListener('resize',updateTabsNav);})();
 renderTabs();
-$('#mnav').onchange=()=>switchView($('#mnav').value);
+function openSectionsSheet(){const m=$('#modal');m.textContent='';const card=el('div','mcard');
+  card.appendChild(el('div','mtitle','Ir para'));
+  VIEW_GROUPS.forEach(g=>{const vis=g[1].filter(v=>VIEW_LABELS[v]);if(!vis.length)return;
+    card.appendChild(el('div','msheet-label',g[0]));
+    vis.forEach(v=>{const b=el('button','msheet-row'+(v===curView?' on':''));b.appendChild(ficon(VIEW_ICONS[v]||'circle'));b.appendChild(document.createTextNode(VIEW_LABELS[v]));
+      b.onclick=()=>{m.classList.remove('on');switchView(v);};card.appendChild(b);});});
+  const bar=el('div','mbar');const c=el('button','mbtn2','Fechar');c.onclick=()=>m.classList.remove('on');bar.appendChild(c);card.appendChild(bar);
+  m.appendChild(card);m.classList.add('on');window.lucide&&lucide.createIcons();}
+$('#mnav').onclick=()=>openSectionsSheet();
 const VIEWS={chat:'#chatview',inicio:'#inicioview',tasks:'#taskview',exp:'#expview',rem:'#remview',cal:'#calview',mem:'#memview',lnk:'#lnkview',hab:'#habview',jou:'#jouview',sub:'#subview',orc:'#orcview',mon:'#monview',kb:'#kbview',act:'#actview',map:'#mapview',brain:'#brainview',graf:'#chartsview',musica:'#musicview',clima:'#climaview',metas:'#metasview',saude:'#saudeview',cofre:'#cofreview',painel:'#painelview'};
 function switchView(v){const isPage=(''+v).indexOf('page:')===0;
   if(!isPage&&!VIEWS[v])v='chat';curView=v;document.querySelectorAll('#tabs .tab').forEach(t=>t.classList.toggle('on',t.dataset.view===v));
   document.body.classList.toggle('v-chat',v==='chat');
   document.querySelectorAll('#bnav button[data-view]').forEach(bb=>bb.classList.toggle('on',bb.dataset.view===v));
-  const mn=$('#mnav');if(mn&&!isPage&&mn.value!==v)mn.value=v;
+  const mnl=$('#mnav-lbl');if(mnl&&!isPage&&VIEW_LABELS[v])mnl.textContent=VIEW_LABELS[v];
   document.body.classList.remove('m-left','m-right');
   Object.entries(VIEWS).forEach(([k,sel])=>{const el2=$(sel);if(el2)el2.style.display=(k===v)?((k==='chat'||k==='brain')?'flex':'block'):'none';});
   const pv=$('#pageview');if(pv)pv.style.display=isPage?'block':'none';
@@ -2239,7 +2261,7 @@ async function loadInicio(){
   // ---- Lembretes (concluir inline + novo) ----
   const rt=ovTile('sp4','alarm-clock','Lembretes','rem');
   if(o.reminders.items.length){o.reminders.items.forEach(r=>{const row=el('div','ov-task');const ck=el('div','ck');ck.appendChild(ficon('check'));ck.title='concluir';
-      ck.onclick=async()=>{row.classList.add('done');sfx('click');await fetch('/api/reminders/delete',{method:'POST',headers:H(),body:JSON.stringify({id:r.id})});setTimeout(loadInicio,340);};
+      ck.onclick=()=>{row.classList.add('done');sfx('click');setTimeout(()=>delU('/api/reminders/delete',{id:r.id},'/api/reminders',{text:r.text,when:r.when||'',recur:r.recur||''},loadInicio,'Lembrete'),340);};
       row.appendChild(ck);row.appendChild(el('div','tx',r.text));
       if(r.when){const d=new Date(r.when);if(!isNaN(d))row.appendChild(el('div','when',d.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})));}
       rt.appendChild(row);});}
@@ -2929,7 +2951,7 @@ function calEdit(r){const ds=r.when_iso.slice(0,10),tm=r.when_iso.slice(11,16)||
     {key:'time',label:'Hora',value:tm},
     {key:'recur',label:'Repetir',select:RECUR,value:r.recur||''}],
   async v=>{if(!v.text)return;await fetch('/api/reminders/update',{method:'POST',headers:H(),body:JSON.stringify({id:r.id,text:v.text,when:(v.date||ds)+'T'+(v.time||'09:00'),recur:v.recur})});loadCal();loadRem();loadPanel();},
-  async()=>{if(await confirmDialog('Apagar este evento?')){await fetch('/api/reminders/delete',{method:'POST',headers:H(),body:JSON.stringify({id:r.id})});loadCal();loadRem();loadPanel();}});}
+  ()=>delU('/api/reminders/delete',{id:r.id},'/api/reminders',{text:r.text,when:r.when_iso,recur:r.recur||''},()=>{loadCal();loadRem();loadPanel();},'Evento'));}
 function calList(ds,list){const m=$('#modal');m.textContent='';const card=el('div','mcard');
   card.appendChild(el('div','mtitle','Eventos · '+calFmtDay(ds)));
   list.forEach(r=>{const row=el('label','mrow');row.style.cursor='pointer';
@@ -3514,7 +3536,9 @@ async function startApp(){try{COMMANDS=(await (await fetch('/api/commands',{head
   scopeEl.textContent='Conversa · '+thread;await loadFolders();await loadHistory();await loadConfig();loadPanel();loadPages();
   initPWA();startPoll();startEvents();startNpPoll();try{spInitSDK();}catch(e){}window.lucide&&lucide.createIcons();
   switchView('inicio');}   // abre no painel de uso (Início)
-function enter(){$('#login').classList.remove('on');startApp();welcome();}
+function enter(){$('#login').classList.remove('on');startApp();
+  // boot overlay + spoken briefing only once per browser tab — reloading shouldn't replay it
+  if(!sessionStorage.getItem('ev_welcomed')){sessionStorage.setItem('ev_welcomed','1');welcome();}}
 async function doLogin(){const inp=$('#login-token');const tok=((inp&&inp.value.trim())||token);if(!tok){$('#login-err').textContent='Informe o token.';if(inp)inp.style.display='block';return;}
   $('#login-err').textContent='verificando...';if(!(await validate(tok))){$('#login-err').textContent='Token inválido.';token='';localStorage.removeItem('ev_token');if(inp)inp.style.display='block';return;}
   token=tok;localStorage.setItem('ev_token',tok);enter();}

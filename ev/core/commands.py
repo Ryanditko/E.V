@@ -1070,7 +1070,8 @@ class Commands:
                       "items": [{"id": t["id"], "text": t["text"]} for t in tasks[:5]]},
             "reminders": {"count": len(rems),
                           "items": [{"id": r["id"], "text": r["text"],
-                                     "when": r.get("when_iso") or r.get("when") or ""}
+                                     "when": r.get("when_iso") or r.get("when") or "",
+                                     "recur": r.get("recur") or ""}
                                     for r in rems[:4]]},
             "expenses": {"total": round(sum(e["amount"] or 0 for e in exps), 2),
                          "top": top, "label": label, "day": exp_day},
