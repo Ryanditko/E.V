@@ -629,12 +629,14 @@ body.serious #serfx{opacity:1;box-shadow:inset 0 0 150px -50px rgba(255,45,55,.6
 .cf-row{display:flex;align-items:center;gap:12px;padding:11px 14px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;background:var(--surface);max-width:720px}
 .cf-row .n{flex:1}.cf-row .sz{font-family:var(--mono);font-size:11px;color:var(--subtle)}
 #wx-body{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;align-items:start;max-width:1500px}
-.wx-cur{grid-column:1/-1;display:flex;align-items:center;gap:24px;border:1px solid var(--line-2);border-radius:18px;padding:26px 30px;background:linear-gradient(150deg,rgba(24,44,68,.6),rgba(10,20,32,.5));box-shadow:0 0 44px -22px var(--glow)}
+.wx-cur{grid-column:1/-1;display:flex;align-items:center;gap:24px;border:1px solid var(--line-2);border-radius:18px;padding:26px 30px;background:linear-gradient(150deg,rgba(24,44,68,.6),rgba(10,20,32,.5));box-shadow:0 0 44px -22px var(--glow);min-width:0}
+.wx-cur .ic{flex:none}
 .wx-cur .ic svg{width:80px;height:80px;color:var(--accent);filter:drop-shadow(0 0 14px var(--glow))}
+.wx-info{flex:1;min-width:0}
 .wx-loc{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--subtle)}
 .wx-temp{font-family:var(--disp);font-size:72px;line-height:1;color:#eaf4fb;text-shadow:0 0 22px rgba(var(--accent-rgb),.3)}
-.wx-desc{color:var(--fg);margin-top:2px;font-size:17px}.wx-hl{color:var(--muted);font-family:var(--mono);font-size:12px;margin-top:5px}
-.wx-card{border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:14px 16px}
+.wx-desc{color:var(--fg);margin-top:2px;font-size:17px;overflow-wrap:anywhere}.wx-hl{color:var(--muted);font-family:var(--mono);font-size:12px;margin-top:5px;overflow-wrap:anywhere}
+.wx-card{border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:14px 16px;min-width:0}
 .wx-card.wide{grid-column:1/-1}.wx-card.span2{grid-column:span 2}
 .wx-ct{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--subtle);margin-bottom:10px;display:flex;align-items:center;gap:6px}
 .wx-ct svg{width:13px;height:13px}
@@ -655,6 +657,24 @@ body.serious #serfx{opacity:1;box-shadow:inset 0 0 150px -50px rgba(255,45,55,.6
 .wx-compass{width:64px;height:64px;border-radius:50%;border:1px solid var(--line-2);position:relative;margin-top:4px}
 .wx-compass .nd{position:absolute;top:2px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--subtle)}
 .wx-compass .ar{position:absolute;top:50%;left:50%;width:2px;height:26px;background:var(--accent);transform-origin:bottom center;box-shadow:0 0 6px var(--glow)}
+@media(max-width:600px){
+  /* the desktop sizing (80px icon, 72px temp, fixed 220px grid columns) doesn't
+     scale down on phones — force a single column and shrink everything to fit */
+  #wx-body{grid-template-columns:1fr;gap:10px}
+  .wx-card.wide,.wx-card.span2{grid-column:1/-1}
+  .wx-cur{flex-wrap:wrap;gap:14px;padding:18px 16px}
+  .wx-cur .ic svg{width:52px;height:52px}
+  .wx-temp{font-size:44px}
+  .wx-desc{font-size:15px}
+  .wx-hl{font-size:11px}
+  .wx-h{width:56px}
+  .wx-h svg{width:18px;height:18px;margin:4px 0}
+  .wx-d{gap:8px}
+  .wx-d .dn{width:40px;font-size:13px}
+  .wx-d .mn,.wx-d .mx{width:30px;font-size:12px}
+  .wx-m .big{font-size:26px}
+  .wx-compass{width:52px;height:52px}
+}
 #mu-player{max-width:760px;margin-bottom:16px}
 #mu-player iframe{width:100%;height:352px;border:0;border-radius:14px;box-shadow:0 0 30px -18px var(--glow)}
 #mu-player.compact iframe{height:152px}
@@ -2393,7 +2413,7 @@ async function loadClima(){const body=$('#wx-body');if(!body)return;
   const ct=(ic,title)=>{const t=el('div','wx-ct');t.appendChild(ficon(ic));t.appendChild(document.createTextNode(title));return t;};
   // current (full width)
   const cur=el('div','wx-cur');const ic=el('div','ic');ic.appendChild(ficon(C.icon));cur.appendChild(ic);
-  const info=el('div','');info.style.flex='1';
+  const info=el('div','wx-info');
   info.appendChild(el('div','wx-loc',d.location));info.appendChild(el('div','wx-temp',C.temp+'°'));
   info.appendChild(el('div','wx-desc',C.desc));
   info.appendChild(el('div','wx-hl','sensação '+C.feels+'°  ·  máx '+C.high+'°  mín '+C.low+'°'));
