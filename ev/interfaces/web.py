@@ -23,31 +23,24 @@ log = logging.getLogger("ev.web")
 _DEFAULT_FOLDERS = ["geral", "work", "university", "personal"]
 
 # Monochrome "core" mark — the E.V. identity, as an inline SVG favicon.
+# Single arc-reactor design, shared 1:1 with the PIL-rendered PNG in _icon_png()
+# below so the browser-tab favicon and the installed app icon always match.
 _FAVICON = (
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
     '<defs><radialGradient id="ec" cx="50%" cy="50%" r="50%">'
     '<stop offset="0" stop-color="#e8fbff"/><stop offset="1" stop-color="#35c8ff"/>'
     '</radialGradient></defs>'
     '<rect width="64" height="64" rx="15" fill="#060c14"/>'
-    # outer segmented reticle ring (JARVIS targeting ticks)
-    '<circle cx="32" cy="32" r="27" fill="none" stroke="#35c8ff" stroke-opacity=".4"'
-    ' stroke-width="1.3" stroke-dasharray="1.1 4"/>'
-    # 4 cardinal notches
-    '<g stroke="#7fe0ff" stroke-width="1.8" stroke-linecap="round">'
-    '<line x1="32" y1="4" x2="32" y2="9"/><line x1="60" y1="32" x2="55" y2="32"/>'
-    '<line x1="32" y1="60" x2="32" y2="55"/><line x1="4" y1="32" x2="9" y2="32"/></g>'
-    # two bright reactor arc segments at different radii/angles
-    '<circle cx="32" cy="32" r="23" fill="none" stroke="#35c8ff" stroke-width="2.6"'
-    ' stroke-linecap="round" stroke-dasharray="26 200" transform="rotate(-60 32 32)"/>'
-    '<circle cx="32" cy="32" r="18" fill="none" stroke="#5ee6ff" stroke-opacity=".7"'
-    ' stroke-width="1.8" stroke-linecap="round" stroke-dasharray="14 120" transform="rotate(120 32 32)"/>'
-    # hexagonal reactor frame
-    '<polygon points="32,14 48,23 48,41 32,50 16,41 16,23" fill="none"'
-    ' stroke="#35c8ff" stroke-opacity=".28" stroke-width="1.3"/>'
-    # inner ring + layered diamond core (glow)
-    '<circle cx="32" cy="32" r="11" fill="none" stroke="#35c8ff" stroke-opacity=".5" stroke-width="1.4"/>'
-    '<path d="M32 22 L42 32 L32 42 L22 32 Z" fill="url(#ec)"/>'
-    '<path d="M32 27 L37 32 L32 37 L27 32 Z" fill="#f2fdff"/></svg>'
+    # base ring
+    '<circle cx="32" cy="32" r="21.5" fill="none" stroke="#35c8ff" stroke-width="1.8"/>'
+    # two bright reactor arc segments, opposite each other
+    '<circle cx="32" cy="32" r="21.5" fill="none" stroke="#5ee6ff" stroke-width="3.2"'
+    ' stroke-linecap="round" stroke-dasharray="30 200" transform="rotate(-90 32 32)"/>'
+    '<circle cx="32" cy="32" r="21.5" fill="none" stroke="#5ee6ff" stroke-width="3.2"'
+    ' stroke-linecap="round" stroke-dasharray="30 200" transform="rotate(90 32 32)"/>'
+    # layered diamond core
+    '<path d="M32 21 L43 32 L32 43 L21 32 Z" fill="#f2fdff"/>'
+    '<path d="M32 26.5 L37.5 32 L32 37.5 L26.5 32 Z" fill="url(#ec)"/></svg>'
 )
 
 # Minimal service worker — makes the app installable (needs a fetch handler) and
@@ -84,7 +77,11 @@ _ICON_CACHE: dict[int, bytes] = {}
 
 
 def _icon_png(size: int) -> bytes:
-    """Render the E.V. 'core' mark as a PNG (for the installable app icon)."""
+    """Render the E.V. 'core' mark as a PNG (for the installable app icon).
+
+    Same arc-reactor + diamond design as the _FAVICON SVG above, redrawn with
+    PIL so both surfaces show one consistent mark.
+    """
     if size in _ICON_CACHE:
         return _ICON_CACHE[size]
     import io
@@ -93,15 +90,22 @@ def _icon_png(size: int) -> bytes:
     img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
     d.rounded_rectangle([0, 0, size - 1, size - 1], radius=int(size * 0.22),
-                        fill=(10, 10, 10, 255))
+                        fill=(6, 12, 20, 255))
     cx = cy = size / 2
     fg = (53, 200, 255)
-    w = max(2, size // 34)
-    for rr, alpha in [(0.33, 71), (0.20, 140)]:
-        rad = size * rr
-        d.ellipse([cx - rad, cy - rad, cx + rad, cy + rad], outline=fg + (alpha,), width=w)
-    dot = size * 0.075
-    d.ellipse([cx - dot, cy - dot, cx + dot, cy + dot], fill=fg + (255,))
+    fg_soft = (94, 230, 255)
+    r = size * 0.336
+    bbox = [cx - r, cy - r, cx + r, cy + r]
+    d.ellipse(bbox, outline=fg, width=max(2, round(size * 0.028)))
+    arc_w = max(3, round(size * 0.05))
+    d.arc(bbox, start=-40, end=40, fill=fg_soft, width=arc_w)
+    d.arc(bbox, start=140, end=220, fill=fg_soft, width=arc_w)
+    r1 = size * 0.17
+    d.polygon([(cx, cy - r1), (cx + r1, cy), (cx, cy + r1), (cx - r1, cy)],
+              fill=(242, 253, 255, 255))
+    r2 = size * 0.085
+    d.polygon([(cx, cy - r2), (cx + r2, cy), (cx, cy + r2), (cx - r2, cy)],
+              fill=fg + (255,))
     buf = io.BytesIO()
     img.save(buf, "PNG")
     _ICON_CACHE[size] = buf.getvalue()
