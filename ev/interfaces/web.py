@@ -907,7 +907,21 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
   #left::before,#right::before{content:"";display:block;flex:none;width:42px;height:4px;
     border-radius:3px;background:var(--line-2);margin:0 auto 14px}
   body.m-left #left,body.m-right #right{transform:translateY(0)}
+  /* modals/pickers as bottom sheets too — matches the drawer language above
+     and keeps everything reachable with a thumb instead of a centered floating box */
+  #modal{align-items:flex-end}
+  .mcard{width:100%;max-width:100%;max-height:86vh;border-radius:20px 20px 0 0;
+    padding:16px 16px calc(18px + env(safe-area-inset-bottom));
+    box-shadow:0 -24px 60px rgba(0,0,0,.72);animation:sheetUp .22s ease-out}
+  .mcard::before{content:"";display:block;width:42px;height:4px;border-radius:3px;
+    background:var(--line-2);margin:0 auto 14px}
+  .mbar{flex-direction:column-reverse;gap:8px}
+  .mbar button{width:100%;padding:12px 16px}
+  /* bigger touch targets for small tap zones */
+  .mrow input{width:21px;height:21px}
+  .ov-task .ck{width:23px;height:23px}
 }
+@keyframes sheetUp{from{transform:translateY(28px);opacity:.5}to{transform:translateY(0);opacity:1}}
 @media(max-width:520px){
   .topbar{padding:9px 10px;gap:5px}
   .tab{padding:6px 10px;font-size:10px}
@@ -1312,6 +1326,7 @@ $('#tgl-zen').onclick=()=>{const b=document.body;
   localStorage.setItem('ev_hl',!z?'1':'');localStorage.setItem('ev_hr',!z?'1':'');syncTgl();};
 syncTgl();
 $('#mbackdrop').onclick=()=>document.body.classList.remove('m-left','m-right');
+$('#modal').onclick=e=>{if(e.target.id==='modal')e.target.classList.remove('on');};
 // mobile: open/close the side panels by swiping from the screen edges
 (function(){let sx=0,sy=0,edge=0,track=false;
   addEventListener('touchstart',e=>{if(!mob()||e.touches.length!==1)return;const t=e.touches[0];sx=t.clientX;sy=t.clientY;
