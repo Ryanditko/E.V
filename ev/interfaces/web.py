@@ -435,6 +435,13 @@ body.serious .mm-badge{display:flex}
   background:linear-gradient(160deg,rgba(18,34,52,.92),rgba(9,17,28,.94));backdrop-filter:blur(9px);
   box-shadow:0 16px 40px -22px #000,0 0 30px -20px var(--glow)}
 #np-mini.on{display:flex;animation:sbfade .35s}
+#qc-fab{position:fixed;left:18px;bottom:18px;z-index:44;width:50px;height:50px;border-radius:50%;
+  border:1px solid var(--line-2);background:linear-gradient(150deg,rgba(24,44,68,.9),rgba(10,20,32,.92));
+  color:var(--accent);cursor:pointer;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 8px 26px -8px var(--glow);transition:transform .15s}
+#qc-fab:hover{transform:scale(1.06)}
+#qc-fab svg{width:22px;height:22px}
+body.v-chat #qc-fab{display:none}
 .npm-top{display:flex;align-items:center;gap:11px}
 #npm-bar{height:6px;border-radius:4px;background:var(--elev);cursor:pointer;position:relative;overflow:hidden;flex:none}
 #npm-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),#5ee6a3);border-radius:4px;pointer-events:none}
@@ -909,13 +916,6 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
 .ck-item .ck-k{font-family:var(--mono);font-size:12px;color:var(--muted);min-width:104px}
 .ck-item .ck-d{color:var(--subtle);font-size:12px;margin-left:auto}
 #mbackdrop{display:none}
-#qc-fab{position:fixed;left:18px;bottom:18px;z-index:44;width:50px;height:50px;border-radius:50%;
-  border:1px solid var(--line-2);background:linear-gradient(150deg,rgba(24,44,68,.9),rgba(10,20,32,.92));
-  color:var(--accent);cursor:pointer;display:flex;align-items:center;justify-content:center;
-  box-shadow:0 8px 26px -8px var(--glow);transition:transform .15s}
-#qc-fab:hover{transform:scale(1.06)}
-#qc-fab svg{width:22px;height:22px}
-body.v-chat #qc-fab{display:none}
 @media(max-width:980px){
   #app{grid-template-columns:1fr!important}
   #left,#right{position:fixed;top:0;bottom:0;width:min(86vw,320px);z-index:60;background:var(--ink);-webkit-backdrop-filter:none;backdrop-filter:none;overflow:auto;transition:transform .25s ease}
