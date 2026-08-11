@@ -406,9 +406,15 @@ body.serious .mm-badge{display:flex}
   body.hide-right #app{grid-template-columns:238px 1fr}
   body.hide-left.hide-right #app{grid-template-columns:1fr}
 }
-.tabs{display:flex;gap:3px;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:3px;overflow-x:auto;scrollbar-width:none;min-width:0;flex:0 1 auto}
+.tabs{display:flex;gap:3px;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:3px 3px 7px;overflow-x:auto;scrollbar-width:thin;scrollbar-color:rgba(var(--accent-rgb),.55) transparent;min-width:0;flex:0 1 auto}
 .mnav{display:none;background:var(--surface);border:1px solid var(--line);border-radius:10px;color:var(--fg);font:inherit;font-size:14px;padding:10px 12px;font-family:var(--mono);cursor:pointer}
-.tabs::-webkit-scrollbar{display:none}.tab{white-space:nowrap;flex:none}
+/* visible horizontal scrollbar — all sections stay reachable by scrolling
+   the strip instead of having to hide/remove tabs for space. */
+.tabs::-webkit-scrollbar{height:6px}
+.tabs::-webkit-scrollbar-track{background:transparent}
+.tabs::-webkit-scrollbar-thumb{background:rgba(var(--accent-rgb),.55);border-radius:4px}
+.tabs::-webkit-scrollbar-thumb:hover{background:var(--accent)}
+.tab{white-space:nowrap;flex:none}
 .topbar{gap:8px}
 @media(max-width:1180px){.topbar #scope{display:none}}
 /* Desktop/tablet keep the scrollable tab strip. Only on phones (<=760px) swap
@@ -476,6 +482,7 @@ body.serious #serfx{opacity:1;box-shadow:inset 0 0 150px -50px rgba(255,45,55,.6
   100%{background:radial-gradient(circle,transparent,transparent)}}
 @media(max-width:760px){
   .tabs{display:none}
+  .tabs-nav{display:none}
   .mnav{display:block;flex:1 1 auto;min-width:60px}
   /* declutter the phone header so the folder/panel toggles never get clipped
      (keep Terminal available on mobile; only drop search + clean-mode) */
@@ -512,6 +519,12 @@ body.serious #serfx{opacity:1;box-shadow:inset 0 0 150px -50px rgba(255,45,55,.6
 .tab{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--muted);border:none;background:transparent;border-radius:8px;padding:7px 13px;cursor:pointer;white-space:nowrap}
 .tab-edit{opacity:.5;font-size:14px;padding:6px 11px}.tab-edit:hover{opacity:1;color:var(--fg)}
 .tab.on{background:var(--fg);color:var(--ink)}
+/* click-to-scroll arrows for the tab strip — a scrollbar affordance that
+   doesn't depend on the browser/OS's own (often near-invisible) scrollbar
+   rendering. Shown/hidden and enabled/disabled from JS based on scroll pos. */
+.tabs-nav{flex:none;display:none;transition:opacity .15s}
+.tabs-nav.show{display:flex}
+.tabs-nav:disabled{opacity:.25;cursor:default}
 #chatview{flex:1;display:flex;flex-direction:column;min-height:0}
 #taskview,#kbview,#expview,#remview,#memview,#calview,#lnkview,#habview,#jouview,#subview,#orcview,#monview,#actview,#pageview,#musicview,#climaview,#metasview,#saudeview,#cofreview,#painelview,#inicioview{flex:1;min-height:0;overflow:auto;padding:24px;display:none}
 .ov-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px;max-width:1500px;grid-auto-rows:minmax(58px,auto);grid-auto-flow:row dense}
@@ -918,7 +931,9 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
   <main id="center">
     <div class="topbar">
       <button class="tbtn ico" id="tgl-left" title="Ocultar/mostrar pastas"><i data-lucide="panel-left"></i></button>
+      <button class="tbtn ico tabs-nav" id="tabs-prev" title="Rolar abas pra esquerda"><i data-lucide="chevron-left"></i></button>
       <div class="tabs" id="tabs"></div>
+      <button class="tbtn ico tabs-nav" id="tabs-next" title="Rolar abas pra direita"><i data-lucide="chevron-right"></i></button>
       <select id="mnav" class="mnav" title="Ir para"><option value="inicio">Início</option><option value="chat">Conversa</option><option value="tasks">Tarefas</option><option value="exp">Gastos</option><option value="rem">Lembretes</option><option value="cal">Agenda</option><option value="mem">Memórias</option><option value="lnk">Links</option><option value="hab">Hábitos</option><option value="jou">Diário</option><option value="sub">Assinaturas</option><option value="orc">Orçamentos</option><option value="mon">Monitores</option><option value="act">Histórico</option><option value="kb">Base</option><option value="map">Mapa</option><option value="brain">Cérebro</option><option value="graf">Gráficos</option><option value="musica">Música</option><option value="clima">Clima</option><option value="metas">Metas</option><option value="saude">Saúde</option><option value="cofre">Cofre</option><option value="painel">Painel</option></select>
       <span class="eyebrow" id="scope">geral</span>
       <span class="mm-badge" id="mm-badge" title="Modo foco ativo — clique pra desligar"><i data-lucide="skull"></i>MODO FOCO</span>
@@ -2072,10 +2087,23 @@ renderAmbBtn();
 // view tabs — customizable: pick which appear in the header (minimalist)
 const VIEW_LABELS={chat:'Conversa',inicio:'Início',tasks:'Tarefas',exp:'Gastos',rem:'Lembretes',cal:'Agenda',mem:'Memórias',lnk:'Links',hab:'Hábitos',jou:'Diário',sub:'Assinaturas',orc:'Orçamentos',mon:'Monitores',act:'Histórico',kb:'Base',map:'Mapa',brain:'Cérebro',graf:'Gráficos',musica:'Música',clima:'Clima',metas:'Metas',saude:'Saúde',cofre:'Cofre',painel:'Painel'};
 let curView='chat',tabsShown;try{tabsShown=JSON.parse(localStorage.getItem('ev_tabs'));}catch(e){}
-if(!Array.isArray(tabsShown)||!tabsShown.length)tabsShown=['chat','tasks','exp','rem','cal','brain'];
+// default to every section — the tab strip scrolls horizontally, so nothing
+// needs to be hidden just to make room; "+" still lets you trim it down.
+if(!Array.isArray(tabsShown)||!tabsShown.length)tabsShown=Object.keys(VIEW_LABELS);
 function renderTabs(){const box=$('#tabs');if(!box)return;box.textContent='';
   tabsShown.forEach(v=>{if(!VIEW_LABELS[v])return;const b=el('button','tab'+(v===curView?' on':''),VIEW_LABELS[v]);b.dataset.view=v;b.onclick=()=>switchView(v);box.appendChild(b);});
-  const ed=el('button','tab tab-edit','+');ed.title='Escolher abas';ed.onclick=()=>openPicker('Abas do topo','Escolha quais abas aparecem no topo.',Object.keys(VIEW_LABELS).map(k=>({key:k,label:VIEW_LABELS[k]})),tabsShown,l=>{tabsShown=l.length?l:['chat'];localStorage.setItem('ev_tabs',JSON.stringify(tabsShown));renderTabs();});box.appendChild(ed);}
+  const ed=el('button','tab tab-edit','+');ed.title='Escolher abas';ed.onclick=()=>openPicker('Abas do topo','Escolha quais abas aparecem no topo.',Object.keys(VIEW_LABELS).map(k=>({key:k,label:VIEW_LABELS[k]})),tabsShown,l=>{tabsShown=l.length?l:['chat'];localStorage.setItem('ev_tabs',JSON.stringify(tabsShown));renderTabs();});box.appendChild(ed);
+  updateTabsNav();}
+// click-to-scroll arrows: shown only while the strip actually overflows,
+// each disabled once you've scrolled all the way to that end.
+function updateTabsNav(){const box=$('#tabs'),prev=$('#tabs-prev'),next=$('#tabs-next');if(!box||!prev||!next)return;
+  const max=box.scrollWidth-box.clientWidth,has=max>4;
+  prev.classList.toggle('show',has);next.classList.toggle('show',has);
+  prev.disabled=box.scrollLeft<=2;next.disabled=box.scrollLeft>=max-2;}
+(function(){const box=$('#tabs'),prev=$('#tabs-prev'),next=$('#tabs-next');if(!box||!prev||!next)return;
+  prev.onclick=()=>box.scrollBy({left:-240,behavior:'smooth'});
+  next.onclick=()=>box.scrollBy({left:240,behavior:'smooth'});
+  box.addEventListener('scroll',updateTabsNav);window.addEventListener('resize',updateTabsNav);})();
 renderTabs();
 $('#mnav').onchange=()=>switchView($('#mnav').value);
 const VIEWS={chat:'#chatview',inicio:'#inicioview',tasks:'#taskview',exp:'#expview',rem:'#remview',cal:'#calview',mem:'#memview',lnk:'#lnkview',hab:'#habview',jou:'#jouview',sub:'#subview',orc:'#orcview',mon:'#monview',kb:'#kbview',act:'#actview',map:'#mapview',brain:'#brainview',graf:'#chartsview',musica:'#musicview',clima:'#climaview',metas:'#metasview',saude:'#saudeview',cofre:'#cofreview',painel:'#painelview'};
