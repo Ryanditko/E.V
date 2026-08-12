@@ -1,7 +1,7 @@
 # Extending E.V. — add features without starting from scratch
 
 This guide shows the exact, repeatable pattern to add new capabilities. It's
-written so that **you or any AI coding assistant** (Claude Code, Cursor, ChatGPT)
+written so that **you or any AI coding assistant** (Cursor, ChatGPT, etc.)
 can follow it. The codebase is intentionally consistent — new features are
 copy-the-pattern, not invent-from-zero.
 

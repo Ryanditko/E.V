@@ -42,6 +42,9 @@ class Config:
     voice_rate: str
     voice_pitch: str
     voice_fixes: tuple[tuple[str, str], ...]  # TTS-only pronunciation fixes
+    gemini_tts: bool          # use Gemini TTS (mais natural) c/ fallback pro edge-tts
+    gemini_tts_voice: str     # voz pré-definida do Gemini (Kore, Aoede, Leda, ...)
+    gemini_tts_model: str     # modelo de TTS do Gemini
     # Local model (Ollama) — never-runs-out safety net
     ollama_enabled: bool
     ollama_base_url: str
@@ -65,12 +68,31 @@ class Config:
     habit_nudge_hour: int    # local hour to nudge about unmarked habits; <0 disables
     monthly_report_day: int  # day of month for the financial report; <0 disables
     monthly_report_hour: int
+    event_alert_minutes: int  # heads-up lead time before a calendar event; <=0 disables
+    nudge_hour: int  # local hour for the proactive open-loops nudge; <0 disables
+    learn_hour: int  # local hour E.V. shares a learned pattern; <0 disables
     # Tools
     websearch_enabled: bool
     brave_api_key: str   # optional: better web search than DuckDuckGo
     tavily_api_key: str  # optional: AI-focused web search (preferred if set)
     google_oauth_client: str
     google_accounts: tuple[str, ...]  # e.g. ("pessoal", "faculdade")
+    web_token: str      # bearer token for the web interface (empty disables it)
+    web_host: str       # host to bind the web server
+    web_port: int       # port for the web server
+    web_base_url: str   # public https base (for OAuth redirects), e.g. https://ev.x.ts.net
+    google_login_client: str   # OAuth "Web" client id for "login with Google"
+    google_login_secret: str
+    github_login_client: str   # OAuth app client id for "login with GitHub"
+    github_login_secret: str
+    vapid_public: str          # Web Push (VAPID) public key — sent to the browser
+    vapid_private: str         # Web Push private key (server signs pushes)
+    vapid_subject: str         # VAPID claims subject (mailto:...)
+    imap_address: str          # Gmail address for reading mail via IMAP
+    imap_password: str         # Gmail "app password" (not the account password)
+    mapillary_token: str       # Mapillary access token for in-app street-level view
+    spotify_client_id: str     # Spotify app client id (OAuth, playlists + playback)
+    spotify_client_secret: str
     db_path: Path
 
     @property
@@ -83,6 +105,10 @@ class Config:
 
     def google_ready(self) -> bool:
         return bool(self.google_oauth_client and self.google_accounts)
+
+    def imap_ready(self) -> bool:
+        """True once a Gmail address + app password are configured for reading."""
+        return bool(self.imap_address and self.imap_password)
 
     def google_authorized(self, account: str | None = None) -> bool:
         """True only if an OAuth token already exists for the account (i.e. the
@@ -166,9 +192,17 @@ class Config:
             embed_backend=os.getenv("EV_EMBED_BACKEND", "gemini").strip().lower(),
             owner_id=owner_id,
             voice_reply=_get_bool("EV_VOICE_REPLY", True),
+            # Fast standard pt-BR voice (~0.4-1.2s synth). The multilingual voice
+            # (pt-BR-ThalitaMultilingualNeural) pronounces foreign words better but
+            # is ~6-8s per reply — too slow for a voice assistant. Override with
+            # EV_VOICE if you prefer that accuracy over speed.
             voice=os.getenv("EV_VOICE", "pt-BR-FranciscaNeural").strip(),
             voice_rate=os.getenv("EV_VOICE_RATE", "+0%").strip(),
             voice_pitch=os.getenv("EV_VOICE_PITCH", "+0Hz").strip(),
+            gemini_tts=_get_bool("EV_GEMINI_TTS", False),
+            gemini_tts_voice=os.getenv("EV_GEMINI_VOICE", "Kore").strip() or "Kore",
+            gemini_tts_model=os.getenv(
+                "EV_GEMINI_TTS_MODEL", "gemini-2.5-flash-preview-tts").strip(),
             voice_fixes=tuple(
                 tuple(p.split("=", 1))  # type: ignore[misc]
                 for p in os.getenv("EV_VOICE_FIXES", "").split(";")
@@ -179,7 +213,7 @@ class Config:
             reminder_poll_seconds=_get_int("EV_REMINDER_POLL_SECONDS", 30),
             briefing_hour=briefing_hour,
             checkin_hour=checkin_hour,
-            city=os.getenv("EV_CITY", "").strip(),
+            city=os.getenv("EV_CITY", "").strip() or "São Paulo",
             news_topic=os.getenv("EV_NEWS_TOPIC", "").strip(),
             weekly_day=weekly_day,
             weekly_hour=_get_int("EV_WEEKLY_HOUR", 20),
@@ -190,10 +224,29 @@ class Config:
             habit_nudge_hour=habit_nudge_hour,
             monthly_report_day=monthly_report_day,
             monthly_report_hour=_get_int("EV_MONTHLY_REPORT_HOUR", 9),
+            event_alert_minutes=_get_int("EV_EVENT_ALERT_MINUTES", 30),
+            nudge_hour=_get_int("EV_NUDGE_HOUR", 9),
+            learn_hour=_get_int("EV_LEARN_HOUR", 19),
             websearch_enabled=_get_bool("EV_WEBSEARCH_ENABLED", True),
             brave_api_key=os.getenv("BRAVE_API_KEY", "").strip(),
             tavily_api_key=os.getenv("TAVILY_API_KEY", "").strip(),
             google_oauth_client=os.getenv("GOOGLE_OAUTH_CLIENT", "").strip(),
             google_accounts=google_accounts,
+            web_token=os.getenv("EV_WEB_TOKEN", "").strip(),
+            web_host=os.getenv("EV_WEB_HOST", "0.0.0.0").strip(),
+            web_port=_get_int("EV_WEB_PORT", 8000),
+            web_base_url=os.getenv("EV_WEB_BASE_URL", "").strip().rstrip("/"),
+            google_login_client=os.getenv("EV_GOOGLE_LOGIN_CLIENT", "").strip(),
+            google_login_secret=os.getenv("EV_GOOGLE_LOGIN_SECRET", "").strip(),
+            github_login_client=os.getenv("EV_GITHUB_LOGIN_CLIENT", "").strip(),
+            github_login_secret=os.getenv("EV_GITHUB_LOGIN_SECRET", "").strip(),
+            vapid_public=os.getenv("VAPID_PUBLIC", "").strip(),
+            vapid_private=os.getenv("VAPID_PRIVATE", "").strip(),
+            vapid_subject=os.getenv("VAPID_SUBJECT", "mailto:ev@example.com").strip(),
+            imap_address=os.getenv("EV_IMAP_ADDRESS", "").strip(),
+            imap_password=os.getenv("EV_IMAP_PASSWORD", "").strip(),
+            mapillary_token=os.getenv("EV_MAPILLARY_TOKEN", "").strip(),
+            spotify_client_id=os.getenv("EV_SPOTIFY_CLIENT_ID", "").strip(),
+            spotify_client_secret=os.getenv("EV_SPOTIFY_CLIENT_SECRET", "").strip(),
             db_path=_PROJECT_ROOT / "ev_memory.db",
         )

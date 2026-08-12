@@ -1,0 +1,13 @@
+# Exemplo de config para túnel "gerenciado localmente" (Fluxo B do runbook).
+# Copie para /etc/cloudflared/config.yml e ajuste TUNNEL_ID e o hostname.
+# (No Fluxo A — pelo painel da Cloudflare — você NÃO precisa deste arquivo.)
+
+tunnel: TUNNEL_ID_AQUI
+credentials-file: /etc/cloudflared/TUNNEL_ID_AQUI.json
+
+ingress:
+  # Todo tráfego de https://ev.SEUDOMINIO.com vai para o uvicorn local.
+  - hostname: ev.SEUDOMINIO.com
+    service: http://localhost:8000
+  # Regra final obrigatória: qualquer outra coisa -> 404.
+  - service: http_status:404

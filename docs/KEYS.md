@@ -49,6 +49,36 @@ Full guide: [GOOGLE.md](GOOGLE.md). Free, but Google Cloud may ask for billing (
 |---------|----------|------|
 | **open-meteo** | Weather forecast + rain alerts | https://open-meteo.com |
 
+## Mapillary (optional — street-level view on the web console's Mapa tab)
+
+| Step | Link |
+|------|------|
+| Create an app, grab a client token | https://www.mapillary.com/dashboard/developers |
+
+`.env`: `EV_MAPILLARY_TOKEN`. Free. Without it, tapping a saved place opens a Google
+Street View link instead of the embedded viewer — nothing breaks.
+
+## Spotify (optional — web console playback)
+
+| Step | Link |
+|------|------|
+| Create an app (Client ID + Secret) | https://developer.spotify.com/dashboard |
+| Add a redirect URI matching your web console URL + `/spotify/callback` | Dashboard → app → Settings |
+
+`.env`: `EV_SPOTIFY_CLIENT_ID`, `EV_SPOTIFY_CLIENT_SECRET`. Then connect from the web
+console (Música tab → "Conectar Spotify") — one-time OAuth per user. Free; requires a
+Spotify account (Premium needed for playback control, per Spotify's own API rules).
+
+## Gemini TTS (optional — more natural voice than edge-tts)
+
+| `.env` variable | What for | Default |
+|-----------------|----------|---------|
+| `EV_GEMINI_TTS` | Set `true` to prefer Gemini's native voice over edge-tts | `false` |
+| `EV_GEMINI_VOICE` | Which Gemini voice (`Kore`, `Aoede`, `Leda`, ...) | `Kore` |
+
+Uses the same `GEMINI_API_KEY` — no separate key needed. Falls back to edge-tts
+automatically on any error or quota limit.
+
 ## Hosting (run E.V. 24/7)
 
 | Option | Link | Cost / card? |

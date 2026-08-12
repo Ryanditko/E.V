@@ -1,17 +1,17 @@
 # Brain (LLM) — Google Gemini SDK (primary provider) + embeddings
-google-genai>=0.3.0
+google-genai>=2.14.0
 
 # Fallback providers (Groq, OpenRouter) — OpenAI-compatible API
-openai>=1.30.0
+openai>=2.48.0
 
 # Interface — Telegram bot (async)
 python-telegram-bot>=21.0
 
 # Voice (text -> speech), free
-edge-tts>=6.1.0
+edge-tts>=7.2.8
 
 # Load variables from .env
-python-dotenv>=1.0.0
+python-dotenv>=1.2.2
 
 # Use the OS trust store (fixes TLS behind a corporate proxy)
 truststore>=0.9.0
@@ -24,10 +24,25 @@ ddgs>=6.0.0
 
 # Google Calendar & Gmail tools (optional — used only if GOOGLE_OAUTH_CLIENT set)
 google-api-python-client>=2.100.0
-google-auth-oauthlib>=1.2.0
+google-auth-oauthlib>=1.4.0
 
 # PDF text extraction for the knowledge base
 pypdf>=4.0.0
+
+# Document generation (E.V. creates PDF / Word files) — pure-Python, no system libs
+reportlab>=4.0.0
+python-docx>=1.1.0
+
+# Web interface (use E.V. from any browser)
+fastapi>=0.110.0
+uvicorn>=0.27.0
+python-multipart>=0.0.9
+
+# PWA app icons (rendered as PNG) for the installable web app
+pillow>=10.0.0
+
+# Web Push notifications (reminders with the app closed)
+pywebpush>=1.14.0
 
 # Tests (dev)
 pytest>=8.0.0

@@ -64,8 +64,13 @@ see the comments in `.env.example`.
 
 ```bash
 python run_telegram.py     # Telegram bot (voice + mobile)
+python run_web.py          # web console at http://localhost:8000 (needs EV_WEB_TOKEN)
 python run_terminal.py     # Terminal REPL (text only)
 ```
+
+All three share the same brain and data, and can run at once. The web console is
+covered in **[WEB.md](WEB.md)**; to reach it privately over HTTPS (needed for the
+browser microphone) see **[../deploy/HTTPS_TAILSCALE.md](../deploy/HTTPS_TAILSCALE.md)**.
 
 First run: send `/start` to your bot, copy your ID from the logs into
 `EV_OWNER_ID`, and restart.

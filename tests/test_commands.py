@@ -14,8 +14,128 @@ def _commands(tmp_path):
         gemini_api_key="x",
         embed_backend="gemini",
         embed_model="m",
+        imap_address="",
+        imap_password="",
+        imap_ready=lambda: False,
     )
     return Commands(config, Memory(tmp_path / "t.db"))
+
+
+def test_open_loops_and_nudge(tmp_path):
+    from datetime import datetime, timezone
+    c = _commands(tmp_path)
+    now = datetime(2026, 8, 4, 12, 0, tzinfo=timezone.utc)
+    m = c._memory
+    m.add_task("u", "entregar relatório", due="2026-08-01")   # overdue
+    m.add_task("u", "pagar boleto", due="2026-08-04")          # due today
+    m.add_task("u", "ler artigo")                              # no due — ignored
+    m.add_recurring("u", 39.9, "Netflix", "lazer", 5)          # charges tomorrow
+    m.add_recurring("u", 20.0, "Spotify", "lazer", 20)         # far off — ignored
+    loops = c.open_loops("u", now=now)
+    assert loops["overdue"] == ["entregar relatório"]
+    assert loops["due_today"] == ["pagar boleto"]
+    assert any("Netflix" in s for s in loops["subs"])
+    assert not any("Spotify" in s for s in loops["subs"])
+    msg = c.nudge_text("u", now=now)
+    assert "atrasada" in msg and "entregar relatório" in msg and "Netflix" in msg
+    # clean slate → empty nudge (E.V. stays silent when nothing is slipping)
+    assert c.nudge_text("v", now=now) == ""
+
+
+def test_spoken_status(tmp_path):
+    c = _commands(tmp_path)
+    s = c.spoken_status("u")
+    assert "Ryan" in s and ("Bom dia" in s or "Boa tarde" in s or "Boa noite" in s)
+    assert "tranquila" in s  # nothing open yet
+    c.tarefa("u", "comprar pão")
+    assert "1 tarefa" in c.spoken_status("u")
+
+
+def test_automations_crud(tmp_path):
+    c = _commands(tmp_path)
+    aid, msg = c.create_automation("u", "expense_over", "notify", amount=200,
+                                   message="Gasto alto")
+    assert aid and "200" in msg
+    listing = c.automacoes("u")
+    assert "200" in listing and "avisar" in listing
+    # a time+command automation
+    aid2, _ = c.create_automation("u", "time", "command", hour=18, weekday=4,
+                                  command="semana")
+    assert aid2 and "sexta" in c.automacoes("u")
+    # validation: bad trigger / missing field
+    assert c.create_automation("u", "bogus", "notify")[0] is None
+    assert c.create_automation("u", "expense_over", "notify")[0] is None  # no amount
+    # a Spotify 'play' automation
+    aid3, m3 = c.create_automation("u", "time", "play", hour=8, playlist="Foco")
+    assert aid3 and "Foco" in m3
+    assert c.create_automation("u", "time", "play", hour=8)[0] is None  # no target
+    # remove
+    assert "removida" in c.automacao_rm("u", str(aid))
+    assert c.automacao_rm("u", "999") == "Não achei essa automação."
+
+
+def test_learned_patterns_and_persistence(tmp_path):
+    from datetime import datetime, timezone, timedelta
+    c = _commands(tmp_path)
+    m = c._memory
+    now = datetime(2026, 8, 4, 12, 0, tzinfo=timezone.utc)
+    today = now.date()
+    hid = m.add_habit("u", "academia")
+    # marked every day in the last 4 weeks EXCEPT Mondays → clear Monday-skip pattern
+    for i in range(1, 29):
+        d = today - timedelta(days=i)
+        if d.weekday() != 0:  # skip Mondays
+            m.log_habit(hid, d.isoformat())
+    pats = c.learned_patterns("u", now=now)
+    skip = [p for p in pats if p["key"].startswith("habit-skip:")]
+    assert skip and "academia" in skip[0]["text"] and "segunda" in skip[0]["text"]
+
+    # spending: this month already exceeds last month's total for a category
+    conn = m._conn
+    conn.execute("INSERT INTO expenses (user_id, amount, description, category, created)"
+                 " VALUES (?,?,?,?,?)", ("u", 40, "ifood", "comida", "2026-07-15T12:00:00+00:00"))
+    conn.execute("INSERT INTO expenses (user_id, amount, description, category, created)"
+                 " VALUES (?,?,?,?,?)", ("u", 100, "ifood", "comida", "2026-08-02T12:00:00+00:00"))
+    conn.commit()
+    pats = c.learned_patterns("u", now=now)
+    assert any(p["key"].startswith("spend-over:") and "comida" in p["text"] for p in pats)
+
+    # persistence + dedup: add_learned only once per key
+    key = skip[0]["key"]
+    assert not m.learned_seen("u", key)
+    assert m.add_learned("u", key, skip[0]["text"]) is True
+    assert m.learned_seen("u", key) is True
+    assert m.add_learned("u", key, skip[0]["text"]) is False
+    assert "aprendi" in c.learned_text("u").lower()
+
+    # a fresh user with no history → E.V. stays humble, no false patterns
+    assert c.learned_patterns("v", now=now) == []
+    assert "conhecendo" in c.learned_text("v").lower()
+
+
+def test_budget_alerts(tmp_path):
+    c = _commands(tmp_path)
+    c.orcamento("u", "comida 100")
+    assert c.budget_alerts("u") == []          # nothing spent yet
+    c.gasto("u", "95 mercado #comida")
+    warn = c.budget_alerts("u")
+    assert warn and warn[0]["level"] == "warn" and warn[0]["pct"] == 95
+    c.gasto("u", "20 doce #comida")
+    over = c.budget_alerts("u")
+    assert over and over[0]["level"] == "over" and over[0]["pct"] >= 100
+
+
+def test_subscriptions_due(tmp_path):
+    from datetime import datetime
+    c = _commands(tmp_path)
+    tomorrow = datetime.now().day + 1
+    c._memory.add_recurring("u", 50, "Netflix", "lazer", tomorrow)
+    due = c.subscriptions_due("u")
+    # a charge set for "day 32+" won't happen this month; guard on that
+    if tomorrow <= 28:
+        assert due and due[0]["description"] == "Netflix" and due[0]["days_until"] == 1
+    far = c.subscriptions_due("u", days_ahead=0)
+    assert far == []
 
 
 def test_task_flow(tmp_path):
@@ -85,15 +205,73 @@ def test_weekly_review(tmp_path):
     assert "concluídas: 1" in out
 
 
-def test_monthly_report(tmp_path):
+def test_report_current_vs_previous_month(tmp_path):
     c = _commands(tmp_path)
-    # No expenses last month -> friendly message
-    out = c.relatorio("u")
-    assert "Relatório" in out
-    # An expense created "now" is in the current month, not last month, so the
-    # previous-month report stays empty — that's the correct behavior.
+    # empty month -> friendly message
+    assert "nenhum gasto" in c.relatorio("u").lower()
     c.gasto("u", "50 mercado #comida")
-    assert "Relatório" in c.relatorio("u")
+    # default report = CURRENT month, so a just-added expense shows up
+    cur = c.relatorio("u")
+    assert "Relatório" in cur and "50" in cur and "comida" in cur
+    # previous month (offset=-1) has nothing yet, and its label differs
+    prev = c.relatorio("u", offset=-1)
+    assert "nenhum gasto" in prev.lower()
+    assert c._month_bounds(0)[0] != c._month_bounds(-1)[0]
+
+
+def test_month_bounds_are_utc_iso(tmp_path):
+    # boundaries must be UTC ISO (matches how expenses.created is stored), so a
+    # lexical DB comparison equals a chronological one.
+    c = _commands(tmp_path)
+    label, start, end = c._month_bounds(0)
+    assert start.endswith("+00:00") and end.endswith("+00:00")
+    assert start < end and len(label) == 7  # 'MM/YYYY'
+
+
+def test_edit_by_name_expense_and_reminder(tmp_path):
+    c = _commands(tmp_path)
+    c.gasto("u", "50 mercado #casa")
+    out = c.gastoeditar("u", "mercado | 65 mercado grande #lazer")
+    assert "atualizado" in out
+    e = c._memory.expenses_since("u", "2000-01-01")[0]
+    assert e["amount"] == 65.0 and e["description"] == "mercado grande" and e["category"] == "lazer"
+    c.lembrete("u", "amanhã 09:00 pagar conta")
+    assert "atualizado" in c.lembreteeditar("u", "pagar conta | pagar aluguel")
+    assert c._memory.open_reminders("u")[0]["text"] == "pagar aluguel"
+    assert "não achei" in c.gastoeditar("u", "inexistente | 10").lower()
+
+
+def test_delete_by_name_across_types(tmp_path):
+    c = _commands(tmp_path)
+    c.gasto("u", "50 mercado #casa")
+    assert "apagado" in c.gastorm("u", "mercado")
+    c.lembrete("u", "10m tomar remédio")
+    assert "cancelado" in c.cancelar("u", "remédio")
+    c.lembrar("u", "gosto de café")
+    assert "Esqueci" in c.esquecer("u", "café")
+    c.link("u", "dev | github | http://x")
+    assert "removido" in c.linkrm("u", "github")
+    # name that doesn't exist -> friendly message, not a crash
+    assert "não achei" in c.gastorm("u", "inexistente").lower()
+
+
+def test_task_crud_by_name(tmp_path):
+    c = _commands(tmp_path)
+    c.tarefa("u", "comprar leite #mercado")
+    # complete by name (not id)
+    assert "concluída" in c.concluir("u", "comprar leite")
+    assert c._memory.open_tasks("u") == []
+    # edit by name
+    c.tarefa("u", "estudar")
+    assert "atualizada" in c.tarefaeditar("u", "estudar | estudar cálculo #faculdade")
+    t = c._memory.open_tasks("u")[0]
+    assert t["text"] == "estudar cálculo" and t["category"] == "faculdade"
+    # delete by name
+    assert "apagada" in c.tarefarm("u", "estudar")
+    assert c._memory.open_tasks("u") == []
+    # ambiguous name -> asks which
+    c.tarefa("u", "reunião manhã"); c.tarefa("u", "reunião tarde")
+    assert "mais de uma" in c.concluir("u", "reunião").lower()
 
 
 def test_watches(tmp_path):
@@ -108,6 +286,9 @@ def test_budget_alert(tmp_path):
     assert "definido" in c.orcamento("u", "comida 100")
     warn = c.gasto("u", "85 mercado #comida")  # 85% of the limit
     assert "orçamento" in warn.lower()
+    # the alert is also recorded in the notification center
+    notifs = c._memory.list_notifications("u")
+    assert notifs and "rçamento" in notifs[0]["title"]
     assert "comida" in c.orcamentos("u")
     assert "removido" in c.orcamentorm("u", "comida")
 
@@ -155,6 +336,31 @@ def test_google_disabled(tmp_path):
     c = _commands(tmp_path)
     assert "não configurada" in c.agenda()
     assert "não configurado" in c.email("a@b.com | oi | teste")
+    # reading needs IMAP creds, not Google
+    assert "não configurada" in c.emails().lower()
+
+
+def test_inbox_summary_formatting(monkeypatch):
+    from ev.providers import tools
+    monkeypatch.setattr(tools, "list_emails", lambda *a, **k: [
+        {"from": "Banco", "subject": "Fatura", "date": "", "snippet": "", "unread": True}])
+    out = tools.inbox_summary(None, "", "")
+    assert "Fatura" in out and "Banco" in out and "#1" in out
+    # empty inbox -> friendly line
+    monkeypatch.setattr(tools, "list_emails", lambda *a, **k: [])
+    assert "nenhum e-mail" in tools.inbox_summary(None, "", "").lower()
+    # not-configured -> tells the user to set the IMAP creds
+    def _boom(*a, **k):
+        raise RuntimeError("imap-not-configured")
+    monkeypatch.setattr(tools, "list_emails", _boom)
+    assert "não configurada" in tools.inbox_summary(None, "", "").lower()
+
+
+def test_imap_query_mapping():
+    from ev.providers import tools
+    assert tools._imap_query("") == ("UNSEEN",)
+    assert tools._imap_query("is:unread") == ("UNSEEN",)
+    assert tools._imap_query("fatura") == ("TEXT", "fatura")
 
 
 def test_bad_input(tmp_path):
@@ -189,4 +395,86 @@ def test_rotina(tmp_path):
     out = c.rotina("u", "diario 08:00 tomar remédio")
     assert "Rotina" in out and "todo dia" in out
     assert "[todo dia]" in c.lembretes("u")
-    assert "inválida" in c.rotina("u", "mensal 08:00 x").lower()
+    assert "inválida" in c.rotina("u", "anual 08:00 x").lower()
+
+
+def test_receipt_json_parsing():
+    from ev.core.brain import Brain
+    p = Brain._parse_receipt_json
+    assert p('{"valor": 42.5, "descricao": "Mercado X", "categoria": "Mercado"}') == {
+        "amount": 42.5, "description": "Mercado X", "category": "mercado"}
+    # comma decimal + text around the JSON
+    r = p('claro! {"valor":"19,90","descricao":"Uber","categoria":"transporte"} pronto')
+    assert r["amount"] == 19.9 and r["category"] == "transporte"
+    # not a receipt / zero / garbage -> None
+    assert p('{"valor": 0}') is None
+    assert p('sem json') is None
+
+
+def test_people_memory_and_birthdays(tmp_path):
+    c = _commands(tmp_path)
+    assert "Nenhuma pessoa" in c.pessoas("u")
+    assert "Anotado" in c.pessoa("u", "Ana | irmã, ama café | 12/03")
+    out = c.pessoas("u")
+    assert "Ana" in out and "irmã" in out and "03-12" in out
+    # view by name
+    assert "café" in c.pessoa("u", "Ana")
+    # update appends notes, keeps birthday
+    c.pessoa("u", "Ana | trabalha com design")
+    v = c.pessoa("u", "ana")
+    assert "design" in v and "café" in v
+    # birthday lookup by MM-DD
+    bd = c._memory.birthdays_on("u", "03-12")
+    assert bd and bd[0]["name"] == "Ana"
+
+
+def test_birthday_normalization(tmp_path):
+    m = _commands(tmp_path)._memory
+    assert m._norm_bday("12/03") == "03-12"       # DD/MM (Brazilian)
+    assert m._norm_bday("12/03/1998") == "1998-03-12"
+    assert m._norm_bday("1998-03-12") == "1998-03-12"
+    assert m._norm_bday("") == ""
+
+
+def test_chat_image_persistence(tmp_path):
+    from ev.core.memory import Memory
+    m = Memory(tmp_path / "t.db")
+    conv = "web:geral"
+    m.add_message(conv, "user", "O que há nesta imagem?")
+    m.add_message(conv, "model", "é um gato")
+    iid = m.add_chat_image(conv, b"\x89PNG-fake-bytes", "image/png")
+    m.mark_last_user_image(conv, iid)
+    got = m.get_chat_image(iid)
+    assert got and got["data"] == b"\x89PNG-fake-bytes" and got["mime"] == "image/png"
+    user = [x for x in m.recent_messages(conv, 10) if x["role"] == "user"][-1]
+    assert f"[img:{iid}]" in user["content"]
+    assert m.get_chat_image(999999) is None
+
+
+def test_places_crud(tmp_path):
+    from ev.core.memory import Memory
+    m = Memory(tmp_path / "t.db")
+    pid = m.add_place("u", "Casa", -23.55, -46.63)
+    assert [p["name"] for p in m.list_places("u")] == ["Casa"]
+    m.add_place("u", "Trabalho", -23.56, -46.64)
+    assert len(m.list_places("u")) == 2
+    m.delete_place("u", pid)
+    assert [p["name"] for p in m.list_places("u")] == ["Trabalho"]
+
+
+def test_haversine_and_kinds(tmp_path):
+    from ev.providers import tools
+    # ~1.1 km per 0.01 deg latitude
+    d = tools._haversine_m(-23.55, -46.63, -23.56, -46.63)
+    assert 1000 < d < 1200
+    assert "farmácia" in tools._OSM_KINDS and "restaurante" in tools._OSM_KINDS
+
+
+def test_clear_facts(tmp_path):
+    from ev.core.memory import Memory
+    m = Memory(tmp_path / "t.db")
+    m.add_fact("u", "gosto de café")
+    m.add_fact("u", "moro em SP")
+    assert len(m.list_facts("u")) == 2
+    assert m.clear_facts("u") == 2
+    assert m.list_facts("u") == []

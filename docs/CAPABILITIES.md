@@ -11,33 +11,64 @@ as you type them in Telegram.
 Via the **Telegram bot** (24/7 in the cloud). Three modes, all mixable:
 
 - **Natural chat (uses the AI):** send **text**, a **voice note** (she transcribes
-  and answers in text + voice), or a **photo** (she reads/analyzes it). She keeps
-  context, remembers you, and calls real tools when needed.
+ and answers in text + voice), or a **photo** (she reads/analyzes it). She keeps
+ context, remembers you, and calls real tools when needed.
 - **Slash commands (instant, no AI):** deterministic actions like `/tarefa`,
-  `/gasto`, `/lembrete`. Full list below.
+ `/gasto`, `/lembrete`. Full list below.
 - **Interactive menu:** `/menu` opens a button-driven UI; every reply also carries
-  a quick-action bar (🏠 Menu · ➕ Tarefa · ⏰ Lembrete).
+ a quick-action bar ( Menu · Tarefa · Lembrete).
 - **Send a PDF** → it's indexed into her knowledge base. **Send a photo** → she
-  interprets it.
+ interprets it.
 
 She is **locked to you** (owner-only) and replies with a natural female voice.
+
+> **Web console:** besides Telegram, E.V. has a full browser console (`python run_web.py`,
+> token-protected) that reuses the same brain and data — chat, **voice in/out** (recorded
+> and transcribed server-side with Whisper, so it works in any browser), and **CRUD tabs**
+> for every data type with edit and recurrence. It's served privately over HTTPS via
+> **Tailscale Serve** (`https://ev.<tailnet>.ts.net`, reachable only from your Tailscale
+> devices, no open ports) — which is what unlocks the browser microphone, Picture-in-Picture
+> and notifications. The web console adds a few things Telegram doesn't have: a
+> **terminal de ação** that shows her thinking/acting/result per step, a **Modo Morte
+> Súbita** focus toggle, **Spotify** playback (including acting as the playback device
+> herself), draggable dashboard cards with a today-at-a-glance summary, and a
+> **Cmd/Ctrl+K** that searches your actual data, not just views. Beyond the everyday CRUD
+> tabs, it also has: an activity **Histórico**, a **Mapa** of saved places with routes and
+> street view, a 3D **Cérebro** graph of everything she knows about you, **Gráficos** of
+> spending and habit streaks, financial **Metas** ("cofrinho" savings goals), a **Saúde**
+> tracker (water/sleep/mood), a general document **Cofre** (separate from the knowledge
+> base, with OCR on images), a **Clima** tab, and a **Painel** with an astro/ISS widget and
+> a world-clocks/rates/news radar. See [WEB.md](WEB.md) and
+> [../deploy/HTTPS_TAILSCALE.md](../deploy/HTTPS_TAILSCALE.md).
 
 ## 2. What she does in conversation (AI)
 
 - **Chat & advice:** answers, decisions, brainstorming, venting — with a warm,
-  witty personality (you configured it in `personality.py`).
+ witty personality (you configured it in `personality.py`).
 - **Long-term memory:** remembers durable facts about you and recalls the relevant
-  ones (semantic search) at the right moment.
+ ones (semantic search) at the right moment.
 - **Commitment detection:** if you mention a deadline/appointment in chat
-  ("tenho prova sexta"), she offers to create a reminder.
+ ("tenho prova sexta"), she offers to create a reminder.
+- **Hands-free command execution:** ask her by voice or text to do anything you'd
+ normally type as a slash command — **create, modify, or delete** — and she runs it
+ herself via `executar_comando`. Covers essentially **every** command: tasks,
+ reminders, expenses, budgets, habits, journal, links, subscriptions, web monitors,
+ search/news/weather, calendar, deletions, and even interface actions like starting
+ a focus timer (`foco`), do-not-disturb (`silenciar`), exporting data (`exportar`),
+ diagnostics (`status`), summarizing a link (`resumir`), and clearing chat. Examples:
+ "anota um gasto de 50 no mercado", "foca 25 minutos em cálculo", "silencia por 2h",
+ "esquece a memória 3", "me exporta os gastos".
 - **Real-world tools she calls automatically when useful:**
-  - `buscar_web` — current facts, prices, events (Tavily → Brave → DuckDuckGo).
-  - `consultar_noticias` — recent news (with sources).
-  - `consultar_clima` — real weather forecast (open-meteo).
-  - `salvar_memoria`, `criar_lembrete`, `listar_lembretes`.
-  - `ver_agenda`, `criar_evento`, `enviar_email` — once Google is connected.
+ - `buscar_web` — current facts, prices, events (Tavily → Brave → DuckDuckGo).
+ - `consultar_noticias` — recent news (with sources).
+ - `consultar_clima` — real weather forecast (open-meteo).
+ - `salvar_memoria`, `criar_lembrete`, `listar_lembretes`.
+ - `criar_documento` — writes a file (txt/md/pdf/docx) with content she composed
+ and sends it to you (say "me manda em pdf", "faz em word"); can also save it
+ to the knowledge base in the same step.
+ - `ver_agenda`, `criar_evento`, `enviar_email` — once Google is connected.
 - **Honesty:** if unsure, she says so and offers to search instead of inventing;
-  cites sources when she used the web.
+ cites sources when she used the web.
 
 ## 3. Full command reference
 
@@ -46,7 +77,16 @@ She is **locked to you** (owner-only) and replies with a natural female voice.
 |---------|------|
 | `/menu` | Open the interactive button menu |
 | `/ajuda` | List all commands |
-| `/modelo` | Show AI models + today's usage; `/modelo <nome>` switches the primary model |
+| `/modelo` | Show AI models + today's usage; `/modelo <gemini-...>` switches the primary **Gemini** model (must be a valid gemini name) |
+| `/provedor <auto\|gemini\|groq\|openrouter\|ollama>` | Force one provider (to test it) instead of the automatic Gemini→Groq→OpenRouter→Ollama chain. `auto` restores normal fallback |
+| `/status` | Diagnostics: uptime, DB, disk/memory, which API keys are set — plus a button to live-test the keys |
+| `/ev <mensagem>` | Talk to the AI explicitly — mainly for **groups** (mention/reply also work). See [GROUPS.md](GROUPS.md) |
+| `/silenciar <2h\|30m\|1d\|off>` | Do-not-disturb: mute proactive pings (briefing, check-in, nudges); reminders still fire |
+| `/dados` | Storage control: see counts per category and wipe by category (tap-confirm) or **everything** (two-factor: tap + type `APAGAR TUDO`) |
+| `/limpar` | Clear the conversation history in her memory (keeps reminders, facts, everything else) |
+| `/limparchat <N>` · `/limparchat tudo` | Delete the last N (or as many as possible) visible message bubbles from the Telegram chat (only ~last 48h, Telegram limit) |
+| `/foco [min] [pausa]` | Pomodoro timer (default 25/5) with a **live countdown** (bar + mm:ss, ~10s updates). Buttons on the card: ** Parar · Pausar/▶ Retomar · 5min · 5min** (control while running). Also `/foco parar`. A new `/foco` replaces the running one |
+| `/resumir <url>` | Fetch a page/article and return a short summary (with a save-to-KB button) |
 
 ### Tasks
 | Command | Does |
@@ -59,9 +99,12 @@ She is **locked to you** (owner-only) and replies with a natural female voice.
 | Command | Does |
 |---------|------|
 | `/lembrete <tempo> <texto>` | One-off reminder (`10m`, `2h`, `amanhã 09:00`, `25/12 14:30`) |
-| `/rotina <diario\|semanal> <HH:MM> <texto>` | Recurring reminder |
+| `/rotina <diario\|semanal> <HH:MM> <texto>` | Recurring reminder (daily/weekly) |
+| `/rotina mensal <dia> <HH:MM> <texto>` | Monthly reminder (e.g. `mensal 5 10:00 pagar aluguel`) |
 | `/lembretes` | List reminders |
 | `/cancelar <id>` | Cancel a reminder |
+
+When a reminder fires it comes with quick buttons: ** Feito · +10min · +1h · Amanhã** (snooze creates a fresh reminder).
 | `/calendario` | Agenda view by day (+ Google Calendar if connected) |
 
 ### Memory
@@ -70,15 +113,43 @@ She is **locked to you** (owner-only) and replies with a natural female voice.
 | `/lembrar <fato>` | Save something to long-term memory |
 | `/memorias` | List what she knows about you |
 | `/esquecer <id>` | Delete a memory |
+| `/pessoa <nome> \| <sobre> \| <aniversário>` | Save a person (a light contacts/CRM entry) |
+| `/pessoas` | List saved people — they also show up as nodes in the web console's Cérebro graph |
 
 ### Knowledge base & study
 | Action | Does |
 |--------|------|
-| Send a **PDF** | Index the document (RAG) |
+| Send a **PDF / Word (.docx) / .txt** | She reads it and offers **Resumir** (summarize) or **Indexar na base** (index for RAG) |
 | `/kb` | List documents |
 | `/kbweb <url>` | Index a web page |
 | `/kbrm <nome>` | Remove a document |
 | `/quiz [documento]` | Generate a study question from your PDFs (answer hidden as spoiler) |
+| `/exportar` | Export your data: **gastos** as CSV (Excel/Sheets) or **dados** as a PDF digest |
+| `/transcrever` | Transcribe an audio (voice note or audio file) into a text file |
+| `/documento <formato> <título> \| <conteúdo>` | Create a file and send it to you. Formats: `txt`, `md`, `pdf`, `docx` (or `word`); format optional (default `pdf`) |
+
+**Creating documents (txt / Markdown / PDF / Word).** Three ways:
+
+1. **Just ask in chat or by voice** — "escreve um resumo de X e me manda em PDF",
+ "faz uma lista em word". She writes the content, generates the file and sends it.
+2. **Command** — `/documento pdf Lista de compras | arroz, feijão, café` (exact
+ content, no AI/tokens spent).
+3. **Menu** — `/menu` → Conhecimento → Criar documento.
+
+Every generated file arrives with a ** Salvar na base** button — tap it to store
+that content in the knowledge base (RAG), so you can ask about it later or `/quiz`
+on it. (When you ask via the AI, she can also save it in the same step.)
+
+**Working with files, audio and images (in & out):**
+
+- **Send a document** (PDF, Word, txt) → she reads it and shows buttons to
+ **summarize** it or **index** it into the knowledge base.
+- **Send an audio** (voice note or audio file), or use `/transcrever` → she
+ **transcribes** it and returns the text as a `.txt` file.
+- **Send a photo** → besides describing it, she offers ** Extrair texto (OCR)**
+ to pull the text out and return it as a file (with the option to save to the KB).
+- **Export your data** → `/exportar` (or Exportar no menu): expenses as **CSV**,
+ or a **PDF** digest of tasks, memories, habits and journal.
 
 ### Finances
 | Command | Does |
@@ -88,7 +159,7 @@ She is **locked to you** (owner-only) and replies with a natural female voice.
 | `/gastorm <id>` | Delete an expense |
 | `/relatorio` | Last month's financial report + AI comment |
 | `/orcamento <cat> <valor>` | Set a monthly budget for a category |
-| `/orcamentos` | Budgets vs spending (with % and 🟢🟡🔴) |
+| `/orcamentos` | Budgets vs spending (with % and ) |
 | `/orcamentorm <cat>` | Remove a budget |
 | `/assinatura <valor> <desc> [dia] [#cat]` | Recurring expense (auto-logged monthly) |
 | `/assinaturas` · `/assinaturarm <id>` | List / remove subscriptions |
@@ -119,7 +190,7 @@ She is **locked to you** (owner-only) and replies with a natural female voice.
 | Command | Does |
 |---------|------|
 | `/buscar <termo>` | Web search (with sources) |
-| `/procurar <termo>` | Search across YOUR data (memory, tasks, links, journal, KB...) |
+| `/procurar <termo>` | Search across YOUR data (memory, tasks, links, journal, KB, expenses, messages...) — same engine the web console's Cmd/Ctrl+K uses |
 | `/noticias [assunto]` | Latest news with sources + TabNews (tech) |
 | `/clima [cidade]` | Real weather forecast (today + next days) |
 
@@ -152,7 +223,9 @@ She is **locked to you** (owner-only) and replies with a natural female voice.
 | Every ~30 min | Checks web monitors (`/vigiar`) and alerts on real changes |
 | Weekly + on restart | Sends a **DB backup** to your Telegram (off-VM copy) |
 
-All hours/days are configurable in `.env`.
+All hours/days are configurable in `.env`. On the **web console**, subscriptions due
+soon and over-budget categories also show up proactively in the notification center as
+soon as you open it — computed fresh each time, not a scheduled push.
 
 ## 5. What she stores (your data, local SQLite)
 
@@ -160,17 +233,26 @@ Conversation history (auto-pruned to the last N), long-term **facts** (with
 embeddings), **reminders** (one-off + recurring), **tasks** (with categories),
 **links** (by category), **expenses** + **budgets** + **subscriptions**,
 **habits** (+ daily logs & streaks), **journal** entries, **knowledge base**
-(document/web chunks + embeddings), **web monitors**, and usage stats/settings.
-Everything is add / list / delete — you can undo anything.
+(document/web chunks + embeddings), **web monitors**, **people** (a light
+contacts/CRM entry), **goals** (financial "cofrinho" savings targets), **health**
+(daily water/sleep/mood log), **documents** (a general file vault with OCR'd
+text, separate from the knowledge base), **places** (saved map locations),
+**music** (saved Spotify links), an **activity** log of create/complete/delete
+actions, and usage stats/settings. Everything is add / list / delete — you can
+undo anything.
 
 ## 6. AI models & resilience
 
 - **Primary:** Gemini (`gemini-flash-latest`) — native audio + image + memory tools.
 - **Fallbacks (auto):** Groq (`openai/gpt-oss-120b`, reliable tools) → OpenRouter
-  (Nemotron) → **Ollama** (local, never rate-limited — if enabled on a capable host).
+ (Nemotron) → **Ollama** (local, never rate-limited — if enabled on a capable host).
 - **Audio transcription:** Groq Whisper. **Embeddings:** Gemini `gemini-embedding-001`.
+- **Voice output:** **edge-tts** (Microsoft neural pt-BR voice, free, no key) by default;
+ optionally **Gemini TTS** (more natural) when `EV_GEMINI_TTS=true` or a specific Gemini
+ voice is picked in the voice selector — falls back to edge-tts automatically on any
+ error or quota limit.
 - If a provider hits its limit, she falls through automatically — she rarely goes
-  silent. `/modelo` shows what's active and today's usage.
+ silent. `/modelo` shows what's active and today's usage.
 
 ## 7. Reliability & safety
 
@@ -189,11 +271,14 @@ in `.env` — see [`.env.example`](../.env.example). Every service/link/key is i
 ## 9. Honest limits (what she can't do — yet)
 
 - **No hands-free/always-listening voice** — Telegram can't stream your mic; voice
-  is tap-to-record. A wake-word ("E.V., ...") would need a separate app on a device.
+ is tap-to-record. A wake-word ("E.V., ...") would need a separate app on a device.
 - **No sub-second real-time voice** (movie-JARVIS style) without a paid realtime API.
 - **No physical-world control** (home automation, devices) — not integrated.
 - **Google email/calendar** need a one-time OAuth on a personal computer.
 - **Web/news quality** depends on the search provider; forecasts have normal
-  meteorological uncertainty.
+ meteorological uncertainty.
+- **Documents:** she writes text-based files (txt/md/pdf/docx). Legacy `.doc` is
+ produced as modern `.docx` (opens the same in Word/Docs). No spreadsheets/slides,
+ no images or complex layout inside the generated files — plain formatted text.
 - **The AI can still occasionally be wrong** on un-tooled facts — verify important
-  things (she'll flag uncertainty when she can).
+ things (she'll flag uncertainty when she can).

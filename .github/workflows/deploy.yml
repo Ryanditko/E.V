@@ -12,8 +12,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
       - run: pip install -q -r requirements.txt
@@ -23,7 +23,7 @@ jobs:
     needs: test          # only runs if tests pass
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up SSH key
         run: |
@@ -35,7 +35,7 @@ jobs:
         env:
           VM: ${{ secrets.VM_USER }}@${{ secrets.VM_IP }}
         run: |
-          tar czf /tmp/ev.tgz ev run_telegram.py run_terminal.py \
+          tar czf /tmp/ev.tgz ev run_telegram.py run_terminal.py run_web.py \
             requirements.txt deploy docs tests authorize_google.py README.md
           scp -i ~/.ssh/id_key -o StrictHostKeyChecking=accept-new \
             /tmp/ev.tgz "$VM:~/ev.tgz"
@@ -44,5 +44,6 @@ jobs:
             tar xzf ~/ev.tgz &&
             ./.venv/bin/pip install -q -r requirements.txt &&
             sudo systemctl restart ev &&
+            (sudo systemctl restart ev-web 2>/dev/null || true) &&
             sleep 5 &&
             systemctl is-active ev'

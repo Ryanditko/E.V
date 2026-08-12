@@ -15,8 +15,10 @@ from __future__ import annotations
 import json
 import math
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+from .timeparse import add_months
 
 
 def _cosine(a: list[float], b: list[float]) -> float:
@@ -32,9 +34,39 @@ class Memory:
     def __init__(self, db_path: Path) -> None:
         # check_same_thread=False because the bot is async and may touch the DB
         # from different tasks. Writes here are short and serialized.
-        self._conn = sqlite3.connect(db_path, check_same_thread=False)
-        self._conn.row_factory = sqlite3.Row
+        # Optional encryption at rest: if EV_DB_KEY is set (64-hex) AND sqlcipher3
+        # is installed, the DB is opened encrypted (SQLCipher). Otherwise plain
+        # SQLite — so tests/CI and a fresh install work unchanged.
+        import os
+        key = os.getenv("EV_DB_KEY", "").strip()
+        self._conn, self._row = self._connect(db_path, key)
+        self._conn.row_factory = self._row
+        # WAL + busy_timeout so the Telegram (`ev`) and web (`ev-web`) processes
+        # can share this one file safely: WAL lets readers and one writer work
+        # concurrently, and busy_timeout makes a write wait for the lock instead
+        # of failing immediately with "database is locked".
+        try:
+            self._conn.execute("PRAGMA journal_mode=WAL")
+            self._conn.execute("PRAGMA busy_timeout=5000")
+            self._conn.execute("PRAGMA synchronous=NORMAL")
+        except Exception:
+            pass
         self._init_schema()
+
+    @staticmethod
+    def _connect(db_path, key):
+        """Return (connection, row_factory). Encrypted via SQLCipher when a key is
+        set and sqlcipher3 is available; falls back to plain SQLite otherwise."""
+        if key:
+            try:
+                from sqlcipher3 import dbapi2 as sq
+                conn = sq.connect(str(db_path), check_same_thread=False)
+                conn.execute(f"PRAGMA key = \"x'{key}'\"")
+                conn.execute("SELECT count(*) FROM sqlite_master").fetchone()  # verify key
+                return conn, sq.Row
+            except Exception:
+                pass  # sqlcipher missing or wrong key -> fall back to plaintext
+        return sqlite3.connect(str(db_path), check_same_thread=False), sqlite3.Row
 
     def _init_schema(self) -> None:
         self._conn.executescript(
@@ -169,6 +201,145 @@ class Memory:
                 key   TEXT PRIMARY KEY,
                 value TEXT
             );
+
+            CREATE TABLE IF NOT EXISTS kb_files (
+                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id  TEXT NOT NULL,
+                source   TEXT NOT NULL,   -- the friendly name used for its KB chunks
+                filename TEXT NOT NULL,
+                mime     TEXT,
+                data     BLOB NOT NULL,
+                created  TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS activity (
+                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id  TEXT NOT NULL,
+                action   TEXT NOT NULL,   -- e.g. 'task.done', 'expense.new'
+                label    TEXT NOT NULL,   -- human text (the item's name)
+                category TEXT,            -- category / workspace, when it has one
+                created  TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS push_subs (
+                endpoint TEXT PRIMARY KEY,
+                sub      TEXT NOT NULL,   -- full Web Push subscription JSON
+                created  TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS notifications (
+                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id  TEXT NOT NULL,
+                title    TEXT NOT NULL,
+                body     TEXT,
+                url      TEXT,
+                read     INTEGER NOT NULL DEFAULT 0,
+                created  TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS people (
+                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id  TEXT NOT NULL,
+                name     TEXT NOT NULL,
+                notes    TEXT,
+                birthday TEXT,   -- 'MM-DD' or 'YYYY-MM-DD'
+                created  TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS chat_images (
+                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                conv_id  TEXT NOT NULL,
+                mime     TEXT,
+                data     BLOB NOT NULL,
+                created  TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS places (
+                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id  TEXT NOT NULL,
+                name     TEXT NOT NULL,
+                lat      REAL NOT NULL,
+                lng      REAL NOT NULL,
+                created  TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS learned (
+                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id  TEXT NOT NULL,
+                key      TEXT NOT NULL,
+                text     TEXT NOT NULL,
+                created  TEXT NOT NULL,
+                UNIQUE(user_id, key)
+            );
+
+            CREATE TABLE IF NOT EXISTS automations (
+                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id  TEXT NOT NULL,
+                name     TEXT NOT NULL,
+                trig     TEXT NOT NULL,
+                trig_cfg TEXT NOT NULL,
+                act      TEXT NOT NULL,
+                act_cfg  TEXT NOT NULL,
+                enabled  INTEGER NOT NULL DEFAULT 1,
+                state    TEXT NOT NULL DEFAULT '{}',
+                created  TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS connectors (
+                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id  TEXT NOT NULL,
+                name     TEXT NOT NULL,
+                url      TEXT NOT NULL,
+                headers  TEXT NOT NULL DEFAULT '{}',
+                path     TEXT NOT NULL DEFAULT '',
+                created  TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS pages (
+                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id  TEXT NOT NULL,
+                name     TEXT NOT NULL,
+                widgets  TEXT NOT NULL DEFAULT '[]',
+                created  TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS music (
+                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id  TEXT NOT NULL,
+                label    TEXT NOT NULL,
+                kind     TEXT NOT NULL,
+                ref      TEXT NOT NULL,
+                created  TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS goals (
+                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id  TEXT NOT NULL,
+                name     TEXT NOT NULL,
+                target   REAL NOT NULL,
+                saved    REAL NOT NULL DEFAULT 0,
+                created  TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS health (
+                user_id  TEXT NOT NULL,
+                day      TEXT NOT NULL,
+                water    INTEGER NOT NULL DEFAULT 0,
+                sleep    REAL,
+                mood     TEXT,
+                PRIMARY KEY (user_id, day)
+            );
+
+            CREATE TABLE IF NOT EXISTS documents (
+                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id  TEXT NOT NULL,
+                name     TEXT NOT NULL,
+                mime     TEXT NOT NULL,
+                size     INTEGER NOT NULL,
+                text     TEXT NOT NULL DEFAULT '',
+                data     BLOB NOT NULL,
+                created  TEXT NOT NULL
+            );
             """
         )
         # Migrations for older DBs.
@@ -185,11 +356,552 @@ class Memory:
             )
         if "done_at" not in task_cols:
             self._conn.execute("ALTER TABLE tasks ADD COLUMN done_at TEXT")
+        if "recur" not in task_cols:
+            self._conn.execute("ALTER TABLE tasks ADD COLUMN recur TEXT")
+        if "due" not in task_cols:
+            self._conn.execute("ALTER TABLE tasks ADD COLUMN due TEXT")
         self._conn.commit()
 
     @staticmethod
     def _now() -> str:
         return datetime.now(timezone.utc).isoformat()
+
+    # --- activity log (CRUD tracking, shared by Telegram + web) -------------
+
+    def log_activity(self, user_id: str, action: str, label: str,
+                     category: str | None = None) -> None:
+        try:
+            self._conn.execute(
+                "INSERT INTO activity (user_id, action, label, category, created) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (user_id, action, (label or "")[:200], category, self._now()),
+            )
+            self._conn.commit()
+        except sqlite3.Error:
+            pass  # tracking must never break the actual operation
+
+    def list_activity(self, user_id: str, category: str | None = None,
+                      limit: int = 300) -> list[dict]:
+        if category:
+            rows = self._conn.execute(
+                "SELECT action, label, category, created FROM activity "
+                "WHERE user_id = ? AND category = ? ORDER BY id DESC LIMIT ?",
+                (user_id, category, limit),
+            ).fetchall()
+        else:
+            rows = self._conn.execute(
+                "SELECT action, label, category, created FROM activity "
+                "WHERE user_id = ? ORDER BY id DESC LIMIT ?",
+                (user_id, limit),
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+    # --- web push subscriptions --------------------------------------------
+
+    def add_push_sub(self, endpoint: str, sub_json: str) -> None:
+        self._conn.execute(
+            "INSERT OR REPLACE INTO push_subs (endpoint, sub, created) VALUES (?, ?, ?)",
+            (endpoint, sub_json, self._now()),
+        )
+        self._conn.commit()
+
+    def list_push_subs(self) -> list[dict]:
+        rows = self._conn.execute("SELECT endpoint, sub FROM push_subs").fetchall()
+        return [dict(r) for r in rows]
+
+    def delete_push_sub(self, endpoint: str) -> None:
+        self._conn.execute("DELETE FROM push_subs WHERE endpoint = ?", (endpoint,))
+        self._conn.commit()
+
+    # --- notification center (persisted so they can be reviewed later) ------
+
+    def add_notification(self, user_id: str, title: str, body: str = "",
+                         url: str = "/") -> None:
+        """Store a notification so it shows up in the web notification center,
+        whether or not a device was actually reachable via push."""
+        try:
+            self._conn.execute(
+                "INSERT INTO notifications (user_id, title, body, url, read, created) "
+                "VALUES (?, ?, ?, ?, 0, ?)",
+                (user_id, (title or "")[:200], (body or "")[:1000], url or "/", self._now()),
+            )
+            # keep it bounded: retain only the newest 200 per user
+            self._conn.execute(
+                "DELETE FROM notifications WHERE user_id = ? AND id NOT IN "
+                "(SELECT id FROM notifications WHERE user_id = ? ORDER BY id DESC LIMIT 200)",
+                (user_id, user_id),
+            )
+            self._conn.commit()
+        except sqlite3.Error:
+            pass  # a logging failure must never break delivery
+
+    # --- learned patterns (continuous learning) ----------------------------
+
+    def learned_seen(self, user_id: str, key: str) -> bool:
+        row = self._conn.execute(
+            "SELECT 1 FROM learned WHERE user_id = ? AND key = ?", (user_id, key)
+        ).fetchone()
+        return row is not None
+
+    def add_learned(self, user_id: str, key: str, text: str) -> bool:
+        """Record a learned pattern (once per key). Returns True if it was new."""
+        try:
+            self._conn.execute(
+                "INSERT INTO learned (user_id, key, text, created) VALUES (?, ?, ?, ?)",
+                (user_id, key, text, self._now()),
+            )
+            self._conn.commit()
+            return True
+        except sqlite3.IntegrityError:
+            return False  # already known
+
+    def list_learned(self, user_id: str, limit: int = 20) -> list[dict]:
+        rows = self._conn.execute(
+            "SELECT key, text, created FROM learned WHERE user_id = ? "
+            "ORDER BY id DESC LIMIT ?",
+            (user_id, limit),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    # --- automations ("quando X, faça Y") ----------------------------------
+
+    def add_automation(self, user_id: str, name: str, trig: str, trig_cfg: dict,
+                       act: str, act_cfg: dict, state: dict | None = None) -> int:
+        cur = self._conn.execute(
+            "INSERT INTO automations "
+            "(user_id, name, trig, trig_cfg, act, act_cfg, enabled, state, created) "
+            "VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)",
+            (user_id, name, trig, json.dumps(trig_cfg), act, json.dumps(act_cfg),
+             json.dumps(state or {}), self._now()),
+        )
+        self._conn.commit()
+        return int(cur.lastrowid)
+
+    def _auto_row(self, r) -> dict:
+        d = dict(r)
+        for k in ("trig_cfg", "act_cfg", "state"):
+            try:
+                d[k] = json.loads(d.get(k) or "{}")
+            except (ValueError, TypeError):
+                d[k] = {}
+        d["enabled"] = bool(d.get("enabled"))
+        return d
+
+    def list_automations(self, user_id: str, only_enabled: bool = False) -> list[dict]:
+        q = ("SELECT id, name, trig, trig_cfg, act, act_cfg, enabled, state, created "
+             "FROM automations WHERE user_id = ?")
+        if only_enabled:
+            q += " AND enabled = 1"
+        rows = self._conn.execute(q + " ORDER BY id", (user_id,)).fetchall()
+        return [self._auto_row(r) for r in rows]
+
+    def delete_automation(self, user_id: str, auto_id: int) -> bool:
+        cur = self._conn.execute(
+            "DELETE FROM automations WHERE id = ? AND user_id = ?", (auto_id, user_id))
+        self._conn.commit()
+        return cur.rowcount > 0
+
+    def set_automation_enabled(self, user_id: str, auto_id: int, on: bool) -> bool:
+        cur = self._conn.execute(
+            "UPDATE automations SET enabled = ? WHERE id = ? AND user_id = ?",
+            (1 if on else 0, auto_id, user_id))
+        self._conn.commit()
+        return cur.rowcount > 0
+
+    def set_automation_state(self, auto_id: int, state: dict) -> None:
+        self._conn.execute("UPDATE automations SET state = ? WHERE id = ?",
+                           (json.dumps(state), auto_id))
+        self._conn.commit()
+
+    # --- connectors (user-defined API integrations) ------------------------
+
+    def add_connector(self, user_id: str, name: str, url: str,
+                      headers: dict, path: str) -> int:
+        cur = self._conn.execute(
+            "INSERT INTO connectors (user_id, name, url, headers, path, created) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (user_id, name, url, json.dumps(headers or {}), path or "", self._now()))
+        self._conn.commit()
+        return int(cur.lastrowid)
+
+    def list_connectors(self, user_id: str) -> list[dict]:
+        rows = self._conn.execute(
+            "SELECT id, name, url, headers, path, created FROM connectors "
+            "WHERE user_id = ? ORDER BY name", (user_id,)).fetchall()
+        out = []
+        for r in rows:
+            d = dict(r)
+            try:
+                d["headers"] = json.loads(d.get("headers") or "{}")
+            except (ValueError, TypeError):
+                d["headers"] = {}
+            out.append(d)
+        return out
+
+    def get_connector(self, user_id: str, name: str) -> dict | None:
+        for c in self.list_connectors(user_id):
+            if c["name"].lower() == (name or "").lower():
+                return c
+        return None
+
+    def delete_connector(self, user_id: str, conn_id: int) -> bool:
+        cur = self._conn.execute(
+            "DELETE FROM connectors WHERE id = ? AND user_id = ?", (conn_id, user_id))
+        self._conn.commit()
+        return cur.rowcount > 0
+
+    # --- custom pages (declarative dashboards) -----------------------------
+
+    def add_page(self, user_id: str, name: str, widgets: list) -> int:
+        cur = self._conn.execute(
+            "INSERT INTO pages (user_id, name, widgets, created) VALUES (?, ?, ?, ?)",
+            (user_id, name, json.dumps(widgets or []), self._now()))
+        self._conn.commit()
+        return int(cur.lastrowid)
+
+    def list_pages(self, user_id: str) -> list[dict]:
+        rows = self._conn.execute(
+            "SELECT id, name, widgets, created FROM pages WHERE user_id = ? ORDER BY id",
+            (user_id,)).fetchall()
+        out = []
+        for r in rows:
+            d = dict(r)
+            try:
+                d["widgets"] = json.loads(d.get("widgets") or "[]")
+            except (ValueError, TypeError):
+                d["widgets"] = []
+            out.append(d)
+        return out
+
+    def update_page(self, user_id: str, page_id: int, name=None, widgets=None) -> bool:
+        sets, params = [], []
+        if name is not None:
+            sets.append("name = ?"); params.append(name)
+        if widgets is not None:
+            sets.append("widgets = ?"); params.append(json.dumps(widgets))
+        if not sets:
+            return False
+        params += [page_id, user_id]
+        cur = self._conn.execute(
+            f"UPDATE pages SET {', '.join(sets)} WHERE id = ? AND user_id = ?", params)
+        self._conn.commit()
+        return cur.rowcount > 0
+
+    def delete_page(self, user_id: str, page_id: int) -> bool:
+        cur = self._conn.execute(
+            "DELETE FROM pages WHERE id = ? AND user_id = ?", (page_id, user_id))
+        self._conn.commit()
+        return cur.rowcount > 0
+
+    # --- music (saved Spotify items) ---------------------------------------
+
+    def add_music(self, user_id: str, label: str, kind: str, ref: str) -> int:
+        cur = self._conn.execute(
+            "INSERT INTO music (user_id, label, kind, ref, created) VALUES (?, ?, ?, ?, ?)",
+            (user_id, label, kind, ref, self._now()))
+        self._conn.commit()
+        return int(cur.lastrowid)
+
+    def list_music(self, user_id: str) -> list[dict]:
+        rows = self._conn.execute(
+            "SELECT id, label, kind, ref, created FROM music WHERE user_id = ? ORDER BY id",
+            (user_id,)).fetchall()
+        return [dict(r) for r in rows]
+
+    def delete_music(self, user_id: str, mid: int) -> bool:
+        cur = self._conn.execute(
+            "DELETE FROM music WHERE id = ? AND user_id = ?", (mid, user_id))
+        self._conn.commit()
+        return cur.rowcount > 0
+
+    # --- financial goals (cofrinho) ----------------------------------------
+
+    def add_goal(self, user_id: str, name: str, target: float) -> int:
+        cur = self._conn.execute(
+            "INSERT INTO goals (user_id, name, target, saved, created) VALUES (?, ?, ?, 0, ?)",
+            (user_id, name, target, self._now()))
+        self._conn.commit()
+        return int(cur.lastrowid)
+
+    def list_goals(self, user_id: str) -> list[dict]:
+        return [dict(r) for r in self._conn.execute(
+            "SELECT id, name, target, saved, created FROM goals WHERE user_id = ? ORDER BY id",
+            (user_id,)).fetchall()]
+
+    def add_to_goal(self, user_id: str, goal_id: int, amount: float) -> bool:
+        cur = self._conn.execute(
+            "UPDATE goals SET saved = MAX(0, saved + ?) WHERE id = ? AND user_id = ?",
+            (amount, goal_id, user_id))
+        self._conn.commit()
+        return cur.rowcount > 0
+
+    def delete_goal(self, user_id: str, goal_id: int) -> bool:
+        cur = self._conn.execute("DELETE FROM goals WHERE id = ? AND user_id = ?",
+                                 (goal_id, user_id))
+        self._conn.commit()
+        return cur.rowcount > 0
+
+    # --- health & routine ---------------------------------------------------
+
+    def health_day(self, user_id: str, day: str) -> dict:
+        r = self._conn.execute(
+            "SELECT water, sleep, mood FROM health WHERE user_id = ? AND day = ?",
+            (user_id, day)).fetchone()
+        return dict(r) if r else {"water": 0, "sleep": None, "mood": None}
+
+    def health_set(self, user_id: str, day: str, field: str, value) -> None:
+        if field not in ("water", "sleep", "mood"):
+            return
+        self._conn.execute(
+            "INSERT INTO health (user_id, day, water) VALUES (?, ?, 0) "
+            "ON CONFLICT(user_id, day) DO NOTHING", (user_id, day))
+        self._conn.execute(
+            f"UPDATE health SET {field} = ? WHERE user_id = ? AND day = ?",
+            (value, user_id, day))
+        self._conn.commit()
+
+    def health_water_inc(self, user_id: str, day: str, delta: int = 1) -> int:
+        self._conn.execute(
+            "INSERT INTO health (user_id, day, water) VALUES (?, ?, 0) "
+            "ON CONFLICT(user_id, day) DO NOTHING", (user_id, day))
+        self._conn.execute(
+            "UPDATE health SET water = MAX(0, water + ?) WHERE user_id = ? AND day = ?",
+            (delta, user_id, day))
+        self._conn.commit()
+        return self.health_day(user_id, day)["water"]
+
+    def health_history(self, user_id: str, limit: int = 7) -> list[dict]:
+        return [dict(r) for r in self._conn.execute(
+            "SELECT day, water, sleep, mood FROM health WHERE user_id = ? "
+            "ORDER BY day DESC LIMIT ?", (user_id, limit)).fetchall()]
+
+    # --- document vault -----------------------------------------------------
+
+    def add_document(self, user_id: str, name: str, mime: str, data: bytes,
+                     text: str = "") -> int:
+        cur = self._conn.execute(
+            "INSERT INTO documents (user_id, name, mime, size, text, data, created) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (user_id, name, mime, len(data), text, data, self._now()))
+        self._conn.commit()
+        return int(cur.lastrowid)
+
+    def list_documents(self, user_id: str, q: str = "") -> list[dict]:
+        if q:
+            like = f"%{q}%"
+            rows = self._conn.execute(
+                "SELECT id, name, mime, size, created FROM documents WHERE user_id = ? "
+                "AND (name LIKE ? OR text LIKE ?) ORDER BY id DESC", (user_id, like, like)).fetchall()
+        else:
+            rows = self._conn.execute(
+                "SELECT id, name, mime, size, created FROM documents WHERE user_id = ? "
+                "ORDER BY id DESC", (user_id,)).fetchall()
+        return [dict(r) for r in rows]
+
+    def get_document(self, user_id: str, doc_id: int) -> dict | None:
+        r = self._conn.execute(
+            "SELECT name, mime, data FROM documents WHERE id = ? AND user_id = ?",
+            (doc_id, user_id)).fetchone()
+        return dict(r) if r else None
+
+    def delete_document(self, user_id: str, doc_id: int) -> bool:
+        cur = self._conn.execute("DELETE FROM documents WHERE id = ? AND user_id = ?",
+                                 (doc_id, user_id))
+        self._conn.commit()
+        return cur.rowcount > 0
+
+    def expenses_after_id(self, user_id: str, after_id: int) -> list[dict]:
+        rows = self._conn.execute(
+            "SELECT id, amount, description, category, created FROM expenses "
+            "WHERE user_id = ? AND id > ? ORDER BY id", (user_id, after_id)).fetchall()
+        return [dict(r) for r in rows]
+
+    def max_expense_id(self, user_id: str) -> int:
+        row = self._conn.execute(
+            "SELECT COALESCE(MAX(id), 0) AS m FROM expenses WHERE user_id = ?",
+            (user_id,)).fetchone()
+        return int(row["m"]) if row else 0
+
+    def list_notifications(self, user_id: str, limit: int = 100) -> list[dict]:
+        rows = self._conn.execute(
+            "SELECT id, title, body, url, read, created FROM notifications "
+            "WHERE user_id = ? ORDER BY id DESC LIMIT ?",
+            (user_id, limit),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def unread_notifications(self, user_id: str) -> int:
+        r = self._conn.execute(
+            "SELECT COUNT(*) AS c FROM notifications WHERE user_id = ? AND read = 0",
+            (user_id,),
+        ).fetchone()
+        return r["c"] if r else 0
+
+    def mark_notification_read(self, user_id: str, notif_id: int | None = None) -> None:
+        if notif_id:
+            self._conn.execute(
+                "UPDATE notifications SET read = 1 WHERE user_id = ? AND id = ?",
+                (user_id, notif_id),
+            )
+        else:  # no id -> mark all read
+            self._conn.execute(
+                "UPDATE notifications SET read = 1 WHERE user_id = ?", (user_id,))
+        self._conn.commit()
+
+    def delete_notification(self, user_id: str, notif_id: int) -> None:
+        self._conn.execute(
+            "DELETE FROM notifications WHERE user_id = ? AND id = ?", (user_id, notif_id))
+        self._conn.commit()
+
+    def clear_notifications(self, user_id: str, only_read: bool = False) -> None:
+        if only_read:
+            self._conn.execute(
+                "DELETE FROM notifications WHERE user_id = ? AND read = 1", (user_id,))
+        else:
+            self._conn.execute(
+                "DELETE FROM notifications WHERE user_id = ?", (user_id,))
+        self._conn.commit()
+
+    # --- people / relationships (who's who, birthdays) ---------------------
+
+    @staticmethod
+    def _norm_bday(bday: str) -> str:
+        """Normalize a birthday to 'MM-DD' (year kept if given as YYYY-MM-DD)."""
+        b = (bday or "").strip()
+        if not b:
+            return ""
+        # accept DD/MM, DD/MM/YYYY, YYYY-MM-DD, MM-DD
+        import re
+        m = re.match(r"^(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?$", b)
+        if m:
+            d, mo, y = m.group(1), m.group(2), m.group(3)
+            mmdd = f"{int(mo):02d}-{int(d):02d}"
+            return f"{y}-{mmdd}" if y and len(y) == 4 else mmdd
+        m = re.match(r"^(\d{4})-(\d{1,2})-(\d{1,2})$", b)
+        if m:
+            return f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
+        return b
+
+    def add_person(self, user_id: str, name: str, notes: str = "",
+                   birthday: str = "") -> int:
+        """Add or update a person (matched by name, case-insensitive). Notes are
+        appended; a new birthday overwrites the old one."""
+        name = (name or "").strip()
+        bday = self._norm_bday(birthday)
+        row = self._conn.execute(
+            "SELECT id, notes FROM people WHERE user_id = ? AND lower(name) = lower(?)",
+            (user_id, name),
+        ).fetchone()
+        if row:
+            notes_new = (row["notes"] or "").strip()
+            if notes and notes not in notes_new:
+                notes_new = (notes_new + " • " + notes).strip(" •")
+            self._conn.execute(
+                "UPDATE people SET notes = ?, birthday = COALESCE(NULLIF(?, ''), birthday) "
+                "WHERE id = ?", (notes_new, bday, row["id"]))
+            self._conn.commit()
+            return int(row["id"])
+        cur = self._conn.execute(
+            "INSERT INTO people (user_id, name, notes, birthday, created) "
+            "VALUES (?, ?, ?, ?, ?)", (user_id, name, notes, bday, self._now()))
+        self._conn.commit()
+        return int(cur.lastrowid)
+
+    def list_people(self, user_id: str) -> list[dict]:
+        rows = self._conn.execute(
+            "SELECT id, name, notes, birthday FROM people WHERE user_id = ? "
+            "ORDER BY lower(name)", (user_id,)).fetchall()
+        return [dict(r) for r in rows]
+
+    def find_person(self, user_id: str, name: str) -> dict | None:
+        n = (name or "").strip()
+        row = self._conn.execute(
+            "SELECT id, name, notes, birthday FROM people WHERE user_id = ? "
+            "AND lower(name) LIKE lower(?) ORDER BY length(name) LIMIT 1",
+            (user_id, f"%{n}%")).fetchone()
+        return dict(row) if row else None
+
+    def delete_person(self, user_id: str, name: str) -> bool:
+        p = self.find_person(user_id, name)
+        if not p:
+            return False
+        self._conn.execute("DELETE FROM people WHERE id = ?", (p["id"],))
+        self._conn.commit()
+        return True
+
+    def birthdays_on(self, user_id: str, mmdd: str) -> list[dict]:
+        """People whose birthday falls on the given 'MM-DD' (year ignored)."""
+        out = []
+        for p in self.list_people(user_id):
+            b = p.get("birthday") or ""
+            if b and b[-5:] == mmdd:
+                out.append(p)
+        return out
+
+    # --- chat images (pasted/sent images kept in the conversation) ---------
+
+    def add_chat_image(self, conv_id: str, data: bytes, mime: str = "image/png") -> int:
+        cur = self._conn.execute(
+            "INSERT INTO chat_images (conv_id, mime, data, created) VALUES (?, ?, ?, ?)",
+            (conv_id, mime or "image/png", sqlite3.Binary(data), self._now()),
+        )
+        # bound the store — keep only the newest 80 images overall
+        self._conn.execute(
+            "DELETE FROM chat_images WHERE id NOT IN "
+            "(SELECT id FROM chat_images ORDER BY id DESC LIMIT 80)")
+        self._conn.commit()
+        return int(cur.lastrowid)
+
+    def get_chat_image(self, image_id: int) -> dict | None:
+        row = self._conn.execute(
+            "SELECT mime, data FROM chat_images WHERE id = ?", (image_id,)).fetchone()
+        return {"mime": row["mime"], "data": bytes(row["data"])} if row else None
+
+    # --- saved places / points of interest --------------------------------
+
+    def add_place(self, user_id: str, name: str, lat: float, lng: float) -> int:
+        cur = self._conn.execute(
+            "INSERT INTO places (user_id, name, lat, lng, created) VALUES (?, ?, ?, ?, ?)",
+            (user_id, (name or "ponto").strip()[:80], float(lat), float(lng), self._now()))
+        self._conn.commit()
+        return int(cur.lastrowid)
+
+    def list_places(self, user_id: str) -> list[dict]:
+        rows = self._conn.execute(
+            "SELECT id, name, lat, lng FROM places WHERE user_id = ? ORDER BY id",
+            (user_id,)).fetchall()
+        return [dict(r) for r in rows]
+
+    def delete_place(self, user_id: str, place_id: int) -> None:
+        self._conn.execute("DELETE FROM places WHERE user_id = ? AND id = ?",
+                           (user_id, place_id))
+        self._conn.commit()
+
+    def mark_last_user_image(self, conv_id: str, image_id: int) -> None:
+        """Embed an [img:id] marker in the most recent user message so the image
+        can be re-rendered when the conversation is reloaded. (The messages table
+        stores the conversation id in the user_id column.)"""
+        row = self._conn.execute(
+            "SELECT id, content FROM messages WHERE user_id = ? AND role = 'user' "
+            "ORDER BY id DESC LIMIT 1", (conv_id,)).fetchone()
+        if not row:
+            return
+        content = (row["content"] or "").strip()
+        marker = f"[img:{image_id}]"
+        content = marker if content in ("", "[imagem]") else f"{content}\n{marker}"
+        self._conn.execute(
+            "UPDATE messages SET content = ? WHERE id = ?", (content, row["id"]))
+        self._conn.commit()
+        self._conn.commit()
+
+    def activity_categories(self, user_id: str) -> list[str]:
+        rows = self._conn.execute(
+            "SELECT DISTINCT category FROM activity "
+            "WHERE user_id = ? AND category IS NOT NULL AND category != '' "
+            "ORDER BY category",
+            (user_id,),
+        ).fetchall()
+        return [r["category"] for r in rows]
 
     # --- conversation history ----------------------------------------------
 
@@ -228,6 +940,81 @@ class Memory:
         self._conn.commit()
         return cur.rowcount
 
+    def clear_conversation(self, conv_id: str) -> int:
+        """Delete all messages of one conversation thread (e.g. a web folder)."""
+        cur = self._conn.execute("DELETE FROM messages WHERE user_id = ?", (conv_id,))
+        self._conn.commit()
+        return cur.rowcount
+
+    def rename_conversation(self, old: str, new: str) -> int:
+        """Move a conversation's messages to a new key (rename a folder)."""
+        cur = self._conn.execute(
+            "UPDATE messages SET user_id = ? WHERE user_id = ?", (new, old)
+        )
+        self._conn.commit()
+        return cur.rowcount
+
+    # --- storage control (user-owned data) ---------------------------------
+
+    # key -> friendly label. Every table here is scoped by user_id (habit_logs
+    # cascades from habits). usage_log/settings are NOT user data and excluded.
+    DATA_TABLES = (
+        ("messages", "conversa"),
+        ("facts", "memórias"),
+        ("reminders", "lembretes"),
+        ("tasks", "tarefas"),
+        ("links", "links"),
+        ("knowledge", "base de conhecimento"),
+        ("expenses", "gastos"),
+        ("recurring_expenses", "assinaturas"),
+        ("budgets", "orçamentos"),
+        ("habits", "hábitos"),
+        ("journal", "diário"),
+        ("watches", "monitores web"),
+        ("flashcards", "flashcards"),
+    )
+    _DATA_TABLE_NAMES = frozenset(k for k, _ in DATA_TABLES)
+
+    def count_rows(self, table: str, user_id: str) -> int:
+        if table not in self._DATA_TABLE_NAMES:
+            raise ValueError(f"unknown table {table!r}")
+        return int(
+            self._conn.execute(
+                f"SELECT COUNT(*) FROM {table} WHERE user_id = ?", (user_id,)
+            ).fetchone()[0]
+        )
+
+    def clear_table(self, table: str, user_id: str) -> int:
+        """Delete all of a user's rows in one data table. Returns rows deleted.
+        (Table name is validated against a whitelist — no SQL injection.)"""
+        if table not in self._DATA_TABLE_NAMES:
+            raise ValueError(f"unknown table {table!r}")
+        if table == "habits":  # cascade: drop this user's habit logs first
+            self._conn.execute(
+                "DELETE FROM habit_logs WHERE habit_id IN "
+                "(SELECT id FROM habits WHERE user_id = ?)",
+                (user_id,),
+            )
+        cur = self._conn.execute(f"DELETE FROM {table} WHERE user_id = ?", (user_id,))
+        self._conn.commit()
+        return cur.rowcount
+
+    def storage_summary(self, user_id: str) -> list[dict]:
+        """[{key, label, count}] for every user-data table."""
+        return [
+            {"key": k, "label": lbl, "count": self.count_rows(k, user_id)}
+            for k, lbl in self.DATA_TABLES
+        ]
+
+    def clear_all_user_data(self, user_id: str) -> int:
+        """Wipe ALL of the user's data (every table above). Returns total rows."""
+        total = sum(self.clear_table(k, user_id) for k, _ in self.DATA_TABLES)
+        try:
+            self._conn.execute("VACUUM")  # reclaim disk after a big delete
+        except Exception:
+            pass
+        return total
+
     # --- facts (long-term memory) ------------------------------------------
 
     def add_fact(
@@ -265,6 +1052,12 @@ class Memory:
         )
         self._conn.commit()
         return cur.rowcount > 0
+
+    def clear_facts(self, user_id: str) -> int:
+        """Wipe all of a user's remembered facts (the 'brain'). Returns how many."""
+        cur = self._conn.execute("DELETE FROM facts WHERE user_id = ?", (user_id,))
+        self._conn.commit()
+        return cur.rowcount
 
     def relevant_facts(
         self, user_id: str, query_embedding: list[float] | None, k: int = 8
@@ -310,6 +1103,7 @@ class Memory:
             (user_id, text, when_iso, recur, self._now()),
         )
         self._conn.commit()
+        self.log_activity(user_id, "reminder.new", text)
         return int(cur.lastrowid)
 
     def open_reminders(self, user_id: str) -> list[dict]:
@@ -333,10 +1127,15 @@ class Memory:
         return [dict(r) for r in rows]
 
     def mark_reminder_done(self, reminder_id: int) -> None:
+        row = self._conn.execute(
+            "SELECT user_id, text FROM reminders WHERE id = ?", (reminder_id,)
+        ).fetchone()
         self._conn.execute(
             "UPDATE reminders SET done = 1 WHERE id = ?", (reminder_id,)
         )
         self._conn.commit()
+        if row:
+            self.log_activity(row["user_id"], "reminder.done", row["text"])
 
     def reschedule_reminder(self, reminder_id: int, new_when_iso: str) -> None:
         """Move a (recurring) reminder to its next occurrence, keeping it open."""
@@ -347,45 +1146,221 @@ class Memory:
         self._conn.commit()
 
     def cancel_reminder(self, user_id: str, reminder_id: int) -> bool:
+        row = self._conn.execute(
+            "SELECT text FROM reminders WHERE id = ? AND user_id = ? AND done = 0",
+            (reminder_id, user_id),
+        ).fetchone()
         cur = self._conn.execute(
             "UPDATE reminders SET done = 1 WHERE id = ? AND user_id = ? AND done = 0",
             (reminder_id, user_id),
         )
         self._conn.commit()
+        if cur.rowcount and row:
+            self.log_activity(user_id, "reminder.cancel", row["text"])
         return cur.rowcount > 0
 
     # --- tasks (to-do list) -------------------------------------------------
 
-    def add_task(self, user_id: str, text: str, category: str = "geral") -> int:
+    @staticmethod
+    def _next_due(due_iso: str, recur: str, now: datetime | None = None) -> str:
+        """Advance a due datetime to the next future occurrence of `recur`."""
+        try:
+            due = datetime.fromisoformat(due_iso)
+        except Exception:
+            return due_iso
+        now = now or datetime.now()
+        if due.tzinfo and now.tzinfo is None:
+            now = now.replace(tzinfo=due.tzinfo)
+        elif now.tzinfo and due.tzinfo is None:
+            due = due.replace(tzinfo=now.tzinfo)
+        if due > now:
+            return due_iso  # already in the future — leave untouched
+        if recur == "monthly":
+            nxt = due
+            while nxt <= now:
+                nxt = add_months(nxt, 1)
+            return nxt.isoformat()
+        step = {"daily": timedelta(days=1), "weekly": timedelta(days=7)}.get(recur)
+        if not step:
+            return due_iso
+        nxt = due
+        while nxt <= now:
+            nxt += step
+        return nxt.isoformat()
+
+    def add_task(self, user_id: str, text: str, category: str = "geral",
+                 recur: str | None = None, due: str | None = None) -> int:
         cur = self._conn.execute(
-            "INSERT INTO tasks (user_id, text, category, created) VALUES (?, ?, ?, ?)",
-            (user_id, text, category, self._now()),
+            "INSERT INTO tasks (user_id, text, category, recur, due, created) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (user_id, text, category, recur or None, due or None, self._now()),
         )
         self._conn.commit()
+        self.log_activity(user_id, "task.new", text, category)
         return int(cur.lastrowid)
 
     def open_tasks(self, user_id: str, category: str | None = None) -> list[dict]:
         if category:
             rows = self._conn.execute(
-                "SELECT id, text, category FROM tasks "
+                "SELECT id, text, category, recur, due FROM tasks "
                 "WHERE user_id = ? AND done = 0 AND category = ? ORDER BY id",
                 (user_id, category),
             ).fetchall()
         else:
             rows = self._conn.execute(
-                "SELECT id, text, category FROM tasks "
+                "SELECT id, text, category, recur, due FROM tasks "
                 "WHERE user_id = ? AND done = 0 ORDER BY category, id",
                 (user_id,),
             ).fetchall()
         return [dict(r) for r in rows]
 
+    def roll_due_tasks(self, now: datetime | None = None) -> int:
+        """Roll every open recurring task whose due date has passed forward to its
+        next occurrence (single rolling instance — never piles up). Returns how
+        many were advanced. Safe to call often (idempotent within a period)."""
+        now = now or datetime.now()
+        rows = self._conn.execute(
+            "SELECT id, recur, due FROM tasks "
+            "WHERE done = 0 AND recur IS NOT NULL AND due IS NOT NULL"
+        ).fetchall()
+        advanced = 0
+        for r in rows:
+            if (r["recur"] or "") not in ("daily", "weekly", "monthly"):
+                continue
+            nxt = self._next_due(r["due"], r["recur"], now)
+            if nxt != r["due"]:
+                self._conn.execute("UPDATE tasks SET due = ? WHERE id = ?", (nxt, r["id"]))
+                advanced += 1
+        if advanced:
+            self._conn.commit()
+        return advanced
+
     def complete_task(self, user_id: str, task_id: int) -> bool:
+        row = self._conn.execute(
+            "SELECT text, category, recur, due FROM tasks "
+            "WHERE id = ? AND user_id = ? AND done = 0",
+            (task_id, user_id),
+        ).fetchone()
+        if not row:
+            return False
+        recur = (row["recur"] or "")
+        # Recurring with a due date: roll the same task forward (single instance).
+        if recur in ("daily", "weekly", "monthly") and row["due"]:
+            self._conn.execute(
+                "UPDATE tasks SET due = ? WHERE id = ?",
+                (self._next_due(row["due"], recur), task_id),
+            )
+            self._conn.commit()
+            self.log_activity(user_id, "task.done", row["text"], row["category"])
+            return True
+        # Recurring without a due date: regenerate a fresh open copy so it returns.
+        if recur in ("daily", "weekly", "monthly"):
+            self._conn.execute(
+                "UPDATE tasks SET done = 1, done_at = ? WHERE id = ?",
+                (self._now(), task_id),
+            )
+            self._conn.execute(
+                "INSERT INTO tasks (user_id, text, category, recur, created) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (user_id, row["text"], row["category"], recur, self._now()),
+            )
+            self._conn.commit()
+            self.log_activity(user_id, "task.done", row["text"], row["category"])
+            return True
+        # Plain one-off task.
+        self._conn.execute(
+            "UPDATE tasks SET done = 1, done_at = ? WHERE id = ?",
+            (self._now(), task_id),
+        )
+        self._conn.commit()
+        self.log_activity(user_id, "task.done", row["text"], row["category"])
+        return True
+
+    def delete_task(self, user_id: str, task_id: int) -> bool:
+        row = self._conn.execute(
+            "SELECT text, category FROM tasks WHERE id = ? AND user_id = ?",
+            (task_id, user_id),
+        ).fetchone()
         cur = self._conn.execute(
-            "UPDATE tasks SET done = 1, done_at = ? WHERE id = ? AND user_id = ? AND done = 0",
-            (self._now(), task_id, user_id),
+            "DELETE FROM tasks WHERE id = ? AND user_id = ?", (task_id, user_id)
+        )
+        self._conn.commit()
+        if cur.rowcount and row:
+            self.log_activity(user_id, "task.del", row["text"], row["category"])
+        return cur.rowcount > 0
+
+    def update_task(self, user_id: str, task_id: int, text: str | None = None,
+                    category: str | None = None, recur: str | None = None,
+                    due: str | None = None) -> bool:
+        sets, params = [], []
+        if text is not None:
+            sets.append("text = ?"); params.append(text)
+        if category is not None:
+            sets.append("category = ?"); params.append(category)
+        if recur is not None:
+            sets.append("recur = ?"); params.append(recur or None)
+        if due is not None:
+            sets.append("due = ?"); params.append(due or None)
+        if not sets:
+            return False
+        params += [task_id, user_id]
+        cur = self._conn.execute(
+            f"UPDATE tasks SET {', '.join(sets)} WHERE id = ? AND user_id = ?", params
         )
         self._conn.commit()
         return cur.rowcount > 0
+
+    def _update(self, table: str, user_id: str, row_id: int, fields: dict) -> bool:
+        """Generic partial UPDATE (table/column names are fixed literals, no injection)."""
+        fields = {k: v for k, v in fields.items() if v is not None}
+        if not fields:
+            return False
+        sets = ", ".join(f"{k} = ?" for k in fields)
+        cur = self._conn.execute(
+            f"UPDATE {table} SET {sets} WHERE id = ? AND user_id = ?",
+            (*fields.values(), row_id, user_id),
+        )
+        self._conn.commit()
+        return cur.rowcount > 0
+
+    def update_expense(self, u, i, amount=None, description=None, category=None):
+        return self._update("expenses", u, i, {"amount": amount, "description": description, "category": category})
+
+    def update_reminder(self, u, i, text=None, when_iso=None, recur=None):
+        return self._update("reminders", u, i, {"text": text, "when_iso": when_iso, "recur": recur})
+
+    def update_fact(self, u, i, fact):
+        return self._update("facts", u, i, {"fact": fact})
+
+    def update_link(self, u, i, category=None, name=None, url=None):
+        return self._update("links", u, i, {"category": category, "name": name, "url": url})
+
+    def update_journal(self, u, i, text):
+        return self._update("journal", u, i, {"text": text})
+
+    def update_recurring(self, u, i, amount=None, description=None, category=None, day=None):
+        return self._update("recurring_expenses", u, i, {"amount": amount, "description": description, "category": category, "day": day})
+
+    def update_watch(self, u, i, url=None, keyword=None):
+        return self._update("watches", u, i, {"url": url, "keyword": keyword})
+
+    def update_habit(self, u, i, name):
+        return self._update("habits", u, i, {"name": name})
+
+    def update_place(self, u, i, name):
+        return self._update("places", u, i, {"name": name})
+
+    def update_person(self, u, i, name):
+        return self._update("people", u, i, {"name": name})
+
+    def delete_person_by_id(self, user_id: str, person_id: int) -> bool:
+        cur = self._conn.execute(
+            "DELETE FROM people WHERE id = ? AND user_id = ?", (person_id, user_id))
+        self._conn.commit()
+        return cur.rowcount > 0
+
+    def rename_habit(self, u, i, name):
+        return self._update("habits", u, i, {"name": name})
 
     def tasks_completed_since(self, user_id: str, since_iso: str) -> int:
         row = self._conn.execute(
@@ -478,8 +1453,36 @@ class Memory:
             "DELETE FROM knowledge WHERE user_id = ? AND source = ?",
             (user_id, source),
         )
+        self._conn.execute(  # drop the stored original file too
+            "DELETE FROM kb_files WHERE user_id = ? AND source = ?", (user_id, source))
         self._conn.commit()
         return cur.rowcount
+
+    # --- original KB files (for download / open) ---------------------------
+
+    def save_kb_file(self, user_id: str, source: str, filename: str,
+                     mime: str, data: bytes) -> None:
+        self._conn.execute(
+            "DELETE FROM kb_files WHERE user_id = ? AND source = ?", (user_id, source))
+        self._conn.execute(
+            "INSERT INTO kb_files (user_id, source, filename, mime, data, created) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (user_id, source, filename, mime, data, self._now()),
+        )
+        self._conn.commit()
+
+    def get_kb_file(self, user_id: str, source: str) -> dict | None:
+        row = self._conn.execute(
+            "SELECT filename, mime, data FROM kb_files WHERE user_id = ? AND source = ?",
+            (user_id, source),
+        ).fetchone()
+        return dict(row) if row else None
+
+    def kb_file_sources(self, user_id: str) -> list[str]:
+        rows = self._conn.execute(
+            "SELECT DISTINCT source FROM kb_files WHERE user_id = ?", (user_id,)
+        ).fetchall()
+        return [r["source"] for r in rows]
 
     # --- expenses -----------------------------------------------------------
 
@@ -492,11 +1495,12 @@ class Memory:
             (user_id, amount, description, category, self._now()),
         )
         self._conn.commit()
+        self.log_activity(user_id, "expense.new", f"{description} (R$ {amount:.0f})", category)
         return int(cur.lastrowid)
 
     def expenses_since(self, user_id: str, since_iso: str) -> list[dict]:
         rows = self._conn.execute(
-            "SELECT id, amount, description, category FROM expenses "
+            "SELECT id, amount, description, category, created FROM expenses "
             "WHERE user_id = ? AND created >= ? ORDER BY id",
             (user_id, since_iso),
         ).fetchall()
@@ -511,10 +1515,16 @@ class Memory:
         return [dict(r) for r in rows]
 
     def delete_expense(self, user_id: str, expense_id: int) -> bool:
+        row = self._conn.execute(
+            "SELECT description, category FROM expenses WHERE id = ? AND user_id = ?",
+            (expense_id, user_id),
+        ).fetchone()
         cur = self._conn.execute(
             "DELETE FROM expenses WHERE id = ? AND user_id = ?", (expense_id, user_id)
         )
         self._conn.commit()
+        if cur.rowcount and row:
+            self.log_activity(user_id, "expense.del", row["description"], row["category"])
         return cur.rowcount > 0
 
     def category_total_since(self, user_id: str, category: str, since_iso: str) -> float:
@@ -607,6 +1617,11 @@ class Memory:
             "INSERT INTO habit_logs (habit_id, day) VALUES (?, ?)", (habit_id, day)
         )
         self._conn.commit()
+        h = self._conn.execute(
+            "SELECT user_id, name FROM habits WHERE id = ?", (habit_id,)
+        ).fetchone()
+        if h:
+            self.log_activity(h["user_id"], "habit.done", h["name"])
         return True
 
     def delete_habit(self, user_id: str, habit_id: int) -> bool:
@@ -733,43 +1748,59 @@ class Memory:
     # --- unified search (across the user's own data) -----------------------
 
     def search_all(self, user_id: str, term: str) -> dict:
-        """Keyword search across facts, tasks, reminders, links, journal and KB."""
+        """Keyword search across facts, tasks, reminders, links, journal,
+        expenses, recent messages and KB. Each item is {id, text} (id may be
+        None for sources with no stable row id, e.g. knowledge chunks)."""
         like = f"%{term}%"
         c = self._conn
         return {
             "facts": [
-                r["fact"] for r in c.execute(
+                {"id": None, "text": r["fact"]} for r in c.execute(
                     "SELECT fact FROM facts WHERE user_id=? AND fact LIKE ?",
                     (user_id, like),
                 )
             ],
             "tasks": [
-                r["text"] for r in c.execute(
-                    "SELECT text FROM tasks WHERE user_id=? AND done=0 AND text LIKE ?",
+                {"id": r["id"], "text": r["text"]} for r in c.execute(
+                    "SELECT id, text FROM tasks WHERE user_id=? AND done=0 AND text LIKE ?",
                     (user_id, like),
                 )
             ],
             "reminders": [
-                r["text"] for r in c.execute(
-                    "SELECT text FROM reminders WHERE user_id=? AND done=0 AND text LIKE ?",
+                {"id": r["id"], "text": r["text"]} for r in c.execute(
+                    "SELECT id, text FROM reminders WHERE user_id=? AND done=0 AND text LIKE ?",
                     (user_id, like),
                 )
             ],
             "links": [
-                f"{r['name']} — {r['url']}" for r in c.execute(
-                    "SELECT name, url FROM links WHERE user_id=? AND "
+                {"id": r["id"], "text": f"{r['name']} — {r['url']}"} for r in c.execute(
+                    "SELECT id, name, url FROM links WHERE user_id=? AND "
                     "(name LIKE ? OR url LIKE ? OR category LIKE ?)",
                     (user_id, like, like, like),
                 )
             ],
             "journal": [
-                r["text"] for r in c.execute(
-                    "SELECT text FROM journal WHERE user_id=? AND text LIKE ?",
+                {"id": r["id"], "text": r["text"]} for r in c.execute(
+                    "SELECT id, text FROM journal WHERE user_id=? AND text LIKE ?",
+                    (user_id, like),
+                )
+            ],
+            "expenses": [
+                {"id": r["id"], "text": f"{r['description']} — R$ {r['amount']:.2f}"} for r in c.execute(
+                    "SELECT id, description, amount FROM expenses WHERE user_id=? AND "
+                    "(description LIKE ? OR category LIKE ?) ORDER BY id DESC LIMIT 8",
+                    (user_id, like, like),
+                )
+            ],
+            "messages": [
+                {"id": None, "text": (r["role"] + ": " + r["content"])[:160]} for r in c.execute(
+                    "SELECT role, content FROM messages WHERE user_id=? AND content LIKE ? "
+                    "ORDER BY id DESC LIMIT 6",
                     (user_id, like),
                 )
             ],
             "knowledge": [
-                (r["source"], r["chunk"]) for r in c.execute(
+                {"id": None, "text": f"[{r['source']}] {r['chunk'][:120]}…"} for r in c.execute(
                     "SELECT source, chunk FROM knowledge WHERE user_id=? AND chunk LIKE ? LIMIT 5",
                     (user_id, like),
                 )
@@ -809,9 +1840,22 @@ class Memory:
     # --- backup -------------------------------------------------------------
 
     def backup(self, dest_path: Path) -> None:
-        """Consistent online backup of the whole DB to `dest_path` (SQLite API)."""
-        dest = sqlite3.connect(dest_path)
-        try:
-            self._conn.backup(dest)
-        finally:
-            dest.close()
+        """Consistent online backup of the whole DB to `dest_path`. When the DB is
+        encrypted the backup is encrypted too (same key) — so it stays private and
+        needs EV_DB_KEY to restore."""
+        import os
+        from pathlib import Path as _P
+        key = os.getenv("EV_DB_KEY", "").strip()
+        _P(dest_path).unlink(missing_ok=True)  # export/backup wants a clean target
+        if key:
+            self._conn.execute(f"ATTACH DATABASE '{dest_path}' AS bak KEY \"x'{key}'\"")
+            try:
+                self._conn.execute("SELECT sqlcipher_export('bak')")
+            finally:
+                self._conn.execute("DETACH DATABASE bak")
+        else:
+            dest = sqlite3.connect(dest_path)
+            try:
+                self._conn.backup(dest)
+            finally:
+                dest.close()

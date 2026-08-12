@@ -14,7 +14,9 @@ import logging
 
 log = logging.getLogger("ev.tools")
 
-# Read/write scopes for Calendar and Gmail send.
+# Read/write scopes for Calendar and Gmail send. Reading mail is done over IMAP
+# with an app password (gmail.readonly is a "restricted" OAuth scope that Google
+# blocks for unverified apps), so it is NOT requested here.
 _GOOGLE_SCOPES = [
     "https://www.googleapis.com/auth/calendar",
     "https://www.googleapis.com/auth/gmail.send",
@@ -64,6 +66,131 @@ def weather(city: str) -> str:
     except Exception as exc:
         log.warning("weather failed (%s)", exc)
         return f"não consegui o clima agora ({exc})"
+
+
+def moon_phase() -> dict:
+    """Current moon phase name + illumination % (computed, no API)."""
+    import math
+    from datetime import datetime, timezone
+    known = datetime(2000, 1, 6, 18, 14, tzinfo=timezone.utc)  # a known new moon
+    days = (datetime.now(timezone.utc) - known).total_seconds() / 86400
+    syn = 29.53058867
+    pos = (days % syn) / syn                                   # 0..1 through the cycle
+    illum = round((1 - math.cos(2 * math.pi * pos)) / 2 * 100)
+    table = [(0.02, "Lua nova"), (0.24, "Crescente côncava"), (0.28, "Quarto crescente"),
+             (0.48, "Crescente gibosa"), (0.52, "Lua cheia"), (0.72, "Minguante gibosa"),
+             (0.78, "Quarto minguante"), (0.98, "Minguante côncava"), (1.01, "Lua nova")]
+    name = next((nm for th, nm in table if pos <= th), "Lua nova")
+    return {"phase": name, "illum": illum, "waxing": pos < 0.5}
+
+
+def _wicon(code: int, is_day: bool = True) -> str:
+    """Open-Meteo weather code -> a lucide icon name for the dashboard."""
+    if code == 0:
+        return "sun" if is_day else "moon"
+    if code in (1, 2):
+        return "cloud-sun" if is_day else "cloud-moon"
+    if code == 3:
+        return "cloud"
+    if code in (45, 48):
+        return "cloud-fog"
+    if code in (51, 53, 55, 56, 57):
+        return "cloud-drizzle"
+    if code in (61, 63, 65, 66, 67, 80, 81, 82):
+        return "cloud-rain"
+    if code in (71, 73, 75, 77, 85, 86):
+        return "snowflake"
+    if code in (95, 96, 99):
+        return "cloud-lightning"
+    return "cloud"
+
+
+def weather_full(city: str) -> dict:
+    """Rich structured weather for a dashboard (open-meteo, no key).
+    Returns {} on failure. Current + next hours + 10-day forecast."""
+    import httpx
+    from datetime import datetime
+    try:
+        geo = httpx.get(
+            "https://geocoding-api.open-meteo.com/v1/search",
+            params={"name": city, "count": 1, "language": "pt", "format": "json"},
+            timeout=15).json()
+        if not geo.get("results"):
+            return {}
+        loc = geo["results"][0]
+        r = httpx.get("https://api.open-meteo.com/v1/forecast", params={
+            "latitude": loc["latitude"], "longitude": loc["longitude"],
+            "current": ("temperature_2m,apparent_temperature,weather_code,is_day,"
+                        "relative_humidity_2m,wind_speed_10m,wind_direction_10m,"
+                        "wind_gusts_10m,surface_pressure,cloud_cover"),
+            "hourly": "temperature_2m,weather_code,precipitation_probability,uv_index",
+            "daily": ("temperature_2m_max,temperature_2m_min,weather_code,sunrise,"
+                      "sunset,uv_index_max,precipitation_probability_max"),
+            "timezone": "auto", "forecast_days": 10}, timeout=15).json()
+        cur = r.get("current", {})
+        day = bool(cur.get("is_day", 1))
+        code = int(cur.get("weather_code", 3))
+        daily = r.get("daily", {})
+        # hourly slice: next 12 hours from the current time
+        htimes = (r.get("hourly", {}) or {}).get("time", [])
+        htemp = (r.get("hourly", {}) or {}).get("temperature_2m", [])
+        hcode = (r.get("hourly", {}) or {}).get("weather_code", [])
+        now_iso = cur.get("time", "")
+        start = 0
+        for i, t in enumerate(htimes):
+            if t >= now_iso:
+                start = i
+                break
+        hourly = []
+        for i in range(start, min(start + 12, len(htimes))):
+            hh = htimes[i][11:16]
+            hourly.append({"time": hh, "temp": round(htemp[i]),
+                           "icon": _wicon(int(hcode[i]), day)})
+        _WD = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"]
+        days = []
+        dt = daily.get("time", [])
+        for i in range(len(dt)):
+            try:
+                lbl = "Hoje" if i == 0 else _WD[datetime.fromisoformat(dt[i]).weekday()]
+            except Exception:
+                lbl = dt[i][5:]
+            days.append({"day": lbl,
+                         "min": round(daily["temperature_2m_min"][i]),
+                         "max": round(daily["temperature_2m_max"][i]),
+                         "icon": _wicon(int(daily["weather_code"][i]), True)})
+        name = loc["name"] + (f", {loc.get('admin1')}" if loc.get("admin1") else "")
+        _DIRS = ["N", "NE", "L", "SE", "S", "SO", "O", "NO"]
+        wdeg = cur.get("wind_direction_10m", 0)
+        uvnow = round(hcode and (r.get("hourly", {}).get("uv_index", []) or [0])[start] or 0, 1) if htimes else 0
+        prob = ((r.get("hourly", {}).get("precipitation_probability", []) or [0])[start]) if htimes else 0
+        return {
+            "location": name,
+            "current": {
+                "temp": round(cur.get("temperature_2m", 0)),
+                "feels": round(cur.get("apparent_temperature", 0)),
+                "desc": _WEATHER_CODES.get(code, ""),
+                "icon": _wicon(code, day),
+                "high": round(daily["temperature_2m_max"][0]) if dt else None,
+                "low": round(daily["temperature_2m_min"][0]) if dt else None,
+                "humidity": cur.get("relative_humidity_2m"),
+                "wind": round(cur.get("wind_speed_10m", 0)),
+                "wind_dir": _DIRS[round(wdeg / 45) % 8], "wind_deg": round(wdeg),
+                "gusts": round(cur.get("wind_gusts_10m", 0)),
+                "pressure": round(cur.get("surface_pressure", 0)),
+                "cloud": cur.get("cloud_cover"),
+                "uv": uvnow, "precip_prob": prob,
+            },
+            "today": {
+                "sunrise": (daily.get("sunrise", [""])[0] or "")[11:16],
+                "sunset": (daily.get("sunset", [""])[0] or "")[11:16],
+                "uv_max": round((daily.get("uv_index_max", [0]) or [0])[0], 1),
+                "rain_chance": (daily.get("precipitation_probability_max", [0]) or [0])[0],
+            },
+            "hourly": hourly, "daily": days,
+        }
+    except Exception as exc:
+        log.warning("weather_full failed (%s)", exc)
+        return {}
 
 
 _RAIN_CODES = {51, 53, 55, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99}
@@ -273,24 +400,54 @@ def news(topic: str, max_results: int = 4, tavily_key: str = "") -> str:
     )
 
 
-def tavily_search(query: str, api_key: str, max_results: int = 5) -> str:
-    """Search via Tavily (AI-focused search; clean relevant results)."""
+def _fmt_pubdate(s: str) -> str:
+    """Format a Tavily published_date (RFC-2822) as 'dd/mm/yyyy · ', or ''."""
+    if not s:
+        return ""
+    try:
+        from email.utils import parsedate_to_datetime
+        return parsedate_to_datetime(s).strftime("%d/%m/%Y") + " · "
+    except Exception:
+        return ""
+
+
+def tavily_search(
+    query: str, api_key: str, max_results: int = 5, recent: bool = False
+) -> str:
+    """Search via Tavily. `recent=True` switches to the news topic (last 7 days)
+    for current-events queries. Includes Tavily's synthesized answer and shows
+    each result's publish date so freshness is visible."""
     import httpx
+
+    payload = {
+        "query": query,
+        "max_results": max_results,
+        "search_depth": "basic",
+        "include_answer": True,
+    }
+    if recent:
+        payload["topic"] = "news"
+        payload["days"] = 7
 
     resp = httpx.post(
         "https://api.tavily.com/search",
-        json={"query": query, "max_results": max_results, "search_depth": "basic"},
+        json=payload,
         headers={"Authorization": f"Bearer {api_key}"},
         timeout=20,
     )
     resp.raise_for_status()
-    results = resp.json().get("results", [])
-    if not results:
+    data = resp.json()
+    results = data.get("results", [])
+    answer = (data.get("answer") or "").strip()
+    if not results and not answer:
         return "não achei nada relevante na web."
     lines = []
+    if answer:
+        lines.append(f"Resumo: {answer}\n")
     for r in results[:max_results]:
-        body = (r.get("content", "") or "")[:200]
-        lines.append(f"- {r.get('title', '')}: {body} ({r.get('url', '')})")
+        body = (r.get("content", "") or "")[:180]
+        date = _fmt_pubdate(r.get("published_date", ""))
+        lines.append(f"- {date}{r.get('title', '')}: {body} ({r.get('url', '')})")
     return "\n".join(lines)
 
 
@@ -314,6 +471,20 @@ def brave_search(query: str, api_key: str, max_results: int = 5) -> str:
     return "\n".join(lines)
 
 
+# Query words that signal the user wants CURRENT info (switch Tavily to news mode).
+_RECENT_KW = (
+    "hoje", "agora", "últimas", "ultimas", "notícia", "noticia", "notícias",
+    "noticias", "atual", "atualmente", "recente", "recentes", "2026", "preço",
+    "preco", "cotação", "cotacao", "dólar", "dolar", "resultado", "placar",
+    "última hora", "ultima hora",
+)
+
+
+def _looks_recent(query: str) -> bool:
+    q = query.lower()
+    return any(k in q for k in _RECENT_KW)
+
+
 def web_search(
     query: str, max_results: int = 5, brave_key: str = "", tavily_key: str = ""
 ) -> str:
@@ -321,7 +492,9 @@ def web_search(
     Tavily -> Brave -> DuckDuckGo (whichever is configured; free/no-key fallback)."""
     if tavily_key:
         try:
-            return tavily_search(query, tavily_key, max_results)
+            return tavily_search(
+                query, tavily_key, max_results, recent=_looks_recent(query)
+            )
         except Exception as exc:
             log.warning("tavily_search failed (%s); trying next", exc)
     if brave_key:
@@ -376,7 +549,12 @@ def _google_service(config, account: str, api: str, version: str, allow_interact
     token_path = config.token_path_for(account)
     creds = None
     if token_path.exists():
-        creds = Credentials.from_authorized_user_file(str(token_path), _GOOGLE_SCOPES)
+        # Load with the scopes ALREADY granted in the token file (not the full
+        # _GOOGLE_SCOPES list). Otherwise adding a new scope makes refresh request
+        # a scope the token never had -> Google returns invalid_scope and breaks
+        # even the previously-working calls. New scopes take effect only after a
+        # re-authorization (authorize_google.py), which rewrites the token file.
+        creds = Credentials.from_authorized_user_file(str(token_path))
 
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
@@ -394,6 +572,178 @@ def _google_service(config, account: str, api: str, version: str, allow_interact
         token_path.write_text(creds.to_json())
 
     return build(api, version, credentials=creds, cache_discovery=False)
+
+
+def reverse_geocode(lat: float, lng: float) -> str:
+    """Best-effort human-readable address for coordinates (OpenStreetMap/Nominatim)."""
+    import json
+    import urllib.request
+    url = (f"https://nominatim.openstreetmap.org/reverse?lat={lat}&lon={lng}"
+           "&format=json&zoom=16&addressdetails=0")
+    req = urllib.request.Request(url, headers={"User-Agent": "E.V.-assistant/1.0"})
+    try:
+        with urllib.request.urlopen(req, timeout=6) as r:
+            data = json.loads(r.read().decode())
+        return (data.get("display_name") or "").strip()
+    except Exception as exc:
+        log.warning("reverse_geocode failed (%s)", exc)
+        return ""
+
+
+# Friendly place types -> OpenStreetMap tag filters (for Overpass queries).
+_OSM_KINDS = {
+    "farmácia": '["amenity"="pharmacy"]', "farmacia": '["amenity"="pharmacy"]',
+    "mercado": '["shop"~"supermarket|convenience|grocery"]',
+    "supermercado": '["shop"="supermarket"]',
+    "restaurante": '["amenity"="restaurant"]',
+    "padaria": '["shop"="bakery"]',
+    "café": '["amenity"="cafe"]', "cafe": '["amenity"="cafe"]',
+    "posto": '["amenity"="fuel"]', "gasolina": '["amenity"="fuel"]',
+    "banco": '["amenity"="bank"]', "caixa": '["amenity"="atm"]',
+    "hospital": '["amenity"~"hospital|clinic"]', "saúde": '["amenity"~"hospital|clinic|pharmacy"]',
+    "ônibus": '["highway"="bus_stop"]', "onibus": '["highway"="bus_stop"]',
+    "metrô": '["station"="subway"]', "metro": '["station"="subway"]',
+    "trem": '["railway"="station"]', "estação": '["railway"="station"]',
+    "academia": '["leisure"="fitness_centre"]',
+    "escola": '["amenity"="school"]', "hotel": '["tourism"="hotel"]',
+    "estacionamento": '["amenity"="parking"]',
+}
+
+
+def _haversine_m(lat1, lng1, lat2, lng2) -> int:
+    from math import radians, sin, cos, asin, sqrt
+    dlat, dlng = radians(lat2 - lat1), radians(lng2 - lng1)
+    a = sin(dlat / 2) ** 2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlng / 2) ** 2
+    return int(6371000 * 2 * asin(sqrt(a)))
+
+
+def nearby_places(lat: float, lng: float, query: str, radius_m: int = 1600,
+                  limit: int = 20) -> list[dict]:
+    """Find POIs near (lat,lng) via OpenStreetMap Overpass. Returns items sorted
+    by distance: {name, lat, lng, dist, kind}. Empty list on any failure."""
+    import json
+    import urllib.parse
+    import urllib.request
+
+    q = (query or "").strip().lower()
+    flt = _OSM_KINDS.get(q)
+    if flt:
+        selector = f"nwr{flt}(around:{radius_m},{lat},{lng});"
+    else:  # free text -> match by name
+        safe = re.sub(r'["\\]', "", query.strip())[:40]
+        selector = f'nwr["name"~"{safe}",i](around:{radius_m},{lat},{lng});'
+    oql = f"[out:json][timeout:25];({selector});out center {limit * 3};"
+    data = urllib.parse.urlencode({"data": oql}).encode()
+    res = None
+    for ep in ("https://overpass-api.de/api/interpreter",
+               "https://overpass.kumi.systems/api/interpreter",
+               "https://overpass.private.coffee/api/interpreter",
+               "https://maps.mail.ru/osm/tools/overpass/api/interpreter"):
+        try:
+            req = urllib.request.Request(
+                ep, data=data, headers={"User-Agent": "E.V.-assistant/1.0"})
+            with urllib.request.urlopen(req, timeout=25) as r:
+                res = json.loads(r.read().decode())
+            break
+        except Exception as exc:
+            log.warning("nearby_places via %s failed (%s)", ep.split("/")[2], exc)
+    if res is None:
+        return []
+    out = []
+    for e in res.get("elements", []):
+        tags = e.get("tags", {})
+        name = tags.get("name")
+        if not name:
+            continue
+        plat = e.get("lat") or (e.get("center") or {}).get("lat")
+        plng = e.get("lon") or (e.get("center") or {}).get("lon")
+        if plat is None or plng is None:
+            continue
+        out.append({
+            "name": name, "lat": plat, "lng": plng,
+            "dist": _haversine_m(lat, lng, plat, plng),
+            "kind": tags.get("amenity") or tags.get("shop") or tags.get("leisure") or "",
+        })
+    out.sort(key=lambda p: p["dist"])
+    # dedupe by name, keep nearest
+    seen, uniq = set(), []
+    for p in out:
+        k = p["name"].lower()
+        if k in seen:
+            continue
+        seen.add(k)
+        uniq.append(p)
+    return uniq[:limit]
+
+
+def geocode(query: str) -> dict | None:
+    """Forward-geocode an address/place to coords (OpenStreetMap/Nominatim)."""
+    import json
+    import urllib.parse
+    import urllib.request
+    url = ("https://nominatim.openstreetmap.org/search?"
+           + urllib.parse.urlencode({"q": query, "format": "json", "limit": 1}))
+    req = urllib.request.Request(url, headers={"User-Agent": "E.V.-assistant/1.0"})
+    try:
+        with urllib.request.urlopen(req, timeout=9) as r:
+            data = json.loads(r.read().decode())
+        if not data:
+            return None
+        return {"lat": float(data[0]["lat"]), "lng": float(data[0]["lon"]),
+                "name": data[0].get("display_name", "")}
+    except Exception as exc:
+        log.warning("geocode failed (%s)", exc)
+        return None
+
+
+def route(from_lat, from_lng, to_lat, to_lng, mode: str = "car") -> dict | None:
+    """Driving/walking route between two points (OSRM, free). Returns
+    {distance_m, duration_s, geometry(GeoJSON LineString)} or None."""
+    import json
+    import urllib.request
+    prof = {"foot": "routed-foot", "bike": "routed-bike"}.get(mode, "routed-car")
+    pname = {"foot": "foot", "bike": "bike"}.get(mode, "driving")
+    url = (f"https://routing.openstreetmap.de/{prof}/route/v1/{pname}/"
+           f"{from_lng},{from_lat};{to_lng},{to_lat}?overview=full&geometries=geojson")
+    req = urllib.request.Request(url, headers={"User-Agent": "E.V.-assistant/1.0"})
+    try:
+        with urllib.request.urlopen(req, timeout=13) as r:
+            data = json.loads(r.read().decode())
+        rt = (data.get("routes") or [None])[0]
+        if not rt:
+            return None
+        return {"distance": int(rt["distance"]), "duration": int(rt["duration"]),
+                "geometry": rt["geometry"]}
+    except Exception as exc:
+        log.warning("route failed (%s)", exc)
+        return None
+
+
+def maps_search_link(lat, lng, query: str) -> str:
+    """Google Maps search link for `query` near coordinates."""
+    import urllib.parse
+    return (f"https://www.google.com/maps/search/{urllib.parse.quote(query)}"
+            f"/@{lat},{lng},15z")
+
+
+def static_map_url(center_lat, center_lng, markers=None, zoom: int = 15,
+                   w: int = 600, h: int = 320) -> str:
+    """Free OpenStreetMap static-map image (no API key). `markers` = list of
+    (lat, lng), pinned in red. It's a community service — best-effort, may be
+    slow or occasionally unavailable; the route links work regardless."""
+    import urllib.parse
+    params = [("center", f"{center_lat},{center_lng}"), ("zoom", str(zoom)),
+              ("size", f"{w}x{h}")]
+    for mlat, mlng in (markers or []):
+        params.append(("markers", f"{mlat},{mlng},red-pushpin"))
+    return "https://staticmap.openstreetmap.de/staticmap.php?" + urllib.parse.urlencode(params)
+
+
+def directions_link(from_lat, from_lng, to_lat, to_lng, mode: str = "walking") -> str:
+    """Google Maps directions (route) link from the user's location to a place."""
+    tm = mode if mode in ("walking", "driving", "bicycling", "transit") else "walking"
+    return (f"https://www.google.com/maps/dir/?api=1&origin={from_lat},{from_lng}"
+            f"&destination={to_lat},{to_lng}&travelmode={tm}")
 
 
 def calendar_upcoming(config, account: str, max_results: int = 5) -> str:
@@ -426,6 +776,41 @@ def calendar_upcoming(config, account: str, max_results: int = 5) -> str:
         start = e.get("start", {}).get("dateTime") or e.get("start", {}).get("date")
         lines.append(f"- {start}: {e.get('summary', '(sem título)')}")
     return "\n".join(lines)
+
+
+def calendar_list_range(
+    config, account: str, start_iso: str, end_iso: str, max_results: int = 250
+) -> list[dict]:
+    """List Google Calendar events between start and end as structured dicts."""
+    service = _google_service(config, account, "calendar", "v3")
+    events = (
+        service.events()
+        .list(
+            calendarId="primary", timeMin=start_iso, timeMax=end_iso,
+            maxResults=max_results, singleEvents=True, orderBy="startTime",
+        )
+        .execute()
+        .get("items", [])
+    )
+    out = []
+    for e in events:
+        s, en = e.get("start", {}), e.get("end", {})
+        out.append({
+            "id": e.get("id"),
+            "summary": e.get("summary", "(sem título)"),
+            "start": s.get("dateTime") or s.get("date"),
+            "end": en.get("dateTime") or en.get("date"),
+            "all_day": "date" in s and "dateTime" not in s,
+            "link": e.get("htmlLink"),
+        })
+    return out
+
+
+def calendar_delete(config, account: str, event_id: str) -> bool:
+    """Delete a Google Calendar event by id."""
+    service = _google_service(config, account, "calendar", "v3")
+    service.events().delete(calendarId="primary", eventId=event_id).execute()
+    return True
 
 
 def calendar_create(
@@ -465,3 +850,107 @@ def send_email(config, account: str, to: str, subject: str, body: str) -> str:
     except Exception as exc:
         log.warning("send_email failed (%s)", exc)
         return f"não consegui enviar o e-mail ({exc})"
+
+
+def _clean_from(value: str) -> str:
+    """'Fulano <a@b.com>' -> 'Fulano'; bare address -> the address."""
+    value = (value or "").strip()
+    if "<" in value:
+        name = value.split("<", 1)[0].strip().strip('"')
+        return name or value.split("<", 1)[1].rstrip(">").strip()
+    return value
+
+
+def _imap_query(query: str):
+    """Map a small, friendly query to an IMAP SEARCH criterion.
+
+    "" / "unread" / "is:unread" -> only unread; anything else -> full-text TEXT
+    search across recent mail. Returns a criteria tuple for imaplib search().
+    """
+    q = (query or "").strip().lower()
+    if q in ("", "unread", "is:unread", "in:inbox", "is:unread in:inbox", "não lidos", "nao lidos"):
+        return ("UNSEEN",)
+    return ("TEXT", query.strip())
+
+
+def _decode_header(raw: str) -> str:
+    from email.header import decode_header
+    out = []
+    for part, enc in decode_header(raw or ""):
+        if isinstance(part, bytes):
+            try:
+                out.append(part.decode(enc or "utf-8", "replace"))
+            except (LookupError, TypeError):
+                out.append(part.decode("utf-8", "replace"))
+        else:
+            out.append(part)
+    return "".join(out).strip()
+
+
+def list_emails(config, account: str = "", query: str = "",
+                max_results: int = 8) -> list[dict]:
+    """Return recent emails from the configured Gmail inbox via IMAP.
+
+    Reading uses IMAP + an app password (config.imap_address/imap_password), not
+    OAuth. Each item: {from, subject, date, snippet, unread}. `account` is
+    accepted for call-site compatibility but ignored (single mailbox).
+    """
+    import email as _email
+    import imaplib
+
+    if not config.imap_ready():
+        raise RuntimeError("imap-not-configured")
+
+    conn = imaplib.IMAP4_SSL("imap.gmail.com", 993)
+    try:
+        conn.login(config.imap_address, config.imap_password)
+        conn.select("INBOX", readonly=True)
+        typ, data = conn.search(None, *_imap_query(query))
+        ids = data[0].split() if data and data[0] else []
+        ids = ids[-max_results:][::-1]  # newest first
+        out: list[dict] = []
+        for mid in ids:
+            typ, msg_data = conn.fetch(
+                mid, "(BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE)])")
+            if not msg_data or not msg_data[0]:
+                continue
+            msg = _email.message_from_bytes(msg_data[0][1])
+            out.append({
+                "from": _clean_from(_decode_header(msg.get("From", ""))),
+                "subject": _decode_header(msg.get("Subject", "")) or "(sem assunto)",
+                "date": msg.get("Date", ""),
+                "snippet": "",
+                "unread": True,  # default UNSEEN search; best-effort otherwise
+            })
+        return out
+    finally:
+        try:
+            conn.logout()
+        except Exception:
+            pass
+
+
+def inbox_summary(config, account: str = "", query: str = "",
+                  max_results: int = 8) -> str:
+    """Human-readable summary of recent emails, formatted for chat rendering."""
+    try:
+        items = list_emails(config, account, query, max_results)
+    except Exception as exc:
+        msg = str(exc)
+        if "imap-not-configured" in msg:
+            return ("leitura de e-mail ainda não configurada. Defina EV_IMAP_ADDRESS "
+                    "e EV_IMAP_PASSWORD (senha de app do Gmail) para eu ler sua caixa.")
+        log.warning("inbox_summary failed (%s)", exc)
+        low = msg.lower()
+        if "authenticationfailed" in low or "invalid credentials" in low or "login" in low:
+            return ("não consegui entrar no e-mail — confira a senha de app "
+                    "(EV_IMAP_PASSWORD) e se o IMAP está ativado no Gmail.")
+        return f"não consegui ler os e-mails ({msg[:120]})"
+    if not items:
+        return "nenhum e-mail novo por aqui."
+    lines = [f"📥 E-mails ({len(items)}):", ""]
+    for i, m in enumerate(items, 1):
+        line = f"#{i} {m['from']} — {m['subject']}"
+        when = m.get("date", "")
+        lines.append(line)
+    return "\n".join(lines)

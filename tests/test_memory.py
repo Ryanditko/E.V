@@ -1,5 +1,7 @@
 """Tests for the SQLite memory layer (facts, tasks, links, reminders, KB)."""
 
+from datetime import datetime
+
 from ev.core.memory import Memory
 
 
@@ -16,6 +18,49 @@ def test_tasks(tmp_path):
     m = Memory(tmp_path / "t.db")
     tid = m.add_task("u", "comprar pão")
     assert [t["text"] for t in m.open_tasks("u")] == ["comprar pão"]
+    assert m.complete_task("u", tid) is True
+    assert m.open_tasks("u") == []
+
+
+def test_next_due_rolls_to_future():
+    now = datetime(2026, 7, 25, 12, 0)  # Saturday
+    # daily: 3 days ago -> next future day
+    assert Memory._next_due("2026-07-22T09:00", "daily", now) == "2026-07-26T09:00:00"
+    # weekly: last Monday -> next Monday after now
+    assert Memory._next_due("2026-07-20T09:00", "weekly", now) == "2026-07-27T09:00:00"
+    # monthly: the 10th, this month passed -> next month's 10th
+    assert Memory._next_due("2026-07-10T09:00", "monthly", now) == "2026-08-10T09:00:00"
+    # already future -> unchanged
+    assert Memory._next_due("2026-08-01T09:00", "daily", now) == "2026-08-01T09:00"
+
+
+def test_recurring_task_rolls_on_complete_and_worker(tmp_path):
+    m = Memory(tmp_path / "t.db")
+    tid = m.add_task("u", "revisar metas", "trabalho", recur="weekly", due="2026-07-20T09:00")
+    # worker rolls an overdue recurring task forward — single instance, no pile-up
+    now = datetime(2026, 7, 25, 12, 0)
+    assert m.roll_due_tasks(now) == 1
+    rows = m.open_tasks("u")
+    assert len(rows) == 1 and rows[0]["id"] == tid
+    assert rows[0]["due"] == "2026-07-27T09:00:00"
+    # completing rolls forward again (same row stays open, never disappears)
+    assert m.complete_task("u", tid) is True
+    rows = m.open_tasks("u")
+    assert len(rows) == 1 and rows[0]["id"] == tid and rows[0]["recur"] == "weekly"
+
+
+def test_recurring_task_without_due_regenerates_copy(tmp_path):
+    m = Memory(tmp_path / "t.db")
+    tid = m.add_task("u", "treino", recur="daily")  # no due
+    assert m.complete_task("u", tid) is True
+    rows = m.open_tasks("u")
+    assert len(rows) == 1 and rows[0]["text"] == "treino" and rows[0]["id"] != tid
+
+
+def test_plain_task_with_due_completes_normally(tmp_path):
+    m = Memory(tmp_path / "t.db")
+    tid = m.add_task("u", "pagar boleto", due="2026-07-30T10:00")
+    assert m.open_tasks("u")[0]["due"] == "2026-07-30T10:00"
     assert m.complete_task("u", tid) is True
     assert m.open_tasks("u") == []
 

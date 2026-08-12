@@ -27,6 +27,43 @@ def _pdf_text(data: bytes) -> str:
     return "\n".join((page.extract_text() or "") for page in reader.pages)
 
 
+def _docx_text(data: bytes) -> str:
+    from docx import Document
+
+    doc = Document(io.BytesIO(data))
+    return "\n".join(p.text for p in doc.paragraphs)
+
+
+# Filename extensions we can read into text.
+READABLE_EXTS = (".pdf", ".docx", ".txt", ".md", ".markdown", ".csv", ".log")
+
+
+def extract_text(data: bytes, filename: str) -> str:
+    """Extract plain text from a supported file (PDF, Word, or plain text)."""
+    name = (filename or "").lower()
+    if name.endswith(".pdf"):
+        return _pdf_text(data)
+    if name.endswith(".docx"):
+        return _docx_text(data)
+    # Everything else: best-effort decode as UTF-8 text.
+    try:
+        return data.decode("utf-8", errors="replace")
+    except Exception:
+        return ""
+
+
+def ingest_file(
+    data: bytes, filename: str, config, memory: Memory, user_id: str,
+    source: str | None = None,
+) -> tuple[int, bool]:
+    """Extract text from a supported file and ingest it under `source` (a friendly
+    name) or the filename. Returns (stored, truncated)."""
+    text = extract_text(data, filename)
+    if not text.strip():
+        return 0, False
+    return ingest_text(text, source or filename, config, memory, user_id)
+
+
 def _chunk(text: str, size: int = _CHUNK_CHARS) -> list[str]:
     words = text.split()
     chunks, buf, length = [], [], 0
@@ -76,9 +113,10 @@ def _html_to_text(html: str) -> str:
 
 
 def ingest_url(
-    url: str, config, memory: Memory, user_id: str
+    url: str, config, memory: Memory, user_id: str, source: str | None = None
 ) -> tuple[int, bool]:
-    """Fetch a web page, extract its text and ingest it. Returns (stored, truncated)."""
+    """Fetch a web page, extract its text and ingest it under `source` (a friendly
+    name) or the URL. Returns (stored, truncated)."""
     import httpx
 
     resp = httpx.get(
@@ -89,4 +127,4 @@ def ingest_url(
     text = _html_to_text(resp.text)
     if not text:
         return 0, False
-    return ingest_text(text, url, config, memory, user_id)
+    return ingest_text(text, source or url, config, memory, user_id)
