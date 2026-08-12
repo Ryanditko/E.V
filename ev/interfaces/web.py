@@ -613,8 +613,10 @@ body.serious #serfx{opacity:1;box-shadow:inset 0 0 150px -50px rgba(255,45,55,.6
 .rd-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:1400px}
 @media(max-width:820px){.rd-grid{grid-template-columns:1fr}}
 .rd-half{min-width:0}
+.rd-full{min-width:0;grid-column:1/-1}
 .pd-t{font-family:var(--disp);font-size:16px;color:#eaf4fb;margin-bottom:12px;text-shadow:0 0 14px rgba(var(--accent-rgb),.25)}
 .pd-card{border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:15px 17px;margin-bottom:12px}
+.pd-card-row{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
 .pd-card .l{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--subtle);margin-bottom:8px;display:flex;align-items:center;gap:6px}
 .pd-card .l svg{width:13px;height:13px}
 .pd-moon{display:flex;align-items:center;gap:16px}
@@ -1215,7 +1217,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
       <div class="rd-grid">
         <div class="rd-half"><div class="pd-t">☾ Astronomia</div><div id="pd-astro"></div></div>
         <div class="rd-half"><div class="pd-t">◎ Radar do mundo</div><div id="pd-radar"></div></div>
-        <div class="rd-half"><div class="pd-t">⛁ Backup</div><div id="pd-backup"></div></div>
+        <div class="rd-full"><div class="pd-t">⛁ Backup</div><div id="pd-backup"></div></div>
       </div>
     </div>
   </main>
@@ -2526,13 +2528,15 @@ function relTime(iso){if(!iso)return null;const ms=Date.now()-new Date(iso).getT
   if(m<1)return'agora mesmo';if(m<60)return'há '+m+' min';const h=Math.round(m/60);if(h<24)return'há '+h+'h';return'há '+Math.round(h/24)+'d';}
 async function loadBackupStatus(){const B=$('#pd-backup');if(!B)return;
   let d;try{d=await(await fetch('/api/backup/status',{headers:H()})).json();}catch(e){B.innerHTML='<div class="tv-empty">status indisponível.</div>';return;}
-  B.textContent='';const bc=el('div','pd-card');bc.appendChild(pdL('database-backup','Backups cifrados'));
+  B.textContent='';const bc=el('div','pd-card pd-card-row');
+  const left=el('div','');left.style.minWidth='0';
+  left.appendChild(pdL('database-backup','Backups cifrados'));
   const rt=relTime(d.last_at);
-  const rowN=el('div','');rowN.style.cssText='font-family:var(--disp);font-size:20px;color:#eaf4fb';rowN.textContent=rt?('Último: '+rt):'Nenhum backup ainda';bc.appendChild(rowN);
+  const rowN=el('div','');rowN.style.cssText='font-family:var(--disp);font-size:20px;color:#eaf4fb';rowN.textContent=rt?('Último: '+rt):'Nenhum backup ainda';left.appendChild(rowN);
   const sub=el('div','sub');sub.style.cssText='color:var(--muted);font-size:12px;margin-top:4px';
   sub.textContent=d.count?(d.count+' cópia(s) guardada(s)'+(d.last_size_kb?(' · '+d.last_size_kb+' KB'):'')+' · automático 1x/dia'):'roda automaticamente 1x/dia (via Telegram)';
-  bc.appendChild(sub);
-  const btn=el('button','mbtn2','Fazer backup agora');btn.style.marginTop='10px';
+  left.appendChild(sub);bc.appendChild(left);
+  const btn=el('button','mbtn2','Fazer backup agora');btn.style.flex='none';
   btn.onclick=async()=>{btn.disabled=true;btn.textContent='Gerando…';
     try{await fetch('/api/backup/run',{method:'POST',headers:H()});toast('Backup gerado.');await loadBackupStatus();}
     catch(e){toast('Falha ao gerar backup.');btn.disabled=false;btn.textContent='Fazer backup agora';}};
