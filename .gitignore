@@ -9,6 +9,9 @@ google_token*.json
 *.sqlite3
 backups/
 
+# Perfil persistente do navegador usado pelo local_agent.py (sessões de login)
+.browser_profile/
+
 # Python
 __pycache__/
 *.py[cod]

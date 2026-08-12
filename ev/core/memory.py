@@ -357,15 +357,32 @@ class Memory:
                 label    TEXT NOT NULL,
                 payload  TEXT NOT NULL DEFAULT '{}',
                 status   TEXT NOT NULL DEFAULT 'pending',
+                risk     TEXT NOT NULL DEFAULT 'normal',
                 result   TEXT,
                 notified INTEGER NOT NULL DEFAULT 0,
                 created  TEXT NOT NULL,
                 decided  TEXT,
                 finished TEXT
             );
+
+            CREATE TABLE IF NOT EXISTS local_confirms (
+                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                task_id  INTEGER NOT NULL,
+                user_id  TEXT NOT NULL,
+                label    TEXT NOT NULL,
+                status   TEXT NOT NULL DEFAULT 'pending',
+                notified INTEGER NOT NULL DEFAULT 0,
+                created  TEXT NOT NULL,
+                decided  TEXT
+            );
             """
         )
         # Migrations for older DBs.
+        loc_cols = {r["name"] for r in self._conn.execute("PRAGMA table_info(local_tasks)")}
+        if "risk" not in loc_cols:
+            self._conn.execute(
+                "ALTER TABLE local_tasks ADD COLUMN risk TEXT NOT NULL DEFAULT 'normal'"
+            )
         fact_cols = {r["name"] for r in self._conn.execute("PRAGMA table_info(facts)")}
         if "embedding" not in fact_cols:
             self._conn.execute("ALTER TABLE facts ADD COLUMN embedding TEXT")
@@ -562,6 +579,18 @@ class Memory:
 
     # --- local tasks (PC execution queue — always requires approval) -------
 
+    #: platforms where sending/posting on the user's behalf carries real
+    #: account-ban/ToS risk — browser tasks touching them are flagged 'high'
+    #: and additionally gated by a second confirmation before any risky click.
+    _HIGH_RISK_MARKERS = ("whatsapp", "wa.me", "instagram", "instagr.am")
+
+    @classmethod
+    def classify_local_task_risk(cls, kind: str, command: str) -> str:
+        if kind != "browser":
+            return "normal"
+        c = (command or "").lower()
+        return "high" if any(m in c for m in cls._HIGH_RISK_MARKERS) else "normal"
+
     def _local_task_row(self, r) -> dict:
         d = dict(r)
         try:
@@ -574,19 +603,21 @@ class Memory:
             d["result"] = None
         return d
 
-    def add_local_task(self, user_id: str, kind: str, label: str, payload: dict) -> int:
+    def add_local_task(self, user_id: str, kind: str, label: str, payload: dict,
+                        risk: str | None = None) -> int:
+        risk = risk or self.classify_local_task_risk(kind, (payload or {}).get("command", ""))
         cur = self._conn.execute(
-            "INSERT INTO local_tasks (user_id, kind, label, payload, status, created) "
-            "VALUES (?, ?, ?, ?, 'pending', ?)",
-            (user_id, kind, label, json.dumps(payload or {}), self._now()),
+            "INSERT INTO local_tasks (user_id, kind, label, payload, status, risk, created) "
+            "VALUES (?, ?, ?, ?, 'pending', ?, ?)",
+            (user_id, kind, label, json.dumps(payload or {}), risk, self._now()),
         )
         self._conn.commit()
         return int(cur.lastrowid)
 
     def list_local_tasks(self, user_id: str, status: str | None = None,
                           limit: int = 50) -> list[dict]:
-        q = ("SELECT id, kind, label, payload, status, result, created, decided, finished "
-             "FROM local_tasks WHERE user_id = ?")
+        q = ("SELECT id, kind, label, payload, status, risk, result, created, decided, "
+             "finished FROM local_tasks WHERE user_id = ?")
         args: list = [user_id]
         if status:
             q += " AND status = ?"
@@ -598,14 +629,15 @@ class Memory:
 
     def get_local_task(self, user_id: str, task_id: int) -> dict | None:
         row = self._conn.execute(
-            "SELECT id, kind, label, payload, status, result, created, decided, finished "
-            "FROM local_tasks WHERE id = ? AND user_id = ?", (task_id, user_id)).fetchone()
+            "SELECT id, kind, label, payload, status, risk, result, created, decided, "
+            "finished FROM local_tasks WHERE id = ? AND user_id = ?",
+            (task_id, user_id)).fetchone()
         return self._local_task_row(row) if row else None
 
     def unnotified_local_tasks(self) -> list[dict]:
         """Pending local tasks (any user) that still need a Telegram nudge."""
         rows = self._conn.execute(
-            "SELECT id, user_id, kind, label, payload, status, created "
+            "SELECT id, user_id, kind, label, payload, status, risk, created "
             "FROM local_tasks WHERE status = 'pending' AND notified = 0"
         ).fetchall()
         return [self._local_task_row(r) for r in rows]
@@ -646,6 +678,59 @@ class Memory:
              task_id, user_id))
         self._conn.commit()
         return cur.rowcount > 0
+
+    # --- local task confirms (2nd approval for risky in-flight browser actions) --
+    # Used when a 'high' risk browser task is about to do something irreversible
+    # (send a message, post, follow, delete) — the local agent pauses execution
+    # and waits for this SEPARATE approval before clicking, even though the task
+    # itself was already approved once.
+
+    def add_local_confirm(self, user_id: str, task_id: int, label: str) -> int:
+        cur = self._conn.execute(
+            "INSERT INTO local_confirms (task_id, user_id, label, status, created) "
+            "VALUES (?, ?, ?, 'pending', ?)",
+            (task_id, user_id, label[:200], self._now()),
+        )
+        self._conn.commit()
+        return int(cur.lastrowid)
+
+    def get_local_confirm(self, user_id: str, confirm_id: int) -> dict | None:
+        row = self._conn.execute(
+            "SELECT id, task_id, label, status, created, decided FROM local_confirms "
+            "WHERE id = ? AND user_id = ?", (confirm_id, user_id)).fetchone()
+        return dict(row) if row else None
+
+    def list_local_confirms(self, user_id: str, status: str | None = None,
+                             limit: int = 50) -> list[dict]:
+        q = ("SELECT id, task_id, label, status, created, decided FROM local_confirms "
+             "WHERE user_id = ?")
+        args: list = [user_id]
+        if status:
+            q += " AND status = ?"
+            args.append(status)
+        q += " ORDER BY id DESC LIMIT ?"
+        args.append(limit)
+        return [dict(r) for r in self._conn.execute(q, tuple(args)).fetchall()]
+
+    def set_local_confirm_status(self, user_id: str, confirm_id: int, status: str) -> bool:
+        cur = self._conn.execute(
+            "UPDATE local_confirms SET status = ?, decided = ? "
+            "WHERE id = ? AND user_id = ? AND status = 'pending'",
+            (status, self._now(), confirm_id, user_id))
+        self._conn.commit()
+        return cur.rowcount > 0
+
+    def unnotified_local_confirms(self) -> list[dict]:
+        rows = self._conn.execute(
+            "SELECT id, task_id, user_id, label, status, created "
+            "FROM local_confirms WHERE status = 'pending' AND notified = 0"
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def mark_local_confirm_notified(self, confirm_id: int) -> None:
+        self._conn.execute(
+            "UPDATE local_confirms SET notified = 1 WHERE id = ?", (confirm_id,))
+        self._conn.commit()
 
     # --- connectors (user-defined API integrations) ------------------------
 
