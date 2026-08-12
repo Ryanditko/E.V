@@ -1482,6 +1482,9 @@ class TelegramInterface:
         if section == "loctask":
             await self._handle_loctask(q, uid, action)
             return
+        if section == "locconfirm":
+            await self._handle_locconfirm(q, uid, action)
+            return
         if section == "docsave":
             await self._save_doc_to_kb(q, uid, action)
             return
@@ -1884,6 +1887,30 @@ class TelegramInterface:
             if status == "approved" else "Recusado.",
         )
 
+    async def _handle_locconfirm(self, q, uid: str, action: str) -> None:
+        """Second-tier confirmation: a browser task already approved once is
+        paused mid-execution on a risky step (e.g. WhatsApp/Instagram send)
+        and waiting on this separate decision before it's allowed to click."""
+        decision, _, cid_s = action.partition(":")
+        try:
+            cid = int(cid_s)
+        except ValueError:
+            return
+        status = "approved" if decision == "aprovar" else "rejected"
+        ok = self._memory.set_local_confirm_status(uid, cid, status)
+        try:
+            await q.edit_message_reply_markup(reply_markup=None)
+        except Exception:
+            pass
+        if not ok:
+            await q.answer("Essa confirmação já foi decidida.", show_alert=True)
+            return
+        await q.answer("Confirmado ✅" if status == "approved" else "Recusado")
+        await q.message.reply_text(
+            "Confirmado — o executor local vai prosseguir com essa ação agora."
+            if status == "approved" else "Recusado — o executor local vai cancelar essa ação.",
+        )
+
     async def _confirm_expense(self, q, uid: str, eid: str) -> None:
         exp = self._pending_expense.pop(eid, None)
         if exp is None:
@@ -1987,6 +2014,7 @@ class TelegramInterface:
             asyncio.create_task(self._backup_loop(app)),
             asyncio.create_task(self._watch_loop(app)),
             asyncio.create_task(self._loctask_loop(app)),
+            asyncio.create_task(self._locconfirm_loop(app)),
         ]
         log.info(
             "Schedulers started (reminders every %ss; daily briefing at %sh; daily backup).",
@@ -2552,6 +2580,32 @@ class TelegramInterface:
             except Exception:
                 log.exception("Local task loop error")
             await asyncio.sleep(20)
+
+    async def _locconfirm_loop(self, app: Application) -> None:
+        """Telegram fallback for the SECOND, in-flight confirmation a risky
+        browser task (WhatsApp/Instagram) requests right before it sends or
+        posts anything — polled faster since the local agent is paused and
+        waiting on this decision, not just queued."""
+        while True:
+            try:
+                if self._config.owner_id is not None:
+                    for c in self._memory.unnotified_local_confirms():
+                        b = InlineKeyboardButton
+                        kb = InlineKeyboardMarkup([[
+                            b("✅ Confirmar", callback_data=f"locconfirm:aprovar:{c['id']}"),
+                            b("✖️ Recusar", callback_data=f"locconfirm:recusar:{c['id']}"),
+                        ]])
+                        await self._bot_send(
+                            app.bot, self._config.owner_id,
+                            f"⚠️ Ação de alto risco pausada no seu computador:\n"
+                            f"{c['label']}\n\n"
+                            "A E.V. só vai continuar (ex: enviar/postar) se você confirmar.",
+                            kb,
+                        )
+                        self._memory.mark_local_confirm_notified(c["id"])
+            except Exception:
+                log.exception("Local confirm loop error")
+            await asyncio.sleep(8)
 
     async def _reminder_loop(self, app: Application) -> None:
         while True:

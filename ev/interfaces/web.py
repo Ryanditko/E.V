@@ -528,7 +528,7 @@ body.serious #serfx{opacity:1;box-shadow:inset 0 0 150px -50px rgba(255,45,55,.6
   body.v-chat #np-mini{bottom:calc(16px + env(safe-area-inset-bottom))}
   #qc-fab{left:14px;bottom:calc(72px + env(safe-area-inset-bottom))}
   /* espaço p/ o conteúdo não ficar atrás da barra */
-  #taskview,#kbview,#expview,#remview,#memview,#calview,#lnkview,#habview,#jouview,#subview,#orcview,#monview,#actview,#pageview,#musicview,#climaview,#metasview,#saudeview,#cofreview,#painelview,#inicioview{padding-bottom:80px}
+  #taskview,#kbview,#expview,#remview,#memview,#calview,#lnkview,#habview,#jouview,#subview,#orcview,#monview,#actview,#pageview,#musicview,#climaview,#metasview,#saudeview,#cofreview,#painelview,#inicioview,#locview{padding-bottom:80px}
 }
 .lnk{color:var(--fg);text-decoration:underline;text-underline-offset:2px}.lnk:hover{opacity:.75}
 .tab{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--muted);border:none;background:transparent;border-radius:8px;padding:7px 13px;cursor:pointer;white-space:nowrap}
@@ -543,7 +543,7 @@ body.serious #serfx{opacity:1;box-shadow:inset 0 0 150px -50px rgba(255,45,55,.6
 .tabs-nav.show{display:flex}
 .tabs-nav:disabled{opacity:.25;cursor:default}
 #chatview{flex:1;display:flex;flex-direction:column;min-height:0}
-#taskview,#kbview,#expview,#remview,#memview,#calview,#lnkview,#habview,#jouview,#subview,#orcview,#monview,#actview,#pageview,#musicview,#climaview,#metasview,#saudeview,#cofreview,#painelview,#inicioview{flex:1;min-height:0;overflow:auto;padding:24px;display:none}
+#taskview,#kbview,#expview,#remview,#memview,#calview,#lnkview,#habview,#jouview,#subview,#orcview,#monview,#actview,#pageview,#musicview,#climaview,#metasview,#saudeview,#cofreview,#painelview,#inicioview,#locview{flex:1;min-height:0;overflow:auto;padding:24px;display:none}
 .ov-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px;max-width:1500px;grid-auto-rows:minmax(58px,auto);grid-auto-flow:row dense}
 .sp3{grid-column:span 3}.sp4{grid-column:span 4}.sp5{grid-column:span 5}.sp6{grid-column:span 6}.sp7{grid-column:span 7}.sp8{grid-column:span 8}.sp12{grid-column:span 12}.rw2{grid-row:span 2}
 @media(max-width:1100px){.sp3,.sp4,.sp5,.sp7,.sp8{grid-column:span 6}}
@@ -934,7 +934,7 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
   body.m-left #mbackdrop,body.m-right #mbackdrop{display:block;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:55}
   .topbar{padding:11px 12px;gap:5px}
   #slash{left:14px;right:14px}
-  #taskview,#kbview,#expview,#remview,#memview,#calview,#lnkview,#habview,#jouview,#subview,#orcview,#monview,#actview,#brainview,#pageview,#musicview,#climaview,#metasview,#saudeview,#cofreview,#painelview,#inicioview{padding:16px 14px}
+  #taskview,#kbview,#expview,#remview,#memview,#calview,#lnkview,#habview,#jouview,#subview,#orcview,#monview,#actview,#brainview,#pageview,#musicview,#climaview,#metasview,#saudeview,#cofreview,#painelview,#inicioview,#locview{padding:16px 14px}
   #log{padding:14px 14px}
   .msg{max-width:92%!important}
   #calgrid{gap:3px}.cal-cell{min-height:62px;padding:4px}
@@ -1156,7 +1156,9 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
     </div>
     <div id="locview">
       <div class="tv-h">Executor local · roda no seu computador</div>
-      <div class="tv-empty" style="margin-bottom:10px">Toda tarefa abaixo só executa depois que você aprovar aqui ou no Telegram — a E.V. nunca roda nada sozinha no seu PC.</div>
+      <div class="tv-empty" style="margin-bottom:10px">Toda tarefa abaixo só executa depois que você aprovar aqui ou no Telegram — a E.V. nunca roda nada sozinha no seu PC. Tarefas de navegador em WhatsApp/Instagram (🔴 alto risco) pedem uma segunda confirmação antes de enviar/postar qualquer coisa.</div>
+      <div class="tv-cat">⚠️ Confirmações de alto risco (ação prestes a acontecer)</div>
+      <div id="loc-confirms"></div>
       <div class="tv-cat">Pendentes de aprovação</div>
       <div id="loc-pending"></div>
       <div class="tv-cat">Histórico</div>
@@ -2985,7 +2987,10 @@ $('#monform').onsubmit=async e=>{e.preventDefault();const url=$('#mon-url').valu
 const LOC_KIND_LABEL={script:'script',open:'abrir',browser:'navegador',shell:'shell'};
 const LOC_STATUS_LABEL={pending:'aguardando aprovação',approved:'aprovado · na fila',running:'executando',done:'concluído',failed:'falhou',rejected:'recusado'};
 function locRow(t,withActions){const row=el('div','tv-row');const txt=el('div','txt');
-  txt.appendChild(document.createTextNode('['+(LOC_KIND_LABEL[t.kind]||t.kind)+'] '+t.label));
+  const head=el('div');head.style.display='flex';head.style.alignItems='center';head.style.gap='6px';
+  if(t.risk==='high'){const b=el('span','');b.textContent='🔴 alto risco';b.style.fontFamily='var(--mono)';b.style.fontSize='10px';b.style.letterSpacing='.06em';b.style.color='#ff6b6b';head.appendChild(b);}
+  head.appendChild(document.createTextNode('['+(LOC_KIND_LABEL[t.kind]||t.kind)+'] '+t.label));
+  txt.appendChild(head);
   txt.appendChild(subline(LOC_STATUS_LABEL[t.status]||t.status));
   if(t.result&&t.result.output)txt.appendChild(subline(String(t.result.output).slice(0,180)));
   row.appendChild(txt);
@@ -2995,9 +3000,23 @@ function locRow(t,withActions){const row=el('div','tv-row');const txt=el('div','
     no.onclick=async()=>{await fetch('/api/local-tasks/reject',{method:'POST',headers:H(),body:JSON.stringify({id:t.id})});loadLoc();};
     row.appendChild(ok);row.appendChild(no);}
   return row;}
+function locConfirmRow(c){const row=el('div','tv-row');row.style.borderColor='rgba(255,107,107,.4)';const txt=el('div','txt');
+  txt.appendChild(document.createTextNode('⚠️ '+c.label));
+  txt.appendChild(subline('tarefa #'+c.task_id+' está pausada aguardando esta confirmação'));
+  row.appendChild(txt);
+  const ok=el('button','tv-ic');ok.title='confirmar e deixar prosseguir';ok.appendChild(ficon('check'));
+  ok.onclick=async()=>{await fetch('/api/local-tasks/confirms/approve',{method:'POST',headers:H(),body:JSON.stringify({id:c.id})});loadLoc();};
+  const no=el('button','tv-ic');no.title='recusar esta ação';no.appendChild(ficon('x'));
+  no.onclick=async()=>{await fetch('/api/local-tasks/confirms/reject',{method:'POST',headers:H(),body:JSON.stringify({id:c.id})});loadLoc();};
+  row.appendChild(ok);row.appendChild(no);
+  return row;}
 async function loadLoc(){try{
   const items=(await (await fetch('/api/local-tasks',{headers:H()})).json()).items||[];
   const pend=items.filter(t=>t.status==='pending'),hist=items.filter(t=>t.status!=='pending');
+  const cbox=$('#loc-confirms');cbox.textContent='';
+  const confirms=(await (await fetch('/api/local-tasks/confirms?status=pending',{headers:H()})).json()).items||[];
+  if(!confirms.length)cbox.appendChild(emptyState('shield-check','Nada aguardando confirmação','Ações de alto risco (WhatsApp/Instagram) pausam aqui antes de enviar/postar.'));
+  else confirms.forEach(c=>cbox.appendChild(locConfirmRow(c)));
   const pbox=$('#loc-pending');pbox.textContent='';
   if(!pend.length)pbox.appendChild(emptyState('shield-check','Nada pendente','Quando a E.V. pedir pra rodar algo no seu PC, aparece aqui.'));
   else pend.forEach(t=>pbox.appendChild(locRow(t,true)));
@@ -3014,6 +3033,7 @@ async function loadLoc(){try{
   window.lucide&&lucide.createIcons();}catch(e){}}
 $('#locscriptform').onsubmit=async e=>{e.preventDefault();const name=$('#locs-name').value.trim(),command=$('#locs-cmd').value.trim();if(!name||!command)return;
   await fetch('/api/local-scripts',{method:'POST',headers:H(),body:JSON.stringify({name,command})});$('#locs-name').value='';$('#locs-cmd').value='';loadLoc();};
+setInterval(()=>{const v=$('#locview');if(v&&v.style.display!=='none')loadLoc();},4000);
 async function loadLinks(){try{const items=(await (await fetch('/api/links',{headers:H()})).json()).items||[];const box=$('#lnklist');box.textContent='';
   window._lcats=[...new Set(items.map(l=>l.category))];
   if(!items.length){box.appendChild(emptyState('link','Nenhum link salvo','Cole uma URL acima para guardar.'));window.lucide&&lucide.createIcons();return;}
@@ -5019,6 +5039,100 @@ def create_app(config: Config, brain: Brain | None = None):
         _check(request.headers.get("authorization"))
         memory.delete_local_script(owner, int((await _body(request)).get("id") or 0))
         return {"ok": True}
+
+    _BROWSER_AGENT_SYSTEM = (
+        "Você controla um navegador de verdade para cumprir um objetivo do "
+        "usuário. Responda SOMENTE com um objeto JSON compacto, sem markdown e "
+        "sem texto fora do JSON. Campos: "
+        "action (um de: goto, click_text, type_text, press_enter, scroll, "
+        "read_more, done), "
+        "value (string — URL para goto, texto visível do elemento para "
+        "click_text, texto a digitar para type_text, ou o resultado final para "
+        "done), "
+        "risky (bool — true se esta ação específica for enviar mensagem, "
+        "publicar, curtir, seguir, comprar, excluir ou qualquer coisa "
+        "irreversível feita em nome do usuário), "
+        "note (string curta, em português, explicando a ação para o usuário). "
+        "Se a tarefa for marcada como alto risco (WhatsApp/Instagram), SEMPRE "
+        "marque risky=true antes de clicar em enviar/postar ou de digitar uma "
+        "mensagem que será enviada. Use 'done' assim que o objetivo estiver "
+        "cumprido ou se for impossível continuar; nesse caso 'value' deve "
+        "resumir o resultado para o usuário."
+    )
+
+    @app.post("/api/local-tasks/decide")
+    async def local_tasks_decide(request: Request):
+        # Called by the local browser agent at each step of an autonomous
+        # browsing task — the LLM only ever picks the NEXT action, it never
+        # executes anything itself (local_agent.py does that, on the user's PC).
+        _check(request.headers.get("authorization"))
+        d = await _body(request)
+        goal = (d.get("goal") or "")[:2000]
+        url = (d.get("url") or "")[:500]
+        page_text = (d.get("page_text") or "")[:6000]
+        history = d.get("history") or []
+        high_risk = bool(d.get("high_risk"))
+        prompt = (
+            f"Objetivo: {goal}\n"
+            f"Alto risco (WhatsApp/Instagram): {'sim' if high_risk else 'não'}\n"
+            f"URL atual: {url}\n"
+            f"Últimas ações: {json.dumps(history[-8:], ensure_ascii=False)}\n"
+            f"Texto visível da página (truncado):\n{page_text}"
+        )
+        raw = await brain.ask(_BROWSER_AGENT_SYSTEM, prompt)
+        action = {"action": "done", "value": "não consegui decidir o próximo passo",
+                  "risky": False, "note": "erro ao interpretar a resposta do modelo"}
+        if raw:
+            text = raw.strip()
+            if text.startswith("```"):
+                text = text.strip("`")
+                text = text.split("\n", 1)[1] if "\n" in text else text
+                text = text.rsplit("```", 1)[0] if "```" in text else text
+            try:
+                parsed = json.loads(text)
+                if isinstance(parsed, dict) and parsed.get("action"):
+                    action = parsed
+            except (ValueError, TypeError):
+                pass
+        return {"action": action}
+
+    @app.post("/api/local-tasks/confirms")
+    async def local_confirms_create(request: Request):
+        # The local agent calls this right before a 'risky' in-flight action —
+        # a SECOND, separate approval on top of the task's original approval.
+        _check(request.headers.get("authorization"))
+        d = await _body(request)
+        tid = int(d.get("task_id") or 0)
+        label = (d.get("label") or "ação de alto risco").strip()
+        cid = memory.add_local_confirm(owner, tid, label[:200])
+        return {"ok": True, "id": cid}
+
+    @app.get("/api/local-tasks/confirms")
+    async def local_confirms_list(request: Request):
+        _check(request.headers.get("authorization"))
+        status = (request.query_params.get("status") or "").strip() or None
+        return {"items": memory.list_local_confirms(owner, status)}
+
+    @app.get("/api/local-tasks/confirms/status")
+    async def local_confirms_status(request: Request):
+        _check(request.headers.get("authorization"))
+        cid = int(request.query_params.get("id") or 0)
+        c = memory.get_local_confirm(owner, cid)
+        return {"status": (c or {}).get("status") or "unknown"}
+
+    @app.post("/api/local-tasks/confirms/approve")
+    async def local_confirms_approve(request: Request):
+        _check(request.headers.get("authorization"))
+        cid = int((await _body(request)).get("id") or 0)
+        ok = memory.set_local_confirm_status(owner, cid, "approved")
+        return {"ok": ok}
+
+    @app.post("/api/local-tasks/confirms/reject")
+    async def local_confirms_reject(request: Request):
+        _check(request.headers.get("authorization"))
+        cid = int((await _body(request)).get("id") or 0)
+        ok = memory.set_local_confirm_status(owner, cid, "rejected")
+        return {"ok": ok}
 
     # --- Spotify OAuth + Web API (Premium: read playlists + control playback) --
     import time as _time

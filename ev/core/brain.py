@@ -955,29 +955,52 @@ class Brain:
         def solicitar_tarefa_local(tipo: str, descricao: str, comando: str = "") -> str:
             """Pede para EXECUTAR algo no computador pessoal do usuário (não no
             servidor da E.V.): rodar um script já cadastrado por ele, abrir um
-            app/arquivo, automatizar o navegador, ou rodar um comando de shell.
-            NUNCA executa nada sozinha — isso só cria um pedido pendente que o
-            usuário precisa aprovar manualmente (no console web, com fallback
-            pelo Telegram). Use quando ele pedir explicitamente para 'rodar no
-            meu pc', 'abrir X no computador', 'executa esse script pra mim'.
+            app/arquivo, navegar/pesquisar/agir de forma autônoma dentro de um
+            navegador de verdade (com sessão de login persistente), ou rodar um
+            comando de shell. NUNCA executa nada sozinha — isso só cria um pedido
+            pendente que o usuário precisa aprovar manualmente (no console web,
+            com fallback pelo Telegram). Use quando ele pedir explicitamente para
+            'rodar no meu pc', 'abrir X no computador', 'pesquisa isso no
+            navegador pra mim', 'executa esse script pra mim'.
+
+            Se o objetivo envolver WhatsApp Web ou Instagram (ex: responder
+            mensagem, enviar DM, postar), a tarefa é marcada como alto risco: além
+            desta aprovação, o executor local vai pedir uma SEGUNDA confirmação
+            explícita bem antes de clicar em enviar/postar — nunca manda nada
+            sozinho, e automatizar essas plataformas pode violar os termos de uso
+            delas (risco real de banimento da conta), então avise o usuário disso
+            se ele pedir algo do tipo.
 
             Args:
                 tipo: 'script' (um script já cadastrado por nome), 'open' (abrir
-                    app/arquivo/pasta), 'browser' (automação de navegador) ou
-                    'shell' (comando livre — maior risco, sempre aprovado à mão).
+                    app/arquivo/pasta), 'browser' (agente autônomo de navegador —
+                    descreva o objetivo em linguagem natural, ex: "pesquisar X no
+                    Google e resumir os 3 melhores resultados" ou "abrir o
+                    WhatsApp Web e responder Fulano com ...") ou 'shell' (comando
+                    livre — maior risco, sempre aprovado à mão).
                 descricao: frase curta explicando o que a tarefa faz, mostrada ao
                     usuário na hora de aprovar (ex: "abrir o VS Code no projeto X").
-                comando: o script/comando/URL/instrução em si.
+                comando: para 'browser', o objetivo em linguagem natural (o
+                    executor local decide sozinho os passos de navegação); para os
+                    demais tipos, o script/comando/caminho em si.
             """
             kind = (tipo or "").strip().lower()
             if kind not in ("script", "open", "browser", "shell"):
                 return "tipo inválido — use script, open, browser ou shell"
+            payload = {"command": comando or ""}
+            risk = self._memory.classify_local_task_risk(kind, comando or "")
             tid = self._memory.add_local_task(
                 user_id, kind, (descricao or comando or "tarefa local")[:200],
-                {"command": comando or ""},
+                payload, risk=risk,
+            )
+            aviso = (
+                " — como envolve WhatsApp/Instagram, vou pedir uma segunda "
+                "confirmação sua bem antes de clicar em enviar/postar qualquer coisa"
+                if risk == "high" else ""
             )
             return (f"pedido #{tid} criado — preciso que você aprove pelo console "
-                    f"da E.V. (ou pelo Telegram) antes de rodar isso no seu computador")
+                    f"da E.V. (ou pelo Telegram) antes de rodar isso no seu computador"
+                    f"{aviso}")
 
         callables: dict = {
             "modo_serio": modo_serio,
@@ -1094,17 +1117,21 @@ class Brain:
             fn(
                 "solicitar_tarefa_local",
                 "Pede para executar algo no computador pessoal do usuário (script "
-                "cadastrado, abrir app/arquivo, automação de navegador ou shell "
-                "livre). NUNCA executa sozinha — cria um pedido pendente que o "
-                "usuário precisa aprovar manualmente (console web, fallback "
-                "Telegram). Use para 'roda isso no meu pc', 'abre X no computador'.",
+                "cadastrado, abrir app/arquivo, agente autônomo de navegador de "
+                "verdade, ou shell livre). NUNCA executa sozinha — cria um pedido "
+                "pendente que o usuário precisa aprovar manualmente (console web, "
+                "fallback Telegram). Tarefas de navegador envolvendo WhatsApp/"
+                "Instagram pedem uma SEGUNDA confirmação antes de enviar/postar "
+                "qualquer coisa. Use para 'roda isso no meu pc', 'abre X no "
+                "computador', 'pesquisa isso no navegador pra mim'.",
                 {
                     "tipo": {"type": s, "description":
                              "script, open, browser ou shell"},
                     "descricao": {"type": s, "description":
                                   "frase curta do que a tarefa faz"},
                     "comando": {"type": s, "description":
-                                "o script/comando/URL/instrução em si"},
+                                "para 'browser', o objetivo em linguagem natural; "
+                                "para os demais, o script/comando/caminho em si"},
                 },
                 ["tipo", "descricao"],
             ),
