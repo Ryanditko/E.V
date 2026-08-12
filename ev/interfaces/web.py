@@ -571,6 +571,13 @@ body.serious #serfx{opacity:1;box-shadow:inset 0 0 150px -50px rgba(255,45,55,.6
 .ov-hero .hz .ov-today{display:flex;gap:14px;flex-wrap:wrap;margin-top:8px}
 .ov-hero .hz .ov-today span{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--accent);background:rgba(var(--accent-rgb),.08);border:1px solid var(--line);border-radius:8px;padding:4px 9px}
 .ov-hero .hz .ov-today span svg{width:12px;height:12px}
+.ov-hero .customize{position:absolute;top:14px;right:16px;cursor:pointer;color:var(--muted);opacity:.6;display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase}
+.ov-hero .customize:hover{opacity:1;color:var(--accent)}
+.ov-hero .customize svg{width:13px;height:13px}
+.ov-insight{display:flex;align-items:center;gap:8px;margin-top:8px;padding:7px 12px;border-radius:9px;border:1px solid rgba(255,184,92,.35);background:rgba(255,184,92,.08);color:#ffcf8a;font-size:12.5px;cursor:pointer;width:fit-content;max-width:100%}
+.ov-insight:hover{background:rgba(255,184,92,.14)}
+.ov-insight svg{width:14px;height:14px;flex:none}
+@media(max-width:760px){.ov-hero .customize{position:static;margin-left:auto;opacity:.8}}
 .ov-ask{display:flex;gap:8px;flex:1;min-width:230px;max-width:440px}
 .ov-ask input{flex:1;background:var(--surface);border:1px solid var(--line);border-radius:10px;color:#eaf4fb;padding:9px 12px;font-size:14px}.ov-ask input:focus{border-color:var(--accent);outline:none}
 .ov-ask button{background:var(--accent);border:0;border-radius:10px;color:#04121e;padding:0 14px;cursor:pointer;font-weight:600}
@@ -2234,6 +2241,16 @@ function ovSaveOrder(grid){
   if(!grid)return;
   try{localStorage.setItem('ev_ov_order',JSON.stringify([...grid.children].map(c=>c.dataset&&c.dataset.key).filter(Boolean)));}catch(e){}
 }
+const ALL_OV_CARDS=[['tasks','Tarefas de hoje'],['hab','Hábitos de hoje'],['saude','Saúde & água'],['rem','Lembretes'],
+  ['exp','Gastos'],['clima','Clima agora'],['acoes','Ações rápidas'],['metas','Metas'],['cal','Agenda de hoje'],
+  ['act','Atividade recente'],['musica','Tocando agora'],['astro','Astronomia'],['cotacoes','Cotações'],['mem','Base de conhecimento']];
+function ovHidden(){try{return new Set(JSON.parse(localStorage.getItem('ev_ov_hidden')||'[]'));}catch(e){return new Set();}}
+function ovCustomize(){const hidden=ovHidden();const visible=ALL_OV_CARDS.map(c=>c[0]).filter(k=>!hidden.has(k));
+  openPicker('Personalizar Início','Escolha quais cards aparecem no seu painel.',
+    ALL_OV_CARDS.map(c=>({key:c[0],label:c[1]})),visible,
+    l=>{const vis=new Set(l);const newHidden=ALL_OV_CARDS.map(c=>c[0]).filter(k=>!vis.has(k));
+      try{localStorage.setItem('ev_ov_hidden',JSON.stringify(newHidden));}catch(e){}
+      loadInicio();});}
 function ovApplyOrder(grid){
   let order=[];try{order=JSON.parse(localStorage.getItem('ev_ov_order')||'[]');}catch(e){}
   if(!order.length)return;
@@ -2260,6 +2277,7 @@ async function loadInicio(){
 
   // ---- HERO: núcleo + saudação + comando + telemetria ----
   const hero=el('div','ov-hero');hero.appendChild(el('div','core'));
+  const cust=el('div','customize');cust.appendChild(ficon('sliders-horizontal'));cust.appendChild(document.createTextNode('Personalizar'));cust.onclick=ovCustomize;hero.appendChild(cust);
   const hz=el('div','hz');const saud=(hr<12?'Bom dia':hr<18?'Boa tarde':'Boa noite');
   hz.innerHTML='<div class="g">'+saud+', Ryan.</div><div class="s">'+esc(o.greeting||'Sistemas online. Tudo pronto pra você.')+'</div>';
   const nowD=new Date();
@@ -2287,6 +2305,13 @@ async function loadInicio(){
   const sug=el('div','ov-sugg');
   [['Resumo do dia','Me dá um resumo do meu dia.'],['O que tenho hoje?','O que eu tenho pra hoje?'],['Gastos do mês','Como estão meus gastos este mês?'],['Clima','Como está o tempo hoje?']].forEach(s=>{const b=el('button');b.textContent=s[0];b.onclick=()=>{switchView('chat');send(s[1]);};sug.appendChild(b);});
   hero.appendChild(sug);grid.appendChild(hero);
+  fetch('/api/notifications',{headers:H()}).then(r=>r.json()).then(nd=>{
+    const items=nd.items||[];const top=items.find(it=>it.ephemeral)||items.find(it=>!it.read);
+    if(!top)return;
+    const ins=el('div','ov-insight');ins.appendChild(ficon(top.ephemeral?(top.kind==='sub'?'credit-card':'wallet'):'bell'));
+    ins.appendChild(el('span','',top.title+(top.body?(' — '+top.body):'')));
+    ins.onclick=()=>{if(top.ephemeral)switchView(top.kind==='sub'?'sub':'orc');else openNotifs();};
+    hz.appendChild(ins);if(window.lucide)lucide.createIcons();}).catch(()=>{});
 
   // ---- Tarefas (interativo, alto) ----
   const tt=ovTile('sp4 rw2','list-checks','Tarefas de hoje','tasks');
@@ -2364,6 +2389,7 @@ async function loadInicio(){
   qb('timer','Pomodoro',()=>{openPomo(25);});
   qb('newspaper','Notícias',()=>{switchView('chat');send('Me dá as notícias de hoje.');});
   qb('bar-chart-3','Relatório',()=>{switchView('graf');});
+  qb('zap','Captura rápida',()=>{openQuickCapture();});
   qt.appendChild(qm);grid.appendChild(qt);
 
   // ---- Metas (só se houver) ----
@@ -2405,6 +2431,8 @@ async function loadInicio(){
   [['memórias',cc.memories],['fontes',cc.kb],['links',cc.links],['diário',cc.journal],['lugares',cc.places],['assinaturas',cc.subs],['automações',cc.automations]].forEach(x=>chips.appendChild(el('span','ov-chip',(x[1]||0)+' '+x[0])));
   bt.appendChild(chips);grid.appendChild(bt);
 
+  const _hid=ovHidden();
+  [...grid.querySelectorAll('.ov-card')].forEach(c=>{if(c.dataset.key&&_hid.has(c.dataset.key))c.remove();});
   ovApplyOrder(grid);
   if(window.lucide)lucide.createIcons();
   startOvPoll();
