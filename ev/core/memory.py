@@ -340,6 +340,29 @@ class Memory:
                 data     BLOB NOT NULL,
                 created  TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS local_scripts (
+                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id  TEXT NOT NULL,
+                name     TEXT NOT NULL,
+                command  TEXT NOT NULL,
+                created  TEXT NOT NULL,
+                UNIQUE(user_id, name)
+            );
+
+            CREATE TABLE IF NOT EXISTS local_tasks (
+                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id  TEXT NOT NULL,
+                kind     TEXT NOT NULL,
+                label    TEXT NOT NULL,
+                payload  TEXT NOT NULL DEFAULT '{}',
+                status   TEXT NOT NULL DEFAULT 'pending',
+                result   TEXT,
+                notified INTEGER NOT NULL DEFAULT 0,
+                created  TEXT NOT NULL,
+                decided  TEXT,
+                finished TEXT
+            );
             """
         )
         # Migrations for older DBs.
@@ -512,6 +535,117 @@ class Memory:
         self._conn.execute("UPDATE automations SET state = ? WHERE id = ?",
                            (json.dumps(state), auto_id))
         self._conn.commit()
+
+    # --- local scripts (allowlist for the local execution agent) -----------
+
+    def add_local_script(self, user_id: str, name: str, command: str) -> int:
+        cur = self._conn.execute(
+            "INSERT INTO local_scripts (user_id, name, command, created) "
+            "VALUES (?, ?, ?, ?)",
+            (user_id, name, command, self._now()),
+        )
+        self._conn.commit()
+        return int(cur.lastrowid)
+
+    def list_local_scripts(self, user_id: str) -> list[dict]:
+        rows = self._conn.execute(
+            "SELECT id, name, command, created FROM local_scripts "
+            "WHERE user_id = ? ORDER BY name", (user_id,)).fetchall()
+        return [dict(r) for r in rows]
+
+    def delete_local_script(self, user_id: str, script_id: int) -> bool:
+        cur = self._conn.execute(
+            "DELETE FROM local_scripts WHERE id = ? AND user_id = ?",
+            (script_id, user_id))
+        self._conn.commit()
+        return cur.rowcount > 0
+
+    # --- local tasks (PC execution queue — always requires approval) -------
+
+    def _local_task_row(self, r) -> dict:
+        d = dict(r)
+        try:
+            d["payload"] = json.loads(d.get("payload") or "{}")
+        except (ValueError, TypeError):
+            d["payload"] = {}
+        try:
+            d["result"] = json.loads(d["result"]) if d.get("result") else None
+        except (ValueError, TypeError):
+            d["result"] = None
+        return d
+
+    def add_local_task(self, user_id: str, kind: str, label: str, payload: dict) -> int:
+        cur = self._conn.execute(
+            "INSERT INTO local_tasks (user_id, kind, label, payload, status, created) "
+            "VALUES (?, ?, ?, ?, 'pending', ?)",
+            (user_id, kind, label, json.dumps(payload or {}), self._now()),
+        )
+        self._conn.commit()
+        return int(cur.lastrowid)
+
+    def list_local_tasks(self, user_id: str, status: str | None = None,
+                          limit: int = 50) -> list[dict]:
+        q = ("SELECT id, kind, label, payload, status, result, created, decided, finished "
+             "FROM local_tasks WHERE user_id = ?")
+        args: list = [user_id]
+        if status:
+            q += " AND status = ?"
+            args.append(status)
+        q += " ORDER BY id DESC LIMIT ?"
+        args.append(limit)
+        rows = self._conn.execute(q, tuple(args)).fetchall()
+        return [self._local_task_row(r) for r in rows]
+
+    def get_local_task(self, user_id: str, task_id: int) -> dict | None:
+        row = self._conn.execute(
+            "SELECT id, kind, label, payload, status, result, created, decided, finished "
+            "FROM local_tasks WHERE id = ? AND user_id = ?", (task_id, user_id)).fetchone()
+        return self._local_task_row(row) if row else None
+
+    def unnotified_local_tasks(self) -> list[dict]:
+        """Pending local tasks (any user) that still need a Telegram nudge."""
+        rows = self._conn.execute(
+            "SELECT id, user_id, kind, label, payload, status, created "
+            "FROM local_tasks WHERE status = 'pending' AND notified = 0"
+        ).fetchall()
+        return [self._local_task_row(r) for r in rows]
+
+    def mark_local_task_notified(self, task_id: int) -> None:
+        self._conn.execute(
+            "UPDATE local_tasks SET notified = 1 WHERE id = ?", (task_id,))
+        self._conn.commit()
+
+    def set_local_task_status(self, user_id: str, task_id: int, status: str) -> bool:
+        cur = self._conn.execute(
+            "UPDATE local_tasks SET status = ?, decided = ? "
+            "WHERE id = ? AND user_id = ? AND status = 'pending'",
+            (status, self._now(), task_id, user_id))
+        self._conn.commit()
+        return cur.rowcount > 0
+
+    def claim_local_task(self, user_id: str) -> dict | None:
+        """Atomically hands the oldest approved task to the local agent."""
+        row = self._conn.execute(
+            "SELECT id FROM local_tasks WHERE user_id = ? AND status = 'approved' "
+            "ORDER BY id LIMIT 1", (user_id,)).fetchone()
+        if not row:
+            return None
+        cur = self._conn.execute(
+            "UPDATE local_tasks SET status = 'running' "
+            "WHERE id = ? AND status = 'approved'", (row["id"],))
+        self._conn.commit()
+        if cur.rowcount == 0:
+            return None
+        return self.get_local_task(user_id, row["id"])
+
+    def finish_local_task(self, user_id: str, task_id: int, ok: bool, output: dict) -> bool:
+        cur = self._conn.execute(
+            "UPDATE local_tasks SET status = ?, result = ?, finished = ? "
+            "WHERE id = ? AND user_id = ? AND status = 'running'",
+            ("done" if ok else "failed", json.dumps(output or {}), self._now(),
+             task_id, user_id))
+        self._conn.commit()
+        return cur.rowcount > 0
 
     # --- connectors (user-defined API integrations) ------------------------
 

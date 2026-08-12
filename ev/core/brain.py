@@ -952,10 +952,38 @@ class Brain:
             dia', 'organiza meu dia', 'o que eu faço hoje'."""
             return self._plan_day_sync(user_id)
 
+        def solicitar_tarefa_local(tipo: str, descricao: str, comando: str = "") -> str:
+            """Pede para EXECUTAR algo no computador pessoal do usuário (não no
+            servidor da E.V.): rodar um script já cadastrado por ele, abrir um
+            app/arquivo, automatizar o navegador, ou rodar um comando de shell.
+            NUNCA executa nada sozinha — isso só cria um pedido pendente que o
+            usuário precisa aprovar manualmente (no console web, com fallback
+            pelo Telegram). Use quando ele pedir explicitamente para 'rodar no
+            meu pc', 'abrir X no computador', 'executa esse script pra mim'.
+
+            Args:
+                tipo: 'script' (um script já cadastrado por nome), 'open' (abrir
+                    app/arquivo/pasta), 'browser' (automação de navegador) ou
+                    'shell' (comando livre — maior risco, sempre aprovado à mão).
+                descricao: frase curta explicando o que a tarefa faz, mostrada ao
+                    usuário na hora de aprovar (ex: "abrir o VS Code no projeto X").
+                comando: o script/comando/URL/instrução em si.
+            """
+            kind = (tipo or "").strip().lower()
+            if kind not in ("script", "open", "browser", "shell"):
+                return "tipo inválido — use script, open, browser ou shell"
+            tid = self._memory.add_local_task(
+                user_id, kind, (descricao or comando or "tarefa local")[:200],
+                {"command": comando or ""},
+            )
+            return (f"pedido #{tid} criado — preciso que você aprove pelo console "
+                    f"da E.V. (ou pelo Telegram) antes de rodar isso no seu computador")
+
         callables: dict = {
             "modo_serio": modo_serio,
             "executar_comando": executar_comando,
             "planejar_dia": planejar_dia,
+            "solicitar_tarefa_local": solicitar_tarefa_local,
             "criar_automacao": criar_automacao,
             "consultar_conector": consultar_conector,
             "criar_pagina": criar_pagina,
@@ -1062,6 +1090,23 @@ class Brain:
                 "Monta um plano acionável do dia do usuário juntando tarefas, "
                 "lembretes, agenda, clima e localização. Use para 'resolve minha "
                 "manhã', 'plano do dia', 'organiza meu dia', 'o que faço hoje'.",
+            ),
+            fn(
+                "solicitar_tarefa_local",
+                "Pede para executar algo no computador pessoal do usuário (script "
+                "cadastrado, abrir app/arquivo, automação de navegador ou shell "
+                "livre). NUNCA executa sozinha — cria um pedido pendente que o "
+                "usuário precisa aprovar manualmente (console web, fallback "
+                "Telegram). Use para 'roda isso no meu pc', 'abre X no computador'.",
+                {
+                    "tipo": {"type": s, "description":
+                             "script, open, browser ou shell"},
+                    "descricao": {"type": s, "description":
+                                  "frase curta do que a tarefa faz"},
+                    "comando": {"type": s, "description":
+                                "o script/comando/URL/instrução em si"},
+                },
+                ["tipo", "descricao"],
             ),
             fn(
                 "tocar_playlist",
