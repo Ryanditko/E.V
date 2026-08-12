@@ -1479,6 +1479,9 @@ class TelegramInterface:
         uid = str(q.from_user.id)
         section, _, action = q.data.partition(":")
 
+        if section == "loctask":
+            await self._handle_loctask(q, uid, action)
+            return
         if section == "docsave":
             await self._save_doc_to_kb(q, uid, action)
             return
@@ -1860,6 +1863,27 @@ class TelegramInterface:
             reply_markup=kb,
         )
 
+    async def _handle_loctask(self, q, uid: str, action: str) -> None:
+        decision, _, tid_s = action.partition(":")
+        try:
+            tid = int(tid_s)
+        except ValueError:
+            return
+        status = "approved" if decision == "aprovar" else "rejected"
+        ok = self._memory.set_local_task_status(uid, tid, status)
+        try:
+            await q.edit_message_reply_markup(reply_markup=None)
+        except Exception:
+            pass
+        if not ok:
+            await q.answer("Esse pedido já foi decidido.", show_alert=True)
+            return
+        await q.answer("Aprovado ✅" if status == "approved" else "Recusado")
+        await q.message.reply_text(
+            "Aprovado — vai rodar no seu computador assim que o executor local sincronizar."
+            if status == "approved" else "Recusado.",
+        )
+
     async def _confirm_expense(self, q, uid: str, eid: str) -> None:
         exp = self._pending_expense.pop(eid, None)
         if exp is None:
@@ -1962,6 +1986,7 @@ class TelegramInterface:
             asyncio.create_task(self._briefing_loop(app)),
             asyncio.create_task(self._backup_loop(app)),
             asyncio.create_task(self._watch_loop(app)),
+            asyncio.create_task(self._loctask_loop(app)),
         ]
         log.info(
             "Schedulers started (reminders every %ss; daily briefing at %sh; daily backup).",
@@ -2502,6 +2527,31 @@ class TelegramInterface:
             text = self._commands.daily_briefing(str(cfg.owner_id))
             await self._bot_send(app.bot, cfg.owner_id, text, self._kb_main())
             log.info("Sent daily briefing to owner.")
+
+    async def _loctask_loop(self, app: Application) -> None:
+        """Telegram fallback for local-PC task approvals: the web console is
+        the primary place to approve, this just makes sure a pending request
+        never gets missed if the user isn't looking at the console."""
+        while True:
+            try:
+                if self._config.owner_id is not None:
+                    for t in self._memory.unnotified_local_tasks():
+                        b = InlineKeyboardButton
+                        kb = InlineKeyboardMarkup([[
+                            b("✅ Aprovar", callback_data=f"loctask:aprovar:{t['id']}"),
+                            b("✖️ Recusar", callback_data=f"loctask:recusar:{t['id']}"),
+                        ]])
+                        await self._bot_send(
+                            app.bot, self._config.owner_id,
+                            f"🖥️ A E.V. quer executar no seu computador:\n"
+                            f"[{t['kind']}] {t['label']}\n\n"
+                            "Isso só roda depois que você aprovar.",
+                            kb,
+                        )
+                        self._memory.mark_local_task_notified(t["id"])
+            except Exception:
+                log.exception("Local task loop error")
+            await asyncio.sleep(20)
 
     async def _reminder_loop(self, app: Application) -> None:
         while True:

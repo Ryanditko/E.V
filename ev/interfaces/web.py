@@ -1154,6 +1154,17 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
         <div id="brain-menu"></div>
       </div>
     </div>
+    <div id="locview">
+      <div class="tv-h">Executor local · roda no seu computador</div>
+      <div class="tv-empty" style="margin-bottom:10px">Toda tarefa abaixo só executa depois que você aprovar aqui ou no Telegram — a E.V. nunca roda nada sozinha no seu PC.</div>
+      <div class="tv-cat">Pendentes de aprovação</div>
+      <div id="loc-pending"></div>
+      <div class="tv-cat">Histórico</div>
+      <div id="loc-hist"></div>
+      <div class="tv-cat" style="margin-top:18px">Scripts cadastrados (allowlist)</div>
+      <form id="locscriptform" class="tv-form"><input id="locs-name" placeholder="Nome (ex: rodar backup)"><input id="locs-cmd" placeholder="Comando/caminho a executar"><button class="mbtn" type="submit">Cadastrar</button></form>
+      <div id="loc-scripts"></div>
+    </div>
     <div id="chartsview">
       <div class="tv-h">Gráficos · seus dados</div>
       <div class="tv-form" style="gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
@@ -2165,10 +2176,10 @@ function toggleAmb(){if(!SR){toast('Presença ambiente precisa do Chrome, Edge o
 $('#amb').onclick=toggleAmb;
 renderAmbBtn();
 // view tabs — customizable: pick which appear in the header (minimalist)
-const VIEW_LABELS={chat:'Conversa',inicio:'Início',tasks:'Tarefas',exp:'Gastos',rem:'Lembretes',cal:'Agenda',mem:'Memórias',lnk:'Links',hab:'Hábitos',jou:'Diário',sub:'Assinaturas',orc:'Orçamentos',mon:'Monitores',act:'Histórico',kb:'Base',map:'Mapa',brain:'Cérebro',graf:'Gráficos',musica:'Música',clima:'Clima',metas:'Metas',saude:'Saúde',cofre:'Cofre',painel:'Painel'};
+const VIEW_LABELS={chat:'Conversa',inicio:'Início',tasks:'Tarefas',exp:'Gastos',rem:'Lembretes',cal:'Agenda',mem:'Memórias',lnk:'Links',hab:'Hábitos',jou:'Diário',sub:'Assinaturas',orc:'Orçamentos',mon:'Monitores',act:'Histórico',kb:'Base',map:'Mapa',brain:'Cérebro',graf:'Gráficos',musica:'Música',clima:'Clima',metas:'Metas',saude:'Saúde',cofre:'Cofre',painel:'Painel',loc:'Executor local'};
 // groups only drive tab ORDER + subtle separators in the topbar strip — tabsShown still controls visibility
-const VIEW_GROUPS=[['Principal',['chat','inicio']],['Produtividade',['tasks','rem','cal','hab','jou','metas','saude']],['Financeiro',['exp','sub','orc','cofre']],['Conhecimento',['mem','lnk','kb','brain','act']],['Explorar',['map','graf','musica','clima','mon','painel']]];
-const VIEW_ICONS={chat:'message-square',inicio:'layout-dashboard',tasks:'list-checks',exp:'wallet',rem:'alarm-clock',cal:'calendar',mem:'database',lnk:'link',hab:'repeat',jou:'book-open',sub:'credit-card',orc:'pie-chart',mon:'radar',act:'activity',kb:'library',map:'map',brain:'brain',graf:'bar-chart-3',musica:'music',clima:'cloud-sun',metas:'target',saude:'heart-pulse',cofre:'lock',painel:'layout-panel-top'};
+const VIEW_GROUPS=[['Principal',['chat','inicio']],['Produtividade',['tasks','rem','cal','hab','jou','metas','saude']],['Financeiro',['exp','sub','orc','cofre']],['Conhecimento',['mem','lnk','kb','brain','act']],['Explorar',['map','graf','musica','clima','mon','painel']],['Automação',['loc']]];
+const VIEW_ICONS={chat:'message-square',inicio:'layout-dashboard',tasks:'list-checks',exp:'wallet',rem:'alarm-clock',cal:'calendar',mem:'database',lnk:'link',hab:'repeat',jou:'book-open',sub:'credit-card',orc:'pie-chart',mon:'radar',act:'activity',kb:'library',map:'map',brain:'brain',graf:'bar-chart-3',musica:'music',clima:'cloud-sun',metas:'target',saude:'heart-pulse',cofre:'lock',painel:'layout-panel-top',loc:'terminal'};
 let curView='chat',tabsShown;try{tabsShown=JSON.parse(localStorage.getItem('ev_tabs'));}catch(e){}
 // default to every section — the tab strip scrolls horizontally, so nothing
 // needs to be hidden just to make room; "+" still lets you trim it down.
@@ -2199,7 +2210,7 @@ function openSectionsSheet(){const m=$('#modal');m.textContent='';const card=el(
   const bar=el('div','mbar');const c=el('button','mbtn2','Fechar');c.onclick=()=>m.classList.remove('on');bar.appendChild(c);card.appendChild(bar);
   m.appendChild(card);m.classList.add('on');window.lucide&&lucide.createIcons();}
 $('#mnav').onclick=()=>openSectionsSheet();
-const VIEWS={chat:'#chatview',inicio:'#inicioview',tasks:'#taskview',exp:'#expview',rem:'#remview',cal:'#calview',mem:'#memview',lnk:'#lnkview',hab:'#habview',jou:'#jouview',sub:'#subview',orc:'#orcview',mon:'#monview',kb:'#kbview',act:'#actview',map:'#mapview',brain:'#brainview',graf:'#chartsview',musica:'#musicview',clima:'#climaview',metas:'#metasview',saude:'#saudeview',cofre:'#cofreview',painel:'#painelview'};
+const VIEWS={chat:'#chatview',inicio:'#inicioview',tasks:'#taskview',exp:'#expview',rem:'#remview',cal:'#calview',mem:'#memview',lnk:'#lnkview',hab:'#habview',jou:'#jouview',sub:'#subview',orc:'#orcview',mon:'#monview',kb:'#kbview',act:'#actview',map:'#mapview',brain:'#brainview',graf:'#chartsview',musica:'#musicview',clima:'#climaview',metas:'#metasview',saude:'#saudeview',cofre:'#cofreview',painel:'#painelview',loc:'#locview'};
 function switchView(v){const isPage=(''+v).indexOf('page:')===0;
   if(!isPage&&!VIEWS[v])v='chat';curView=v;document.querySelectorAll('#tabs .tab').forEach(t=>t.classList.toggle('on',t.dataset.view===v));
   document.body.classList.toggle('v-chat',v==='chat');
@@ -2209,7 +2220,7 @@ function switchView(v){const isPage=(''+v).indexOf('page:')===0;
   Object.entries(VIEWS).forEach(([k,sel])=>{const el2=$(sel);if(el2)el2.style.display=(k===v)?((k==='chat'||k==='brain')?'flex':'block'):'none';});
   const pv=$('#pageview');if(pv)pv.style.display=isPage?'block':'none';
   if(isPage){renderPage(v.slice(5));return;}
-  ({inicio:loadInicio,tasks:loadTasks,exp:loadExp,rem:loadRem,mem:loadMem,kb:loadKB,cal:loadCal,lnk:loadLinks,hab:loadHabits,jou:loadJournal,sub:loadSub,orc:loadOrc,mon:loadMon,act:loadAct,map:loadMap,brain:loadBrain,graf:loadCharts,musica:loadMusic,clima:loadClima,metas:loadGoals,saude:loadSaude,cofre:loadCofre,painel:loadPainel}[v]||function(){})();}
+  ({inicio:loadInicio,tasks:loadTasks,exp:loadExp,rem:loadRem,mem:loadMem,kb:loadKB,cal:loadCal,lnk:loadLinks,hab:loadHabits,jou:loadJournal,sub:loadSub,orc:loadOrc,mon:loadMon,act:loadAct,map:loadMap,brain:loadBrain,graf:loadCharts,musica:loadMusic,clima:loadClima,metas:loadGoals,saude:loadSaude,cofre:loadCofre,painel:loadPainel,loc:loadLoc}[v]||function(){})();}
 // --- Início (command center: painel de uso interativo, pegada JARVIS) ---
 function ovTile(spanCls,icon,title,view,key){
   const c=el('div','ov-card '+spanCls);c.dataset.key=key||view||'';
@@ -2971,6 +2982,38 @@ function editMon(w){openForm('Editar monitor',[
   async v=>{if(!v.url)return;await fetch('/api/watches/update',{method:'POST',headers:H(),body:JSON.stringify({id:w.id,url:v.url,keyword:v.keyword})});loadMon();});}
 $('#monform').onsubmit=async e=>{e.preventDefault();const url=$('#mon-url').value.trim();if(!url)return;
   await fetch('/api/watches',{method:'POST',headers:H(),body:JSON.stringify({url,keyword:$('#mon-kw').value.trim()})});$('#mon-url').value='';$('#mon-kw').value='';loadMon();};
+const LOC_KIND_LABEL={script:'script',open:'abrir',browser:'navegador',shell:'shell'};
+const LOC_STATUS_LABEL={pending:'aguardando aprovação',approved:'aprovado · na fila',running:'executando',done:'concluído',failed:'falhou',rejected:'recusado'};
+function locRow(t,withActions){const row=el('div','tv-row');const txt=el('div','txt');
+  txt.appendChild(document.createTextNode('['+(LOC_KIND_LABEL[t.kind]||t.kind)+'] '+t.label));
+  txt.appendChild(subline(LOC_STATUS_LABEL[t.status]||t.status));
+  if(t.result&&t.result.output)txt.appendChild(subline(String(t.result.output).slice(0,180)));
+  row.appendChild(txt);
+  if(withActions){const ok=el('button','tv-ic');ok.title='aprovar';ok.appendChild(ficon('check'));
+    ok.onclick=async()=>{await fetch('/api/local-tasks/approve',{method:'POST',headers:H(),body:JSON.stringify({id:t.id})});loadLoc();};
+    const no=el('button','tv-ic');no.title='recusar';no.appendChild(ficon('x'));
+    no.onclick=async()=>{await fetch('/api/local-tasks/reject',{method:'POST',headers:H(),body:JSON.stringify({id:t.id})});loadLoc();};
+    row.appendChild(ok);row.appendChild(no);}
+  return row;}
+async function loadLoc(){try{
+  const items=(await (await fetch('/api/local-tasks',{headers:H()})).json()).items||[];
+  const pend=items.filter(t=>t.status==='pending'),hist=items.filter(t=>t.status!=='pending');
+  const pbox=$('#loc-pending');pbox.textContent='';
+  if(!pend.length)pbox.appendChild(emptyState('shield-check','Nada pendente','Quando a E.V. pedir pra rodar algo no seu PC, aparece aqui.'));
+  else pend.forEach(t=>pbox.appendChild(locRow(t,true)));
+  const hbox=$('#loc-hist');hbox.textContent='';
+  if(!hist.length)hbox.appendChild(emptyState('history','Sem histórico ainda','Tarefas aprovadas/recusadas aparecem aqui.'));
+  else hist.slice(0,20).forEach(t=>hbox.appendChild(locRow(t,false)));
+  const scripts=(await (await fetch('/api/local-scripts',{headers:H()})).json()).items||[];
+  const sbox=$('#loc-scripts');sbox.textContent='';
+  if(!scripts.length)sbox.appendChild(emptyState('terminal','Nenhum script cadastrado','Cadastre um acima pra E.V. poder pedir pra rodar por nome.'));
+  else scripts.forEach(s=>{const row=el('div','tv-row');const t=el('div','txt');t.appendChild(document.createTextNode(s.name));t.appendChild(subline(s.command));
+    const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));
+    dl.onclick=async()=>{if(await confirmDialog('Remover script '+s.name+'?')){await fetch('/api/local-scripts/delete',{method:'POST',headers:H(),body:JSON.stringify({id:s.id})});loadLoc();}};
+    row.appendChild(t);row.appendChild(dl);sbox.appendChild(row);});
+  window.lucide&&lucide.createIcons();}catch(e){}}
+$('#locscriptform').onsubmit=async e=>{e.preventDefault();const name=$('#locs-name').value.trim(),command=$('#locs-cmd').value.trim();if(!name||!command)return;
+  await fetch('/api/local-scripts',{method:'POST',headers:H(),body:JSON.stringify({name,command})});$('#locs-name').value='';$('#locs-cmd').value='';loadLoc();};
 async function loadLinks(){try{const items=(await (await fetch('/api/links',{headers:H()})).json()).items||[];const box=$('#lnklist');box.textContent='';
   window._lcats=[...new Set(items.map(l=>l.category))];
   if(!items.length){box.appendChild(emptyState('link','Nenhum link salvo','Cole uma URL acima para guardar.'));window.lucide&&lucide.createIcons();return;}
@@ -3216,7 +3259,7 @@ function filterRows(box,q){if(!box)return;q=(q||'').trim().toLowerCase();let cur
 [['tasks-search','tasklist'],['exp-search','explist'],['rem-search','remlist'],['mem-search','memlist'],['kb-search','kblist'],['lnk-search','lnklist'],['hab-search','hablist'],['jou-search','joulist'],['sub-search','sublist'],['orc-search','orclist'],['mon-search','monlist'],['act-search','actlist']].forEach(p=>{const inp=document.getElementById(p[0]);if(inp)inp.oninput=()=>filterRows(document.getElementById(p[1]),inp.value);});
 // command palette (Ctrl/Cmd+K)
 const CK=$('#cmdk'),CKI=$('#ck-input'),CKL=$('#ck-list');let ckItems=[],ckSel=0;
-function ckBuild(){const nav=[['Conversa',()=>switchView('chat')],['Tarefas',()=>switchView('tasks')],['Gastos',()=>switchView('exp')],['Lembretes',()=>switchView('rem')],['Agenda',()=>switchView('cal')],['Memórias',()=>switchView('mem')],['Links',()=>switchView('lnk')],['Hábitos',()=>switchView('hab')],['Diário',()=>switchView('jou')],['Assinaturas',()=>switchView('sub')],['Orçamentos',()=>switchView('orc')],['Monitores',()=>switchView('mon')],['Base',()=>switchView('kb')],['Cérebro',()=>switchView('brain')],['Pomodoro',()=>openPomo(25)],['Terminal de ação da E.V.',()=>openTerminal()],['Voz ao vivo',()=>$('#vcopen').click()],['Modo foco (liga/desliga)',()=>toggleSerious()],['Chaves de API',()=>openKeys()],['Captura rápida',()=>openQuickCapture()]];
+function ckBuild(){const nav=[['Conversa',()=>switchView('chat')],['Tarefas',()=>switchView('tasks')],['Gastos',()=>switchView('exp')],['Lembretes',()=>switchView('rem')],['Agenda',()=>switchView('cal')],['Memórias',()=>switchView('mem')],['Links',()=>switchView('lnk')],['Hábitos',()=>switchView('hab')],['Diário',()=>switchView('jou')],['Assinaturas',()=>switchView('sub')],['Orçamentos',()=>switchView('orc')],['Monitores',()=>switchView('mon')],['Base',()=>switchView('kb')],['Cérebro',()=>switchView('brain')],['Executor local',()=>switchView('loc')],['Pomodoro',()=>openPomo(25)],['Terminal de ação da E.V.',()=>openTerminal()],['Voz ao vivo',()=>$('#vcopen').click()],['Modo foco (liga/desliga)',()=>toggleSerious()],['Chaves de API',()=>openKeys()],['Captura rápida',()=>openQuickCapture()]];
   return nav.map(n=>({k:'ir',label:n[0],desc:'abrir',run:n[1]})).concat((COMMANDS||[]).map(c=>({k:'/'+c.name,label:c.name,desc:c.desc,run:()=>runCmd(c.name)})));}
 let _ckSeq=0;
 function ckRender(q){ckItems=ckBuild().filter(i=>(i.label+' '+i.k+' '+i.desc).toLowerCase().includes((q||'').toLowerCase())).slice(0,40);ckSel=0;CKL.textContent='';
@@ -4902,6 +4945,79 @@ def create_app(config: Config, brain: Brain | None = None):
     async def vault_del(request: Request):
         _check(request.headers.get("authorization"))
         memory.delete_document(owner, int((await _body(request)).get("id") or 0))
+        return {"ok": True}
+
+    # --- local execution agent (runs on the user's own PC) -----------------
+    # Every task requires explicit human approval — no kind auto-runs, ever.
+    _LOCAL_TASK_KINDS = {"script", "open", "browser", "shell"}
+
+    @app.get("/api/local-tasks")
+    async def local_tasks_list(request: Request):
+        _check(request.headers.get("authorization"))
+        status = (request.query_params.get("status") or "").strip() or None
+        return {"items": memory.list_local_tasks(owner, status)}
+
+    @app.post("/api/local-tasks")
+    async def local_tasks_create(request: Request):
+        _check(request.headers.get("authorization"))
+        d = await _body(request)
+        kind = (d.get("kind") or "").strip().lower()
+        label = (d.get("label") or "").strip()
+        if kind not in _LOCAL_TASK_KINDS or not label:
+            raise HTTPException(status_code=400, detail="kind/label inválidos")
+        tid = memory.add_local_task(owner, kind, label[:200], {"command": d.get("command") or ""})
+        return {"ok": True, "id": tid}
+
+    @app.post("/api/local-tasks/approve")
+    async def local_tasks_approve(request: Request):
+        _check(request.headers.get("authorization"))
+        tid = int((await _body(request)).get("id") or 0)
+        ok = memory.set_local_task_status(owner, tid, "approved")
+        return {"ok": ok}
+
+    @app.post("/api/local-tasks/reject")
+    async def local_tasks_reject(request: Request):
+        _check(request.headers.get("authorization"))
+        tid = int((await _body(request)).get("id") or 0)
+        ok = memory.set_local_task_status(owner, tid, "rejected")
+        return {"ok": ok}
+
+    @app.get("/api/local-tasks/claim")
+    async def local_tasks_claim(request: Request):
+        # The local daemon polls this from the user's own machine using the
+        # same bearer token as the web console — it only ever receives tasks
+        # a human already approved.
+        _check(request.headers.get("authorization"))
+        task = memory.claim_local_task(owner)
+        return {"task": task}
+
+    @app.post("/api/local-tasks/result")
+    async def local_tasks_result(request: Request):
+        _check(request.headers.get("authorization"))
+        d = await _body(request)
+        tid = int(d.get("id") or 0)
+        ok = memory.finish_local_task(owner, tid, bool(d.get("ok")), d.get("output") or {})
+        return {"ok": ok}
+
+    @app.get("/api/local-scripts")
+    async def local_scripts_list(request: Request):
+        _check(request.headers.get("authorization"))
+        return {"items": memory.list_local_scripts(owner)}
+
+    @app.post("/api/local-scripts")
+    async def local_scripts_add(request: Request):
+        _check(request.headers.get("authorization"))
+        d = await _body(request)
+        name = (d.get("name") or "").strip()
+        command = (d.get("command") or "").strip()
+        if not name or not command:
+            raise HTTPException(status_code=400, detail="nome e comando obrigatórios")
+        return {"ok": True, "id": memory.add_local_script(owner, name[:60], command)}
+
+    @app.post("/api/local-scripts/delete")
+    async def local_scripts_del(request: Request):
+        _check(request.headers.get("authorization"))
+        memory.delete_local_script(owner, int((await _body(request)).get("id") or 0))
         return {"ok": True}
 
     # --- Spotify OAuth + Web API (Premium: read playlists + control playback) --

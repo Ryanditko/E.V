@@ -44,5 +44,8 @@ pillow>=10.0.0
 # Web Push notifications (reminders with the app closed)
 pywebpush>=1.14.0
 
+# HTTP client for local_agent.py (the PC-side task executor)
+requests>=2.31.0
+
 # Tests (dev)
 pytest>=8.0.0
