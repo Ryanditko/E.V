@@ -21,7 +21,9 @@ from ...core.commands import COMMAND_LIST, Commands
 from ...core.memory import Memory
 from ...providers import tools as tools_mod, voice as voice_mod
 
+from .context import WebContext
 from .frontend import _DEFAULT_FOLDERS, _FAVICON, _SERVICE_WORKER, _icon_png, _PAGE
+from .routes import activity, backup, connectors, keys, notifications, pages, push
 
 log = logging.getLogger("ev.web")
 
@@ -38,140 +40,22 @@ def create_app(config: Config, brain: Brain | None = None):
     owner = str(config.owner_id) if config.owner_id is not None else "web"
     app = FastAPI(title="E.V.")
 
-    def _check(auth):
-        tok = (auth or "").removeprefix("Bearer ").strip()
-        if not config.web_token or not hmac.compare_digest(tok, config.web_token):
-            raise HTTPException(status_code=401, detail="unauthorized")
+    # WebContext bundles the singletons above + small cross-domain helpers
+    # (Phase 6b route-router split). Aliased to the historical bare names so
+    # every route defined below (still inline in this function) keeps working
+    # unchanged, while routers under .routes/ take `ctx` directly.
+    ctx = WebContext(config, memory, brain, commands, owner)
+    _check = ctx.check
+    _body = ctx.body
+    _recurval = ctx.recurval
+    _folders = ctx.folders
+    _conv = ctx.conv
+    _status_text = ctx.status_text
+    run_command = ctx.run_command
+    _env_write = ctx.env_write
 
-    async def _body(request):
-        try:
-            return await request.json()
-        except Exception:
-            return {}
-
-    def _recurval(v, allow_clear=False):
-        """Normalize a recurrence value to 'daily'/'weekly'/'monthly'. Returns
-        None (skip) for invalid/absent, or '' to clear when allow_clear."""
-        v = (v or "").strip()
-        if v in ("daily", "weekly", "monthly"):
-            return v
-        return "" if allow_clear else None
-
-    def _folders():
-        raw = memory.get_setting("web_folders")
-        try:
-            fs = json.loads(raw) if raw else None
-        except Exception:
-            fs = None
-        return fs if isinstance(fs, list) and fs else list(_DEFAULT_FOLDERS)
-
-    def _conv(thread):
-        t = (thread or "geral").strip() or "geral"
-        return f"web:{t}"
-
-    def _status_text():
-        rep = health.system_report(config, memory)
-        keys = health.keys_status(config)
-        out = ["🩺 Status da E.V.", ""]
-        if "disk_used_pct" in rep:
-            out.append(f"Disco: {rep['disk_used_pct']}% · {rep.get('disk_free_gb','?')} GB livres")
-        if "mem_used_pct" in rep:
-            out.append(f"Memória: {rep['mem_used_pct']}%")
-        out.append(f"Banco: {'ok' if rep.get('db_query_ok') else 'erro'} ({rep.get('db_size_mb',0)} MB)")
-        out.append("")
-        out.append("Chaves / integrações:")
-        for k in keys:
-            mark = "ok" if k["ok"] else (k["note"] or "não")
-            out.append(f"- {k['name']}: {mark}")
-        return "\n".join(out)
-
-    async def run_command(cmd_str: str, thread=None) -> str:
-        """Run a slash command from the web (data + interface commands)."""
-        parts = (cmd_str or "").strip().split(None, 1)
-        if not parts:
-            return "Digite um comando."
-        name = parts[0].lstrip("/").lower()
-        rest = parts[1] if len(parts) > 1 else ""
-        if name in ("limpar", "limparchat"):  # clear THIS folder's conversation
-            memory.clear_conversation(_conv(thread))
-            return "Conversa limpa nesta pasta."
-        if name in ("plano", "manha", "manhã"):  # agentic day plan
-            return await brain.plan_day(owner)
-        if name in ("pendencias", "pendências", "cobrar"):  # proactive open loops
-            return commands.nudge_text(owner) or "Tudo em dia, Ryan — nada atrasado. 👌"
-        if name in ("padroes", "padrões", "aprendi"):  # continuous learning view
-            return commands.learned_text(owner)
-        if name in ("automacoes", "automações", "automacao", "automação"):
-            return commands.automacoes(owner)
-        if name == "automacaorm":
-            return commands.automacao_rm(owner, rest)
-        if name in commands.runnable():
-            return commands.run(owner, name, rest)
-        if name == "provedor":
-            v = rest.strip().lower()
-            if v in ("", "auto", "gemini", "groq", "openrouter", "ollama"):
-                memory.set_setting("force_provider", "" if v in ("", "auto") else v)
-                return f"Provedor: {v or 'auto'}." if v else "Provedor: automático."
-            return "Uso: /provedor auto|gemini|groq|openrouter|ollama"
-        if name == "status":
-            return _status_text()
-        if name == "modelo":
-            from datetime import datetime, timezone
-            usage = memory.usage_for_day(datetime.now(timezone.utc).date().isoformat())
-            caps = {"gemini": 20, "groq": 1000, "openrouter": 1000}
-            forced = memory.get_setting("force_provider") or "auto"
-            out = [f"🧠 Principal: {brain.current_model()} (Gemini)"]
-            if config.groq_api_key:
-                out.append(f"Fallback: {config.groq_model} (Groq)")
-            if config.openrouter_api_key:
-                out.append(f"Fallback: {config.openrouter_model} (OpenRouter)")
-            out.append(f"Provedor ativo: {forced}")
-            out.append("")
-            out.append("📊 Uso hoje (zera à meia-noite UTC):")
-            for prov in ("gemini", "groq", "openrouter", "ollama"):
-                used = usage.get(prov, 0)
-                cap = caps.get(prov)
-                if cap:
-                    out.append(f"- {prov}: {used} usados · ~{max(0, cap - used)} restantes (de ~{cap})")
-                elif prov == "ollama" and config.ollama_enabled:
-                    out.append(f"- ollama: {used} usados · ilimitado")
-            return "\n".join(out)
-        if name == "ajuda":
-            return commands.help()
-        if name == "dados":
-            summ = memory.storage_summary(owner)
-            out = ["🗄️ Seus dados guardados:", ""]
-            out += [f"- {s['label']}: {s['count']}" for s in summ]
-            out.append("\nPra apagar por categoria, use as abas (Tarefas/Gastos/...) "
-                       "ou o /dados no Telegram (com dupla confirmação pra apagar tudo).")
-            return "\n".join(out)
-        if name == "resumir":
-            if not rest.lower().startswith("http"):
-                return "Uso: /resumir <url>"
-            try:
-                text = await asyncio.to_thread(tools_mod.fetch_text, rest)
-            except Exception as e:
-                return f"Não consegui abrir a página ({str(e)[:80]})."
-            if not text or len(text.strip()) < 80:
-                return "Não achei texto útil nessa página."
-            s = await brain.ask(
-                "Você é a E.V. Resuma o artigo em português: um parágrafo de contexto "
-                "e depois 3 a 6 bullets com os pontos principais.",
-                f"Conteúdo de {rest}:\n\n{text[:12000]}")
-            return s or "Não consegui resumir agora, tenta de novo?"
-        if name == "quiz":
-            chunk = memory.random_chunk(owner, rest or None)
-            if not chunk:
-                return "Base de conhecimento vazia. Adicione algo na aba Base primeiro."
-            out = await brain.ask(
-                "Você é um tutor. Com base no trecho, crie UMA pergunta de estudo "
-                "objetiva e a resposta. Formato:\nPERGUNTA: <pergunta>\nRESPOSTA: <resposta>",
-                f"Trecho de [{chunk['source']}]:\n{chunk['chunk']}")
-            return out or "Não consegui gerar a pergunta agora."
-        if name in ("foco", "exportar", "transcrever", "documento", "insights", "menu"):
-            return (f"O /{name} é melhor no Telegram ou pela interface: use a aba/botão "
-                    "correspondente (ex: Pomodoro, exportar no painel).")
-        return commands.run(owner, name, rest)  # -> "não conheço"
+    for _router_mod in (activity, backup, connectors, keys, notifications, pages, push):
+        app.include_router(_router_mod.build_router(ctx))
 
     @app.get("/", response_class=HTMLResponse)
     async def index():
@@ -426,13 +310,6 @@ def create_app(config: Config, brain: Brain | None = None):
         memory.roll_due_tasks()  # keep recurring tasks rolled to their next occurrence
         return {"tasks": memory.open_tasks(owner)}
 
-    @app.get("/api/activity")
-    async def activity_get(request: Request):
-        _check(request.headers.get("authorization"))
-        cat = request.query_params.get("category") or None
-        return {"items": memory.list_activity(owner, cat),
-                "categories": memory.activity_categories(owner)}
-
     @app.get("/api/events")
     async def events(request: Request):
         # SSE — the browser's EventSource can't set headers, so the token comes as
@@ -470,47 +347,6 @@ def create_app(config: Config, brain: Brain | None = None):
                                  headers={"Cache-Control": "no-cache",
                                           "X-Accel-Buffering": "no"})
 
-    @app.get("/api/backup")
-    async def api_backup(request: Request):
-        # On-demand off-VM pull: a browser download can't set headers, so the
-        # token comes as ?k=. Returns a fresh, SQLCipher-encrypted copy of the DB.
-        tok = request.query_params.get("k", "")
-        if not config.web_token or not hmac.compare_digest(tok, config.web_token):
-            raise HTTPException(status_code=401, detail="unauthorized")
-        from fastapi.responses import FileResponse
-        from datetime import datetime
-        bdir = config.db_path.parent / "backups"
-        bdir.mkdir(exist_ok=True)
-        dest = bdir / f"ev_memory.{datetime.now().strftime('%Y%m%d-%H%M%S')}.db"
-        await asyncio.to_thread(memory.backup, dest)
-        return FileResponse(str(dest), media_type="application/octet-stream",
-                            filename=dest.name)
-
-    @app.get("/api/backup/status")
-    async def api_backup_status(request: Request):
-        _check(request.headers.get("authorization"))
-        from datetime import datetime
-        bdir = config.db_path.parent / "backups"
-        files = sorted(bdir.glob("ev_memory*.db")) if bdir.exists() else []
-        last = files[-1] if files else None
-        return {
-            "count": len(files),
-            "last_at": datetime.fromtimestamp(last.stat().st_mtime).isoformat() if last else None,
-            "last_size_kb": round(last.stat().st_size / 1024, 1) if last else None,
-        }
-
-    @app.post("/api/backup/run")
-    async def api_backup_run(request: Request):
-        _check(request.headers.get("authorization"))
-        from datetime import datetime
-        bdir = config.db_path.parent / "backups"
-        bdir.mkdir(exist_ok=True)
-        dest = bdir / f"ev_memory.{datetime.now().strftime('%Y%m%d-%H%M%S')}.db"
-        await asyncio.to_thread(memory.backup, dest)
-        for f in sorted(bdir.glob("ev_memory*.db"))[:-7]:
-            f.unlink()
-        return {"ok": True}
-
     @app.get("/api/face")
     async def face_get(request: Request):
         # Owner face descriptor (greeting/personalization only). Never other people.
@@ -535,79 +371,6 @@ def create_app(config: Config, brain: Brain | None = None):
             raise HTTPException(status_code=400, detail="invalid descriptor")
         memory.set_setting("face_descriptor", json.dumps([float(x) for x in desc]))
         return {"ok": True, "enrolled": True}
-
-    @app.get("/api/push/key")
-    async def push_key(request: Request):
-        _check(request.headers.get("authorization"))
-        return {"key": config.vapid_public}
-
-    @app.post("/api/push/subscribe")
-    async def push_subscribe(request: Request):
-        _check(request.headers.get("authorization"))
-        d = await _body(request)
-        ep = d.get("endpoint")
-        if not ep:
-            return {"ok": False}
-        memory.add_push_sub(ep, json.dumps(d))
-        return {"ok": True}
-
-    @app.post("/api/push/unsubscribe")
-    async def push_unsubscribe(request: Request):
-        _check(request.headers.get("authorization"))
-        ep = (await _body(request)).get("endpoint")
-        if ep:
-            memory.delete_push_sub(ep)
-        return {"ok": True}
-
-    @app.post("/api/push/test")
-    async def push_test(request: Request):
-        _check(request.headers.get("authorization"))
-        from ...providers import push
-        # owner passed so the test also shows up in the notification center
-        n = await asyncio.to_thread(push.send_push, config, memory,
-                                    "E.V.", "Notificação de teste funcionando.", "/", owner)
-        return {"ok": n > 0, "sent": n}
-
-    # --- notification center -----------------------------------------------
-    @app.get("/api/notifications")
-    async def notifs_list(request: Request):
-        _check(request.headers.get("authorization"))
-        alerts = []
-        for s in commands.subscriptions_due(owner):
-            alerts.append({
-                "id": f"sub-{s['id']}", "ephemeral": True, "kind": "sub",
-                "title": "Assinatura vencendo em breve",
-                "body": f"{s['description']} — R$ {s['amount']:.2f} · vence em "
-                        f"{s['days_until']} dia{'s' if s['days_until'] != 1 else ''}",
-            })
-        for b in commands.budget_alerts(owner):
-            alerts.append({
-                "id": f"bud-{b['category']}", "ephemeral": True, "kind": "budget",
-                "title": "Orçamento estourado" if b["level"] == "over" else "Orçamento perto do limite",
-                "body": f"{b['category']}: R$ {b['spent']:.2f} de R$ {b['amount']:.2f} ({b['pct']}%)",
-            })
-        return {"items": alerts + memory.list_notifications(owner),
-                "unread": len(alerts) + memory.unread_notifications(owner)}
-
-    @app.post("/api/notifications/read")
-    async def notifs_read(request: Request):
-        _check(request.headers.get("authorization"))
-        nid = (await _body(request)).get("id")
-        memory.mark_notification_read(owner, int(nid) if nid else None)
-        return {"ok": True, "unread": memory.unread_notifications(owner)}
-
-    @app.post("/api/notifications/delete")
-    async def notifs_delete(request: Request):
-        _check(request.headers.get("authorization"))
-        memory.delete_notification(owner, int((await _body(request)).get("id") or 0))
-        return {"ok": True, "unread": memory.unread_notifications(owner)}
-
-    @app.post("/api/notifications/clear")
-    async def notifs_clear(request: Request):
-        _check(request.headers.get("authorization"))
-        scope = (await _body(request)).get("scope")
-        memory.clear_notifications(owner, only_read=(scope == "read"))
-        return {"ok": True, "unread": memory.unread_notifications(owner)}
 
     @app.post("/api/tasks")
     async def tasks_create(request: Request):
@@ -855,205 +618,11 @@ def create_app(config: Config, brain: Brain | None = None):
             "range": {"from": fd, "to": td},
         }
 
-    # --- API keys management -----------------------------------------------
-    _KEY_FIELDS = [
-        ("gemini_api_key", "GEMINI_API_KEY", "Gemini (IA principal)"),
-        ("groq_api_key", "GROQ_API_KEY", "Groq (fallback + voz→texto)"),
-        ("openrouter_api_key", "OPENROUTER_API_KEY", "OpenRouter (fallback)"),
-        ("tavily_api_key", "TAVILY_API_KEY", "Tavily (busca web)"),
-        ("brave_api_key", "BRAVE_API_KEY", "Brave (busca web)"),
-        ("imap_address", "EV_IMAP_ADDRESS", "E-mail Gmail (leitura)"),
-        ("imap_password", "EV_IMAP_PASSWORD", "Senha de app Gmail (leitura)"),
-        ("mapillary_token", "EV_MAPILLARY_TOKEN", "Mapillary (ver rua integrado)"),
-        ("spotify_client_id", "EV_SPOTIFY_CLIENT_ID", "Spotify Client ID"),
-        ("spotify_client_secret", "EV_SPOTIFY_CLIENT_SECRET", "Spotify Client Secret"),
-    ]
-
-    def _env_write(var, value):
-        import re
-        p = config.db_path.parent / ".env"
-        try:
-            s = p.read_text() if p.exists() else ""
-        except Exception:
-            s = ""
-        line = f"{var}={value}"
-        if re.search(rf"(?m)^{re.escape(var)}=", s):
-            s = re.sub(rf"(?m)^{re.escape(var)}=.*$", line, s)
-        else:
-            s = (s.rstrip("\n") + "\n" + line + "\n") if s else line + "\n"
-        p.write_text(s)
-
-    def _keys_state():
-        return [{"field": f, "label": lbl, "set": bool(getattr(config, f, ""))}
-                for f, env, lbl in _KEY_FIELDS]
-
-    @app.get("/api/keys")
-    async def keys_get(request: Request):
-        _check(request.headers.get("authorization"))
-        return {"keys": _keys_state()}
-
-    @app.post("/api/keys")
-    async def keys_set(request: Request):
-        _check(request.headers.get("authorization"))
-        d = await _body(request)
-        changed = []
-        for f, env, lbl in _KEY_FIELDS:
-            v = (d.get(f) or "").strip()
-            if v:
-                try:  # frozen dataclass -> update in place so the web uses it now
-                    object.__setattr__(config, f, v)
-                except Exception:
-                    pass
-                try:  # persist to .env (survives restart; Telegram picks it up too)
-                    _env_write(env, v)
-                    changed.append(lbl)
-                except Exception:
-                    pass
-        return {"ok": bool(changed), "changed": changed, "keys": _keys_state()}
-
-    # --- dynamic keys + connectors (self-service integrations, no code) -----
+    # keys/custom-keys/connectors/pages routes moved to .routes/ (Phase 6b,
+    # Group 1). `os`/`re` are still imported here because other, not-yet-split
+    # routes below (e.g. /api/chat/stream, /api/events) use `_re`/`_os`.
     import os as _os
     import re as _re
-    from ...providers import connectors as conn_mod
-
-    def _custom_keys():
-        try:
-            return json.loads(memory.get_setting("custom_keys") or "[]")
-        except (ValueError, TypeError):
-            return []
-
-    @app.get("/api/keys/custom")
-    async def custom_keys_get(request: Request):
-        _check(request.headers.get("authorization"))
-        names = _custom_keys()
-        return {"keys": [{"name": n, "set": bool(_os.environ.get(n))} for n in names]}
-
-    @app.post("/api/keys/custom")
-    async def custom_keys_set(request: Request):
-        _check(request.headers.get("authorization"))
-        d = await _body(request)
-        name = (d.get("name") or "").strip().upper()
-        if not _re.match(r"^[A-Z][A-Z0-9_]{1,39}$", name):
-            raise HTTPException(status_code=400, detail="nome inválido (use MAIÚSCULAS_E_UNDERSCORE)")
-        names = _custom_keys()
-        if d.get("clear"):
-            _os.environ.pop(name, None)
-            try:
-                _env_write(name, "")
-            except Exception:
-                pass
-            names = [n for n in names if n != name]
-            memory.set_setting("custom_keys", json.dumps(names))
-            return {"ok": True, "removed": name}
-        val = (d.get("value") or "").strip()
-        if not val:
-            raise HTTPException(status_code=400, detail="valor vazio")
-        _os.environ[name] = val                      # live for connectors, no restart
-        try:
-            _env_write(name, val)                    # persist to .env
-        except Exception:
-            pass
-        if name not in names:
-            names.append(name)
-            memory.set_setting("custom_keys", json.dumps(names))
-        return {"ok": True, "name": name}
-
-    def _subst(s: str) -> str:
-        # replace {{SECRET_NAME}} with the value from the environment (never logged)
-        return _re.sub(r"\{\{\s*([A-Z][A-Z0-9_]{1,39})\s*\}\}",
-                       lambda m: _os.environ.get(m.group(1), ""), s or "")
-
-    @app.get("/api/connectors")
-    async def connectors_list(request: Request):
-        _check(request.headers.get("authorization"))
-        return {"items": memory.list_connectors(owner)}
-
-    @app.post("/api/connectors")
-    async def connectors_add(request: Request):
-        _check(request.headers.get("authorization"))
-        d = await _body(request)
-        name = (d.get("name") or "").strip()
-        url = (d.get("url") or "").strip()
-        if not name or not url.startswith("https://"):
-            raise HTTPException(status_code=400, detail="nome e URL https são obrigatórios")
-        headers = d.get("headers") if isinstance(d.get("headers"), dict) else {}
-        cid = memory.add_connector(owner, name[:60], url, headers, (d.get("path") or "").strip())
-        return {"ok": True, "id": cid}
-
-    @app.post("/api/connectors/delete")
-    async def connectors_del(request: Request):
-        _check(request.headers.get("authorization"))
-        memory.delete_connector(owner, int((await _body(request)).get("id") or 0))
-        return {"ok": True}
-
-    @app.post("/api/connectors/run")
-    async def connectors_run(request: Request):
-        _check(request.headers.get("authorization"))
-        d = await _body(request)
-        # run either a saved connector (by name) or an ad-hoc test payload
-        if d.get("name"):
-            c = memory.get_connector(owner, d["name"])
-            if not c:
-                raise HTTPException(status_code=404, detail="conector não encontrado")
-            url, headers, path = c["url"], c["headers"], c["path"]
-        else:
-            url = (d.get("url") or "").strip()
-            headers = d.get("headers") if isinstance(d.get("headers"), dict) else {}
-            path = (d.get("path") or "").strip()
-        url = _subst(url)
-        headers = {k: _subst(v) for k, v in (headers or {}).items()}
-        val, err = await asyncio.to_thread(conn_mod.fetch, url, headers, path)
-        if err:
-            return {"ok": False, "error": err}
-        if isinstance(val, (dict, list)):
-            val = json.dumps(val, ensure_ascii=False)[:800]
-        return {"ok": True, "value": str(val)[:800]}
-
-    # --- custom pages (declarative dashboards, no code) --------------------
-    _WIDGET_TYPES = {"note", "tasks", "connector", "command", "chart", "spotify"}
-
-    def _clean_widgets(raw):
-        from ...providers import spotify as _sp2
-        out = []
-        for w in (raw or [])[:20]:
-            if not isinstance(w, dict) or w.get("type") not in _WIDGET_TYPES:
-                continue
-            ww = {k: v for k, v in w.items()
-                  if k in ("type", "text", "category", "name", "cmd", "label", "icon", "kind", "ref")}
-            if ww.get("type") == "spotify":
-                if w.get("url"):
-                    p = _sp2.parse(w["url"])
-                    if not p:
-                        continue
-                    ww["kind"], ww["ref"] = p
-                if not ww.get("kind") or not ww.get("ref"):
-                    continue
-            out.append(ww)
-        return out
-
-    @app.get("/api/pages")
-    async def pages_list(request: Request):
-        _check(request.headers.get("authorization"))
-        return {"items": memory.list_pages(owner)}
-
-    @app.post("/api/pages")
-    async def pages_save(request: Request):
-        _check(request.headers.get("authorization"))
-        d = await _body(request)
-        name = (d.get("name") or "").strip()
-        if not name:
-            raise HTTPException(status_code=400, detail="nome obrigatório")
-        widgets = _clean_widgets(d.get("widgets"))
-        if d.get("id"):
-            memory.update_page(owner, int(d["id"]), name=name, widgets=widgets)
-            return {"ok": True, "id": int(d["id"])}
-        return {"ok": True, "id": memory.add_page(owner, name[:60], widgets)}
-
-    @app.post("/api/pages/delete")
-    async def pages_del(request: Request):
-        _check(request.headers.get("authorization"))
-        memory.delete_page(owner, int((await _body(request)).get("id") or 0))
-        return {"ok": True}
 
     @app.get("/api/astro")
     async def astro_ep(request: Request):
