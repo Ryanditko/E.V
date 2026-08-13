@@ -35,6 +35,14 @@ class WebContext:
         self.brain = brain
         self.commands = commands
         self.owner = owner
+        # Shared OAuth CSRF-state set (Phase 6b, Group 3): a single set instance,
+        # added to and discarded from by the Google, GitHub, and Spotify OAuth
+        # routers alike — mirrors the single `_oauth_states` closure variable
+        # they all shared inside create_app() before the split. Do NOT give each
+        # router its own set; that would silently break cross-provider CSRF
+        # validation (state values generated on one flow must be recognized on
+        # its own callback, which is preserved by sharing the same set object).
+        self.oauth_states: set[str] = set()
 
     def check(self, auth):
         from fastapi import HTTPException
@@ -174,6 +182,33 @@ class WebContext:
             return (f"O /{name} é melhor no Telegram ou pela interface: use a aba/botão "
                     "correspondente (ex: Pomodoro, exportar no painel).")
         return commands.run(owner, name, rest)  # -> "não conheço"
+
+    def base_url(self, request) -> str:
+        """Shared by the Google/GitHub login and Spotify-connect OAuth routers
+        to build redirect_uri values (must match what's registered with each
+        provider)."""
+        return self.config.web_base_url or str(request.base_url).rstrip("/")
+
+    def login_ok_html(self):
+        """Passed the identity check: hand the app token to this browser and
+        enter. Shared by the Google/GitHub login OAuth callbacks."""
+        from fastapi.responses import HTMLResponse
+        return HTMLResponse(
+            "<!doctype html><meta charset=utf-8><title>E.V.</title>"
+            "<script>localStorage.setItem('ev_token'," + json.dumps(self.config.web_token)
+            + ");location.replace('/');</script>"
+            "<p style='font:14px system-ui;color:#888;padding:24px'>Entrando…</p>")
+
+    def login_denied_html(self, msg: str):
+        """Shared by the Google/GitHub login and Spotify-connect OAuth routers."""
+        from fastapi.responses import HTMLResponse
+        return HTMLResponse(
+            "<!doctype html><meta charset=utf-8><title>E.V.</title>"
+            "<div style='font:15px system-ui;color:#d6e9fb;background:#04070c;"
+            "height:100vh;display:flex;flex-direction:column;align-items:center;"
+            "justify-content:center;gap:16px;text-align:center;padding:24px'>"
+            "<p>" + msg + "</p><a href='/' style='color:#8ab4f8'>voltar</a></div>",
+            status_code=403)
 
     def env_write(self, var, value):
         """Persist a var=value line to .env (survives restart; Telegram picks
