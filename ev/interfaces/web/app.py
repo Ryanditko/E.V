@@ -19,14 +19,15 @@ from ...core import health, knowledge
 from ...core.brain import Brain
 from ...core.commands import COMMAND_LIST, Commands
 from ...core.memory import Memory
-from ...providers import tools as tools_mod, voice as voice_mod
+from ...providers import voice as voice_mod
 
 from .context import WebContext
 from .frontend import _DEFAULT_FOLDERS, _FAVICON, _SERVICE_WORKER, _icon_png, _PAGE
 from .routes import (
-    activity, backup, connectors, expenses, facts, habits, journal, keys,
-    links, notifications, oauth_github, oauth_google, pages, push, recurring,
-    reminders, spotify, tasks, watches,
+    activity, backup, connectors, email, expenses, facts, gcal, habits,
+    journal, keys, links, location_map, music, notifications, oauth_github,
+    oauth_google, pages, push, recurring, reminders, scan_receipt, spotify,
+    stt, tasks, vision, voice_tts, watches, weather,
 )
 
 log = logging.getLogger("ev.web")
@@ -56,12 +57,13 @@ def create_app(config: Config, brain: Brain | None = None):
     _conv = ctx.conv
     _status_text = ctx.status_text
     run_command = ctx.run_command
-    _env_write = ctx.env_write
 
     for _router_mod in (
-        activity, backup, connectors, expenses, facts, habits, journal, keys,
-        links, notifications, oauth_github, oauth_google, pages, push,
-        recurring, reminders, spotify, tasks, watches,
+        activity, backup, connectors, email, expenses, facts, gcal, habits,
+        journal, keys, links, location_map, music, notifications,
+        oauth_github, oauth_google, pages, push, recurring, reminders,
+        scan_receipt, spotify, stt, tasks, vision, voice_tts, watches,
+        weather,
     ):
         app.include_router(_router_mod.build_router(ctx))
 
@@ -518,104 +520,7 @@ def create_app(config: Config, brain: Brain | None = None):
     import os as _os
     import re as _re
 
-    @app.get("/api/astro")
-    async def astro_ep(request: Request):
-        _check(request.headers.get("authorization"))
-        import httpx
-        city = (request.query_params.get("city") or getattr(config, "city", "") or "").strip()
-        moon = tools_mod.moon_phase()
-        sun = {}
-        if city:
-            try:
-                wf = await asyncio.to_thread(tools_mod.weather_full, city)
-                t = wf.get("today", {})
-                sun = {"sunrise": t.get("sunrise"), "sunset": t.get("sunset")}
-            except Exception:
-                pass
-        iss = {}
-        try:
-            r = await asyncio.to_thread(
-                lambda: httpx.get("https://api.wheretheiss.at/v1/satellites/25544", timeout=8).json())
-            iss = {"lat": round(r.get("latitude", 0), 1), "lng": round(r.get("longitude", 0), 1),
-                   "alt": round(r.get("altitude", 0))}
-        except Exception:
-            pass
-        return {"moon": moon, "sun": sun, "iss": iss, "city": city}
-
-    @app.get("/api/radar")
-    async def radar_ep(request: Request):
-        _check(request.headers.get("authorization"))
-        import httpx
-        def _work():
-            out = {"rates": {}, "headlines": []}
-            try:
-                r = httpx.get("https://open.er-api.com/v6/latest/USD", timeout=10).json().get("rates", {})
-                if r.get("BRL"):
-                    out["rates"]["usd"] = round(r["BRL"], 2)
-                    if r.get("EUR"):
-                        out["rates"]["eur"] = round(r["BRL"] / r["EUR"], 2)
-            except Exception:
-                pass
-            try:
-                b = httpx.get("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=brl",
-                              timeout=10).json()
-                if b.get("bitcoin", {}).get("brl"):
-                    out["rates"]["btc"] = round(b["bitcoin"]["brl"])
-            except Exception:
-                pass
-            try:
-                c = httpx.get("https://www.tabnews.com.br/api/v1/contents?per_page=6&strategy=relevant",
-                              timeout=10).json()
-                for x in (c or [])[:6]:
-                    out["headlines"].append({
-                        "title": x.get("title"),
-                        "url": "https://www.tabnews.com.br/" + (x.get("owner_username") or "") + "/" + (x.get("slug") or "")})
-            except Exception:
-                pass
-            return out
-        return await asyncio.to_thread(_work)
-
-    @app.get("/api/weather")
-    async def weather_ep(request: Request):
-        _check(request.headers.get("authorization"))
-        city = (request.query_params.get("city") or getattr(config, "city", "") or "").strip()
-        if not city:
-            return {"error": "defina uma cidade (EV_CITY) ou busque uma no campo acima"}
-        data = await asyncio.to_thread(tools_mod.weather_full, city)
-        return data or {"error": f"não consegui o clima de '{city}'"}
-
-    # --- music (Spotify embed player) --------------------------------------
-    from ...providers import spotify as _sp
-    _SP_PT = {"playlist": "Playlist", "track": "Faixa", "album": "Álbum",
-              "artist": "Artista", "show": "Podcast", "episode": "Episódio"}
-
-    @app.get("/api/music")
-    async def music_list(request: Request):
-        _check(request.headers.get("authorization"))
-        items = memory.list_music(owner)
-        for it in items:
-            it["embed"] = _sp.embed_url(it["kind"], it["ref"])
-        return {"items": items}
-
-    @app.post("/api/music")
-    async def music_add(request: Request):
-        _check(request.headers.get("authorization"))
-        d = await _body(request)
-        parsed = _sp.parse(d.get("url") or "")
-        if not parsed:
-            raise HTTPException(status_code=400, detail=(
-                "link não suportado — cole uma playlist, faixa, álbum, artista, "
-                "podcast ou episódio do Spotify (perfil não tem player)"))
-        kind, ref = parsed
-        label = (d.get("label") or "").strip() or _SP_PT.get(kind, kind)
-        mid = memory.add_music(owner, label[:80], kind, ref)
-        return {"ok": True, "id": mid, "embed": _sp.embed_url(kind, ref)}
-
-    @app.post("/api/music/delete")
-    async def music_del(request: Request):
-        _check(request.headers.get("authorization"))
-        memory.delete_music(owner, int((await _body(request)).get("id") or 0))
-        return {"ok": True}
+    # weather/astro/radar/music routes moved to .routes/ (Phase 6b, Group 4)
 
     def _today_local():
         from datetime import datetime, timezone as _tz
@@ -1123,300 +1028,8 @@ def create_app(config: Config, brain: Brain | None = None):
             raise HTTPException(status_code=400, detail="bad ref")
         return {"ok": bool(ok)}
 
-    @app.post("/api/tts")
-    async def tts(request: Request):
-        _check(request.headers.get("authorization"))
-        d = await _body(request)
-        text = (d.get("text") or "").strip()
-        if not text:
-            raise HTTPException(status_code=400, detail="empty")
-        # optional per-request overrides (voice picker previews force edge-tts)
-        req_voice = d.get("voice")
-        voice = req_voice if str(req_voice or "").startswith("pt-BR") else None
-        audio, mime = await voice_mod.synth_web(
-            config, text[:1200], voice=voice, gvoice=d.get("gvoice"),
-            rate=d.get("rate"), pitch=d.get("pitch"))
-        return Response(content=audio, media_type=mime)
-
-    @app.get("/api/voice")
-    async def voice_get(request: Request):
-        _check(request.headers.get("authorization"))
-        gv = ([{"id": i, "desc": d} for i, d in voice_mod.GEMINI_VOICES]
-              if config.gemini_api_key else [])
-        return {"voice": config.voice, "rate": config.voice_rate,
-                "pitch": config.voice_pitch,
-                "voices": await voice_mod.list_ptbr_voices(),
-                "engine": "gemini" if getattr(config, "gemini_tts", False) else "edge",
-                "gvoice": getattr(config, "gemini_tts_voice", "Kore"),
-                "gemini_voices": gv}
-
-    @app.post("/api/voice")
-    async def voice_set(request: Request):
-        _check(request.headers.get("authorization"))
-        d = await _body(request)
-        voice = (d.get("voice") or "").strip()
-        engine = (d.get("engine") or "").strip()
-        gset = {i for i, _ in voice_mod.GEMINI_VOICES}
-        # --- Gemini voice ---
-        if engine == "gemini" or voice in gset:
-            if voice not in gset:
-                raise HTTPException(status_code=400, detail="invalid gemini voice")
-            for f, env, val in (("gemini_tts", "EV_GEMINI_TTS", True),
-                                ("gemini_tts_voice", "EV_GEMINI_VOICE", voice)):
-                try:
-                    object.__setattr__(config, f, val)
-                except Exception:
-                    pass
-                try:
-                    _env_write(env, "1" if val is True else val)
-                except Exception:
-                    pass
-            return {"ok": True, "engine": "gemini", "voice": voice}
-        # --- edge voice (also turns Gemini off) ---
-        voices = {v["id"] for v in await voice_mod.list_ptbr_voices()}
-        if not voice.startswith("pt-BR") or (voices and voice not in voices):
-            raise HTTPException(status_code=400, detail="invalid voice")
-        rate = (d.get("rate") or "+0%").strip()
-        pitch = (d.get("pitch") or "+0Hz").strip()
-        for f, env, val in (("voice", "EV_VOICE", voice),
-                            ("voice_rate", "EV_VOICE_RATE", rate),
-                            ("voice_pitch", "EV_VOICE_PITCH", pitch),
-                            ("gemini_tts", "EV_GEMINI_TTS", False)):
-            try:
-                object.__setattr__(config, f, val)
-            except Exception:
-                pass
-            try:
-                _env_write(env, "0" if val is False else val)
-            except Exception:
-                pass
-        return {"ok": True, "engine": "edge", "voice": voice, "rate": rate, "pitch": pitch}
-
-    @app.post("/api/vision")
-    async def vision(request: Request):
-        _check(request.headers.get("authorization"))
-        form = await request.form()
-        f = form.get("image")
-        if f is None or isinstance(f, str) or not hasattr(f, "read"):
-            return {"reply": "Nenhuma imagem enviada."}
-        data = await f.read()
-        if not data:
-            return {"reply": "Imagem vazia."}
-        prompt = (form.get("text") or "").strip() or "O que há nesta imagem?"
-        thread = (form.get("thread") or "geral").strip()
-        conv = _conv(thread)
-        try:
-            reply = await brain.respond(
-                owner, conv_id=conv, text=prompt,
-                image=data, image_mime=(f.content_type or "image/jpeg"))
-        except Exception as exc:
-            return {"reply": f"Não consegui analisar a imagem: {exc}"}
-        # keep the image in the conversation so it re-appears on reload
-        img_id = None
-        try:
-            img_id = memory.add_chat_image(conv, data, f.content_type or "image/png")
-            memory.mark_last_user_image(conv, img_id)
-        except Exception:
-            pass
-        return {"reply": reply, "img_id": img_id}
-
-    @app.get("/api/chat/image")
-    async def chat_image(request: Request):
-        tok = request.query_params.get("k", "")
-        if not config.web_token or not hmac.compare_digest(tok, config.web_token):
-            raise HTTPException(status_code=401, detail="unauthorized")
-        img = memory.get_chat_image(int(request.query_params.get("id") or 0))
-        if not img:
-            raise HTTPException(status_code=404, detail="não encontrada")
-        return Response(content=img["data"],
-                        media_type=img["mime"] or "image/png",
-                        headers={"Cache-Control": "private, max-age=86400"})
-
-    @app.post("/api/location")
-    async def set_location(request: Request):
-        _check(request.headers.get("authorization"))
-        d = await _body(request)
-        try:
-            lat, lng = float(d.get("lat")), float(d.get("lng"))
-        except (TypeError, ValueError):
-            return {"ok": False}
-        from datetime import datetime, timezone
-        memory.set_setting("loc_lat", f"{lat:.6f}")
-        memory.set_setting("loc_lng", f"{lng:.6f}")
-        memory.set_setting("loc_time", datetime.now(timezone.utc).isoformat())
-        try:  # best-effort readable address so E.V. can say where you are
-            addr = await asyncio.to_thread(tools_mod.reverse_geocode, lat, lng)
-            if addr:
-                memory.set_setting("loc_addr", addr)
-        except Exception:
-            pass
-        return {"ok": True}
-
-    @app.post("/api/nearby")
-    async def nearby(request: Request):
-        _check(request.headers.get("authorization"))
-        d = await _body(request)
-        try:
-            lat, lng = float(d.get("lat")), float(d.get("lng"))
-        except (TypeError, ValueError):
-            return {"items": [], "msg": "sem localização"}
-        query = (d.get("query") or "").strip()
-        items = await asyncio.to_thread(tools_mod.nearby_places, lat, lng, query)
-        return {"items": items}
-
-    @app.get("/api/places")
-    async def places_list(request: Request):
-        _check(request.headers.get("authorization"))
-        return {"items": memory.list_places(owner)}
-
-    @app.post("/api/places")
-    async def places_add(request: Request):
-        _check(request.headers.get("authorization"))
-        d = await _body(request)
-        try:
-            lat, lng = float(d.get("lat")), float(d.get("lng"))
-        except (TypeError, ValueError):
-            return {"ok": False}
-        name = (d.get("name") or "Ponto").strip()
-        pid = memory.add_place(owner, name, lat, lng)
-        return {"ok": True, "id": pid, "items": memory.list_places(owner)}
-
-    @app.post("/api/places/delete")
-    async def places_delete(request: Request):
-        _check(request.headers.get("authorization"))
-        memory.delete_place(owner, int((await _body(request)).get("id") or 0))
-        return {"ok": True, "items": memory.list_places(owner)}
-
-    @app.get("/api/geocode")
-    async def geocode_ep(request: Request):
-        _check(request.headers.get("authorization"))
-        q = (request.query_params.get("q") or "").strip()
-        if not q:
-            return {"ok": False}
-        g = await asyncio.to_thread(tools_mod.geocode, q)
-        return {"ok": bool(g), **(g or {})}
-
-    @app.post("/api/route")
-    async def route_ep(request: Request):
-        _check(request.headers.get("authorization"))
-        d = await _body(request)
-        try:
-            fr, to = d.get("from"), d.get("to")
-            fl, fg = float(fr[0]), float(fr[1])
-            tl, tg = float(to[0]), float(to[1])
-        except (TypeError, ValueError, IndexError):
-            return {"ok": False}
-        r = await asyncio.to_thread(
-            tools_mod.route, fl, fg, tl, tg, (d.get("mode") or "car"))
-        return {"ok": bool(r), **(r or {})}
-
-    @app.post("/api/see")
-    async def see(request: Request):
-        """Ephemeral vision for the live camera / 'what is this' — describes the
-        frame without saving it to the conversation."""
-        _check(request.headers.get("authorization"))
-        form = await request.form()
-        f = form.get("image")
-        if f is None or isinstance(f, str) or not hasattr(f, "read"):
-            return {"text": ""}
-        data = await f.read()
-        if not data:
-            return {"text": ""}
-        mode = (form.get("mode") or "live").strip()
-        if mode == "translate":
-            prompt = ("Leia TODO o texto visível nesta imagem e traduza para "
-                      "português do Brasil. Responda só com a tradução, natural e "
-                      "curta. Se não houver texto legível, responda apenas: (sem texto).")
-        elif mode == "food":
-            prompt = ("Esta é uma foto de comida. Estime em 1-2 frases (pt-BR) o "
-                      "prato/itens e as calorias aproximadas totais, e os macros se "
-                      "der (proteína/carbo/gordura). Deixe claro que é estimativa. "
-                      "Se não for comida, diga: (não parece comida).")
-        elif mode == "what":
-            prompt = ("Identifique o que está em destaque nesta imagem (objeto, "
-                      "lugar/ponto de referência, planta, animal, produto ou texto) e "
-                      "dê uma info curta e útil, em 1-2 frases, português do Brasil. "
-                      "Se houver texto importante, transcreva.")
-        else:
-            prompt = ("Descreva em 1 frase curta (pt-BR) o que a câmera vê agora: "
-                      "objetos principais e quantas pessoas/rostos aparecem (sem "
-                      "identificar quem são). Seja objetivo.")
-        text = await brain.describe_image(data, f.content_type or "image/jpeg", prompt)
-        return {"text": text or "(não consegui enxergar agora)"}
-
-    @app.post("/api/scan")
-    async def scan(request: Request):
-        """Scan a document: OCR the frame and save the text to the knowledge base."""
-        _check(request.headers.get("authorization"))
-        form = await request.form()
-        f = form.get("image")
-        if f is None or isinstance(f, str) or not hasattr(f, "read"):
-            return {"ok": False, "msg": "Nenhuma imagem."}
-        data = await f.read()
-        text = await brain.ocr_image(data, f.content_type or "image/jpeg")
-        if not text or text.strip() in ("", "(sem texto)"):
-            return {"ok": False, "msg": "Não achei texto legível no documento."}
-        from datetime import datetime, timezone
-        title = "Documento " + datetime.now(timezone.utc).strftime("%d/%m %H:%M")
-        try:
-            stored = await asyncio.to_thread(
-                knowledge.ingest_text, text, title, config, memory, owner)
-            return {"ok": True, "msg": f"Documento salvo na Base: {title} "
-                    f"({len(text)} caracteres).", "stored": stored}
-        except Exception as exc:
-            return {"ok": True, "msg": f"Li o documento ({len(text)} caracteres), "
-                    f"mas não consegui salvar na Base ({str(exc)[:50]}).", "text": text[:300]}
-
-    @app.post("/api/receipt")
-    async def receipt(request: Request):
-        _check(request.headers.get("authorization"))
-        form = await request.form()
-        f = form.get("image")
-        if f is None or isinstance(f, str) or not hasattr(f, "read"):
-            return {"ok": False, "msg": "Nenhuma imagem enviada."}
-        data = await f.read()
-        if not data:
-            return {"ok": False, "msg": "Imagem vazia."}
-        try:
-            exp = await brain.extract_receipt(data, f.content_type or "image/jpeg")
-        except Exception as exc:
-            return {"ok": False, "msg": f"Não consegui ler o comprovante: {exc}"}
-        if not exp:
-            return {"ok": False,
-                    "msg": "Não consegui identificar um valor nesse comprovante."}
-        return {"ok": True, **exp}
-
-    @app.post("/api/stt")
-    async def stt(request: Request):
-        _check(request.headers.get("authorization"))
-        form = await request.form()
-        f = form.get("audio")
-        if f is None or isinstance(f, str) or not hasattr(f, "read"):
-            raise HTTPException(status_code=400, detail="no audio")
-        data = await f.read()
-        if not data:
-            raise HTTPException(status_code=400, detail="empty audio")
-        text = await brain.transcribe(data, f.content_type or "audio/webm")
-        return {"text": (text or "").strip()}
-
-    @app.post("/api/email")
-    async def api_email(request: Request):
-        _check(request.headers.get("authorization"))
-        from ...providers import tools
-        d = await _body(request)
-        to = (d.get("to") or "").strip()
-        subject = (d.get("subject") or "").strip()
-        body = (d.get("body") or "").strip()
-        if not to or not body:
-            return {"ok": False, "msg": "Preencha destinatário e mensagem."}
-        account = (d.get("account") or "").strip() or config.default_account
-        try:
-            msg = await asyncio.to_thread(
-                tools.send_email, config, account, to, subject, body
-            )
-            return {"ok": True, "msg": msg}
-        except Exception as exc:
-            return {"ok": False, "msg": f"Falha ao enviar o email: {exc}"}
+    # voice/tts, vision, location/map, scan/receipt, stt, and email routes
+    # moved to .routes/ (Phase 6b, Group 4)
 
     @app.post("/api/notify")
     async def api_notify(request: Request):
@@ -1442,74 +1055,7 @@ def create_app(config: Config, brain: Brain | None = None):
         except Exception as exc:
             return {"ok": False, "msg": f"Falha ao enviar: {exc}"}
 
-    def _tz_iso(v: str) -> str:
-        """A naive datetime-local value -> ISO with the configured tz offset."""
-        from datetime import datetime
-        try:
-            from zoneinfo import ZoneInfo
-            dt = datetime.fromisoformat(v)
-            if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=ZoneInfo(config.timezone))
-            return dt.isoformat()
-        except Exception:
-            return v
-
-    @app.get("/api/gcal")
-    async def gcal_list(request: Request):
-        _check(request.headers.get("authorization"))
-        if not config.google_ready() or not config.google_authorized():
-            return {"ok": False, "events": [], "msg": "Google não autorizado."}
-        start = request.query_params.get("start") or ""
-        end = request.query_params.get("end") or ""
-        from ...providers import tools
-        try:
-            events = await asyncio.to_thread(
-                tools.calendar_list_range, config, config.default_account, start, end)
-            return {"ok": True, "events": events}
-        except Exception as exc:
-            return {"ok": False, "events": [], "msg": str(exc)}
-
-    @app.post("/api/gcal/create")
-    async def gcal_create(request: Request):
-        _check(request.headers.get("authorization"))
-        d = await _body(request)
-        summary = (d.get("summary") or "").strip()
-        start = (d.get("start") or "").strip()
-        end = (d.get("end") or "").strip()
-        if not summary or not start:
-            return {"ok": False, "msg": "Faltou título ou início."}
-        start_iso = _tz_iso(start)
-        if end:
-            end_iso = _tz_iso(end)
-        else:
-            from datetime import datetime, timedelta
-            try:
-                end_iso = (datetime.fromisoformat(start_iso) + timedelta(hours=1)).isoformat()
-            except Exception:
-                end_iso = start_iso
-        from ...providers import tools
-        try:
-            msg = await asyncio.to_thread(
-                tools.calendar_create, config, config.default_account,
-                summary, start_iso, end_iso)
-            ok = "criei" in msg.lower() or "criado" in msg.lower() or "http" in msg.lower()
-            return {"ok": ok, "msg": msg}
-        except Exception as exc:
-            return {"ok": False, "msg": str(exc)}
-
-    @app.post("/api/gcal/delete")
-    async def gcal_delete(request: Request):
-        _check(request.headers.get("authorization"))
-        eid = ((await _body(request)).get("id") or "").strip()
-        if not eid:
-            return {"ok": False}
-        from ...providers import tools
-        try:
-            await asyncio.to_thread(
-                tools.calendar_delete, config, config.default_account, eid)
-            return {"ok": True}
-        except Exception as exc:
-            return {"ok": False, "msg": str(exc)}
+    # Google Calendar (/api/gcal*) routes moved to .routes/ (Phase 6b, Group 4)
 
     return app
 
