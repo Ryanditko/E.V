@@ -23,7 +23,10 @@ from ...providers import tools as tools_mod, voice as voice_mod
 
 from .context import WebContext
 from .frontend import _DEFAULT_FOLDERS, _FAVICON, _SERVICE_WORKER, _icon_png, _PAGE
-from .routes import activity, backup, connectors, keys, notifications, pages, push
+from .routes import (
+    activity, backup, connectors, expenses, facts, habits, journal, keys,
+    links, notifications, pages, push, recurring, reminders, tasks, watches,
+)
 
 log = logging.getLogger("ev.web")
 
@@ -54,7 +57,10 @@ def create_app(config: Config, brain: Brain | None = None):
     run_command = ctx.run_command
     _env_write = ctx.env_write
 
-    for _router_mod in (activity, backup, connectors, keys, notifications, pages, push):
+    for _router_mod in (
+        activity, backup, connectors, expenses, facts, habits, journal, keys,
+        links, notifications, pages, push, recurring, reminders, tasks, watches,
+    ):
         app.include_router(_router_mod.build_router(ctx))
 
     @app.get("/", response_class=HTMLResponse)
@@ -303,13 +309,6 @@ def create_app(config: Config, brain: Brain | None = None):
             memory.set_setting("web_stats", json.dumps(data["stats"][:10]))
         return {"ok": True}
 
-    # --- Tasks CRUD (dedicated panel) --------------------------------------
-    @app.get("/api/tasks")
-    async def tasks_get(request: Request):
-        _check(request.headers.get("authorization"))
-        memory.roll_due_tasks()  # keep recurring tasks rolled to their next occurrence
-        return {"tasks": memory.open_tasks(owner)}
-
     @app.get("/api/events")
     async def events(request: Request):
         # SSE — the browser's EventSource can't set headers, so the token comes as
@@ -371,41 +370,6 @@ def create_app(config: Config, brain: Brain | None = None):
             raise HTTPException(status_code=400, detail="invalid descriptor")
         memory.set_setting("face_descriptor", json.dumps([float(x) for x in desc]))
         return {"ok": True, "enrolled": True}
-
-    @app.post("/api/tasks")
-    async def tasks_create(request: Request):
-        _check(request.headers.get("authorization"))
-        data = await _body(request)
-        text = (data.get("text") or "").strip()
-        cat = (data.get("category") or "geral").strip() or "geral"
-        if text:
-            memory.add_task(owner, text, cat, recur=_recurval(data.get("recur")),
-                            due=(data.get("due") or "").strip() or None)
-        return {"tasks": memory.open_tasks(owner)}
-
-    @app.post("/api/tasks/update")
-    async def tasks_update(request: Request):
-        _check(request.headers.get("authorization"))
-        data = await _body(request)
-        recur = _recurval(data.get("recur"), allow_clear=True) if "recur" in data else None
-        due = (data.get("due") or "").strip() if "due" in data else None
-        memory.update_task(owner, int(data.get("id") or 0),
-                           text=(data.get("text") or None),
-                           category=(data.get("category") or None),
-                           recur=recur, due=due)
-        return {"tasks": memory.open_tasks(owner)}
-
-    @app.post("/api/tasks/complete")
-    async def tasks_complete(request: Request):
-        _check(request.headers.get("authorization"))
-        memory.complete_task(owner, int((await _body(request)).get("id") or 0))
-        return {"tasks": memory.open_tasks(owner)}
-
-    @app.post("/api/tasks/delete")
-    async def tasks_delete(request: Request):
-        _check(request.headers.get("authorization"))
-        memory.delete_task(owner, int((await _body(request)).get("id") or 0))
-        return {"tasks": memory.open_tasks(owner)}
 
     # --- Knowledge base ----------------------------------------------------
     @app.get("/api/kb")
@@ -486,78 +450,6 @@ def create_app(config: Config, brain: Brain | None = None):
         source = ((await _body(request)).get("source") or "").strip()
         n = memory.delete_source(owner, source) if source else 0
         return {"ok": n > 0, "sources": memory.list_sources(owner)}
-
-    # --- Expenses / Reminders / Memories CRUD ------------------------------
-    @app.get("/api/expenses")
-    async def exp_list(request: Request):
-        _check(request.headers.get("authorization"))
-        from datetime import datetime, timedelta, timezone
-        since = (datetime.now(timezone.utc) - timedelta(days=60)).isoformat()
-        return {"items": memory.expenses_since(owner, since)}
-
-    @app.post("/api/expenses")
-    async def exp_create(request: Request):
-        _check(request.headers.get("authorization"))
-        d = await _body(request)
-        try:
-            amount = float(str(d.get("amount", "")).replace(",", "."))
-        except Exception:
-            return {"ok": False}
-        memory.add_expense(owner, amount, (d.get("description") or "").strip() or "gasto",
-                           (d.get("category") or "geral").strip() or "geral")
-        return {"ok": True}
-
-    @app.post("/api/expenses/delete")
-    async def exp_del(request: Request):
-        _check(request.headers.get("authorization"))
-        memory.delete_expense(owner, int((await _body(request)).get("id") or 0))
-        return {"ok": True}
-
-    @app.get("/api/reminders")
-    async def rem_list(request: Request):
-        _check(request.headers.get("authorization"))
-        return {"items": memory.open_reminders(owner)}
-
-    @app.post("/api/reminders")
-    async def rem_create(request: Request):
-        _check(request.headers.get("authorization"))
-        d = await _body(request)
-        text = (d.get("text") or "").strip()
-        when = (d.get("when") or "").strip() or None
-        if text:
-            memory.add_reminder(owner, text, when, _recurval(d.get("recur")))
-        return {"ok": bool(text)}
-
-    @app.post("/api/reminders/delete")
-    async def rem_del(request: Request):
-        _check(request.headers.get("authorization"))
-        memory.cancel_reminder(owner, int((await _body(request)).get("id") or 0))
-        return {"ok": True}
-
-    @app.get("/api/facts")
-    async def fact_list(request: Request):
-        _check(request.headers.get("authorization"))
-        return {"items": memory.list_facts(owner)}
-
-    @app.post("/api/facts")
-    async def fact_create(request: Request):
-        _check(request.headers.get("authorization"))
-        text = ((await _body(request)).get("text") or "").strip()
-        if text:
-            memory.add_fact(owner, text)
-        return {"ok": bool(text)}
-
-    @app.post("/api/facts/delete")
-    async def fact_del(request: Request):
-        _check(request.headers.get("authorization"))
-        memory.delete_fact(owner, int((await _body(request)).get("id") or 0))
-        return {"ok": True}
-
-    @app.post("/api/facts/clear")
-    async def fact_clear(request: Request):
-        _check(request.headers.get("authorization"))
-        n = memory.clear_facts(owner)
-        return {"ok": True, "cleared": n}
 
     @app.get("/api/charts")
     async def charts(request: Request):
@@ -1294,107 +1186,9 @@ def create_app(config: Config, brain: Brain | None = None):
         sc = await asyncio.to_thread(lambda: _sp_api(method, path, tok).status_code)
         return {"ok": sc in (200, 202, 204)}
 
-    # --- Links / Habits / Journal CRUD -------------------------------------
-    @app.get("/api/links")
-    async def links_list(request: Request):
-        _check(request.headers.get("authorization"))
-        return {"items": memory.list_links(owner)}
-
-    @app.post("/api/links")
-    async def links_create(request: Request):
-        _check(request.headers.get("authorization"))
-        d = await _body(request)
-        name = (d.get("name") or "").strip()
-        url = (d.get("url") or "").strip()
-        cat = (d.get("category") or "geral").strip() or "geral"
-        if name and url:
-            memory.add_link(owner, cat, name, url)
-        return {"ok": bool(name and url)}
-
-    @app.post("/api/links/delete")
-    async def links_del(request: Request):
-        _check(request.headers.get("authorization"))
-        memory.delete_link(owner, int((await _body(request)).get("id") or 0))
-        return {"ok": True}
-
-    @app.get("/api/habits")
-    async def habits_list(request: Request):
-        _check(request.headers.get("authorization"))
-        from datetime import date
-        today = date.today().isoformat()
-        out = []
-        for h in memory.list_habits(owner):
-            days = memory.habit_days(h["id"])
-            out.append({"id": h["id"], "name": h["name"],
-                        "done_today": today in days, "total": len(days),
-                        "days": sorted(days)[-180:]})  # recent days for the heatmap
-        return {"items": out}
-
-    @app.post("/api/habits")
-    async def habits_create(request: Request):
-        _check(request.headers.get("authorization"))
-        name = ((await _body(request)).get("name") or "").strip()
-        if name:
-            memory.add_habit(owner, name)
-        return {"ok": bool(name)}
-
-    @app.post("/api/habits/done")
-    async def habits_done(request: Request):
-        _check(request.headers.get("authorization"))
-        from datetime import date
-        memory.log_habit(int((await _body(request)).get("id") or 0), date.today().isoformat())
-        return {"ok": True}
-
-    @app.post("/api/habits/delete")
-    async def habits_del(request: Request):
-        _check(request.headers.get("authorization"))
-        memory.delete_habit(owner, int((await _body(request)).get("id") or 0))
-        return {"ok": True}
-
-    @app.get("/api/journal")
-    async def journal_list(request: Request):
-        _check(request.headers.get("authorization"))
-        return {"items": memory.recent_journal(owner, 60)}
-
-    @app.post("/api/journal")
-    async def journal_create(request: Request):
-        _check(request.headers.get("authorization"))
-        text = ((await _body(request)).get("text") or "").strip()
-        if text:
-            memory.add_journal(owner, text)
-        return {"ok": bool(text)}
-
-    @app.post("/api/journal/delete")
-    async def journal_del(request: Request):
-        _check(request.headers.get("authorization"))
-        memory.delete_journal(owner, int((await _body(request)).get("id") or 0))
-        return {"ok": True}
-
     # --- Subscriptions / Budgets / Watches CRUD ----------------------------
-    @app.get("/api/recurring")
-    async def rec_list(request: Request):
-        _check(request.headers.get("authorization"))
-        return {"items": memory.list_recurring(owner)}
-
-    @app.post("/api/recurring")
-    async def rec_create(request: Request):
-        _check(request.headers.get("authorization"))
-        d = await _body(request)
-        try:
-            amount = float(str(d.get("amount", "")).replace(",", "."))
-            day = max(1, min(28, int(d.get("day") or 1)))
-        except Exception:
-            return {"ok": False}
-        memory.add_recurring(owner, amount, (d.get("description") or "assinatura").strip(),
-                             (d.get("category") or "assinatura").strip() or "assinatura", day)
-        return {"ok": True}
-
-    @app.post("/api/recurring/delete")
-    async def rec_del(request: Request):
-        _check(request.headers.get("authorization"))
-        memory.delete_recurring(owner, int((await _body(request)).get("id") or 0))
-        return {"ok": True}
-
+    # (recurring/watches CRUD, including their reunified /update, moved to
+    # .routes/recurring.py and .routes/watches.py — Phase 6b, Group 2)
     @app.get("/api/budgets")
     async def bud_list(request: Request):
         _check(request.headers.get("authorization"))
@@ -1417,106 +1211,6 @@ def create_app(config: Config, brain: Brain | None = None):
     async def bud_del(request: Request):
         _check(request.headers.get("authorization"))
         memory.delete_budget(owner, ((await _body(request)).get("category") or "").strip())
-        return {"ok": True}
-
-    @app.get("/api/watches")
-    async def wat_list(request: Request):
-        _check(request.headers.get("authorization"))
-        return {"items": memory.list_watches(owner)}
-
-    @app.post("/api/watches")
-    async def wat_create(request: Request):
-        _check(request.headers.get("authorization"))
-        d = await _body(request)
-        url = (d.get("url") or "").strip()
-        kw = (d.get("keyword") or "").strip() or None
-        if url:
-            memory.add_watch(owner, url, kw)
-        return {"ok": bool(url)}
-
-    @app.post("/api/watches/delete")
-    async def wat_del(request: Request):
-        _check(request.headers.get("authorization"))
-        memory.delete_watch(owner, int((await _body(request)).get("id") or 0))
-        return {"ok": True}
-
-    def _num(v):
-        try:
-            return float(str(v).replace(",", "."))
-        except Exception:
-            return None
-
-    @app.post("/api/expenses/update")
-    async def exp_update(request: Request):
-        _check(request.headers.get("authorization"))
-        d = await _body(request)
-        memory.update_expense(owner, int(d.get("id") or 0), amount=_num(d.get("amount")),
-                              description=(d.get("description") or None), category=(d.get("category") or None))
-        return {"ok": True}
-
-    @app.post("/api/reminders/update")
-    async def rem_update(request: Request):
-        _check(request.headers.get("authorization"))
-        d = await _body(request)
-        recur = _recurval(d.get("recur"), allow_clear=True) if "recur" in d else None
-        memory.update_reminder(owner, int(d.get("id") or 0), text=(d.get("text") or None),
-                               when_iso=(d.get("when") or None), recur=recur)
-        return {"ok": True}
-
-    @app.post("/api/facts/update")
-    async def fact_update(request: Request):
-        _check(request.headers.get("authorization"))
-        d = await _body(request)
-        t = (d.get("text") or "").strip()
-        if t:
-            memory.update_fact(owner, int(d.get("id") or 0), t)
-        return {"ok": bool(t)}
-
-    @app.post("/api/links/update")
-    async def link_update(request: Request):
-        _check(request.headers.get("authorization"))
-        d = await _body(request)
-        memory.update_link(owner, int(d.get("id") or 0), category=(d.get("category") or None),
-                           name=(d.get("name") or None), url=(d.get("url") or None))
-        return {"ok": True}
-
-    @app.post("/api/journal/update")
-    async def jou_update(request: Request):
-        _check(request.headers.get("authorization"))
-        d = await _body(request)
-        t = (d.get("text") or "").strip()
-        if t:
-            memory.update_journal(owner, int(d.get("id") or 0), t)
-        return {"ok": bool(t)}
-
-    @app.post("/api/habits/update")
-    async def hab_update(request: Request):
-        _check(request.headers.get("authorization"))
-        d = await _body(request)
-        n = (d.get("name") or "").strip()
-        if n:
-            memory.rename_habit(owner, int(d.get("id") or 0), n)
-        return {"ok": bool(n)}
-
-    @app.post("/api/recurring/update")
-    async def rec_update(request: Request):
-        _check(request.headers.get("authorization"))
-        d = await _body(request)
-        try:
-            day = int(d.get("day")) if d.get("day") else None
-        except Exception:
-            day = None
-        memory.update_recurring(owner, int(d.get("id") or 0), amount=_num(d.get("amount")),
-                                description=(d.get("description") or None),
-                                category=(d.get("category") or None), day=day)
-        return {"ok": True}
-
-    @app.post("/api/watches/update")
-    async def wat_update(request: Request):
-        _check(request.headers.get("authorization"))
-        d = await _body(request)
-        memory.update_watch(owner, int(d.get("id") or 0), url=(d.get("url") or None),
-                            keyword=(d.get("keyword") or None))
         return {"ok": True}
 
     @app.get("/api/search")
