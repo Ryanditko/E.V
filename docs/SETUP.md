@@ -19,6 +19,7 @@ git clone https://github.com/Ryanditko/E.V.git ev
 cd ev
 ```
 
+> [!TIP]
 > **Shortcut:** `bash install.sh` does steps 3–5 for you (checks Python, creates the
 > venv, installs deps, fills in `.env` interactively, and offers to start E.V.). It's
 > the fastest local self-host path; the manual steps below are still here if you prefer.
@@ -31,8 +32,9 @@ source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-> **Note (corporate machines):** if `pip` points to a private registry and fails,
-> install from the public PyPI: `pip install -i https://pypi.org/simple/ -r requirements.txt`.
+> [!NOTE]
+> **Corporate machines:** if `pip` points to a private registry and fails, install from
+> the public PyPI: `pip install -i https://pypi.org/simple/ -r requirements.txt`.
 
 ## 4. Configuration (.env)
 
@@ -40,8 +42,12 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-Fill in the keys below. Only `TELEGRAM_TOKEN` and `GEMINI_API_KEY` are strictly
-required; everything else is optional and enables more features.
+Fill in the keys below.
+
+> [!IMPORTANT]
+> Only **`TELEGRAM_TOKEN`** and **`GEMINI_API_KEY`** are strictly required; everything
+> else is optional and just enables more features. Set **`EV_OWNER_ID`** too — without
+> it the bot answers everyone (see the table).
 
 | Variable | Required? | Where to get it |
 |----------|-----------|-----------------|
@@ -104,8 +110,10 @@ One Google Cloud project/OAuth client serves all your accounts.
 Usage: `/agenda [account]`, `/evento [account] <time> <title>`,
 `/email [account] to@x.com | subject | body`. Omitting the account uses the first.
 
+> [!WARNING]
 > Institutional (faculty/work) accounts may block third-party OAuth apps by admin
 > policy; if so, that account cannot be authorized (nothing we can do client-side).
+> Use a personal Google account for the smoothest path.
 
 ## 7. Deploy 24/7 (Oracle Cloud)
 
@@ -116,8 +124,10 @@ authorize locally first, then copy `google_token_*.json` to the VM.
 
 ## 8. Files that must NOT be committed (secrets)
 
-Already in `.gitignore`, but never share these:
-`.env`, `client_secret*.json`, `google_token*.json`, `ev_memory.db`, `backups/`.
+> [!CAUTION]
+> These are already in `.gitignore`, but never share or commit them anywhere:
+> `.env`, `client_secret*.json`, `google_token*.json`, `ev_memory.db`, `backups/`.
+> They hold your tokens and personal data.
 
 ## 9. Moving to a new computer — checklist
 

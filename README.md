@@ -15,7 +15,7 @@ hands — loyal, warm, playful, and always on your side.
 ![Telegram](https://img.shields.io/badge/Bot-Telegram-1a1a1a?logo=telegram&logoColor=white)
 ![LLMs](https://img.shields.io/badge/LLMs-Gemini·Groq·OpenRouter-1a1a1a)
 ![SQLite](https://img.shields.io/badge/Memory-SQLite%20+%20vectors-1a1a1a?logo=sqlite&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-185%20passing-2e7d32)
+![Tests](https://img.shields.io/badge/tests-186%20passing-2e7d32)
 [![Deploy](https://github.com/Ryanditko/E.V/actions/workflows/deploy.yml/badge.svg)](https://github.com/Ryanditko/E.V/actions/workflows/deploy.yml)
 
 **[Screenshots](#screenshots) · [Features](#what-she-does) · [Quick start](#quick-start) · [Architecture](#architecture) · [Deploy 24/7](#run-her-24-7) · [Docs](#documentation)**
@@ -24,8 +24,9 @@ hands — loyal, warm, playful, and always on your side.
 
 ---
 
-> **Language note.** This documentation is in English. E.V. **talks to you in Brazilian
-> Portuguese** — chat and voice — on purpose; her personality lives in `ev/personality.py`.
+> [!NOTE]
+> **This documentation is in English. E.V. talks to you in Brazilian Portuguese** —
+> chat and voice — on purpose; her personality lives in `ev/personality.py`.
 
 ---
 
@@ -205,12 +206,12 @@ More: **[docs/WEB.md](docs/WEB.md)**.
 
 ## Quick start
 
-> Full first-machine walkthrough (every key, Google auth, deploy): **[docs/SETUP.md](docs/SETUP.md)**.
+**Requirements:** Python 3.11+ and `git`. That's it — everything else the installer sets up.
 
-### Instalação rápida (1 comando)
-
-The friendly installer checks Python, creates the venv, installs deps and fills in
-your `.env` interactively — you only need the two required keys (see [docs/KEYS.md](docs/KEYS.md)):
+> [!TIP]
+> **Fastest path — one command.** The friendly installer checks Python, creates the venv,
+> installs deps and fills in your `.env` interactively. You only need the **two required
+> keys** (both free, no card): a Telegram bot token and a Gemini key.
 
 ```bash
 git clone https://github.com/Ryanditko/E.V.git ev && cd ev && bash install.sh
@@ -222,8 +223,9 @@ Non-interactive (CI / scripted) — pass the keys as env vars and it won't promp
 TELEGRAM_TOKEN=... GEMINI_API_KEY=... bash install.sh
 ```
 
-It never overwrites an existing `.env`. Prefer to wire things up by hand? The manual
-steps are below.
+It never overwrites an existing `.env`. Prefer to wire things up by hand? Follow the
+manual steps below. Either way, the full first-machine walkthrough (every key, Google
+auth, deploy) lives in **[docs/SETUP.md](docs/SETUP.md)**.
 
 ### Manual
 
@@ -242,15 +244,29 @@ python run_terminal.py        # terminal REPL
 
 Every variable and cost is in **[docs/KEYS.md](docs/KEYS.md)**. The essentials:
 
-| Variable | Where |
-|----------|-------|
-| `TELEGRAM_TOKEN` | [@BotFather](https://t.me/BotFather) |
-| `GEMINI_API_KEY` | https://aistudio.google.com/apikey |
-| `GROQ_API_KEY` | https://console.groq.com/keys |
-| `OPENROUTER_API_KEY` | https://openrouter.ai/keys |
-| `TAVILY_API_KEY` | https://app.tavily.com (better web search) |
-| `EV_WEB_TOKEN` | any long random string (web login) |
-| `EV_OWNER_ID` | your Telegram ID — locks the bot to you |
+| Variable | Where | |
+|----------|-------|---|
+| `TELEGRAM_TOKEN` | [@BotFather](https://t.me/BotFather) | **required** |
+| `GEMINI_API_KEY` | https://aistudio.google.com/apikey | **required** |
+| `EV_OWNER_ID` | your Telegram ID — locks the bot to you | recommended |
+| `GROQ_API_KEY` | https://console.groq.com/keys | optional (fallback + voice) |
+| `OPENROUTER_API_KEY` | https://openrouter.ai/keys | optional (fallback) |
+| `TAVILY_API_KEY` | https://app.tavily.com | optional (better web search) |
+| `EV_WEB_TOKEN` | any long random string | optional (web login) |
+
+> [!IMPORTANT]
+> Only **`TELEGRAM_TOKEN`** and **`GEMINI_API_KEY`** are strictly required — everything
+> else is optional and just unlocks more. Set **`EV_OWNER_ID`** to your Telegram numeric
+> ID to lock the bot to you (send `/start` and read it from the logs).
+
+> [!WARNING]
+> Leave `EV_OWNER_ID` **empty** and the bot answers **anyone** who messages it. Set it
+> before you share the bot's username. Likewise, only enable the web console with a
+> **long, random `EV_WEB_TOKEN`** — it's the key to your data.
+
+> [!CAUTION]
+> Never commit secrets. `.env`, `client_secret*.json`, `google_token*.json` and `*.db`
+> are git-ignored for a reason — keep them that way and never paste them anywhere public.
 
 ---
 
@@ -273,6 +289,11 @@ Type `/` for autocomplete, or `/menu` for a button UI. A taste:
 
 Time formats: `10m`, `2h`, `1d`, `hoje 18:00`, `amanhã 09:00`, `25/12 14:30`.
 
+> [!NOTE]
+> Integrations like **Google** (Calendar + Gmail) and **Spotify** are **opt-in** — they
+> stay dormant until you add their keys and run the one-time OAuth. Everything else works
+> without them. See **[docs/KEYS.md](docs/KEYS.md)** for what each one unlocks.
+
 ---
 
 ## AI providers (all free tiers)
@@ -287,6 +308,11 @@ Time formats: `10m`, `2h`, `1d`, `hoje 18:00`, `amanhã 09:00`, `25/12 14:30`.
 | Embeddings | **Gemini / Ollama** | `gemini-embedding-001` | Semantic memory + knowledge base |
 
 Switch or force a provider at runtime with `/provedor` and `/modelo`.
+
+> [!TIP]
+> Add a **local Ollama** model (`ollama pull llama3.1`) and E.V. **never runs out of
+> quota** — when every cloud provider is rate-limited, she falls back to your own machine.
+> It's optional, but it's the difference between "she went quiet" and "she never does".
 
 ---
 
@@ -419,7 +445,7 @@ E.V/
 │       └── terminal.py      # terminal REPL
 ├── deploy/                  # setup_vm.sh · watchdog.sh · HTTPS runbooks
 ├── docs/                    # full documentation (index below)
-└── tests/                   # 185 tests
+└── tests/                   # 186 tests
 ```
 
 ---
@@ -427,7 +453,7 @@ E.V/
 ## Testing
 
 ```bash
-./.venv/bin/python -m pytest -q      # 185 passing
+./.venv/bin/python -m pytest -q      # 186 passing
 ```
 
 CI runs the suite as a **gate before every deploy** — a red test never ships.

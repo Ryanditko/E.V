@@ -41,8 +41,10 @@ launchctl start com.ev.bot
 ```
 3. Logs: `tail -f ~/ev/ev.log`. Stop: `launchctl unload ~/Library/LaunchAgents/com.ev.bot.plist`.
 
-> The Mac must be on and awake. To keep it running with the lid closed, keep it
-> plugged in (and consider `caffeinate`), or disable sleep in System Settings.
+> [!IMPORTANT]
+> The Mac must be on and awake for E.V. to answer. To keep it running with the lid
+> closed, keep it plugged in (and consider `caffeinate`), or disable sleep in System
+> Settings — otherwise she goes offline the moment the machine sleeps.
 
 ## Linux (systemd)
 
@@ -88,7 +90,9 @@ journalctl --user -u ev -f        # logs
    - Settings: check **If the task fails, restart every 1 minute**.
 3. Save. It starts with Windows and stays running in the background.
 
-> The PC must be on. Set power options so it doesn't sleep while plugged in.
+> [!IMPORTANT]
+> The PC must be on. Set power options so it doesn't sleep while plugged in, or E.V.
+> stops responding until it wakes.
 
 ## Update to the latest code (any OS)
 
