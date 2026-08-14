@@ -27,7 +27,7 @@ google-api-python-client>=2.100.0
 google-auth-oauthlib>=1.4.0
 
 # PDF text extraction for the knowledge base
-pypdf>=4.0.0
+pypdf>=6.15.0
 
 # Document generation (E.V. creates PDF / Word files) — pure-Python, no system libs
 reportlab>=4.0.0
