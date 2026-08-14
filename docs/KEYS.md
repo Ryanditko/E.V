@@ -10,8 +10,16 @@ it maps to, and whether it costs anything. Fill keys in `.env` (never commit it)
 | **Telegram BotFather** | Create the bot, get its token | https://t.me/BotFather | `TELEGRAM_TOKEN` | Free, no card |
 | **Google AI Studio** | Gemini API key (main brain + embeddings) | https://aistudio.google.com/apikey | `GEMINI_API_KEY` | Free, no card (use a personal @gmail) |
 
+> [!IMPORTANT]
+> These **two keys are all you need to start** — both free, neither asks for a card.
+> Everything below is optional and only adds resilience or features.
+
 Your Telegram numeric ID (for `EV_OWNER_ID`, to lock the bot to you): message
 **@userinfobot** on Telegram, or run the bot and read it from the logs after `/start`.
+
+> [!WARNING]
+> If `EV_OWNER_ID` is left empty, the bot replies to **anyone** who messages it. Set it
+> to your own numeric ID before sharing the bot's username.
 
 ## Recommended fallback AI providers (free, no card)
 
@@ -19,6 +27,10 @@ Your Telegram numeric ID (for `EV_OWNER_ID`, to lock the bot to you): message
 |---------|----------|------|-----------------|--------------|
 | **Groq** | Fast fallback LLM + Whisper (audio) | https://console.groq.com/keys | `GROQ_API_KEY` | Free, no card |
 | **OpenRouter** | Extra fallback LLM | https://openrouter.ai/keys | `OPENROUTER_API_KEY` | Free, no card |
+
+> [!NOTE]
+> Optional but worth it: `GROQ_API_KEY` also powers **voice transcription** (Whisper),
+> and each extra provider is one more layer keeping E.V. from ever going silent.
 
 ## Web search (optional — better than the free default)
 
@@ -102,4 +114,6 @@ Deploy guide: [DEPLOY.md](DEPLOY.md) · phone: [TERMUX.md](TERMUX.md) · PC serv
 - Configured providers: Gemini + Groq + OpenRouter; Tavily web search; open-meteo weather.
 - Pending: Google OAuth (run `authorize_google.py` on your PC, then copy the token to the VM).
 
-> Reminder: never commit `.env`, `client_secret*.json`, `google_token*.json`, `*.db`, or the SSH key.
+> [!CAUTION]
+> Keep every key secret. Never commit `.env`, `client_secret*.json`, `google_token*.json`,
+> `*.db`, or the SSH key — they're git-ignored, so keep them out of any public place.
