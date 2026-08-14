@@ -381,9 +381,9 @@ E.V/
 │   ├── config.py            # configuration (.env)
 │   ├── personality.py       # who E.V. is (PT-BR system prompt)
 │   ├── core/
-│   │   ├── brain.py         # LLM + memory + tools + RAG + fallback
-│   │   ├── memory.py        # SQLite: messages, facts, reminders, tasks, KB…
-│   │   ├── commands.py      # deterministic slash commands (no LLM)
+│   │   ├── brain/          # LLM + memory + tools + RAG + fallback (mixin package)
+│   │   ├── memory/         # SQLite: messages, facts, reminders, tasks, KB… (mixin package)
+│   │   ├── commands/       # deterministic slash commands, no LLM (mixin package)
 │   │   ├── knowledge.py     # PDF/Word/web ingestion + chunking
 │   │   ├── timeparse.py     # natural-time + month-boundary helpers
 │   │   └── health.py        # system + provider health checks
@@ -391,11 +391,11 @@ E.V/
 │   │   ├── llm.py           # Gemini/Groq/OpenRouter/Ollama + Whisper
 │   │   ├── embeddings.py    # semantic embeddings
 │   │   ├── voice.py         # text → speech (edge-tts)
-│   │   ├── tools.py         # web search, calendar, email
+│   │   ├── tools/          # web search, weather, maps, calendar, email (package)
 │   │   └── documents.py     # PDF/Word generation
 │   └── interfaces/
-│       ├── telegram_bot.py  # Telegram adapter + scheduler + automations
-│       ├── web.py           # FastAPI server + single-page console
+│       ├── telegram_bot/   # Telegram adapter + scheduler + automations (mixin package)
+│       ├── web/            # FastAPI server + single-page console (router package)
 │       └── terminal.py      # terminal REPL
 ├── deploy/                  # setup_vm.sh · watchdog.sh · HTTPS runbooks
 ├── docs/                    # full documentation (index below)

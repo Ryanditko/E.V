@@ -14,20 +14,20 @@ about inner ones, never the reverse.
 ```mermaid
 flowchart LR
     subgraph OUT["Interfaces (I/O adapters)"]
-        TG["telegram_bot.py"]
-        WEB["web.py (FastAPI SPA)"]
+        TG["telegram_bot/ (mixin package)"]
+        WEB["web/ (FastAPI SPA, router package)"]
         TE["terminal.py"]
     end
     subgraph CORE["Core (reusable logic)"]
-        B["brain.py"]
-        CM["commands.py"]
-        M["memory.py"]
+        B["brain/ (mixin package)"]
+        CM["commands/ (mixin package)"]
+        M["memory/ (mixin package)"]
     end
     subgraph PROV["Providers (external services)"]
         L["llm.py"]
         E["embeddings.py"]
         V["voice.py"]
-        T["tools.py"]
+        T["tools/ (package)"]
         D["documents.py"]
     end
     TG --> B
@@ -45,7 +45,7 @@ flowchart LR
 ```
 
 - **Interfaces** (`ev/interfaces`): receive input and deliver output — **Telegram**,
-  the **web console** (`web.py`, FastAPI serving a single-page app), and **Terminal**.
+  the **web console** (`web/`, FastAPI serving a single-page app), and **Terminal**.
   They only call `Brain.respond()` (and `Commands.run()` for deterministic actions).
 - **Core** (`ev/core`): `Brain` orchestrates; `Memory` holds state. They know
   nothing about Telegram or HTTP.
@@ -56,6 +56,21 @@ flowchart LR
 
 Adding an interface = writing a new adapter that calls `Brain.respond()`. Zero
 changes to the core.
+
+> **Each layer box above is now a package, not a single file.** `brain/`,
+> `commands/`, and `memory/` are composed by **mixins** — one file per domain
+> (e.g. `ev/core/memory/tasks.py`, `ev/core/commands/expenses.py`) merged into a
+> single class in that package's `base.py` (`class Memory(SchemaMixin, …)`).
+> `telegram_bot/` follows the same mixin pattern
+> (`class TelegramInterface(RoutingMixin, VoiceMixin, …)` in `base.py`), while
+> `web/` splits into **FastAPI routers** — one `ev/interfaces/web/routes/<domain>.py`
+> per domain, each exposing `build_router(ctx)` and registered in `web/app.py`.
+> `ev/providers/tools/` is likewise a package (weather / websearch / maps /
+> calendar / email / google_auth submodules). Every package's `__init__.py`
+> re-exports the same public names, so **import paths are unchanged**. To add a new
+> domain: drop a mixin file and list it in that package's `base.py` class bases
+> (for `web/`, add a `routes/<domain>.py` with `build_router` and include it in
+> `app.py`).
 
 ## Multi-provider strategy (resilience)
 
@@ -174,7 +189,8 @@ the scheduler as a background task and delivers due reminders to the user's chat
 
 ## Tools
 
-Exposed to the model via function calling (`ev/providers/tools.py`):
+Exposed to the model via function calling (`ev/providers/tools/`, one submodule
+per tool — weather, websearch, maps, calendar, email, google_auth):
 
 - **web search** — DuckDuckGo, no API key.
 - **calendar / email** — Google APIs; require one-time OAuth setup by the user
@@ -182,7 +198,8 @@ Exposed to the model via function calling (`ev/providers/tools.py`):
 
 ## Slash commands (no LLM)
 
-`ev/core/commands.py` implements deterministic commands that never touch the LLM:
+`ev/core/commands/` (a mixin package, one file per domain) implements deterministic
+commands that never touch the LLM:
 reminders, tasks, memory, links (named/categorized), and the knowledge base. The
 Telegram interface maps each `/command` to a method; the logic is interface-agnostic
 so a terminal/web interface can reuse it. Times are parsed by `ev/core/timeparse.py`
@@ -206,7 +223,7 @@ and works on any network. Outside a corporate proxy, it's harmless.
 
 ## Web access & private HTTPS
 
-The web console (`web.py`) runs as its own process/service and binds to
+The web console (`ev/interfaces/web/`) runs as its own process/service and binds to
 `EV_WEB_HOST:EV_WEB_PORT` (default `127.0.0.1:8000` in production). It is fronted by
 **Tailscale Serve**, which terminates TLS with a valid `*.ts.net` certificate and
 proxies to the local port — so the UI is reachable at `https://ev.<tailnet>.ts.net`
