@@ -15,6 +15,7 @@ from telegram.ext import ContextTypes
 
 from ...core import health
 from ...core.memory import Memory
+from ...providers import tools as tools_mod
 
 
 class CommandsWrappersMixin:
