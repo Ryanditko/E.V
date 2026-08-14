@@ -207,6 +207,26 @@ More: **[docs/WEB.md](docs/WEB.md)**.
 
 > Full first-machine walkthrough (every key, Google auth, deploy): **[docs/SETUP.md](docs/SETUP.md)**.
 
+### Instalação rápida (1 comando)
+
+The friendly installer checks Python, creates the venv, installs deps and fills in
+your `.env` interactively — you only need the two required keys (see [docs/KEYS.md](docs/KEYS.md)):
+
+```bash
+git clone https://github.com/Ryanditko/E.V.git ev && cd ev && bash install.sh
+```
+
+Non-interactive (CI / scripted) — pass the keys as env vars and it won't prompt:
+
+```bash
+TELEGRAM_TOKEN=... GEMINI_API_KEY=... bash install.sh
+```
+
+It never overwrites an existing `.env`. Prefer to wire things up by hand? The manual
+steps are below.
+
+### Manual
+
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
