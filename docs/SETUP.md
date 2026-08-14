@@ -19,6 +19,10 @@ git clone https://github.com/Ryanditko/E.V.git ev
 cd ev
 ```
 
+> **Shortcut:** `bash install.sh` does steps 3–5 for you (checks Python, creates the
+> venv, installs deps, fills in `.env` interactively, and offers to start E.V.). It's
+> the fastest local self-host path; the manual steps below are still here if you prefer.
+
 ## 3. Python environment and dependencies
 
 ```bash
