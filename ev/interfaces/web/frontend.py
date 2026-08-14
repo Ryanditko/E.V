@@ -479,6 +479,22 @@ body.serious #serfx{opacity:1;box-shadow:inset 0 0 150px -50px rgba(255,45,55,.6
 @keyframes seriousSweep{0%{background:radial-gradient(circle at 50% 46%,rgba(255,55,66,.75),transparent 6%)}
   45%{background:radial-gradient(circle at 50% 46%,rgba(255,55,66,.45),rgba(255,40,50,.18) 55%,transparent 100%)}
   100%{background:radial-gradient(circle,transparent,transparent)}}
+/* --- BRAND NEW DAY (tema cinematográfico arc-reactor azul elétrico/royal) —
+   override das custom props (NÃO é hue-rotate); terceiro estado opt-in via body.bnd.
+   Ativa/desativa client-side; persiste em localStorage.ev_theme. --- */
+body.bnd{
+  --accent:#2b7fff;--accent-rgb:43,127,255;--line-rgb:90,150,255;--accent-dim:#1653a8;
+  --ink:#050a18;--panel:#070f22;--elev:#0c1a33;--surface:#0a1426;
+  --fg:#dce9ff;--glow:rgba(var(--accent-rgb),.62);
+  transition:background .5s;
+}
+/* retinta os cyans hardcoded que não seguem as variáveis (só sob body.bnd) */
+body.bnd *{scrollbar-color:#12315f transparent}
+body.bnd ::-webkit-scrollbar-thumb{background:#12315f}
+body.bnd ::-webkit-scrollbar-thumb:hover{background:#1c50a0}
+body.bnd .eyebrow{color:#7ba6ff}
+body.bnd .chart-t,body.bnd #vc-sub,body.bnd #pomo-label{color:#8fb6ff}
+body.bnd #bnd-badge{display:flex}
 @media(max-width:760px){
   .tabs{display:none}
   .tabs-nav{display:none}
@@ -987,12 +1003,14 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
       <button id="mnav" class="mnav" type="button" title="Ir para"><span id="mnav-lbl">Início</span><i data-lucide="chevron-down"></i></button>
       <span class="eyebrow" id="scope">geral</span>
       <span class="mm-badge" id="mm-badge" title="Modo foco ativo — clique pra desligar"><i data-lucide="skull"></i>MODO FOCO</span>
+      <span class="mm-badge bnd-badge" id="bnd-badge" title="Brand New Day ativo — clique pra desligar"><i data-lucide="atom"></i>BRAND NEW DAY</span>
       <button class="tbtn ico" id="gsearch" title="Buscar em tudo"><i data-lucide="search"></i></button>
       <button class="tbtn ic-txt" id="vcopen" title="Falar"><i data-lucide="mic"></i><span>FALAR</span></button>
       <button class="tbtn ic-txt" id="amb" title="Presença ambiente — escuta &quot;E.V. ...&quot; sempre"><i data-lucide="radio"></i><span>AMBIENTE</span></button>
       <button class="tbtn ic-txt" id="term" title="Modo terminal"><i data-lucide="square-terminal"></i><span>TERMINAL</span></button>
       <button class="tbtn ic-txt on" id="voz" title="Voz da E.V."><i data-lucide="volume-2"></i><span>VOZ</span></button>
       <button class="tbtn ico" id="sfx" title="Sons da interface"><i data-lucide="audio-lines"></i></button>
+      <button class="tbtn ico" id="theme" title="Tema Brand New Day (arc-reactor azul)"><i data-lucide="palette"></i></button>
       <button class="tbtn ico" id="tgl-right" title="Ocultar/mostrar painel"><i data-lucide="panel-right"></i></button>
       <button class="tbtn ico" id="tgl-zen" title="Modo limpo (ocultar painéis)"><i data-lucide="minimize-2"></i></button></div>
     <div id="chatview">
@@ -1635,6 +1653,15 @@ function applySerious(on,announce){on=!!on;document.body.classList.toggle('serio
 function toggleSerious(){const on=!_serious;applySerious(on,true);
   fetch('/api/serious',{method:'POST',headers:H(),body:JSON.stringify({on})}).catch(()=>{});}
 {const mb=$('#mm-badge');if(mb)mb.onclick=()=>toggleSerious();}
+// --- Brand New Day: tema arc-reactor azul, opt-in client-side, independente do modo foco ---
+let _bnd=false;
+function applyBnd(on){on=!!on;document.body.classList.toggle('bnd',on);_bnd=on;
+  const b=$('#theme');if(b)b.classList.toggle('on',on);
+  try{if(on)localStorage.setItem('ev_theme','bnd');else localStorage.removeItem('ev_theme');}catch(e){}}
+function toggleBnd(){applyBnd(!_bnd);try{sfx('toggle');}catch(e){}}
+{const tb=$('#theme');if(tb)tb.onclick=()=>toggleBnd();
+ const bb=$('#bnd-badge');if(bb)bb.onclick=()=>toggleBnd();
+ try{if(localStorage.getItem('ev_theme')==='bnd')applyBnd(true);}catch(e){}}
 async function loadPanel(){const _t0=(window.performance||Date).now();try{const r=await fetch('/api/panel',{headers:H()});if(!r.ok)return;_counts=await r.json();
   applySerious(_counts.serious);
   renderStats();$('#s-prov').textContent=_counts.provider;$('#s-model').textContent=_counts.model;$('#prov').value=_counts.provider;updateNBadge(_counts.notifs);
