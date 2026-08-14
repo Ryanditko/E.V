@@ -42,6 +42,11 @@ This re-ships the code + your keys and restarts. Use it if a change broke someth
 | Service not "active" / crash loop | Code or config error at startup | `journalctl -u ev -n 60` to see the error; then `bash deploy.sh` to restore |
 | Two bots answering / "conflict" | Another copy running (e.g. local + VM) with the same token | Keep only ONE running per Telegram token |
 
+> [!WARNING]
+> A single Telegram token can only be polled by **one** running instance. If you start
+> E.V. locally while the VM copy is up, both fight for updates and you'll see "conflict"
+> errors — stop one of them.
+
 ## Reset just the model (most common self-fix)
 In Telegram: **`/modelo reset`** → back to the default Gemini model. `/modelo`
 (no argument) shows what's active and today's usage.
@@ -100,4 +105,7 @@ The project is standard, documented Python — the logs almost always point stra
 to the cause. See also `docs/EXTENDING.md` and `docs/CAPABILITIES.md`.
 
 ## Golden rule
-**Restart → read logs → redeploy → ask an AI with the logs.** In that order.
+
+> [!TIP]
+> **Restart → read logs → redeploy → ask an AI with the logs.** In that order. A plain
+> `sudo systemctl restart ev` fixes the large majority of hiccups.
