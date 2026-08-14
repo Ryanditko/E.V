@@ -1,5 +1,5 @@
 # Brain (LLM) — Google Gemini SDK (primary provider) + embeddings
-google-genai>=2.14.0
+google-genai>=2.17.0
 
 # Fallback providers (Groq, OpenRouter) — OpenAI-compatible API
 openai>=2.48.0
@@ -27,7 +27,7 @@ google-api-python-client>=2.100.0
 google-auth-oauthlib>=1.4.0
 
 # PDF text extraction for the knowledge base
-pypdf>=4.0.0
+pypdf>=6.15.0
 
 # Document generation (E.V. creates PDF / Word files) — pure-Python, no system libs
 reportlab>=4.0.0
@@ -35,11 +35,11 @@ python-docx>=1.1.0
 
 # Web interface (use E.V. from any browser)
 fastapi>=0.110.0
-uvicorn>=0.27.0
-python-multipart>=0.0.32
+uvicorn>=0.52.1
+python-multipart>=0.0.9
 
 # PWA app icons (rendered as PNG) for the installable web app
-pillow>=10.0.0
+pillow>=12.3.0
 
 # Web Push notifications (reminders with the app closed)
 pywebpush>=1.14.0
