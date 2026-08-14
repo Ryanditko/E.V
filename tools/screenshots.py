@@ -103,6 +103,7 @@ SCREENS: dict[str, str] = {
     "cofre": "cofre",
     "saude": "saude",
     "serious-mode": "__serious__",
+    "brand-new-day": "__bnd__",
     # External-API-dependent — skipped unless --include-external.
     "clima": "clima",
     "cal": "cal",
@@ -393,6 +394,7 @@ def capture(port: int, names: list[str], headed: bool) -> dict[str, str]:
             # Reset any special state (serious mode) before the next screen.
             try:
                 page.evaluate("() => { if (typeof applySerious==='function') applySerious(false); "
+                              "if (typeof applyBnd==='function') applyBnd(false); "
                               "document.querySelectorAll('.eterm').forEach(w=>w.remove()); }")
             except Exception:
                 pass
@@ -417,6 +419,12 @@ def _navigate(page, name: str, view: str) -> None:
         page.wait_for_timeout(900)
         page.evaluate("() => applySerious(true, false)")
         page.wait_for_timeout(1200)   # let the tint/sweep settle
+        return
+    if view == "__bnd__":
+        page.evaluate("() => switchView('inicio')")
+        page.wait_for_timeout(900)
+        page.evaluate("() => applyBnd(true)")
+        page.wait_for_timeout(1000)   # let the blue theme settle
         return
     page.evaluate(f"() => switchView('{view}')")
     # brain/graf render on canvas with animations; give them extra settle time.

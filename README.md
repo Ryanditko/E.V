@@ -1,6 +1,6 @@
 <div align="center">
 
-# E.V.
+<img src="docs/brand/ev-logo.svg" alt="E.V. — personal AI assistant" width="520">
 
 ### A personal AI assistant with a voice, a memory, and a will to never go quiet.
 
@@ -32,8 +32,9 @@ hands — loyal, warm, playful, and always on your side.
 
 ## Screenshots
 
-Every screen in the web console — 24 tabs plus the floating action terminal and the
-red-alert mode — so you can see everything she actually does, not just the highlights.
+Every screen in the web console — 24 tabs, the floating action terminal, and three
+color themes (default JARVIS blue, **Brand New Day**, and the red-alert **Modo Foco**) —
+so you can see everything she actually does, not just the highlights.
 
 <div align="center">
 
@@ -43,15 +44,21 @@ red-alert mode — so you can see everything she actually does, not just the hig
 |---|---|
 | ![Dashboard](docs/screenshots/dashboard.png) | ![Chat](docs/screenshots/chat.png) |
 
-| Terminal de ação | Pessoas (`/pessoas`) |
-|---|---|
-| ![Terminal de ação](docs/screenshots/terminal.png) | ![Pessoas](docs/screenshots/pessoas.png) |
-
-**Modo Foco**
-
-| Modo Foco |
+| Terminal de ação |
 |---|
-| ![Modo Foco](docs/screenshots/serious-mode.png) |
+| ![Terminal de ação](docs/screenshots/terminal.png) |
+
+**Themes — three looks, one E.V.**
+
+> [!TIP]
+> Switch themes from the palette button in the top bar: the default **JARVIS blue**, the
+> cinematic aqua **Brand New Day** (inspired by the *Spider-Man: Brand New Day* film UI),
+> or the red-alert **Modo Foco**. Brand New Day and Modo Foco are separate modes — turning
+> one on turns the other off.
+
+| Default (JARVIS blue) | Brand New Day | Modo Foco |
+|---|---|---|
+| ![Default](docs/screenshots/dashboard.png) | ![Brand New Day](docs/screenshots/brand-new-day.png) | ![Modo Foco](docs/screenshots/serious-mode.png) |
 
 **Productivity & routine**
 

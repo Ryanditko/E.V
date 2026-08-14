@@ -483,17 +483,17 @@ body.serious #serfx{opacity:1;box-shadow:inset 0 0 150px -50px rgba(255,45,55,.6
    override das custom props (NÃO é hue-rotate); terceiro estado opt-in via body.bnd.
    Ativa/desativa client-side; persiste em localStorage.ev_theme. --- */
 body.bnd{
-  --accent:#2b7fff;--accent-rgb:43,127,255;--line-rgb:90,150,255;--accent-dim:#1653a8;
-  --ink:#050a18;--panel:#070f22;--elev:#0c1a33;--surface:#0a1426;
-  --fg:#dce9ff;--glow:rgba(var(--accent-rgb),.62);
+  --accent:#85dbe1;--accent-rgb:133,219,225;--line-rgb:133,219,225;--accent-dim:#3f9aa0;
+  --ink:#0b1a20;--panel:#0f242b;--elev:#163139;--surface:#122a31;
+  --fg:#e6f6f7;--glow:rgba(var(--accent-rgb),.6);
   transition:background .5s;
 }
 /* retinta os cyans hardcoded que não seguem as variáveis (só sob body.bnd) */
-body.bnd *{scrollbar-color:#12315f transparent}
-body.bnd ::-webkit-scrollbar-thumb{background:#12315f}
-body.bnd ::-webkit-scrollbar-thumb:hover{background:#1c50a0}
-body.bnd .eyebrow{color:#7ba6ff}
-body.bnd .chart-t,body.bnd #vc-sub,body.bnd #pomo-label{color:#8fb6ff}
+body.bnd *{scrollbar-color:#2a5f64 transparent}
+body.bnd ::-webkit-scrollbar-thumb{background:#2a5f64}
+body.bnd ::-webkit-scrollbar-thumb:hover{background:#3f9199}
+body.bnd .eyebrow{color:#a8e6e9}
+body.bnd .chart-t,body.bnd #vc-sub,body.bnd #pomo-label{color:#b8ecef}
 body.bnd #bnd-badge{display:flex}
 @media(max-width:760px){
   .tabs{display:none}
@@ -1647,6 +1647,7 @@ let _serious=false;
 // (sync via loadPanel) NÃO fala nem anima — pra não atropelar a saudação.
 function applySerious(on,announce){on=!!on;document.body.classList.toggle('serious',on);
   if(on===_serious)return;_serious=on;
+  if(on&&_bnd)applyBnd(false);  // modos mutuamente exclusivos
   if(!announce)return;
   const fx=$('#serfx');if(fx){fx.classList.remove('sweep');void fx.offsetWidth;fx.classList.add('sweep');}
   try{if(window.speak)speak(on?'Modo foco ativado. Foco total.':'Modo foco desativado. De volta ao normal.');}catch(e){}}
@@ -1657,6 +1658,8 @@ function toggleSerious(){const on=!_serious;applySerious(on,true);
 let _bnd=false;
 function applyBnd(on){on=!!on;document.body.classList.toggle('bnd',on);_bnd=on;
   const b=$('#theme');if(b)b.classList.toggle('on',on);
+  // modos mutuamente exclusivos: ligar Brand New Day desliga o Modo Foco
+  if(on&&_serious){applySerious(false,false);try{fetch('/api/serious',{method:'POST',headers:H(),body:JSON.stringify({on:false})}).catch(()=>{});}catch(e){}}
   try{if(on)localStorage.setItem('ev_theme','bnd');else localStorage.removeItem('ev_theme');}catch(e){}}
 function toggleBnd(){applyBnd(!_bnd);try{sfx('toggle');}catch(e){}}
 {const tb=$('#theme');if(tb)tb.onclick=()=>toggleBnd();
