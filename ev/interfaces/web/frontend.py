@@ -225,6 +225,16 @@ body.speaking .core .dot{animation:pulsed .6s infinite}
 #brain-menu button:hover{background:var(--surface);color:var(--accent)}
 #brain-menu button svg{width:15px;height:15px}
 #brain-menu button.bm-del:hover{color:#ff8a8a}
+/* color-theme picker popover (mirrors #brain-menu; anchored to the palette icon via JS) */
+#theme-menu{position:fixed;display:none;flex-direction:column;min-width:190px;background:var(--elev);border:1px solid var(--accent);border-radius:11px;padding:8px;z-index:60;box-shadow:0 0 26px -6px var(--glow),0 12px 30px -14px rgba(0,0,0,.7)}
+#theme-menu.on{display:flex}
+#theme-menu button{display:flex;align-items:center;gap:9px;font-family:var(--body);font-size:13px;color:var(--fg);background:none;border:none;border-radius:8px;padding:9px 9px;cursor:pointer;text-align:left}
+#theme-menu button:hover{background:var(--surface);color:var(--accent)}
+#theme-menu button svg{width:15px;height:15px}
+#theme-menu button .tm-lbl{flex:1}
+#theme-menu button .tm-ck{display:none;color:var(--accent)}
+#theme-menu button.on .tm-ck{display:block}
+#theme-menu button.on{color:var(--accent)}
 #map-wrap{position:relative;height:calc(100vh - 300px);min-height:400px}
 #street{position:fixed;inset:0;z-index:120;background:#04070c;display:none;flex-direction:column}
 #street.on{display:flex}
@@ -483,18 +493,17 @@ body.serious #serfx{opacity:1;box-shadow:inset 0 0 150px -50px rgba(255,45,55,.6
    override das custom props (NÃO é hue-rotate); terceiro estado opt-in via body.bnd.
    Ativa/desativa client-side; persiste em localStorage.ev_theme. --- */
 body.bnd{
-  --accent:#85dbe1;--accent-rgb:133,219,225;--line-rgb:133,219,225;--accent-dim:#3f9aa0;
-  --ink:#0b1a20;--panel:#0f242b;--elev:#163139;--surface:#122a31;
+  --accent:#85dbe1;--accent-rgb:133,219,225;--line-rgb:133,219,225;--accent-dim:#1f5e78;
+  --ink:#07141a;--panel:#0b1d24;--elev:#123039;--surface:#0e2229;
   --fg:#e6f6f7;--glow:rgba(var(--accent-rgb),.6);
   transition:background .5s;
 }
-/* retinta os cyans hardcoded que não seguem as variáveis (só sob body.bnd) */
+/* retinta os cyans hardcoded que não seguem as variáveis (só sob body.bnd) — tons ice-blue */
 body.bnd *{scrollbar-color:#2a5f64 transparent}
 body.bnd ::-webkit-scrollbar-thumb{background:#2a5f64}
 body.bnd ::-webkit-scrollbar-thumb:hover{background:#3f9199}
 body.bnd .eyebrow{color:#a8e6e9}
 body.bnd .chart-t,body.bnd #vc-sub,body.bnd #pomo-label{color:#b8ecef}
-body.bnd #bnd-badge{display:flex}
 @media(max-width:760px){
   .tabs{display:none}
   .tabs-nav{display:none}
@@ -502,6 +511,9 @@ body.bnd #bnd-badge{display:flex}
   /* declutter the phone header so the folder/panel toggles never get clipped
      (keep Terminal available on mobile; only drop search + clean-mode) */
   #gsearch,#tgl-zen,#amb,#sfx{display:none}
+  /* Modo Foco vira icon-only no celular pra não dominar a barra */
+  .mm-badge .mm-lbl{display:none}
+  .mm-badge{padding:6px 8px;gap:0}
   .tbtn.ic-txt span{display:none}
   .tbtn.ic-txt{padding:9px 10px}
   .topbar{gap:6px;padding:10px 10px}
@@ -1002,15 +1014,15 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
       <button class="tbtn ico tabs-nav" id="tabs-next" title="Rolar abas pra direita"><i data-lucide="chevron-right"></i></button>
       <button id="mnav" class="mnav" type="button" title="Ir para"><span id="mnav-lbl">Início</span><i data-lucide="chevron-down"></i></button>
       <span class="eyebrow" id="scope">geral</span>
-      <span class="mm-badge" id="mm-badge" title="Modo foco ativo — clique pra desligar"><i data-lucide="skull"></i>MODO FOCO</span>
-      <span class="mm-badge bnd-badge" id="bnd-badge" title="Brand New Day ativo — clique pra desligar"><i data-lucide="atom"></i>BRAND NEW DAY</span>
+      <span class="mm-badge" id="mm-badge" title="Modo foco ativo — clique pra desligar"><i data-lucide="skull"></i><span class="mm-lbl">MODO FOCO</span></span>
       <button class="tbtn ico" id="gsearch" title="Buscar em tudo"><i data-lucide="search"></i></button>
       <button class="tbtn ic-txt" id="vcopen" title="Falar"><i data-lucide="mic"></i><span>FALAR</span></button>
       <button class="tbtn ic-txt" id="amb" title="Presença ambiente — escuta &quot;E.V. ...&quot; sempre"><i data-lucide="radio"></i><span>AMBIENTE</span></button>
       <button class="tbtn ic-txt" id="term" title="Modo terminal"><i data-lucide="square-terminal"></i><span>TERMINAL</span></button>
       <button class="tbtn ic-txt on" id="voz" title="Voz da E.V."><i data-lucide="volume-2"></i><span>VOZ</span></button>
       <button class="tbtn ico" id="sfx" title="Sons da interface"><i data-lucide="audio-lines"></i></button>
-      <button class="tbtn ico" id="theme" title="Tema Brand New Day (arc-reactor azul)"><i data-lucide="palette"></i></button>
+      <button class="tbtn ico" id="theme" title="Escolher tema de cor"><i data-lucide="palette"></i></button>
+      <div id="theme-menu" role="menu" aria-label="Tema de cor"></div>
       <button class="tbtn ico" id="tgl-right" title="Ocultar/mostrar painel"><i data-lucide="panel-right"></i></button>
       <button class="tbtn ico" id="tgl-zen" title="Modo limpo (ocultar painéis)"><i data-lucide="minimize-2"></i></button></div>
     <div id="chatview">
@@ -1662,8 +1674,26 @@ function applyBnd(on){on=!!on;document.body.classList.toggle('bnd',on);_bnd=on;
   if(on&&_serious){applySerious(false,false);try{fetch('/api/serious',{method:'POST',headers:H(),body:JSON.stringify({on:false})}).catch(()=>{});}catch(e){}}
   try{if(on)localStorage.setItem('ev_theme','bnd');else localStorage.removeItem('ev_theme');}catch(e){}}
 function toggleBnd(){applyBnd(!_bnd);try{sfx('toggle');}catch(e){}}
-{const tb=$('#theme');if(tb)tb.onclick=()=>toggleBnd();
- const bb=$('#bnd-badge');if(bb)bb.onclick=()=>toggleBnd();
+// --- Color-theme picker menu (mirrors #brain-menu): Normal vs Brand New Day ---
+function buildThemeMenu(){const m=$('#theme-menu');if(!m)return;m.textContent='';
+  const mk=(label,icon,active,fn)=>{const b=el('button','');b.setAttribute('role','menuitemradio');b.setAttribute('aria-checked',active?'true':'false');
+    if(active)b.classList.add('on');
+    b.appendChild(ficon(icon));
+    b.appendChild(el('span','tm-lbl',label));
+    const ck=ficon('check');ck.classList.add('tm-ck');b.appendChild(ck);
+    b.onclick=()=>{m.classList.remove('on');fn();};m.appendChild(b);};
+  mk('Normal','circle',!_bnd,()=>applyBnd(false));
+  mk('Brand New Day','atom',_bnd,()=>{applyBnd(true);try{sfx('toggle');}catch(e){}});
+  window.lucide&&lucide.createIcons();}
+function openThemeMenu(){const m=$('#theme-menu'),b=$('#theme');if(!m||!b)return;buildThemeMenu();
+  const r=b.getBoundingClientRect();m.style.top=(r.bottom+8)+'px';m.style.left='auto';
+  m.style.right=Math.max(8,window.innerWidth-r.right)+'px';m.classList.add('on');}
+function closeThemeMenu(){const m=$('#theme-menu');if(m)m.classList.remove('on');}
+{const tb=$('#theme');if(tb)tb.onclick=(e)=>{e.stopPropagation();const m=$('#theme-menu');
+   if(m&&m.classList.contains('on'))closeThemeMenu();else openThemeMenu();};
+ // clicar fora fecha o menu (espelha o comportamento do #brain-menu)
+ document.addEventListener('click',(e)=>{const m=$('#theme-menu');if(!m||!m.classList.contains('on'))return;
+   if(m.contains(e.target)||(e.target.closest&&e.target.closest('#theme')))return;closeThemeMenu();});
  try{if(localStorage.getItem('ev_theme')==='bnd')applyBnd(true);}catch(e){}}
 async function loadPanel(){const _t0=(window.performance||Date).now();try{const r=await fetch('/api/panel',{headers:H()});if(!r.ok)return;_counts=await r.json();
   applySerious(_counts.serious);
