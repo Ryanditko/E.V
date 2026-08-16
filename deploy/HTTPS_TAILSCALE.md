@@ -1,77 +1,78 @@
-# HTTPS privado para a E.V. via Tailscale Serve
+# Private HTTPS for E.V. via Tailscale Serve
 
-Coloca a interface web da E.V. em `https://<maquina>.<seu-tailnet>.ts.net`, com
-certificado TLS válido, **sem domínio, sem custo e sem abrir portas na Oracle**.
+Puts E.V.'s web interface at `https://<machine>.<your-tailnet>.ts.net`, with a
+valid TLS certificate, **no domain, no cost, and no open ports on Oracle**.
 
-Modo **Serve** (privado): a E.V. só responde para os **seus aparelhos** logados no
-seu Tailscale (celular + PC). Não vai para a internet pública — é o mais seguro.
-(O modo público seria o `funnel`; aqui usamos `serve` de propósito.)
+**Serve** mode (private): E.V. only answers **your own devices** logged into your
+Tailscale (phone + PC). It never reaches the public internet — this is the most
+secure option. (The public mode would be `funnel`; here we use `serve` on purpose.)
 
-Isso destrava o que exige "secure context": microfone/voz na web, Picture-in-Picture
-real, notificações do navegador e, mais tarde, login Google/GitHub.
+This unlocks what requires a "secure context": microphone/voice on the web, real
+Picture-in-Picture, browser notifications, and — later — Google/GitHub login.
 
-## Pré-requisitos (do seu lado)
+## Prerequisites (on your side)
 
-1. Conta **Tailscale** grátis (login com Google/GitHub/e-mail) — https://tailscale.com
-2. App **Tailscale** instalado em cada aparelho seu que vai abrir a E.V.
-   (celular iOS/Android + notebook). No modo privado, o aparelho precisa estar no
-   seu tailnet pra enxergar a URL `.ts.net`.
-3. Acesso SSH à VM (o que você já usa pra deploy).
+1. A free **Tailscale** account (log in with Google/GitHub/email) — https://tailscale.com
+2. The **Tailscale** app installed on every device of yours that will open E.V.
+   (iOS/Android phone + laptop). In private mode, the device must be on your
+   tailnet to reach the `.ts.net` URL.
+3. SSH access to the VM (the same one you already use for deploys).
 
 ---
 
-## Passo 1 — instalar e conectar o Tailscale na VM
+## Step 1 — install and connect Tailscale on the VM
 
 ```bash
 curl -fsSL https://tailscale.com/install.sh | sh
 sudo tailscale up
 ```
 
-`tailscale up` imprime uma URL — abra no navegador, faça login e autorize esta máquina.
+`tailscale up` prints a URL — open it in your browser, log in, and authorize this
+machine.
 
-Confirme o nome da máquina e do seu tailnet (vai compor a URL):
+Confirm the machine name and your tailnet name (they make up the URL):
 
 ```bash
 tailscale status
 ```
 
-## Passo 2 — habilitar HTTPS no tailnet (uma vez, no painel web)
+## Step 2 — enable HTTPS on the tailnet (once, in the web panel)
 
-No admin console (https://login.tailscale.com/admin/dns):
-- Ative **MagicDNS**.
-- Ative **HTTPS Certificates** (necessário pro certificado `*.ts.net`).
+In the admin console (https://login.tailscale.com/admin/dns):
+- Enable **MagicDNS**.
+- Enable **HTTPS Certificates** (required for the `*.ts.net` certificate).
 
-## Passo 3 — servir a E.V. (privado)
+## Step 3 — serve E.V. (private)
 
 ```bash
-# Forma atual (Tailscale recente): publica https -> localhost:8000, em background
+# Current form (recent Tailscale): publishes https -> localhost:8000, in the background
 sudo tailscale serve --bg 8000
 
-# Se o comando acima reclamar da sintaxe, confira as opções da sua versão:
+# If the command above complains about the syntax, check your version's options:
 tailscale serve --help
-# Alternativa em versões um pouco mais antigas:
+# Alternative on slightly older versions:
 #   sudo tailscale serve https / http://127.0.0.1:8000
 
-# Ver o que está publicado e a URL exata:
+# See what's published and the exact URL:
 tailscale serve status
 ```
 
-A URL final é `https://<nome-da-maquina>.<seu-tailnet>.ts.net` (aparece no
+The final URL is `https://<machine-name>.<your-tailnet>.ts.net` (shown by
 `tailscale serve status` / `tailscale status`).
 
-## Passo 4 — instalar o Tailscale nos seus aparelhos
+## Step 4 — install Tailscale on your devices
 
-- **Celular**: app Tailscale (iOS/Android) → login com a MESMA conta → ligar.
-- **PC**: app desktop Tailscale → login → ligar.
+- **Phone**: Tailscale app (iOS/Android) → log in with the SAME account → turn on.
+- **PC**: Tailscale desktop app → log in → turn on.
 
-Com o Tailscale ligado no aparelho, abra a URL `.ts.net` no navegador. Como agora é
-HTTPS de verdade, o microfone/voz, PiP e notificações passam a funcionar.
+With Tailscale on the device, open the `.ts.net` URL in the browser. Since it's now
+real HTTPS, microphone/voice, PiP and notifications start working.
 
-## Passo 5 — fechar o HTTP público (recomendado)
+## Step 5 — close the public HTTP (recommended)
 
-Hoje a E.V. web escuta em `0.0.0.0:8000`, então `http://IP:8000` fica exposto em texto
-puro (o token trafega sem TLS). Depois que o Serve estiver ok, force o app a escutar só
-localmente — o Tailscale continua acessando por `localhost`:
+Today E.V. web listens on `0.0.0.0:8000`, so `http://IP:8000` is exposed in
+cleartext (the token travels without TLS). Once Serve is working, force the app to
+listen locally only — Tailscale still reaches it via `localhost`:
 
 ```bash
 cd ~/ev
@@ -79,12 +80,14 @@ grep -q '^EV_WEB_HOST=' .env && sed -i 's/^EV_WEB_HOST=.*/EV_WEB_HOST=127.0.0.1/
 sudo systemctl restart ev-web
 ```
 
-A partir daí só a URL `.ts.net` (pelos seus aparelhos) responde; o `http://IP:8000`
-para de abrir de fora.
+From then on only the `.ts.net` URL (from your devices) answers; `http://IP:8000`
+stops opening from outside.
 
-## Diagnóstico rápido
+## Quick diagnostics
 
-- `tailscale serve status` — o que está sendo servido e a URL.
-- `sudo tailscale status` — máquinas do tailnet e conectividade.
-- `curl -I http://localhost:8000` na VM — confirma o app de pé localmente.
-- `journalctl -u tailscaled -f` — logs do Tailscale.
+- `tailscale serve status` — what is being served and the URL.
+- `sudo tailscale status` — tailnet machines and connectivity.
+- `curl -I http://localhost:8000` on the VM — confirms the app is up locally.
+- `journalctl -u tailscaled -f` — Tailscale logs.
+</content>
+</invoke>

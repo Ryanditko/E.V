@@ -42,7 +42,7 @@ say "anota um gasto" in any group, it lands in the same (shared) ledger.
 
 Only **you** (the `EV_OWNER_ID`) are answered — even if other people are in the
 group, E.V. ignores their messages. To change this, adjust `_authorized` in
-`ev/interfaces/telegram_bot.py`.
+`ev/interfaces/telegram_bot/routing.py`.
 
 ## Tip: one supergroup with Topics
 
