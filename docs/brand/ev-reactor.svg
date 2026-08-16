@@ -2,19 +2,19 @@
   <title>E.V. — arc reactor</title>
   <defs>
     <radialGradient id="bg" cx="50%" cy="42%" r="65%">
-      <stop offset="0" stop-color="#0b1f47"/>
-      <stop offset="0.6" stop-color="#081432"/>
+      <stop offset="0" stop-color="#0a1e46"/>
+      <stop offset="0.6" stop-color="#081533"/>
       <stop offset="1" stop-color="#050a18"/>
     </radialGradient>
     <radialGradient id="core" cx="50%" cy="50%" r="50%">
-      <stop offset="0" stop-color="#f2f7ff"/>
-      <stop offset="0.35" stop-color="#bcd8ff"/>
-      <stop offset="0.72" stop-color="#3a86ff"/>
-      <stop offset="1" stop-color="#1653a8"/>
+      <stop offset="0" stop-color="#f4f9ff"/>
+      <stop offset="0.35" stop-color="#cfe6ff"/>
+      <stop offset="0.72" stop-color="#86c5f2"/>
+      <stop offset="1" stop-color="#2f6fbf"/>
     </radialGradient>
     <linearGradient id="seg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#7db4ff"/>
-      <stop offset="1" stop-color="#2b7fff"/>
+      <stop offset="0" stop-color="#a9d2ff"/>
+      <stop offset="1" stop-color="#4d9bf0"/>
     </linearGradient>
     <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
       <feGaussianBlur stdDeviation="3.2" result="b"/>
@@ -28,13 +28,13 @@
 
   <!-- base disc -->
   <circle cx="128" cy="128" r="122" fill="url(#bg)"/>
-  <circle cx="128" cy="128" r="122" fill="none" stroke="#2b7fff" stroke-width="1.5" opacity="0.35"/>
+  <circle cx="128" cy="128" r="122" fill="none" stroke="#5aa8ef" stroke-width="1.5" opacity="0.35"/>
 
   <!-- outer thin ring -->
-  <circle cx="128" cy="128" r="110" fill="none" stroke="#3a86ff" stroke-width="2" opacity="0.55"/>
+  <circle cx="128" cy="128" r="110" fill="none" stroke="#6bb2f2" stroke-width="2" opacity="0.55"/>
 
   <!-- fine tick marks around the rim -->
-  <g stroke="#5f9fff" stroke-width="2" opacity="0.5">
+  <g stroke="#8cc4f4" stroke-width="2" opacity="0.5">
     <g transform="translate(128 128)">
       <line x1="0" y1="-118" x2="0" y2="-108"/>
       <line x1="0" y1="-118" x2="0" y2="-108" transform="rotate(45)"/>
@@ -48,15 +48,15 @@
   </g>
 
   <!-- segmented reactor ring: dark base + lit segments (8 panes) -->
-  <circle cx="128" cy="128" r="88" fill="none" stroke="#0e2a5c" stroke-width="34"/>
+  <circle cx="128" cy="128" r="88" fill="none" stroke="#0e2544" stroke-width="34"/>
   <circle cx="128" cy="128" r="88" fill="none" stroke="url(#seg)" stroke-width="30"
           stroke-dasharray="52 17.2" transform="rotate(-90 128 128)" filter="url(#glow)" opacity="0.92"/>
   <!-- crisp inner + outer edges of the segmented ring -->
-  <circle cx="128" cy="128" r="103" fill="none" stroke="#9cc9ff" stroke-width="1.2" opacity="0.55"/>
-  <circle cx="128" cy="128" r="73" fill="none" stroke="#9cc9ff" stroke-width="1.2" opacity="0.55"/>
+  <circle cx="128" cy="128" r="103" fill="none" stroke="#bfe0ff" stroke-width="1.2" opacity="0.55"/>
+  <circle cx="128" cy="128" r="73" fill="none" stroke="#bfe0ff" stroke-width="1.2" opacity="0.55"/>
 
   <!-- inner bright ring -->
-  <circle cx="128" cy="128" r="60" fill="none" stroke="#7db4ff" stroke-width="2.4" opacity="0.85"/>
+  <circle cx="128" cy="128" r="60" fill="none" stroke="#9fccf5" stroke-width="2.4" opacity="0.85"/>
 
   <!-- glowing core -->
   <circle cx="128" cy="128" r="46" fill="url(#core)" filter="url(#softglow)"/>
