@@ -2,23 +2,23 @@
   <title>E.V. — personal AI assistant</title>
   <defs>
     <radialGradient id="bg2" cx="50%" cy="42%" r="65%">
-      <stop offset="0" stop-color="#0a1e46"/>
-      <stop offset="0.6" stop-color="#081533"/>
-      <stop offset="1" stop-color="#050a18"/>
+      <stop offset="0" stop-color="#0a2630"/>
+      <stop offset="0.6" stop-color="#07181f"/>
+      <stop offset="1" stop-color="#040d12"/>
     </radialGradient>
     <radialGradient id="core2" cx="50%" cy="50%" r="50%">
-      <stop offset="0" stop-color="#f4f9ff"/>
-      <stop offset="0.35" stop-color="#cfe6ff"/>
-      <stop offset="0.72" stop-color="#86c5f2"/>
-      <stop offset="1" stop-color="#2f6fbf"/>
+      <stop offset="0" stop-color="#f2ffff"/>
+      <stop offset="0.35" stop-color="#c8f3f5"/>
+      <stop offset="0.72" stop-color="#85dbe1"/>
+      <stop offset="1" stop-color="#1f7d8a"/>
     </radialGradient>
     <linearGradient id="seg2" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#a9d2ff"/>
-      <stop offset="1" stop-color="#4d9bf0"/>
+      <stop offset="0" stop-color="#b8f0f3"/>
+      <stop offset="1" stop-color="#4fb8c0"/>
     </linearGradient>
     <linearGradient id="wordmark" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#7cc0f5"/>
-      <stop offset="1" stop-color="#2e6cc0"/>
+      <stop offset="0" stop-color="#4fb8c0"/>
+      <stop offset="1" stop-color="#1f7d8a"/>
     </linearGradient>
     <filter id="glow2" x="-40%" y="-40%" width="180%" height="180%">
       <feGaussianBlur stdDeviation="2.6" result="b"/>
@@ -33,9 +33,9 @@
   <!-- emblem -->
   <g transform="translate(120 120) scale(0.86)">
     <circle r="122" fill="url(#bg2)"/>
-    <circle r="122" fill="none" stroke="#5aa8ef" stroke-width="1.5" opacity="0.35"/>
-    <circle r="110" fill="none" stroke="#6bb2f2" stroke-width="2" opacity="0.55"/>
-    <g stroke="#8cc4f4" stroke-width="2" opacity="0.5">
+    <circle r="122" fill="none" stroke="#4fb8c0" stroke-width="1.5" opacity="0.35"/>
+    <circle r="110" fill="none" stroke="#6fd0d7" stroke-width="2" opacity="0.55"/>
+    <g stroke="#8fdde2" stroke-width="2" opacity="0.5">
       <line x1="0" y1="-118" x2="0" y2="-108"/>
       <line x1="0" y1="-118" x2="0" y2="-108" transform="rotate(45)"/>
       <line x1="0" y1="-118" x2="0" y2="-108" transform="rotate(90)"/>
@@ -45,15 +45,15 @@
       <line x1="0" y1="-118" x2="0" y2="-108" transform="rotate(270)"/>
       <line x1="0" y1="-118" x2="0" y2="-108" transform="rotate(315)"/>
     </g>
-    <circle r="88" fill="none" stroke="#0e2544" stroke-width="34"/>
+    <circle r="88" fill="none" stroke="#0e2e33" stroke-width="34"/>
     <circle r="88" fill="none" stroke="url(#seg2)" stroke-width="30"
             stroke-dasharray="52 17.2" transform="rotate(-90)" filter="url(#glow2)" opacity="0.92"/>
-    <circle r="103" fill="none" stroke="#bfe0ff" stroke-width="1.2" opacity="0.55"/>
-    <circle r="73" fill="none" stroke="#bfe0ff" stroke-width="1.2" opacity="0.55"/>
-    <circle r="60" fill="none" stroke="#9fccf5" stroke-width="2.4" opacity="0.85"/>
+    <circle r="103" fill="none" stroke="#c8f3f5" stroke-width="1.2" opacity="0.55"/>
+    <circle r="73" fill="none" stroke="#c8f3f5" stroke-width="1.2" opacity="0.55"/>
+    <circle r="60" fill="none" stroke="#9fe0e4" stroke-width="2.4" opacity="0.85"/>
     <circle r="46" fill="url(#core2)" filter="url(#softglow2)"/>
-    <path d="M0 -36 L36 0 L0 36 L-36 0 Z" fill="none" stroke="#eaf3ff" stroke-width="1.5" opacity="0.5"/>
-    <circle r="12" fill="#f7fbff"/>
+    <path d="M0 -36 L36 0 L0 36 L-36 0 Z" fill="none" stroke="#d8fbfd" stroke-width="1.5" opacity="0.5"/>
+    <circle r="12" fill="#f2ffff"/>
   </g>
 
   <!-- wordmark -->
@@ -61,7 +61,7 @@
         font-size="120" font-weight="700" letter-spacing="4" fill="url(#wordmark)">E.V.</text>
   <!-- tagline -->
   <text x="276" y="176" font-family="'JetBrains Mono','SFMono-Regular',Consolas,monospace"
-        font-size="18" letter-spacing="5" fill="#9fccf5">PERSONAL AI ASSISTANT</text>
+        font-size="18" letter-spacing="5" fill="#5fc2ca">PERSONAL AI ASSISTANT</text>
   <!-- accent underline -->
-  <rect x="276" y="192" width="336" height="2" fill="#5aa8ef" opacity="0.6"/>
+  <rect x="276" y="192" width="336" height="2" fill="#3f9aa0" opacity="0.6"/>
 </svg>

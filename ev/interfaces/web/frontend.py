@@ -493,17 +493,17 @@ body.serious #serfx{opacity:1;box-shadow:inset 0 0 150px -50px rgba(255,45,55,.6
    override das custom props (NÃO é hue-rotate); terceiro estado opt-in via body.bnd.
    Ativa/desativa client-side; persiste em localStorage.ev_theme. --- */
 body.bnd{
-  --accent:#86c5f2;--accent-rgb:134,197,242;--line-rgb:150,200,245;--accent-dim:#3f74b0;
-  --ink:#0a1626;--panel:#0e2036;--elev:#163050;--surface:#122844;
-  --fg:#e8f2ff;--glow:rgba(var(--accent-rgb),.66);
+  --accent:#85dbe1;--accent-rgb:133,219,225;--line-rgb:133,219,225;--accent-dim:#1f5e78;
+  --ink:#07141a;--panel:#0b1d24;--elev:#123039;--surface:#0e2229;
+  --fg:#e6f6f7;--glow:rgba(var(--accent-rgb),.6);
   transition:background .5s;
 }
 /* retinta os cyans hardcoded que não seguem as variáveis (só sob body.bnd) — tons ice-blue */
-body.bnd *{scrollbar-color:#2f5a8a transparent}
-body.bnd ::-webkit-scrollbar-thumb{background:#2f5a8a}
-body.bnd ::-webkit-scrollbar-thumb:hover{background:#4b7fbf}
-body.bnd .eyebrow{color:#bfe0ff}
-body.bnd .chart-t,body.bnd #vc-sub,body.bnd #pomo-label{color:#cfe6ff}
+body.bnd *{scrollbar-color:#2a5f64 transparent}
+body.bnd ::-webkit-scrollbar-thumb{background:#2a5f64}
+body.bnd ::-webkit-scrollbar-thumb:hover{background:#3f9199}
+body.bnd .eyebrow{color:#a8e6e9}
+body.bnd .chart-t,body.bnd #vc-sub,body.bnd #pomo-label{color:#b8ecef}
 @media(max-width:760px){
   .tabs{display:none}
   .tabs-nav{display:none}
