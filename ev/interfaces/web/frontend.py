@@ -493,10 +493,10 @@ body.serious #serfx{opacity:1;box-shadow:inset 0 0 150px -50px rgba(255,45,55,.6
    override das custom props (NÃO é hue-rotate); terceiro estado opt-in via body.bnd.
    Ativa/desativa client-side; persiste em localStorage.ev_theme. --- */
 body.bnd{
+  /* mesmo fundo escuro do tema tradicional (:root) — só recolore os DESTAQUES
+     (accent/bordas/brilho) para o ciano-aqua Brand New Day */
   --accent:#85dbe1;--accent-rgb:133,219,225;--line-rgb:133,219,225;--accent-dim:#1f5e78;
-  --ink:#07141a;--panel:#0b1d24;--elev:#123039;--surface:#0e2229;
-  --fg:#e6f6f7;--glow:rgba(var(--accent-rgb),.6);
-  transition:background .5s;
+  --glow:rgba(var(--accent-rgb),.6);
 }
 /* retinta os cyans hardcoded que não seguem as variáveis (só sob body.bnd) — tons ice-blue */
 body.bnd *{scrollbar-color:#2a5f64 transparent}
