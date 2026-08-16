@@ -36,7 +36,8 @@ throughout; nothing here requires a paid plan for personal use.
 - Semantic recall is a lightweight in-DB vector store (cosine similarity over embeddings).
 
 ## Web frontend (no build step)
-- Self-contained **HTML/CSS/vanilla JS** embedded in `web.py` (single-page app).
+- Self-contained **HTML/CSS/vanilla JS** served from the `ev/interfaces/web/` package
+  (`frontend.py`) as a single-page app.
 - **Lucide** icons (CDN); fonts **Space Grotesk**, **JetBrains Mono**, **Inter**.
 - **Leaflet** (map tab, CartoDB dark tiles + Esri satellite), **Three.js** (Cérebro
   3D graph), **Chart.js** (Gráficos tab), **Mapillary JS** (optional street view,

@@ -1,83 +1,83 @@
-# HTTPS para a E.V. via Cloudflare Tunnel
+# HTTPS for E.V. via Cloudflare Tunnel
 
-Coloca a interface web da E.V. em `https://ev.SEUDOMINIO.com` **sem abrir nenhuma
-porta na Oracle**. O `cloudflared` faz uma conexão de saída até a Cloudflare, que
-termina o TLS e encaminha para o `uvicorn` local em `http://localhost:8000`.
+Puts E.V.'s web interface at `https://ev.YOURDOMAIN.com` **without opening any port
+on Oracle**. `cloudflared` makes an outbound connection to Cloudflare, which
+terminates the TLS and forwards to the local `uvicorn` at `http://localhost:8000`.
 
-Isso destrava o que exige "secure context": microfone/voz na web, Picture-in-Picture
-real, notificações do navegador e, mais tarde, login Google/GitHub.
+This unlocks what requires a "secure context": microphone/voice on the web, real
+Picture-in-Picture, browser notifications, and — later — Google/GitHub login.
 
-## Pré-requisitos (do seu lado)
+## Prerequisites (on your side)
 
-1. Conta **Cloudflare** (grátis).
-2. Um **domínio adicionado à Cloudflare** (os nameservers do domínio apontando para
-   a Cloudflare). Cloudflare **não** dá domínio de graça — use um que você já tenha
-   ou registre um barato. O subdomínio (ex.: `ev.`) a gente cria; ele não precisa
-   existir ainda.
-3. Acesso SSH à VM (você já usa pra fazer deploy).
+1. A **Cloudflare** account (free).
+2. A **domain added to Cloudflare** (the domain's nameservers pointing to
+   Cloudflare). Cloudflare does **not** give away a free domain — use one you
+   already own or register a cheap one. The subdomain (e.g. `ev.`) we create; it
+   doesn't need to exist yet.
+3. SSH access to the VM (the same one you already use for deploys).
 
-> Sem um domínio na Cloudflare só dá pra usar os túneis efêmeros `trycloudflare.com`,
-> que geram uma URL aleatória a cada execução — ruim para um assistente fixo. Por isso
-> o domínio é necessário para um endereço estável.
+> Without a domain on Cloudflare you can only use the ephemeral `trycloudflare.com`
+> tunnels, which generate a random URL on every run — bad for a fixed assistant.
+> That's why a domain is required for a stable address.
 
 ---
 
-## Passo 0 — instalar o cloudflared na VM
+## Step 0 — install cloudflared on the VM
 
 ```bash
 cd ~/ev && git pull
 bash deploy/cloudflared/install.sh
-cloudflared --version   # confirme que instalou
+cloudflared --version   # confirm it installed
 ```
 
-Agora escolha **um** dos fluxos abaixo. O **Fluxo A (painel)** é o mais simples.
+Now pick **one** of the flows below. **Flow A (dashboard)** is the simplest.
 
 ---
 
-## Fluxo A — pelo painel da Cloudflare (recomendado)
+## Flow A — via the Cloudflare dashboard (recommended)
 
-1. Painel Cloudflare → **Zero Trust** → **Networks** → **Tunnels** → **Create a tunnel**.
-2. Tipo **Cloudflared**. Dê um nome (ex.: `ev`) e **Save**.
-3. A tela mostra um comando de instalação com um token longo. Na aba **Debian/Red Hat**
-   ela sugere instalar o pacote; como já instalamos o binário, rode **só a parte do
-   serviço** na VM (troque `SEU_TOKEN` pelo token mostrado):
+1. Cloudflare dashboard → **Zero Trust** → **Networks** → **Tunnels** → **Create a tunnel**.
+2. Type **Cloudflared**. Give it a name (e.g. `ev`) and **Save**.
+3. The screen shows an install command with a long token. On the **Debian/Red Hat**
+   tab it suggests installing the package; since we already installed the binary, run
+   **only the service part** on the VM (replace `YOUR_TOKEN` with the token shown):
 
    ```bash
-   sudo cloudflared service install SEU_TOKEN
+   sudo cloudflared service install YOUR_TOKEN
    sudo systemctl enable --now cloudflared
    systemctl status cloudflared --no-pager
    ```
 
-4. Ainda no painel, aba **Public Hostname** → **Add a public hostname**:
+4. Still in the dashboard, **Public Hostname** tab → **Add a public hostname**:
    - **Subdomain**: `ev`
-   - **Domain**: seu domínio
+   - **Domain**: your domain
    - **Type**: `HTTP`
    - **URL**: `localhost:8000`
    - **Save**.
 
-5. Abra `https://ev.SEUDOMINIO.com` — deve carregar a E.V. com cadeado válido.
+5. Open `https://ev.YOURDOMAIN.com` — it should load E.V. with a valid padlock.
 
 ---
 
-## Fluxo B — pela linha de comando (alternativa)
+## Flow B — via the command line (alternative)
 
 ```bash
-# 1. Autentica (abre uma URL; abra no navegador e autorize o seu domínio)
+# 1. Authenticate (opens a URL; open it in your browser and authorize your domain)
 cloudflared tunnel login
 
-# 2. Cria o túnel (guarda um <TUNNEL_ID> e um arquivo <TUNNEL_ID>.json)
+# 2. Create the tunnel (records a <TUNNEL_ID> and a <TUNNEL_ID>.json file)
 cloudflared tunnel create ev
 
-# 3. Move credenciais e config para /etc/cloudflared
+# 3. Move credentials and config to /etc/cloudflared
 sudo mkdir -p /etc/cloudflared
 sudo cp ~/.cloudflared/*.json /etc/cloudflared/
 sudo cp deploy/cloudflared/config.yml.example /etc/cloudflared/config.yml
-sudo nano /etc/cloudflared/config.yml   # ponha o TUNNEL_ID e o hostname reais
+sudo nano /etc/cloudflared/config.yml   # put in the real TUNNEL_ID and hostname
 
-# 4. Cria o registro DNS (CNAME) apontando o hostname para o túnel
-cloudflared tunnel route dns ev ev.SEUDOMINIO.com
+# 4. Create the DNS record (CNAME) pointing the hostname at the tunnel
+cloudflared tunnel route dns ev ev.YOURDOMAIN.com
 
-# 5. Sobe como serviço
+# 5. Bring it up as a service
 sudo cloudflared service install
 sudo systemctl enable --now cloudflared
 systemctl status cloudflared --no-pager
@@ -85,11 +85,11 @@ systemctl status cloudflared --no-pager
 
 ---
 
-## Passo final — fechar o HTTP público (recomendado)
+## Final step — close the public HTTP (recommended)
 
-Hoje a E.V. web escuta em `0.0.0.0:8000`, ou seja, o `http://IP:8000` fica exposto
-em texto puro (o token trafega sem TLS). Depois que o túnel estiver funcionando,
-force o app a escutar só localmente — o túnel continua acessando por `localhost`:
+Today E.V. web listens on `0.0.0.0:8000`, so `http://IP:8000` is exposed in
+cleartext (the token travels without TLS). Once the tunnel is working, force the
+app to listen locally only — the tunnel still reaches it via `localhost`:
 
 ```bash
 cd ~/ev
@@ -97,11 +97,12 @@ grep -q '^EV_WEB_HOST=' .env && sed -i 's/^EV_WEB_HOST=.*/EV_WEB_HOST=127.0.0.1/
 sudo systemctl restart ev-web
 ```
 
-A partir daí só `https://ev.SEUDOMINIO.com` responde; o `http://IP:8000` para de abrir
-de fora (o que é o certo).
+From then on only `https://ev.YOURDOMAIN.com` answers; `http://IP:8000` stops
+opening from outside (which is the right thing).
 
-## Diagnóstico rápido
+## Quick diagnostics
 
-- `journalctl -u cloudflared -f` — logs do túnel.
-- `curl -I http://localhost:8000` na VM — confirma que o app está de pé localmente.
-- No painel, o túnel deve aparecer como **HEALTHY**.
+- `journalctl -u cloudflared -f` — tunnel logs.
+- `curl -I http://localhost:8000` on the VM — confirms the app is up locally.
+- In the dashboard, the tunnel should show as **HEALTHY**.
+</content>

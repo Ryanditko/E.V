@@ -1,7 +1,7 @@
 # E.V. on the web (use her from any browser)
 
 A second "door" to the same E.V. — one core, many access points. A FastAPI server
-(`ev/interfaces/web.py`, entry `run_web.py`) serves a self-contained single-page
+(`ev/interfaces/web/` package, entry `run_web.py`) serves a self-contained single-page
 console (no build step) backed by the **same brain, memory and tools** as the
 Telegram bot.
 
