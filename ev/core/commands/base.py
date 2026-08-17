@@ -9,7 +9,7 @@ E.V.'s replies here are short PT-BR strings (the assistant speaks Portuguese).
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 try:
     from zoneinfo import ZoneInfo

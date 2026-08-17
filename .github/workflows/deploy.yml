@@ -1,14 +1,27 @@
 name: Test & deploy E.V.
 
-# On every push to main: run the tests; deploy to the VM ONLY if they pass.
+# On pull requests to main: lint + run the tests (no deploy).
+# On push to main: lint + tests, then deploy to the VM ONLY if they pass.
 # Secrets: SSH_PRIVATE_KEY, VM_IP, VM_USER. Secrets/.env stay on the VM.
 
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch: {}
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - run: pip install -q ruff==0.16.3
+      - run: ruff check ev tests
+
   test:
     runs-on: ubuntu-latest
     steps:
@@ -20,7 +33,8 @@ jobs:
       - run: python -m pytest -q
 
   deploy:
-    needs: test          # only runs if tests pass
+    needs: [test, lint]  # only runs if tests + lint pass
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

@@ -129,6 +129,5 @@ def inbox_summary(config, account: str = "", query: str = "",
     lines = [f"📥 E-mails ({len(items)}):", ""]
     for i, m in enumerate(items, 1):
         line = f"#{i} {m['from']} — {m['subject']}"
-        when = m.get("date", "")
         lines.append(line)
     return "\n".join(lines)
