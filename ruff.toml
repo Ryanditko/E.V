@@ -1,0 +1,10 @@
+# Focused lint: real-bug rules only (pyflakes + syntax), not style noise.
+# F821 (undefined name) is exactly what caught this project's missing-import bugs.
+target-version = "py311"
+
+[lint]
+select = ["E9", "F"]
+
+[lint.per-file-ignores]
+# Package __init__.py files intentionally re-export public names.
+"__init__.py" = ["F401"]

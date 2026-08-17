@@ -8,7 +8,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 try:
     from zoneinfo import ZoneInfo
@@ -261,7 +261,6 @@ class BackgroundLoopsMixin:
                 log.info("Sent rain alert.")
 
     async def _maybe_run_recurring(self, app: Application) -> None:
-        cfg = self._config
         now = datetime.now(self._tz())
         today = now.date().isoformat()
         if self._last_recurring == today:
