@@ -226,15 +226,15 @@ body.speaking .core .dot{animation:pulsed .6s infinite}
 #brain-menu button svg{width:15px;height:15px}
 #brain-menu button.bm-del:hover{color:#ff8a8a}
 /* color-theme picker popover (mirrors #brain-menu; anchored to the palette icon via JS) */
-#theme-menu{position:fixed;display:none;flex-direction:column;min-width:190px;background:var(--elev);border:1px solid var(--accent);border-radius:11px;padding:8px;z-index:60;box-shadow:0 0 26px -6px var(--glow),0 12px 30px -14px rgba(0,0,0,.7)}
-#theme-menu.on{display:flex}
-#theme-menu button{display:flex;align-items:center;gap:9px;font-family:var(--body);font-size:13px;color:var(--fg);background:none;border:none;border-radius:8px;padding:9px 9px;cursor:pointer;text-align:left}
-#theme-menu button:hover{background:var(--surface);color:var(--accent)}
-#theme-menu button svg{width:15px;height:15px}
-#theme-menu button .tm-lbl{flex:1}
-#theme-menu button .tm-ck{display:none;color:var(--accent)}
-#theme-menu button.on .tm-ck{display:block}
-#theme-menu button.on{color:var(--accent)}
+#theme-menu,#lang-menu{position:fixed;display:none;flex-direction:column;min-width:190px;background:var(--elev);border:1px solid var(--accent);border-radius:11px;padding:8px;z-index:60;box-shadow:0 0 26px -6px var(--glow),0 12px 30px -14px rgba(0,0,0,.7)}
+#theme-menu.on,#lang-menu.on{display:flex}
+#theme-menu button,#lang-menu button{display:flex;align-items:center;gap:9px;font-family:var(--body);font-size:13px;color:var(--fg);background:none;border:none;border-radius:8px;padding:9px 9px;cursor:pointer;text-align:left}
+#theme-menu button:hover,#lang-menu button:hover{background:var(--surface);color:var(--accent)}
+#theme-menu button svg,#lang-menu button svg{width:15px;height:15px}
+#theme-menu button .tm-lbl,#lang-menu button .tm-lbl{flex:1}
+#theme-menu button .tm-ck,#lang-menu button .tm-ck{display:none;color:var(--accent)}
+#theme-menu button.on .tm-ck,#lang-menu button.on .tm-ck{display:block}
+#theme-menu button.on,#lang-menu button.on{color:var(--accent)}
 #map-wrap{position:relative;height:calc(100vh - 300px);min-height:400px}
 #street{position:fixed;inset:0;z-index:120;background:#04070c;display:none;flex-direction:column}
 #street.on{display:flex}
