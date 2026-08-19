@@ -144,6 +144,25 @@ def test_index_served(tmp_path):
     assert r.status_code == 200 and "E.V." in r.text
 
 
+def test_index_i18n_english_default_with_picker(tmp_path):
+    # The console UI is internationalized: English is the default paint, with a
+    # language picker to switch to Portuguese. All UI strings live in one I18N
+    # object with matching `en`/`pt` key sets.
+    client, _ = _client(tmp_path)
+    html = client.get("/").text
+    # data-i18n attributes wire static chrome to the dictionary
+    assert "data-i18n=" in html
+    assert "data-i18n-ph=" in html and "data-i18n-title=" in html
+    # the I18N dictionary carries both locales + the resolver/apply helpers
+    assert "const I18N=" in html and "en:{" in html and "pt:{" in html
+    assert "function t(k)" in html and "function applyLang(" in html
+    # the language picker button + menu (mirrors the theme picker)
+    assert 'id="lang"' in html and 'id="lang-menu"' in html
+    # English is the default paint (no pre-JS flash of Portuguese chrome)
+    assert 'placeholder="Talk to E.V.' in html
+    assert ">Tasks</" in html and ">Reminders</" in html
+
+
 def test_chat_requires_token(tmp_path):
     client, _ = _client(tmp_path)
     assert client.post("/api/chat", json={"message": "oi"}).status_code == 401
