@@ -1200,6 +1200,11 @@ textarea.minput{resize:vertical;min-height:74px;font-family:var(--body);line-hei
       <div class="chart-card"><div class="chart-t">Gastos por categoria</div><canvas id="ch-cat"></canvas></div>
       <div class="chart-card"><div class="chart-t">Gastos ao longo do período</div><canvas id="ch-day"></canvas></div>
       <div class="chart-card"><div class="chart-t">Hábitos (dias marcados no período)</div><canvas id="ch-hab"></canvas></div>
+      <div class="chart-card"><div class="chart-t">Interações ao longo do tempo</div><canvas id="ch-int"></canvas></div>
+      <div class="chart-card"><div class="chart-t">Uso de provedor de IA</div><canvas id="ch-prov"></canvas></div>
+      <div class="chart-card"><div class="chart-t">Atividade por tipo</div><canvas id="ch-act"></canvas></div>
+      <div class="chart-card"><div class="chart-t">Tarefas: criadas vs concluídas</div><canvas id="ch-task"></canvas></div>
+      <div class="chart-card"><div class="chart-t">Crescimento da memória</div><canvas id="ch-mem"></canvas></div>
     </div>
     <div id="pageview"></div>
     <div id="climaview">
@@ -1462,7 +1467,17 @@ async function loadCharts(){try{await loadChartLib();}catch(e){return;}
   function mk(id,cfg){if(_charts[id])_charts[id].destroy();const cx=document.getElementById(id);if(!cx)return;_charts[id]=new Chart(cx,cfg);}
   const cat=d.exp_cat||[];mk('ch-cat',{type:'doughnut',data:{labels:cat.map(x=>x.label),datasets:[{data:cat.map(x=>x.value),backgroundColor:PAL,borderColor:'#04070c',borderWidth:2}]},options:{plugins:{legend:{position:'right'}}}});
   const day=d.exp_day||[];mk('ch-day',{type:'bar',data:{labels:day.map(x=>x.label),datasets:[{data:day.map(x=>x.value),backgroundColor:ACC(),borderRadius:4}]},options:{plugins:{legend:{display:false}},scales:{x:{grid:{color:grid}},y:{grid:{color:grid}}}}});
-  const hab=d.habits||[];mk('ch-hab',{type:'bar',data:{labels:hab.map(x=>x.label),datasets:[{data:hab.map(x=>x.value),backgroundColor:ACC(),borderRadius:4}]},options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{grid:{color:grid}},y:{grid:{color:grid}}}}});}
+  const hab=d.habits||[];mk('ch-hab',{type:'bar',data:{labels:hab.map(x=>x.label),datasets:[{data:hab.map(x=>x.value),backgroundColor:ACC(),borderRadius:4}]},options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{grid:{color:grid}},y:{grid:{color:grid}}}}});
+  // 1. Interações ao longo do tempo (você vs E.V.)
+  const it=d.interactions||{labels:[],user:[],model:[]};mk('ch-int',{type:'line',data:{labels:it.labels||[],datasets:[{label:'Você',data:it.user||[],borderColor:PAL[0],backgroundColor:PAL[0],tension:.3,fill:false},{label:'E.V.',data:it.model||[],borderColor:PAL[5],backgroundColor:PAL[5],tension:.3,fill:false}]},options:{plugins:{legend:{position:'top'}},scales:{x:{grid:{color:grid}},y:{beginAtZero:true,grid:{color:grid}}}}});
+  // 2. Uso de provedor de IA
+  const pr=d.providers||[];mk('ch-prov',{type:'doughnut',data:{labels:pr.map(x=>x.label),datasets:[{data:pr.map(x=>x.value),backgroundColor:PAL,borderColor:'#04070c',borderWidth:2}]},options:{plugins:{legend:{position:'right'}}}});
+  // 3. Atividade por tipo (barra horizontal)
+  const ac=d.activity||[];mk('ch-act',{type:'bar',data:{labels:ac.map(x=>x.label),datasets:[{data:ac.map(x=>x.value),backgroundColor:ACC(),borderRadius:4}]},options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,grid:{color:grid}},y:{grid:{color:grid}}}}});
+  // 4. Tarefas: criadas vs concluídas
+  const tk=d.tasks_daily||{labels:[],created:[],completed:[]};mk('ch-task',{type:'bar',data:{labels:tk.labels||[],datasets:[{label:'Criadas',data:tk.created||[],backgroundColor:PAL[0],borderRadius:4},{label:'Concluídas',data:tk.completed||[],backgroundColor:PAL[4],borderRadius:4}]},options:{plugins:{legend:{position:'top'}},scales:{x:{grid:{color:grid}},y:{beginAtZero:true,grid:{color:grid}}}}});
+  // 5. Crescimento da memória (cumulativo)
+  const mg=d.memory_growth||{labels:[],values:[]};mk('ch-mem',{type:'line',data:{labels:mg.labels||[],datasets:[{label:'Memórias',data:mg.values||[],borderColor:PAL[2],backgroundColor:ACCN(.15),tension:.3,fill:true}]},options:{plugins:{legend:{display:false}},scales:{x:{grid:{color:grid}},y:{beginAtZero:true,grid:{color:grid}}}}});}
 (function(){const ps=document.getElementById('ch-period');if(!ps)return;
   ps.onchange=()=>{const cst=ps.value==='custom';const cf=$('#ch-from'),ct=$('#ch-to');if(cf)cf.style.display=cst?'block':'none';if(ct)ct.style.display=cst?'block':'none';if(!cst)loadCharts();};
   const cf=$('#ch-from'),ct=$('#ch-to');if(cf)cf.onchange=()=>{if(ct.value)loadCharts();};if(ct)ct.onchange=()=>{if(cf.value)loadCharts();};})();

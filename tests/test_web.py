@@ -657,3 +657,74 @@ def test_notification_center(tmp_path):
     # delete -> gone
     client.post("/api/notifications/delete", json={"id": nid}, headers=_auth())
     assert client.get("/api/notifications", headers=_auth()).json()["items"] == []
+
+
+def test_charts_new_datasets(tmp_path):
+    """The five new charts appear in /api/charts with sane shapes."""
+    from datetime import datetime, timezone
+
+    from ev.core.memory import Memory
+
+    client, _ = _client(tmp_path)
+    owner = "123"
+    m = Memory(tmp_path / "t.db")
+    today = datetime.now(timezone.utc).date().isoformat()
+
+    # interactions (messages by role)
+    m.add_message(owner, "user", "oi E.V.")
+    m.add_message(owner, "model", "olá, Ryan")
+    m.add_message(owner, "user", "tudo bem?")
+    # activity by type
+    m.log_activity(owner, "task.new", "estudar")
+    m.log_activity(owner, "task.new", "treinar")
+    m.log_activity(owner, "expense.new", "café")
+    # provider usage
+    m.bump_usage("gemini", today)
+    m.bump_usage("gemini", today)
+    m.bump_usage("groq", today)
+    # tasks created + one completed
+    tid = m.add_task(owner, "revisar relatório", "trabalho")
+    m.complete_task(owner, tid)
+    # facts (memory growth)
+    m.add_fact(owner, "gosta de café")
+    m.add_fact(owner, "mora em SP")
+
+    d = client.get("/api/charts", headers=_auth()).json()
+    for k in ("interactions", "providers", "activity", "tasks_daily",
+              "memory_growth", "exp_cat", "exp_day", "habits", "range"):
+        assert k in d, f"missing charts key: {k}"
+
+    # interactions: two aligned series over the day buckets
+    it = d["interactions"]
+    assert set(it) >= {"labels", "user", "model"}
+    assert len(it["labels"]) == len(it["user"]) == len(it["model"])
+    assert sum(it["user"]) == 2 and sum(it["model"]) == 1
+
+    # providers: doughnut share
+    provs = {p["label"]: p["value"] for p in d["providers"]}
+    assert provs.get("gemini") == 2 and provs.get("groq") == 1
+
+    # activity: top actions
+    # note: add_task/complete_task also auto-log activity (task.new/task.done)
+    acts = {a["label"]: a["value"] for a in d["activity"]}
+    assert acts.get("task.new", 0) >= 2 and acts.get("expense.new") == 1
+
+    # tasks: created vs completed, aligned series
+    tk = d["tasks_daily"]
+    assert len(tk["labels"]) == len(tk["created"]) == len(tk["completed"])
+    assert sum(tk["created"]) >= 1 and sum(tk["completed"]) >= 1
+
+    # memory growth: cumulative, non-decreasing, ends at total facts
+    mg = d["memory_growth"]
+    assert len(mg["labels"]) == len(mg["values"])
+    assert mg["values"] == sorted(mg["values"])
+    assert mg["values"][-1] == 2
+
+
+def test_charts_empty_ok(tmp_path):
+    """No seeded data -> new keys present with empty/zero series, no crash."""
+    client, _ = _client(tmp_path)
+    d = client.get("/api/charts", headers=_auth()).json()
+    assert d["providers"] == [] and d["activity"] == []
+    assert sum(d["interactions"]["user"]) == 0
+    assert d["memory_growth"]["values"][-1] == 0 if d["memory_growth"]["values"] else True

@@ -136,10 +136,85 @@ def build_router(ctx: WebContext) -> APIRouter:
             except Exception:
                 done = 0
             habits.append({"label": h["name"], "value": done})
+
+        # --- new charts: same [frm, to_end) period + daily/monthly bucketing ---
+        bucket_keys = list(buckets.keys())
+
+        def _lbl(k):  # match exp_day label format (MM-DD daily, YYYY-MM monthly)
+            return k if by_month else k[5:]
+
+        def _bkey(day):  # day is "YYYY-MM-DD"
+            return day[:7] if by_month else day
+
+        labels = [_lbl(k) for k in bucket_keys]
+        frm_iso = frm.isoformat()
+
+        # 1. Interactions over time (messages per day, by role)
+        inter_user = {k: 0 for k in bucket_keys}
+        inter_model = {k: 0 for k in bucket_keys}
+        for row in memory.messages_per_day(owner, frm_iso, to_end):
+            key = _bkey(row.get("day") or "")
+            if key in inter_user:
+                if row.get("role") == "user":
+                    inter_user[key] += row.get("n", 0)
+                elif row.get("role") == "model":
+                    inter_model[key] += row.get("n", 0)
+        interactions = {
+            "labels": labels,
+            "user": [inter_user[k] for k in bucket_keys],
+            "model": [inter_model[k] for k in bucket_keys],
+        }
+
+        # 2. AI-provider usage share
+        prov_tot = memory.usage_between(fd, td)
+        providers = [{"label": p, "value": n}
+                     for p, n in sorted(prov_tot.items(), key=lambda x: -x[1])]
+
+        # 3. Activity by type (top 8)
+        activity = [{"label": r["action"], "value": r["n"]}
+                    for r in memory.activity_counts(owner, frm_iso, to_end, 8)]
+
+        # 4. Tasks created vs completed per bucket
+        tpd = memory.tasks_per_day(owner, frm_iso, to_end)
+        t_created = {k: 0 for k in bucket_keys}
+        t_done = {k: 0 for k in bucket_keys}
+        for day, n in tpd.get("created", {}).items():
+            key = _bkey(day)
+            if key in t_created:
+                t_created[key] += n
+        for day, n in tpd.get("completed", {}).items():
+            key = _bkey(day)
+            if key in t_done:
+                t_done[key] += n
+        tasks_daily = {
+            "labels": labels,
+            "created": [t_created[k] for k in bucket_keys],
+            "completed": [t_done[k] for k in bucket_keys],
+        }
+
+        # 5. Memory growth (cumulative facts, starting from pre-period total)
+        fpd = memory.facts_per_day(owner, frm_iso, to_end)
+        f_new = {k: 0 for k in bucket_keys}
+        for day, n in fpd.items():
+            key = _bkey(day)
+            if key in f_new:
+                f_new[key] += n
+        running = memory.facts_count_before(owner, frm_iso)
+        mem_values = []
+        for k in bucket_keys:
+            running += f_new[k]
+            mem_values.append(running)
+        memory_growth = {"labels": labels, "values": mem_values}
+
         return {
             "exp_cat": [{"label": k, "value": round(v, 2)} for k, v in cat],
             "exp_day": series,
             "habits": habits[:10],
+            "interactions": interactions,
+            "providers": providers,
+            "activity": activity,
+            "tasks_daily": tasks_daily,
+            "memory_growth": memory_growth,
             "range": {"from": fd, "to": td},
         }
 

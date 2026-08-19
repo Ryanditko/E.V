@@ -34,6 +34,20 @@ class ActivityMixin:
             ).fetchall()
         return [dict(r) for r in rows]
 
+    def activity_counts(self, user_id: str, frm_iso: str, to_iso: str,
+                        limit: int = 8) -> list[dict]:
+        """Top actions by count in [frm_iso, to_iso). Rows: {"action", "n"}."""
+        try:
+            rows = self._conn.execute(
+                "SELECT action, COUNT(*) AS n FROM activity "
+                "WHERE user_id = ? AND created >= ? AND created < ? "
+                "GROUP BY action ORDER BY n DESC LIMIT ?",
+                (user_id, frm_iso, to_iso, limit),
+            ).fetchall()
+            return [{"action": r["action"], "n": int(r["n"])} for r in rows]
+        except sqlite3.Error:
+            return []
+
     def activity_categories(self, user_id: str) -> list[str]:
         rows = self._conn.execute(
             "SELECT DISTINCT category FROM activity "

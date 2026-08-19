@@ -94,6 +94,20 @@ class VaultMixin:
         ).fetchall()
         return [dict(r) for r in reversed(rows)]
 
+    def messages_per_day(self, user_id: str, frm_iso: str, to_iso: str) -> list[dict]:
+        """Message counts per day+role in [frm_iso, to_iso). Rows:
+        {"day": "YYYY-MM-DD", "role": "user"|"model", "n": int}."""
+        try:
+            rows = self._conn.execute(
+                "SELECT substr(created, 1, 10) AS day, role, COUNT(*) AS n "
+                "FROM messages WHERE user_id = ? AND created >= ? AND created < ? "
+                "GROUP BY day, role",
+                (user_id, frm_iso, to_iso),
+            ).fetchall()
+            return [dict(r) for r in rows]
+        except Exception:
+            return []
+
     def prune_messages(self, keep_per_user: int = 500) -> int:
         """Keep only the newest `keep_per_user` chat messages per user.
 
