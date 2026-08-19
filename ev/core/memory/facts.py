@@ -50,6 +50,29 @@ class FactsMixin:
         self._conn.commit()
         return cur.rowcount
 
+    def facts_per_day(self, user_id: str, frm_iso: str, to_iso: str) -> dict:
+        """New facts created per day in [frm_iso, to_iso). {day: n}."""
+        try:
+            rows = self._conn.execute(
+                "SELECT substr(created, 1, 10) AS d, COUNT(*) AS n FROM facts "
+                "WHERE user_id = ? AND created >= ? AND created < ? GROUP BY d",
+                (user_id, frm_iso, to_iso),
+            ).fetchall()
+            return {r["d"]: int(r["n"]) for r in rows}
+        except Exception:
+            return {}
+
+    def facts_count_before(self, user_id: str, frm_iso: str) -> int:
+        """Count of facts that already existed before `frm_iso`."""
+        try:
+            row = self._conn.execute(
+                "SELECT COUNT(*) AS n FROM facts WHERE user_id = ? AND created < ?",
+                (user_id, frm_iso),
+            ).fetchone()
+            return int(row["n"])
+        except Exception:
+            return 0
+
     def relevant_facts(
         self, user_id: str, query_embedding: list[float] | None, k: int = 8
     ) -> list[str]:

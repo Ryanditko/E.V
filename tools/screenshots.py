@@ -252,6 +252,74 @@ def seed_demo(db_path: Path) -> None:
     m.add_document(u, "Comprovante.pdf", "application/pdf",
                    b"%PDF-1.4 demo", "Comprovante de pagamento (demo).")
 
+    # --- Data for the NEW charts (interactions, provider usage, activity,
+    #     tasks created-vs-done, memory growth). Backdated via direct SQL so
+    #     the time-series read realistically in the screenshot. ---
+    def _ts(days_ago, hour=10, minute=0):
+        d = today - timedelta(days=days_ago)
+        return f"{d.isoformat()}T{hour:02d}:{minute:02d}:00"
+
+    # Interactions: a two-week chat rhythm (you <-> E.V.)
+    _pairs = [
+        ("Bom dia, E.V.", "Bom dia! Pronto pra mais um dia produtivo?"),
+        ("Quais minhas tarefas de hoje?", "Você tem 6 tarefas — quer que eu priorize?"),
+        ("Adiciona um lembrete pra ligar pra operadora", "Feito! Lembrete criado."),
+        ("Quanto gastei esse mês?", "Até agora R$ 702,20 — maior categoria: casa."),
+        ("Resume meu dia", "Você concluiu 3 tarefas e bateu todos os hábitos."),
+    ]
+    for dd in range(14, -1, -1):
+        for k in range((dd % 3) + 1):
+            q, a = _pairs[(dd + k) % len(_pairs)]
+            m._conn.execute(
+                "INSERT INTO messages (user_id, role, content, created) VALUES (?,?,?,?)",
+                (u, "user", q, _ts(dd, 9 + k * 3)))
+            m._conn.execute(
+                "INSERT INTO messages (user_id, role, content, created) VALUES (?,?,?,?)",
+                (u, "model", a, _ts(dd, 9 + k * 3, 2)))
+
+    # Provider usage over the period (Gemini primary; others as fallback)
+    for dd in range(14, -1, -1):
+        day = (today - timedelta(days=dd)).isoformat()
+        for _ in range((dd % 3) + 3):
+            m.bump_usage("gemini", day)
+        if dd % 2 == 0:
+            m.bump_usage("groq", day)
+        if dd % 5 == 0:
+            m.bump_usage("openrouter", day)
+        if dd % 7 == 0:
+            m.bump_usage("ollama", day)
+
+    # Activity log — varied action types (counts drive the "por tipo" chart)
+    for action, label, n in [
+        ("task.done", "tarefa concluída", 9), ("expense.new", "gasto registrado", 7),
+        ("habit.done", "hábito marcado", 12), ("reminder.new", "lembrete criado", 5),
+        ("journal.new", "entrada no diário", 3), ("fact.new", "memória salva", 4),
+        ("link.new", "link salvo", 2),
+    ]:
+        for _ in range(n):
+            m.log_activity(u, action, label)
+
+    # Memory growth: extra facts backdated across the period
+    for fact in [
+        "Trabalho melhor de manhã cedo.", "Prefiro reuniões curtas.",
+        "Meta: economizar para a viagem.", "Gosto de chá verde à tarde.",
+        "Quero aprender a tocar violão.", "Assisto documentários aos domingos.",
+    ]:
+        m.add_fact(u, fact)
+    _fids = [r[0] for r in m._conn.execute(
+        "SELECT id FROM facts WHERE user_id=? ORDER BY id DESC LIMIT 6", (u,)).fetchall()]
+    for offset, fid in zip([1, 3, 6, 9, 11, 13], _fids):
+        m._conn.execute("UPDATE facts SET created=? WHERE id=?", (_ts(offset), fid))
+
+    # Mark some tasks completed across recent days (created-vs-done chart)
+    _tids = [r[0] for r in m._conn.execute(
+        "SELECT id FROM tasks WHERE user_id=? ORDER BY id LIMIT 4", (u,)).fetchall()]
+    for i, tid in enumerate(_tids):
+        m._conn.execute("UPDATE tasks SET done=1, done_at=? WHERE id=?",
+                        (_ts(i * 2 + 1, 17), tid))
+
+    m._conn.commit()
+
 
 # --- Stub brain (no network) ---------------------------------------------
 class _StubBrain:
@@ -382,7 +450,9 @@ def capture(port: int, names: list[str], headed: bool) -> dict[str, str]:
                     results[name] = "skipped (no dedicated view in current UI)"
                     continue
                 _navigate(page, name, view)
-                png = page.screenshot(type="png")
+                # graf scrolls internally and is expanded in _navigate, so grab
+                # the whole page to include every chart.
+                png = page.screenshot(type="png", full_page=(name == "graf"))
                 ok, note = _is_faithful(png)
                 if ok:
                     (_SHOTS / f"{name}.png").write_bytes(png)
@@ -426,9 +496,26 @@ def _navigate(page, name: str, view: str) -> None:
         page.evaluate("() => applyBnd(true)")
         page.wait_for_timeout(1000)   # let the blue theme settle
         return
+    if view == "graf":
+        page.evaluate("() => switchView('graf')")
+        page.wait_for_timeout(1800)   # let Chart.js draw all charts
+        # #chartsview scrolls internally; expand it (and unclip parents) so a
+        # full-page screenshot captures every chart, not just the first ones.
+        page.evaluate("""() => {
+          const cv = document.getElementById('chartsview');
+          if (cv) { cv.style.height='auto'; cv.style.maxHeight='none'; cv.style.overflow='visible'; }
+          for (const id of ['center','app']) {
+            const el = document.getElementById(id);
+            if (el) { el.style.height='auto'; el.style.overflow='visible'; }
+          }
+          document.body.style.height='auto'; document.body.style.overflow='visible';
+          document.documentElement.style.height='auto';
+        }""")
+        page.wait_for_timeout(500)
+        return
     page.evaluate(f"() => switchView('{view}')")
-    # brain/graf render on canvas with animations; give them extra settle time.
-    page.wait_for_timeout(1800 if view in ("brain", "graf", "map") else 1000)
+    # brain renders on canvas with animations; give it extra settle time.
+    page.wait_for_timeout(1800 if view in ("brain", "map") else 1000)
 
 
 # --- CLI ------------------------------------------------------------------

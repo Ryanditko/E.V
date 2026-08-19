@@ -20,6 +20,19 @@ class SettingsMixin:
         ).fetchall()
         return {r["provider"]: r["n"] for r in rows}
 
+    def usage_between(self, from_day: str, to_day: str) -> dict:
+        """Total AI-provider calls per provider across [from_day, to_day]
+        (inclusive; `day` is a YYYY-MM-DD date string). {provider: total}."""
+        try:
+            rows = self._conn.execute(
+                "SELECT provider, SUM(n) AS total FROM usage_log "
+                "WHERE day >= ? AND day <= ? GROUP BY provider",
+                (from_day, to_day),
+            ).fetchall()
+            return {r["provider"]: int(r["total"] or 0) for r in rows}
+        except Exception:
+            return {}
+
     def get_setting(self, key: str) -> str | None:
         row = self._conn.execute(
             "SELECT value FROM settings WHERE key = ?", (key,)

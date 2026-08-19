@@ -157,6 +157,28 @@ class TasksMixin:
         self._conn.commit()
         return cur.rowcount > 0
 
+    def tasks_per_day(self, user_id: str, frm_iso: str, to_iso: str) -> dict:
+        """Tasks created vs completed per day in [frm_iso, to_iso).
+        Returns {"created": {day: n}, "completed": {day: n}}."""
+        out = {"created": {}, "completed": {}}
+        try:
+            for r in self._conn.execute(
+                "SELECT substr(created, 1, 10) AS d, COUNT(*) AS n FROM tasks "
+                "WHERE user_id = ? AND created >= ? AND created < ? GROUP BY d",
+                (user_id, frm_iso, to_iso),
+            ).fetchall():
+                out["created"][r["d"]] = int(r["n"])
+            for r in self._conn.execute(
+                "SELECT substr(done_at, 1, 10) AS d, COUNT(*) AS n FROM tasks "
+                "WHERE user_id = ? AND done = 1 AND done_at IS NOT NULL "
+                "AND done_at >= ? AND done_at < ? GROUP BY d",
+                (user_id, frm_iso, to_iso),
+            ).fetchall():
+                out["completed"][r["d"]] = int(r["n"])
+        except Exception:
+            pass
+        return out
+
     def tasks_completed_since(self, user_id: str, since_iso: str) -> int:
         row = self._conn.execute(
             "SELECT COUNT(*) AS n FROM tasks "
