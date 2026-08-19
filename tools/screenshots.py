@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Reusable screenshot harness for E.V.'s web console.
 
-Seeds a fresh, disposable SQLite DB with fictional PT-BR demo data, boots the
+Seeds a fresh, disposable SQLite DB with fictional English demo data, boots the
 real FastAPI web app in-process (behind uvicorn, with a lightweight stub brain
 so no network / API keys are needed), then drives a headless Chromium via
 Playwright to capture each screen into ``docs/screenshots/<name>.png`` — using
@@ -124,7 +124,7 @@ VIEWPORT = {"width": 1440, "height": 900}   # matches the existing committed set
 
 # --- Demo data ------------------------------------------------------------
 def seed_demo(db_path: Path) -> None:
-    """Insert fictional PT-BR demo data across every local domain."""
+    """Insert fictional English demo data across every local domain."""
     from ev.core.memory import Memory
 
     m = Memory(db_path)
@@ -136,121 +136,121 @@ def seed_demo(db_path: Path) -> None:
         return d.replace(hour=hour, minute=minute, second=0, microsecond=0).isoformat()
 
     # Tasks (a few categories, one recurring)
-    m.add_task(u, "Estudar cálculo — capítulo 4", "faculdade")
-    m.add_task(u, "Comprar presente da Ana", "pessoal")
-    m.add_task(u, "Revisar relatório do projeto", "trabalho")
-    m.add_task(u, "Treino de força", "saúde", recur="daily", due=iso(0, 18))
-    m.add_task(u, "Pagar conta de luz", "casa")
-    m.add_task(u, "Ler 10 páginas", "pessoal", recur="daily")
+    m.add_task(u, "Study calculus — chapter 4", "college")
+    m.add_task(u, "Buy Ana's gift", "personal")
+    m.add_task(u, "Review project report", "work")
+    m.add_task(u, "Strength training", "health", recur="daily", due=iso(0, 18))
+    m.add_task(u, "Pay electricity bill", "home")
+    m.add_task(u, "Read 10 pages", "personal", recur="daily")
 
     # Reminders (future-dated)
-    m.add_reminder(u, "Consulta no dentista", iso(2, 14, 30))
-    m.add_reminder(u, "Ligar para a operadora", iso(1, 10))
-    m.add_reminder(u, "Backup do computador", iso(5, 21), recur="weekly")
-    m.add_reminder(u, "Reunião de alinhamento", iso(0, 16))
+    m.add_reminder(u, "Dentist appointment", iso(2, 14, 30))
+    m.add_reminder(u, "Call the phone carrier", iso(1, 10))
+    m.add_reminder(u, "Back up the computer", iso(5, 21), recur="weekly")
+    m.add_reminder(u, "Alignment meeting", iso(0, 16))
 
     # Habits with a spread of daily logs (for the heatmap/streak)
     for hname, done_days in [
-        ("Beber 2L de água", range(0, 12)),
-        ("Meditar 10 min", [0, 1, 2, 4, 5, 7, 8]),
-        ("Ler antes de dormir", [0, 1, 3, 4, 6, 9, 10]),
-        ("Caminhar 30 min", [0, 2, 3, 5, 6, 8]),
+        ("Drink 2L of water", range(0, 12)),
+        ("Meditate 10 min", [0, 1, 2, 4, 5, 7, 8]),
+        ("Read before bed", [0, 1, 3, 4, 6, 9, 10]),
+        ("Walk 30 min", [0, 2, 3, 5, 6, 8]),
     ]:
         hid = m.add_habit(u, hname)
         for dd in done_days:
             m.log_habit(hid, (today - timedelta(days=dd)).isoformat())
 
     # Journal
-    m.add_journal(u, "Dia produtivo — terminei o relatório e ainda treinei. "
-                     "Amanhã foco nos estudos.")
-    m.add_journal(u, "Um pouco cansado hoje, mas mantive os hábitos. "
-                     "Consegui ler antes de dormir.")
-    m.add_journal(u, "Ótima conversa com a Ana sobre a viagem de fim de ano.")
+    m.add_journal(u, "Productive day — finished the report and still trained. "
+                     "Tomorrow I focus on studying.")
+    m.add_journal(u, "A little tired today, but kept up the habits. "
+                     "Managed to read before bed.")
+    m.add_journal(u, "Great chat with Ana about the end-of-year trip.")
 
     # Expenses (spread across categories and recent days)
     expenses = [
-        (87.90, "Mercado", "comida"), (32.50, "Almoço no trabalho", "comida"),
-        (19.90, "Café da tarde", "comida"), (120.00, "Farmácia", "saúde"),
-        (54.00, "Uber", "transporte"), (39.90, "Livro novo", "lazer"),
-        (210.00, "Conta de luz", "casa"), (45.00, "Cinema com amigos", "lazer"),
-        (28.00, "Padaria", "comida"), (65.00, "Presente", "pessoal"),
+        (87.90, "Groceries", "food"), (32.50, "Lunch at work", "food"),
+        (19.90, "Afternoon coffee", "food"), (120.00, "Pharmacy", "health"),
+        (54.00, "Ride share", "transport"), (39.90, "New book", "leisure"),
+        (210.00, "Electricity bill", "home"), (45.00, "Movies with friends", "leisure"),
+        (28.00, "Bakery", "food"), (65.00, "Gift", "personal"),
     ]
     for amt, desc, cat in expenses:
         m.add_expense(u, amt, desc, cat)
 
     # Budgets (orçamentos)
-    m.set_budget(u, "comida", 800.0)
-    m.set_budget(u, "lazer", 300.0)
-    m.set_budget(u, "transporte", 250.0)
-    m.set_budget(u, "casa", 900.0)
+    m.set_budget(u, "food", 800.0)
+    m.set_budget(u, "leisure", 300.0)
+    m.set_budget(u, "transport", 250.0)
+    m.set_budget(u, "home", 900.0)
 
     # Recurring expenses (assinaturas)
-    m.add_recurring(u, 39.90, "Streaming de vídeo", "lazer", 15)
-    m.add_recurring(u, 21.90, "Streaming de música", "lazer", 5)
-    m.add_recurring(u, 29.90, "Academia", "saúde", 10)
-    m.add_recurring(u, 9.90, "Armazenamento na nuvem", "trabalho", 20)
+    m.add_recurring(u, 39.90, "Video streaming", "leisure", 15)
+    m.add_recurring(u, 21.90, "Music streaming", "leisure", 5)
+    m.add_recurring(u, 29.90, "Gym membership", "health", 10)
+    m.add_recurring(u, 9.90, "Cloud storage", "work", 20)
 
     # Goals (metas / cofrinho)
-    g1 = m.add_goal(u, "Viagem de fim de ano", 4000.0)
+    g1 = m.add_goal(u, "End-of-year trip", 4000.0)
     m.add_to_goal(u, g1, 1750.0)
-    g2 = m.add_goal(u, "Notebook novo", 6000.0)
+    g2 = m.add_goal(u, "New laptop", 6000.0)
     m.add_to_goal(u, g2, 2400.0)
-    g3 = m.add_goal(u, "Reserva de emergência", 10000.0)
+    g3 = m.add_goal(u, "Emergency fund", 10000.0)
     m.add_to_goal(u, g3, 6800.0)
 
     # Links
     for cat, name, url in [
-        ("dev", "Documentação Python", "https://docs.python.org"),
-        ("dev", "Repositório do projeto", "https://github.com"),
-        ("estudos", "Curso de cálculo", "https://exemplo.edu/calculo"),
-        ("lazer", "Lista de filmes", "https://exemplo.com/filmes"),
-        ("trabalho", "Painel de métricas", "https://exemplo.com/metricas"),
+        ("dev", "Python documentation", "https://docs.python.org"),
+        ("dev", "Project repository", "https://github.com"),
+        ("study", "Calculus course", "https://example.edu/calculus"),
+        ("leisure", "Movie watchlist", "https://example.com/movies"),
+        ("work", "Metrics dashboard", "https://example.com/metrics"),
     ]:
         m.add_link(u, cat, name, url)
 
     # Knowledge base (notes/chunks) — no embeddings needed for the list view
     for src, chunk in [
-        ("Anotações de cálculo.pdf", "Regra da cadeia e derivadas de funções compostas."),
-        ("Anotações de cálculo.pdf", "Integração por partes e substituição."),
-        ("Resumo do projeto.md", "Objetivos, escopo e cronograma do trimestre."),
-        ("Receitas favoritas.txt", "Macarrão ao alho e óleo, bolo de cenoura."),
+        ("Calculus notes.pdf", "Chain rule and derivatives of composite functions."),
+        ("Calculus notes.pdf", "Integration by parts and substitution."),
+        ("Project summary.md", "Objectives, scope and timeline for the quarter."),
+        ("Favorite recipes.txt", "Garlic and olive oil pasta, carrot cake."),
     ]:
         m.add_chunk(u, src, chunk, None)
         m.save_kb_file(u, src, src, "application/octet-stream", chunk.encode("utf-8"))
 
     # Facts / long-term memories
     for fact in [
-        "Prefiro café sem açúcar de manhã.",
-        "Faço faculdade de engenharia à noite.",
-        "Aniversário da Ana é em dezembro.",
-        "Gosto de correr aos sábados de manhã.",
-        "Meu objetivo do ano é ler 24 livros.",
+        "I prefer coffee without sugar in the morning.",
+        "I study engineering in evening classes.",
+        "Ana's birthday is in December.",
+        "I like to run on Saturday mornings.",
+        "My goal for the year is to read 24 books.",
     ]:
         m.add_fact(u, fact)
 
     # People (relationships)
-    m.add_person(u, "Ana", "Melhor amiga, adora viajar.", birthday="12/12")
-    m.add_person(u, "Bruno", "Colega de faculdade, dupla de estudos.", birthday="03/05")
-    m.add_person(u, "Carla", "Irmã, mora em outra cidade.", birthday="27/08")
+    m.add_person(u, "Ana", "Best friend, loves to travel.", birthday="12/12")
+    m.add_person(u, "Bruno", "College classmate, study partner.", birthday="03/05")
+    m.add_person(u, "Carla", "Sister, lives in another city.", birthday="27/08")
 
     # Web watches (monitores)
-    m.add_watch(u, "https://exemplo.com/promocoes", "desconto")
-    m.add_watch(u, "https://exemplo.com/vagas", "estágio")
+    m.add_watch(u, "https://example.com/deals", "discount")
+    m.add_watch(u, "https://example.com/jobs", "internship")
 
     # Health & routine (for the saúde view + dashboard card)
     for dd in range(0, 10):
         day = (today - timedelta(days=dd)).isoformat()
         m.health_set(u, day, "water", (dd % 4) + 5)
         m.health_set(u, day, "sleep", round(6.5 + (dd % 3) * 0.5, 1))
-        m.health_set(u, day, "mood", ["ótimo", "bem", "ok"][dd % 3])
+        m.health_set(u, day, "mood", ["great", "good", "ok"][dd % 3])
 
     # Vault documents (cofre) — tiny fake blobs, clearly demo
-    m.add_document(u, "Contrato de aluguel.pdf", "application/pdf",
-                   b"%PDF-1.4 demo", "Contrato de aluguel — demonstração.")
-    m.add_document(u, "RG digitalizado.png", "image/png",
-                   b"\x89PNG\r\n\x1a\n demo", "Documento de identidade (demo).")
-    m.add_document(u, "Comprovante.pdf", "application/pdf",
-                   b"%PDF-1.4 demo", "Comprovante de pagamento (demo).")
+    m.add_document(u, "Lease agreement.pdf", "application/pdf",
+                   b"%PDF-1.4 demo", "Lease agreement — demonstration.")
+    m.add_document(u, "Scanned ID.png", "image/png",
+                   b"\x89PNG\r\n\x1a\n demo", "Identity document (demo).")
+    m.add_document(u, "Receipt.pdf", "application/pdf",
+                   b"%PDF-1.4 demo", "Payment receipt (demo).")
 
     # --- Data for the NEW charts (interactions, provider usage, activity,
     #     tasks created-vs-done, memory growth). Backdated via direct SQL so
@@ -261,11 +261,11 @@ def seed_demo(db_path: Path) -> None:
 
     # Interactions: a two-week chat rhythm (you <-> E.V.)
     _pairs = [
-        ("Bom dia, E.V.", "Bom dia! Pronto pra mais um dia produtivo?"),
-        ("Quais minhas tarefas de hoje?", "Você tem 6 tarefas — quer que eu priorize?"),
-        ("Adiciona um lembrete pra ligar pra operadora", "Feito! Lembrete criado."),
-        ("Quanto gastei esse mês?", "Até agora R$ 702,20 — maior categoria: casa."),
-        ("Resume meu dia", "Você concluiu 3 tarefas e bateu todos os hábitos."),
+        ("Good morning, E.V.", "Good morning! Ready for another productive day?"),
+        ("What are my tasks today?", "You have 6 tasks — want me to prioritize them?"),
+        ("Add a reminder to call the phone carrier", "Done! Reminder created."),
+        ("How much did I spend this month?", "So far $702.20 — biggest category: home."),
+        ("Summarize my day", "You completed 3 tasks and hit all your habits."),
     ]
     for dd in range(14, -1, -1):
         for k in range((dd % 3) + 1):
@@ -291,19 +291,19 @@ def seed_demo(db_path: Path) -> None:
 
     # Activity log — varied action types (counts drive the "por tipo" chart)
     for action, label, n in [
-        ("task.done", "tarefa concluída", 9), ("expense.new", "gasto registrado", 7),
-        ("habit.done", "hábito marcado", 12), ("reminder.new", "lembrete criado", 5),
-        ("journal.new", "entrada no diário", 3), ("fact.new", "memória salva", 4),
-        ("link.new", "link salvo", 2),
+        ("task.done", "task completed", 9), ("expense.new", "expense logged", 7),
+        ("habit.done", "habit checked", 12), ("reminder.new", "reminder created", 5),
+        ("journal.new", "journal entry", 3), ("fact.new", "memory saved", 4),
+        ("link.new", "link saved", 2),
     ]:
         for _ in range(n):
             m.log_activity(u, action, label)
 
     # Memory growth: extra facts backdated across the period
     for fact in [
-        "Trabalho melhor de manhã cedo.", "Prefiro reuniões curtas.",
-        "Meta: economizar para a viagem.", "Gosto de chá verde à tarde.",
-        "Quero aprender a tocar violão.", "Assisto documentários aos domingos.",
+        "I work best early in the morning.", "I prefer short meetings.",
+        "Goal: save up for the trip.", "I like green tea in the afternoon.",
+        "I want to learn to play guitar.", "I watch documentaries on Sundays.",
     ]:
         m.add_fact(u, fact)
     _fids = [r[0] for r in m._conn.execute(
@@ -333,17 +333,17 @@ class _StubBrain:
     async def respond(self, owner, conv_id=None, text=None, image=None, image_mime=None):
         self.last = (owner, conv_id, text)
         if image:
-            return "Recebi a imagem (demo)."
-        return f"Claro! Aqui está o que encontrei sobre: {text}"
+            return "Got the image (demo)."
+        return f"Sure! Here is what I found about: {text}"
 
     def current_model(self):
         return "gemini-flash-latest"
 
     async def ask(self, system, prompt):
-        return "Resposta de demonstração."
+        return "Demonstration response."
 
     async def transcribe(self, audio, mime):
-        return "texto transcrito (demo)"
+        return "transcribed text (demo)"
 
     def pop_documents(self):
         return []
@@ -480,7 +480,7 @@ def _navigate(page, name: str, view: str) -> None:
         page.evaluate("() => openTerminal()")
         page.wait_for_selector(".eterm", timeout=5000)
         # Type a friendly prompt so the terminal shows a real exchange.
-        page.fill(".eterm input", "Resuma minhas tarefas de hoje")
+        page.fill(".eterm input", "Summarize my tasks for today")
         page.press(".eterm input", "Enter")
         page.wait_for_timeout(1500)
         return
