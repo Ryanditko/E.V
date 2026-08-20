@@ -946,6 +946,27 @@ _CATALOG: dict[str, dict[str, str]] = {
         "en": "couldn't get the weather right now ({exc})",
         "pt": "não consegui o clima agora ({exc})",
     },
+    "web.wx_no_city": {
+        "en": "set a city (EV_CITY) or search for one in the field above",
+        "pt": "defina uma cidade (EV_CITY) ou busque uma no campo acima",
+    },
+    "web.wx_error_city": {
+        "en": "couldn't get the weather for '{city}'",
+        "pt": "não consegui o clima de '{city}'",
+    },
+    "web.gcal_not_authorized": {"en": "Google not authorized.", "pt": "Google não autorizado."},
+    "web.gcal_missing_fields": {
+        "en": "Title or start time missing.",
+        "pt": "Faltou título ou início.",
+    },
+    "web.email_missing_fields": {
+        "en": "Fill in recipient and message.",
+        "pt": "Preencha destinatário e mensagem.",
+    },
+    "web.email_send_error": {
+        "en": "Failed to send the email: {exc}",
+        "pt": "Falha ao enviar o email: {exc}",
+    },
     "tool.wx_current": {
         "en": "{name}: {temp}°C, {desc} (min {tmin}° / max {tmax}°)",
         "pt": "{name}: {temp}°C, {desc} (min {tmin}° / máx {tmax}°)",
@@ -990,6 +1011,17 @@ _CATALOG: dict[str, dict[str, str]] = {
     "wx.code.95": {"en": "thunderstorm", "pt": "tempestade"},
     "wx.code.96": {"en": "thunderstorm with hail", "pt": "tempestade com granizo"},
     "wx.code.99": {"en": "thunderstorm with hail", "pt": "tempestade com granizo"},
+    # compass wind directions shown on the dashboard weather detail
+    "wx.dir.0": {"en": "N", "pt": "N"},
+    "wx.dir.1": {"en": "NE", "pt": "NE"},
+    "wx.dir.2": {"en": "E", "pt": "L"},
+    "wx.dir.3": {"en": "SE", "pt": "SE"},
+    "wx.dir.4": {"en": "S", "pt": "S"},
+    "wx.dir.5": {"en": "SW", "pt": "SO"},
+    "wx.dir.6": {"en": "W", "pt": "O"},
+    "wx.dir.7": {"en": "NW", "pt": "NO"},
+    # web notification-center title for the daily rain alert
+    "notif.rain_title": {"en": "🌧️ Rain alert", "pt": "🌧️ Alerta de chuva"},
 }
 
 # Pluralized fragments: key -> {lang: (singular, plural)}. Both en and pt use the

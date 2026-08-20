@@ -8,15 +8,6 @@ from ...core.i18n import t
 
 log = logging.getLogger("ev.tools")
 
-_WEATHER_CODES = {
-    0: "céu limpo", 1: "predominância de sol", 2: "parcialmente nublado",
-    3: "nublado", 45: "névoa", 48: "névoa gelada", 51: "garoa fraca",
-    53: "garoa", 55: "garoa forte", 61: "chuva fraca", 63: "chuva",
-    65: "chuva forte", 71: "neve fraca", 73: "neve", 75: "neve forte",
-    80: "pancadas de chuva", 81: "pancadas de chuva", 82: "temporal",
-    95: "tempestade", 96: "tempestade com granizo", 99: "tempestade com granizo",
-}
-
 
 def _weather_desc(code, lang: str = "en") -> str:
     """Localized human-readable condition for an open-meteo weather code."""
@@ -96,7 +87,7 @@ def _wicon(code: int, is_day: bool = True) -> str:
     return "cloud"
 
 
-def weather_full(city: str) -> dict:
+def weather_full(city: str, lang: str = "en") -> dict:
     """Rich structured weather for a dashboard (open-meteo, no key).
     Returns {} on failure. Current + next hours + 10-day forecast."""
     import httpx
@@ -137,12 +128,12 @@ def weather_full(city: str) -> dict:
             hh = htimes[i][11:16]
             hourly.append({"time": hh, "temp": round(htemp[i]),
                            "icon": _wicon(int(hcode[i]), day)})
-        _WD = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"]
         days = []
         dt = daily.get("time", [])
         for i in range(len(dt)):
             try:
-                lbl = "Hoje" if i == 0 else _WD[datetime.fromisoformat(dt[i]).weekday()]
+                lbl = (t(lang, "tool.wx_today") if i == 0
+                       else t(lang, f"cal.wd.{datetime.fromisoformat(dt[i]).weekday()}"))
             except Exception:
                 lbl = dt[i][5:]
             days.append({"day": lbl,
@@ -150,7 +141,7 @@ def weather_full(city: str) -> dict:
                          "max": round(daily["temperature_2m_max"][i]),
                          "icon": _wicon(int(daily["weather_code"][i]), True)})
         name = loc["name"] + (f", {loc.get('admin1')}" if loc.get("admin1") else "")
-        _DIRS = ["N", "NE", "L", "SE", "S", "SO", "O", "NO"]
+        _DIRS = [t(lang, f"wx.dir.{i}") for i in range(8)]
         wdeg = cur.get("wind_direction_10m", 0)
         uvnow = round(hcode and (r.get("hourly", {}).get("uv_index", []) or [0])[start] or 0, 1) if htimes else 0
         prob = ((r.get("hourly", {}).get("precipitation_probability", []) or [0])[start]) if htimes else 0
@@ -159,7 +150,7 @@ def weather_full(city: str) -> dict:
             "current": {
                 "temp": round(cur.get("temperature_2m", 0)),
                 "feels": round(cur.get("apparent_temperature", 0)),
-                "desc": _WEATHER_CODES.get(code, ""),
+                "desc": _weather_desc(code, lang),
                 "icon": _wicon(code, day),
                 "high": round(daily["temperature_2m_max"][0]) if dt else None,
                 "low": round(daily["temperature_2m_min"][0]) if dt else None,

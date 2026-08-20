@@ -12,6 +12,7 @@ import asyncio
 
 from fastapi import APIRouter, Request
 
+from ....core.i18n import t
 from ..context import WebContext
 
 
@@ -34,14 +35,16 @@ def build_router(ctx: WebContext) -> APIRouter:
     @router.get("/api/gcal")
     async def gcal_list(request: Request):
         ctx.check(request.headers.get("authorization"))
+        lang = ctx.memory.assistant_lang()
         if not config.google_ready() or not config.google_authorized():
-            return {"ok": False, "events": [], "msg": "Google não autorizado."}
+            return {"ok": False, "events": [], "msg": t(lang, "web.gcal_not_authorized")}
         start = request.query_params.get("start") or ""
         end = request.query_params.get("end") or ""
         from ....providers import tools
         try:
             events = await asyncio.to_thread(
-                tools.calendar_list_range, config, config.default_account, start, end)
+                tools.calendar_list_range, config, config.default_account, start, end,
+                250, lang)
             return {"ok": True, "events": events}
         except Exception as exc:
             return {"ok": False, "events": [], "msg": str(exc)}
@@ -49,12 +52,13 @@ def build_router(ctx: WebContext) -> APIRouter:
     @router.post("/api/gcal/create")
     async def gcal_create(request: Request):
         ctx.check(request.headers.get("authorization"))
+        lang = ctx.memory.assistant_lang()
         d = await ctx.body(request)
         summary = (d.get("summary") or "").strip()
         start = (d.get("start") or "").strip()
         end = (d.get("end") or "").strip()
         if not summary or not start:
-            return {"ok": False, "msg": "Faltou título ou início."}
+            return {"ok": False, "msg": t(lang, "web.gcal_missing_fields")}
         start_iso = _tz_iso(start)
         if end:
             end_iso = _tz_iso(end)
@@ -68,8 +72,9 @@ def build_router(ctx: WebContext) -> APIRouter:
         try:
             msg = await asyncio.to_thread(
                 tools.calendar_create, config, config.default_account,
-                summary, start_iso, end_iso)
-            ok = "criei" in msg.lower() or "criado" in msg.lower() or "http" in msg.lower()
+                summary, start_iso, end_iso, lang)
+            ml = msg.lower()
+            ok = "criei" in ml or "criado" in ml or "created" in ml or "http" in ml
             return {"ok": ok, "msg": msg}
         except Exception as exc:
             return {"ok": False, "msg": str(exc)}

@@ -18,6 +18,7 @@ except Exception:  # pragma: no cover
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import Application, ContextTypes
 
+from ...core.i18n import t as _t
 from ...core.timeparse import add_months
 
 log = logging.getLogger("ev.telegram")
@@ -166,7 +167,8 @@ class BackgroundLoopsMixin:
             from ...providers import tools
             events = await asyncio.to_thread(
                 tools.calendar_list_range, cfg, cfg.default_account,
-                now.isoformat(), (now + timedelta(minutes=lead)).isoformat())
+                now.isoformat(), (now + timedelta(minutes=lead)).isoformat(),
+                250, self._memory.assistant_lang())
         except Exception:
             log.warning("event alert fetch failed", exc_info=True)
             return
@@ -254,10 +256,11 @@ class BackgroundLoopsMixin:
         if now.hour == cfg.rain_hour and self._last_rain != today:
             self._last_rain = today
             from ...providers import tools
-            msg = await asyncio.to_thread(tools.rain_tomorrow, cfg.city)
+            lang = self._memory.assistant_lang()
+            msg = await asyncio.to_thread(tools.rain_tomorrow, cfg.city, lang)
             if msg:
                 await self._bot_send(app.bot, cfg.owner_id, msg, self._quick_kb())
-                self._log_notif("🌧️ Alerta de chuva", msg)
+                self._log_notif(_t(lang, "notif.rain_title"), msg)
                 log.info("Sent rain alert.")
 
     async def _maybe_run_recurring(self, app: Application) -> None:
