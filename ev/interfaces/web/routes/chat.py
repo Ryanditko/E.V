@@ -22,6 +22,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 
 from ....core.commands import COMMAND_LIST
+from ....core.i18n import t as _t
 from ..context import WebContext
 
 
@@ -37,7 +38,7 @@ def build_router(ctx: WebContext) -> APIRouter:
         try:
             return {"text": commands.spoken_status(owner)}
         except Exception:
-            return {"text": "Bem-vindo de volta, Ryan. Sistemas online, tudo pronto pra você."}
+            return {"text": _t(memory.assistant_lang(), "greeting.welcome_back", name="Ryan")}
 
     @router.get("/api/greeting")
     async def greeting(request: Request):
@@ -47,7 +48,7 @@ def build_router(ctx: WebContext) -> APIRouter:
         try:
             phrase = commands.spoken_status(owner)
         except Exception:
-            phrase = "Bem-vindo de volta, Ryan. Sistemas online, tudo pronto pra você."
+            phrase = _t(memory.assistant_lang(), "greeting.welcome_back", name="Ryan")
         try:
             audio, mime = await voice_mod.synth_web(config, phrase)
         except Exception:

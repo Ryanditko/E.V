@@ -6,6 +6,8 @@ Extract-and-recompose: logic moved verbatim from
 
 from fastapi import APIRouter, Request
 
+from ....core.i18n import plural as _plural
+from ....core.i18n import t as _t
 from ..context import WebContext
 
 
@@ -16,19 +18,24 @@ def build_router(ctx: WebContext) -> APIRouter:
     @router.get("/api/notifications")
     async def notifs_list(request: Request):
         ctx.check(request.headers.get("authorization"))
+        lang = memory.assistant_lang()
         alerts = []
         for s in commands.subscriptions_due(owner):
             alerts.append({
                 "id": f"sub-{s['id']}", "ephemeral": True, "kind": "sub",
-                "title": "Assinatura vencendo em breve",
-                "body": f"{s['description']} — R$ {s['amount']:.2f} · vence em "
-                        f"{s['days_until']} dia{'s' if s['days_until'] != 1 else ''}",
+                "title": _t(lang, "notif.sub_due_title"),
+                "body": _t(lang, "notif.sub_due_body",
+                           description=s["description"], amount=f"{s['amount']:.2f}",
+                           days=_plural(lang, "count.days", s["days_until"])),
             })
         for b in commands.budget_alerts(owner):
             alerts.append({
                 "id": f"bud-{b['category']}", "ephemeral": True, "kind": "budget",
-                "title": "Orçamento estourado" if b["level"] == "over" else "Orçamento perto do limite",
-                "body": f"{b['category']}: R$ {b['spent']:.2f} de R$ {b['amount']:.2f} ({b['pct']}%)",
+                "title": _t(lang, "notif.budget_over_title") if b["level"] == "over"
+                else _t(lang, "notif.budget_warn_title"),
+                "body": _t(lang, "notif.budget_body", category=b["category"],
+                           spent=f"{b['spent']:.2f}", amount=f"{b['amount']:.2f}",
+                           pct=b["pct"]),
             })
         return {"items": alerts + memory.list_notifications(owner),
                 "unread": len(alerts) + memory.unread_notifications(owner)}

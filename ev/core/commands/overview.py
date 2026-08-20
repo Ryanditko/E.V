@@ -12,20 +12,23 @@ except Exception:  # pragma: no cover
     ZoneInfo = None  # type: ignore
 
 from ...providers import tools as tools_mod
+from ..i18n import plural as _plural
+from ..i18n import t as _t
 
 
 class OverviewMixin:
     def daily_briefing(self, user_id: str) -> str:
-        parts = ["Bom dia! Aqui vai seu resumo de hoje:"]
+        lang = self._memory.assistant_lang()
+        parts = [_t(lang, "brief.good_morning")]
 
         tasks = self._memory.open_tasks(user_id)
         if tasks:
-            parts.append("\nTarefas em aberto:")
+            parts.append("\n" + _t(lang, "brief.open_tasks"))
             parts += [f"- {t['text']}" for t in tasks]
 
         reminders = self._memory.open_reminders(user_id)
         if reminders:
-            parts.append("\nLembretes:")
+            parts.append("\n" + _t(lang, "brief.reminders"))
             for r in reminders:
                 when = ""
                 if r["when_iso"]:
@@ -36,7 +39,7 @@ class OverviewMixin:
                 parts.append(f"- {r['text']}{when}")
 
         if self._config.google_authorized():
-            parts.append("\nAgenda:")
+            parts.append("\n" + _t(lang, "brief.calendar"))
             parts.append(
                 tools_mod.calendar_upcoming(
                     self._config, self._config.default_account, max_results=5
@@ -48,7 +51,7 @@ class OverviewMixin:
             low = unread.lower()
             if ("nenhum" not in low and "não consegui" not in low
                     and "não configurada" not in low):
-                parts.append("\nE-mails não lidos:")
+                parts.append("\n" + _t(lang, "brief.unread_emails"))
                 parts.append(unread)
 
         try:
@@ -58,17 +61,17 @@ class OverviewMixin:
             mmdd = datetime.now(timezone.utc).strftime("%m-%d")
         bdays = self._memory.birthdays_on(user_id, mmdd)
         if bdays:
-            parts.append("\nAniversários hoje:")
+            parts.append("\n" + _t(lang, "brief.birthdays_today"))
             parts += [f"- {p['name']} 🎂" for p in bdays]
 
         if len(parts) == 1:
-            parts.append("Nada na lista. Dia livre — aproveita!")
+            parts.append(_t(lang, "brief.nothing"))
 
         if self._config.city:
-            parts.append("\nClima:")
+            parts.append("\n" + _t(lang, "brief.weather"))
             parts.append(tools_mod.weather(self._config.city))
         if self._config.news_topic:
-            parts.append("\nNotícias:")
+            parts.append("\n" + _t(lang, "brief.news"))
             parts.append(
                 tools_mod.news(
                     self._config.news_topic,
@@ -188,27 +191,35 @@ class OverviewMixin:
             now = datetime.now(tz)
         except Exception:
             now = datetime.now(timezone.utc)
-        saud = "Bom dia" if now.hour < 12 else ("Boa tarde" if now.hour < 18 else "Boa noite")
-        parts = [f"{saud}, Ryan."]
+        lang = self._memory.assistant_lang()
+        if now.hour < 12:
+            saud = _t(lang, "greeting.morning")
+        elif now.hour < 18:
+            saud = _t(lang, "greeting.afternoon")
+        else:
+            saud = _t(lang, "greeting.evening")
+        parts = [_t(lang, "greeting.hello", greeting=saud, name="Ryan")]
         nt = len(self._memory.open_tasks(user_id))
         nr = len(self._memory.open_reminders(user_id))
         if nt or nr:
             bits = []
             if nt:
-                bits.append(f"{nt} tarefa" + ("s" if nt != 1 else ""))
+                bits.append(_plural(lang, "count.tasks", nt))
             if nr:
-                bits.append(f"{nr} lembrete" + ("s" if nr != 1 else ""))
-            parts.append("Hoje você tem " + " e ".join(bits) + ".")
+                bits.append(_plural(lang, "count.reminders", nr))
+            joiner = " " + _t(lang, "join.and") + " "
+            parts.append(_t(lang, "greeting.today_you_have", bits=joiner.join(bits)))
         else:
-            parts.append("Sua agenda está tranquila.")
+            parts.append(_t(lang, "greeting.schedule_clear"))
         try:
             mmdd = now.strftime("%m-%d")
             bdays = self._memory.birthdays_on(user_id, mmdd)
             if bdays:
-                parts.append("Hoje é aniversário de " + ", ".join(p["name"] for p in bdays) + ".")
+                parts.append(_t(lang, "greeting.birthday_today",
+                                names=", ".join(p["name"] for p in bdays)))
         except Exception:
             pass
-        parts.append("Sistemas online. Tudo pronto pra você.")
+        parts.append(_t(lang, "greeting.systems_online"))
         return " ".join(parts)
 
     def open_loops(self, user_id: str, now=None) -> dict:
