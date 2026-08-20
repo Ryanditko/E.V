@@ -121,6 +121,14 @@ NO_VIEW = {"pessoas"}
 
 VIEWPORT = {"width": 1440, "height": 900}   # matches the existing committed set
 
+# Phone viewport for the mobile screenshot set (docs/screenshots/mobile/). The
+# app's responsive layout kicks in at <=980px (see `mob()` in the frontend), so
+# this triggers the mobile chrome / bottom-sheet nav. Retina scale for crisp PNGs.
+MOBILE_VIEWPORT = {"width": 390, "height": 844}
+MOBILE_SCALE = 3
+# The subset the README's "On your phone" section references, by filename.
+MOBILE_SCREENS = ["dashboard", "chat", "tasks", "expenses", "map", "musica"]
+
 
 # --- Demo data ------------------------------------------------------------
 def seed_demo(db_path: Path) -> None:
@@ -414,18 +422,23 @@ def _is_faithful(png: bytes) -> tuple[bool, str]:
 
 
 # --- Capture --------------------------------------------------------------
-def capture(port: int, names: list[str], headed: bool) -> dict[str, str]:
+def capture(port: int, names: list[str], headed: bool, mobile: bool = False) -> dict[str, str]:
     from playwright.sync_api import sync_playwright
 
     base = f"http://127.0.0.1:{port}/"
     results: dict[str, str] = {}
-    _SHOTS.mkdir(parents=True, exist_ok=True)
+    out_dir = (_SHOTS / "mobile") if mobile else _SHOTS
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    if mobile:
+        ctx_opts = dict(viewport=MOBILE_VIEWPORT, device_scale_factor=MOBILE_SCALE,
+                        is_mobile=True, has_touch=True)
+    else:
+        ctx_opts = dict(viewport=VIEWPORT, device_scale_factor=1)
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=not headed)
-        context = browser.new_context(
-            viewport=VIEWPORT, device_scale_factor=1,
-        )
+        context = browser.new_context(**ctx_opts)
         # Log in silently + skip the one-time welcome overlay, before page JS runs.
         context.add_init_script(
             f"try{{localStorage.setItem('ev_token','{TOKEN}');"
@@ -453,7 +466,7 @@ def capture(port: int, names: list[str], headed: bool) -> dict[str, str]:
                 png = page.screenshot(type="png")
                 ok, note = _is_faithful(png)
                 if ok:
-                    (_SHOTS / f"{name}.png").write_bytes(png)
+                    (out_dir / f"{name}.png").write_bytes(png)
                     results[name] = f"regenerated — {note}"
                 else:
                     results[name] = f"DISCARDED, left unchanged — {note}"
@@ -525,6 +538,9 @@ def main() -> None:
                     help="comma-separated subset of screen names to capture")
     ap.add_argument("--include-external", action="store_true",
                     help="also try clima/cal/map/musica (need external keys; may be discarded)")
+    ap.add_argument("--mobile", action="store_true",
+                    help="capture the phone-viewport set into docs/screenshots/mobile/ "
+                         f"(default screens: {', '.join(MOBILE_SCREENS)})")
     ap.add_argument("--keep-db", action="store_true",
                     help="keep the seeded demo DB instead of deleting it afterwards")
     ap.add_argument("--headed", action="store_true",
@@ -546,6 +562,10 @@ def main() -> None:
         bad = [n for n in names if n not in SCREENS]
         if bad:
             sys.exit(f"unknown screen(s): {', '.join(bad)}")
+    elif args.mobile:
+        # The fixed "On your phone" set. map/musica are external-API screens:
+        # captured for their English chrome; discarded if they fail verification.
+        names = list(MOBILE_SCREENS)
     else:
         names = [n for n in SCREENS if n not in NO_VIEW
                  and (args.include_external or n not in EXTERNAL)]
@@ -554,8 +574,9 @@ def main() -> None:
     print(f"[web] booting app on 127.0.0.1:{port} …")
     start_server(port)
 
-    print(f"[shots] capturing {len(names)} screen(s) …")
-    results = capture(port, names, args.headed)
+    dest = "docs/screenshots/mobile/" if args.mobile else "docs/screenshots/"
+    print(f"[shots] capturing {len(names)} {'mobile ' if args.mobile else ''}screen(s) -> {dest} …")
+    results = capture(port, names, args.headed, mobile=args.mobile)
 
     print("\n=== coverage ===")
     for name in SCREENS:
