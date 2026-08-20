@@ -11,11 +11,12 @@ from ..timeparse import parse_when
 
 class GoogleIntegrationMixin:
     def agenda(self, argstr: str = "") -> str:
+        lang = self._memory.assistant_lang()
         if not self._google_ready():
-            return _t(self._memory.assistant_lang(), "gcal.not_configured_cal")
+            return _t(lang, "gcal.not_configured_cal")
         account, _ = self._resolve_account(argstr)
         header = f"[{account}]\n" if len(self._config.google_accounts) > 1 else ""
-        return header + tools_mod.calendar_upcoming(self._config, account)
+        return header + tools_mod.calendar_upcoming(self._config, account, lang=lang)
 
     def evento(self, argstr: str) -> str:
         lang = self._memory.assistant_lang()
@@ -27,7 +28,8 @@ class GoogleIntegrationMixin:
             return _t(lang, "gcal.event_usage")
         end = when + timedelta(hours=1)
         return tools_mod.calendar_create(
-            self._config, account, title.strip(), when.isoformat(), end.isoformat()
+            self._config, account, title.strip(), when.isoformat(), end.isoformat(),
+            lang=lang,
         )
 
     def email(self, argstr: str) -> str:
@@ -39,9 +41,10 @@ class GoogleIntegrationMixin:
         if len(parts) != 3 or not all(parts):
             return _t(lang, "gcal.email_usage")
         to, subject, body = parts
-        return tools_mod.send_email(self._config, account, to, subject, body)
+        return tools_mod.send_email(self._config, account, to, subject, body, lang=lang)
 
     def emails(self, argstr: str = "") -> str:
+        lang = self._memory.assistant_lang()
         if not self._config.imap_ready():
-            return _t(self._memory.assistant_lang(), "gcal.imap_not_configured")
-        return tools_mod.inbox_summary(self._config, "", argstr.strip())
+            return _t(lang, "gcal.imap_not_configured")
+        return tools_mod.inbox_summary(self._config, "", argstr.strip(), lang=lang)

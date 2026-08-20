@@ -16,6 +16,7 @@ class SearchNewsWeatherMixin:
             query,
             brave_key=getattr(self._config, "brave_api_key", ""),
             tavily_key=getattr(self._config, "tavily_api_key", ""),
+            lang=lang,
         )
 
     def procurar(self, user_id: str, argstr: str) -> str:
@@ -49,7 +50,7 @@ class SearchNewsWeatherMixin:
         lang = self._memory.assistant_lang()
         topic = argstr.strip() or getattr(self._config, "news_topic", "") or "Brasil"
         out = tools_mod.news(
-            topic, tavily_key=getattr(self._config, "tavily_api_key", "")
+            topic, tavily_key=getattr(self._config, "tavily_api_key", ""), lang=lang
         )
         parts = [_t(lang, "snw.news_title", topic=topic), out]
         tab = tools_mod.tabnews(5)
@@ -63,4 +64,4 @@ class SearchNewsWeatherMixin:
         city = argstr.strip() or getattr(self._config, "city", "")
         if not city:
             return _t(lang, "snw.clima_usage")
-        return tools_mod.weather_forecast(city)
+        return tools_mod.weather_forecast(city, lang=lang)

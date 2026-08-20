@@ -30,6 +30,9 @@ class ToolsMixin:
         """Tools bound to THIS user. Used by Gemini (Python funcs) and Groq
         (function-calling dispatch)."""
         cfg = self._config
+        # Assistant language, bound here so provider tool results/errors follow
+        # it. This is an INTERNAL detail — never exposed as an LLM tool argument.
+        lang = self._memory.assistant_lang()
 
         def salvar_memoria(fato: str) -> str:
             """Guarda um fato duradouro sobre o usuário (nome, preferências,
@@ -159,7 +162,7 @@ class ToolsMixin:
             Args:
                 cidade: nome da cidade (ex: São Paulo).
             """
-            return tools_mod.weather_forecast(cidade or cfg.city or "São Paulo")
+            return tools_mod.weather_forecast(cidade or cfg.city or "São Paulo", lang=lang)
 
         def consultar_noticias(assunto: str) -> str:
             """Busca as notícias mais recentes (últimos dias) sobre um assunto.
@@ -168,7 +171,7 @@ class ToolsMixin:
             Args:
                 assunto: tema das notícias (ex: tecnologia, Brasil, futebol).
             """
-            return tools_mod.news(assunto or cfg.news_topic or "Brasil", tavily_key=cfg.tavily_api_key)
+            return tools_mod.news(assunto or cfg.news_topic or "Brasil", tavily_key=cfg.tavily_api_key, lang=lang)
 
         def criar_documento(
             conteudo: str,
@@ -567,6 +570,7 @@ class ToolsMixin:
                     consulta,
                     brave_key=self._config.brave_api_key,
                     tavily_key=self._config.tavily_api_key,
+                    lang=lang,
                 )
 
             callables["buscar_web"] = buscar_web
@@ -574,7 +578,7 @@ class ToolsMixin:
         if cfg.google_oauth_client:
             def ver_agenda() -> str:
                 """Lista os próximos eventos da agenda do Google do usuário."""
-                return tools_mod.calendar_upcoming(cfg, cfg.default_account)
+                return tools_mod.calendar_upcoming(cfg, cfg.default_account, lang=lang)
 
             def criar_evento(titulo: str, inicio: str, fim: str) -> str:
                 """Cria um evento na agenda do Google.
@@ -585,7 +589,7 @@ class ToolsMixin:
                     fim: fim em ISO 8601.
                 """
                 return tools_mod.calendar_create(
-                    cfg, cfg.default_account, titulo, inicio, fim)
+                    cfg, cfg.default_account, titulo, inicio, fim, lang=lang)
 
             def enviar_email(para: str, assunto: str, corpo: str) -> str:
                 """Envia um e-mail pela conta Gmail do usuário.
@@ -596,7 +600,7 @@ class ToolsMixin:
                     corpo: corpo do e-mail.
                 """
                 return tools_mod.send_email(
-                    cfg, cfg.default_account, para, assunto, corpo)
+                    cfg, cfg.default_account, para, assunto, corpo, lang=lang)
 
             callables["ver_agenda"] = ver_agenda
             callables["criar_evento"] = criar_evento

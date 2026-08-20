@@ -43,9 +43,9 @@ def test_google_tool_wrappers_pass_account(tmp_path, monkeypatch):
     monkeypatch.setattr(tools_mod, "calendar_upcoming",
                         lambda c, acct, *a, **k: calls.update(agenda=acct) or "ok")
     monkeypatch.setattr(tools_mod, "calendar_create",
-                        lambda c, acct, s, si, ei: calls.update(evento=(acct, s, si, ei)) or "ok")
+                        lambda c, acct, s, si, ei, *a, **k: calls.update(evento=(acct, s, si, ei)) or "ok")
     monkeypatch.setattr(tools_mod, "send_email",
-                        lambda c, acct, to, subj, body: calls.update(email=(acct, to, subj, body)) or "ok")
+                        lambda c, acct, to, subj, body, *a, **k: calls.update(email=(acct, to, subj, body)) or "ok")
     fns = brain._tool_callables("u")
     assert fns["ver_agenda"]() == "ok"
     assert fns["criar_evento"]("Dentista", "2026-08-02T19:00", "2026-08-02T20:00") == "ok"

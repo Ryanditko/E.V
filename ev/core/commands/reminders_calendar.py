@@ -114,7 +114,7 @@ class RemindersCalendarMixin:
         if self._config.google_authorized():
             lines.append("\n" + _t(lang, "rem.google_cal"))
             lines.append(
-                tools_mod.calendar_upcoming(self._config, self._config.default_account, 5)
+                tools_mod.calendar_upcoming(self._config, self._config.default_account, 5, lang=lang)
             )
         return "\n".join(lines)
 

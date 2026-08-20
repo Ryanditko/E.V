@@ -42,15 +42,20 @@ class OverviewMixin:
             parts.append("\n" + _t(lang, "brief.calendar"))
             parts.append(
                 tools_mod.calendar_upcoming(
-                    self._config, self._config.default_account, max_results=5
+                    self._config, self._config.default_account, max_results=5,
+                    lang=lang,
                 )
             )
 
         if self._config.imap_ready():
-            unread = tools_mod.inbox_summary(self._config, "", "", max_results=5)
+            unread = tools_mod.inbox_summary(self._config, "", "", max_results=5,
+                                             lang=lang)
             low = unread.lower()
-            if ("nenhum" not in low and "não consegui" not in low
-                    and "não configurada" not in low):
+            # Skip the block when there's nothing to show or an error occurred,
+            # in either language (en default / pt).
+            _skip = ("nenhum", "no new emails", "não consegui", "couldn't",
+                     "não configurada", "isn't set up")
+            if not any(s in low for s in _skip):
                 parts.append("\n" + _t(lang, "brief.unread_emails"))
                 parts.append(unread)
 
@@ -69,7 +74,7 @@ class OverviewMixin:
 
         if self._config.city:
             parts.append("\n" + _t(lang, "brief.weather"))
-            parts.append(tools_mod.weather(self._config.city))
+            parts.append(tools_mod.weather(self._config.city, lang=lang))
         if self._config.news_topic:
             parts.append("\n" + _t(lang, "brief.news"))
             parts.append(
@@ -77,6 +82,7 @@ class OverviewMixin:
                     self._config.news_topic,
                     max_results=3,
                     tavily_key=getattr(self._config, "tavily_api_key", ""),
+                    lang=lang,
                 )
             )
             tab = tools_mod.tabnews(3)
