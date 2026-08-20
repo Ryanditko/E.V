@@ -591,6 +591,7 @@ _CATALOG: dict[str, dict[str, str]] = {
         "pt": "diga a playlist ou a música pra tocar",
     },
     # describe() fragments
+    "auto.when_everyday": {"en": "every day", "pt": "todo dia"},
     "auto.when_weekday": {"en": "every {wd}", "pt": "toda {wd}"},
     "auto.time_when": {"en": "{when} at {hm}", "pt": "{when} às {hm}"},
     "auto.expense_when": {
