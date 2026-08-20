@@ -98,6 +98,782 @@ _CATALOG: dict[str, dict[str, str]] = {
         "en": "{category}: R$ {spent} of R$ {amount} ({pct}%)",
         "pt": "{category}: R$ {spent} de R$ {amount} ({pct}%)",
     },
+    # ======================================================================
+    # Per-command reply strings (Phase 2, slice 2b). English is the default;
+    # the pt entry is the current text verbatim. Keys are grouped by domain.
+    # ======================================================================
+    # --- reminders / calendar (reminders_calendar.py) ---------------------
+    "rem.usage": {
+        "en": "Usage: /lembrete <time> <text>\nEx: /lembrete 10m drink water | /lembrete tomorrow 09:00 meeting",
+        "pt": "Uso: /lembrete <tempo> <texto>\nEx: /lembrete 10m tomar água | /lembrete amanhã 09:00 reunião",
+    },
+    "rem.bad_time": {
+        "en": "I didn't get the time. Use something like: 10m, 2h, 1d, 'today 18:00', 'tomorrow 09:00' or '25/12 14:30'.",
+        "pt": "Não entendi o horário. Use algo como: 10m, 2h, 1d, 'hoje 18:00', 'amanhã 09:00' ou '25/12 14:30'.",
+    },
+    "rem.missing_text": {
+        "en": "The reminder text is missing. Ex: /lembrete 10m drink water",
+        "pt": "Faltou o texto do lembrete. Ex: /lembrete 10m tomar água",
+    },
+    "rem.created": {
+        "en": "Reminder #{rid} created for {when}: {text}",
+        "pt": "Lembrete #{rid} criado para {when}: {text}",
+    },
+    "rem.routine_usage": {
+        "en": ("Usage: /rotina <diario|semanal|mensal> [day] <HH:MM> <text>\n"
+               "Ex: /rotina diario 08:00 take meds\n"
+               "Ex: /rotina semanal 09:00 review goals\n"
+               "Ex: /rotina mensal 5 10:00 pay rent  (every 5th)"),
+        "pt": ("Uso: /rotina <diario|semanal|mensal> [dia] <HH:MM> <texto>\n"
+               "Ex: /rotina diario 08:00 tomar remédio\n"
+               "Ex: /rotina semanal 09:00 revisar metas\n"
+               "Ex: /rotina mensal 5 10:00 pagar aluguel  (todo dia 5)"),
+    },
+    "rem.recur_invalid": {
+        "en": "Invalid recurrence. Use 'diario', 'semanal' or 'mensal'.",
+        "pt": "Recorrência inválida. Use 'diario', 'semanal' ou 'mensal'.",
+    },
+    "rem.monthly_usage": {
+        "en": "Monthly usage: /rotina mensal <day> <HH:MM> <text>\nEx: /rotina mensal 5 10:00 pay rent",
+        "pt": "Uso mensal: /rotina mensal <dia> <HH:MM> <texto>\nEx: /rotina mensal 5 10:00 pagar aluguel",
+    },
+    "rem.invalid_day": {
+        "en": "Invalid day of month (use 1 to 31).",
+        "pt": "Dia do mês inválido (use 1 a 31).",
+    },
+    "rem.invalid_time": {
+        "en": "Invalid time. Use HH:MM. Ex: 08:00",
+        "pt": "Horário inválido. Use HH:MM. Ex: 08:00",
+    },
+    "rem.routine_missing_text": {
+        "en": "The routine text is missing.",
+        "pt": "Faltou o texto da rotina.",
+    },
+    "rem.routine_created": {
+        "en": "Routine #{rid} created ({label} at {time}): {text}",
+        "pt": "Rotina #{rid} criada ({label} às {time}): {text}",
+    },
+    "rem.label_daily": {"en": "every day", "pt": "todo dia"},
+    "rem.label_weekly": {"en": "every week", "pt": "toda semana"},
+    "rem.label_monthly_day": {"en": "every {day} of the month", "pt": "todo dia {day}"},
+    "rem.cal_title": {"en": "📅 Your calendar", "pt": "📅 Sua agenda"},
+    "rem.cal_empty": {
+        "en": "Nothing scheduled. Create one with /lembrete or /rotina.",
+        "pt": "Nada agendado. Crie com /lembrete ou /rotina.",
+    },
+    "rem.google_cal": {"en": "📆 Google Calendar:", "pt": "📆 Google Agenda:"},
+    "rem.pick_reminder": {"en": "the reminder", "pt": "o lembrete"},
+    "rem.canceled": {
+        "en": "Reminder \"{text}\" canceled.",
+        "pt": "Lembrete \"{text}\" cancelado.",
+    },
+    "rem.edit_usage": {
+        "en": "Usage: lembreteeditar <name or id> | <new text> [| <new time>]",
+        "pt": "Uso: lembreteeditar <nome ou id> | <novo texto> [| <novo tempo>]",
+    },
+    "rem.updated": {
+        "en": "Reminder updated: \"{text}\"{extra}",
+        "pt": "Lembrete atualizado: \"{text}\"{extra}",
+    },
+    "rem.updated_extra": {"en": " (for {when})", "pt": " (para {when})"},
+    "rem.list_empty": {
+        "en": "You have no open reminders.",
+        "pt": "Você não tem lembretes em aberto.",
+    },
+    "rem.mark_daily": {"en": " [every day]", "pt": " [todo dia]"},
+    "rem.mark_weekly": {"en": " [every week]", "pt": " [toda semana]"},
+    "rem.mark_monthly": {"en": " [every month]", "pt": " [todo mês]"},
+    "rem.list_title": {"en": "⏰ Your reminders:", "pt": "⏰ Seus lembretes:"},
+    "rem.list_footer": {"en": "\nCancel: /cancelar <id>", "pt": "\nCancelar: /cancelar <id>"},
+    # weekday abbreviations (calendar view)
+    "cal.wd.0": {"en": "Mon", "pt": "seg"},
+    "cal.wd.1": {"en": "Tue", "pt": "ter"},
+    "cal.wd.2": {"en": "Wed", "pt": "qua"},
+    "cal.wd.3": {"en": "Thu", "pt": "qui"},
+    "cal.wd.4": {"en": "Fri", "pt": "sex"},
+    "cal.wd.5": {"en": "Sat", "pt": "sáb"},
+    "cal.wd.6": {"en": "Sun", "pt": "dom"},
+    # --- tasks (tasks.py, task_editing.py) --------------------------------
+    "task.usage": {
+        "en": "Usage: /tarefa <text> [#category]\nEx: /tarefa study calculus #college",
+        "pt": "Uso: /tarefa <texto> [#categoria]\nEx: /tarefa estudar cálculo #faculdade",
+    },
+    "task.missing_text": {"en": "The task text is missing.", "pt": "Faltou o texto da tarefa."},
+    "task.added": {
+        "en": "Task #{tid} added in '{category}': {text}",
+        "pt": "Tarefa #{tid} adicionada em '{category}': {text}",
+    },
+    "task.none_in_cat": {"en": "No tasks in '{category}'.", "pt": "Nenhuma tarefa em '{category}'."},
+    "task.list_empty": {"en": "Your task list is empty.", "pt": "Sua lista de tarefas está vazia."},
+    "task.list_title": {"en": "📋 Your tasks{suffix}:", "pt": "📋 Suas tarefas{suffix}:"},
+    "task.list_in": {"en": " in {cat}", "pt": " em {cat}"},
+    "task.list_footer": {"en": "\nComplete: /concluir <id>", "pt": "\nConcluir: /concluir <id>"},
+    "task.completed_id": {"en": "Task #{arg} completed!", "pt": "Tarefa #{arg} concluída!"},
+    "task.not_found_id": {
+        "en": "Couldn't find open task #{arg}.",
+        "pt": "Não achei a tarefa #{arg} em aberto.",
+    },
+    "task.complete_usage": {
+        "en": "Usage: /concluir <id or name>. See /tarefas.",
+        "pt": "Uso: /concluir <id ou nome>. Veja em /tarefas.",
+    },
+    "task.not_found_name": {
+        "en": "Couldn't find an open task with \"{arg}\". See /tarefas.",
+        "pt": "Não achei uma tarefa com \"{arg}\" em aberto. Veja /tarefas.",
+    },
+    "task.ambiguous": {
+        "en": "Found more than one similar task: {opts}. Which one? (tell me the number)",
+        "pt": "Achei mais de uma tarefa parecida: {opts}. Qual? (me diz o número)",
+    },
+    "task.completed_name": {"en": "Task \"{text}\" completed!", "pt": "Tarefa \"{text}\" concluída!"},
+    "task.need_name": {
+        "en": "I need the task name or id.",
+        "pt": "Preciso do nome ou id da tarefa.",
+    },
+    "task.not_found_name_edit": {
+        "en": "Couldn't find a task with \"{arg}\". See /tarefas.",
+        "pt": "Não achei uma tarefa com \"{arg}\". Veja /tarefas.",
+    },
+    "task.ambiguous_generic": {
+        "en": "Found more than one similar: {opts}. Which one? (tell me the number)",
+        "pt": "Achei mais de uma parecida: {opts}. Qual? (me diz o número)",
+    },
+    "task.deleted": {"en": "Task \"{text}\" deleted.", "pt": "Tarefa \"{text}\" apagada."},
+    "task.edit_usage": {
+        "en": "Usage: tarefaeditar <name or id> | <new text> [#category]",
+        "pt": "Uso: tarefaeditar <nome ou id> | <novo texto> [#categoria]",
+    },
+    "task.updated": {"en": "Task updated: \"{text}\"{cat}", "pt": "Tarefa atualizada: \"{text}\"{cat}"},
+    # --- expenses (expenses.py) -------------------------------------------
+    "exp.usage": {
+        "en": "Usage: /gasto <amount> <description> [#category]\nEx: /gasto 50 groceries #home",
+        "pt": "Uso: /gasto <valor> <descrição> [#categoria]\nEx: /gasto 50 mercado #casa",
+    },
+    "exp.invalid_amount": {
+        "en": "Invalid amount. Ex: /gasto 50 groceries",
+        "pt": "Valor inválido. Ex: /gasto 50 mercado",
+    },
+    "exp.no_desc": {"en": "(no description)", "pt": "(sem descrição)"},
+    "exp.registered": {
+        "en": "Expense logged: R$ {amount} on {desc} ({category})",
+        "pt": "Gasto registrado: R$ {amount} em {desc} ({category})",
+    },
+    "exp.budget_over": {
+        "en": "You blew the {category} budget: R$ {spent} / R$ {budget}.",
+        "pt": "Estourou o orçamento de {category}: R$ {spent} / R$ {budget}.",
+    },
+    "exp.budget_over_line": {"en": "\n🔴 {alert}", "pt": "\n🔴 {alert}"},
+    "exp.budget_warn": {
+        "en": "{pct}% of the {category} budget (R$ {spent} / R$ {budget}).",
+        "pt": "{pct}% do orçamento de {category} (R$ {spent} / R$ {budget}).",
+    },
+    "exp.budget_warn_line": {"en": "\n🟡 Warning: {alert}", "pt": "\n🟡 Atenção: {alert}"},
+    "exp.notif_over_title": {"en": "🔴 Budget exceeded", "pt": "🔴 Orçamento estourado"},
+    "exp.notif_warn_title": {"en": "🟡 Budget warning", "pt": "🟡 Orçamento em atenção"},
+    "exp.list_empty": {
+        "en": "No expenses logged this month.",
+        "pt": "Nenhum gasto registrado neste mês.",
+    },
+    "exp.list_title": {
+        "en": "💰 This month's expenses: R$ {total} ({count})",
+        "pt": "💰 Gastos do mês: R$ {total} ({count})",
+    },
+    "exp.recent_header": {"en": "\nRecent entries:", "pt": "\nLançamentos recentes:"},
+    "exp.list_footer": {"en": "\nDelete: /gastorm <id>", "pt": "\nApagar: /gastorm <id>"},
+    "exp.pick": {"en": "the expense", "pt": "o gasto"},
+    "exp.deleted": {
+        "en": "Expense \"{desc}\" (R$ {amount}) deleted.",
+        "pt": "Gasto \"{desc}\" (R$ {amount}) apagado.",
+    },
+    "exp.edit_usage": {
+        "en": "Usage: gastoeditar <name or id> | <new amount> [description] [#cat]",
+        "pt": "Uso: gastoeditar <nome ou id> | <novo valor> [descrição] [#cat]",
+    },
+    "exp.edit_nothing": {
+        "en": "Nothing to change. Ex: gastoeditar groceries | 60 bread #home",
+        "pt": "Nada pra mudar. Ex: gastoeditar mercado | 60 pão #casa",
+    },
+    "exp.updated": {
+        "en": "Expense \"{desc}\" updated: {parts}",
+        "pt": "Gasto \"{desc}\" atualizado: {parts}",
+    },
+    "exp.report_empty": {
+        "en": "📈 {label} report: no expenses logged.",
+        "pt": "📈 Relatório de {label}: nenhum gasto registrado.",
+    },
+    "exp.report_title": {"en": "📈 {label} report", "pt": "📈 Relatório de {label}"},
+    "exp.report_total": {"en": "Total: R$ {total} ({count})", "pt": "Total: R$ {total} ({count})"},
+    "exp.report_budget": {
+        "en": " · budget R$ {budget} ({pct}%)",
+        "pt": " · orçamento R$ {budget} ({pct}%)",
+    },
+    # --- budgets (budgets.py) ---------------------------------------------
+    "bud.usage": {
+        "en": "Usage: /orcamento <category> <amount>\nEx: /orcamento comida 800",
+        "pt": "Uso: /orcamento <categoria> <valor>\nEx: /orcamento comida 800",
+    },
+    "bud.invalid_amount": {
+        "en": "Invalid amount. Ex: /orcamento comida 800",
+        "pt": "Valor inválido. Ex: /orcamento comida 800",
+    },
+    "bud.set": {
+        "en": "💰 Budget for '{category}' set: R$ {amount}/month.",
+        "pt": "💰 Orçamento de '{category}' definido: R$ {amount}/mês.",
+    },
+    "bud.none": {
+        "en": "No budgets. Create one with /orcamento <category> <amount>.",
+        "pt": "Nenhum orçamento. Crie com /orcamento <categoria> <valor>.",
+    },
+    "bud.title": {"en": "💰 This month's budgets:", "pt": "💰 Orçamentos do mês:"},
+    "bud.footer": {"en": "\nDelete: /orcamentorm <category>", "pt": "\nApagar: /orcamentorm <categoria>"},
+    "bud.rm_usage": {"en": "Usage: /orcamentorm <category>.", "pt": "Uso: /orcamentorm <categoria>."},
+    "bud.removed": {"en": "Budget for '{cat}' removed.", "pt": "Orçamento de '{cat}' removido."},
+    "bud.not_found": {
+        "en": "Couldn't find a budget for '{cat}'.",
+        "pt": "Não achei orçamento pra '{cat}'.",
+    },
+    # --- habits (habits.py) -----------------------------------------------
+    "hab.create_usage": {
+        "en": "Usage: /habito <name>. Ex: /habito treino",
+        "pt": "Uso: /habito <nome>. Ex: /habito treino",
+    },
+    "hab.exists": {"en": "The habit '{name}' already exists.", "pt": "O hábito '{name}' já existe."},
+    "hab.created": {
+        "en": "Habit '{name}' created. Mark it done with /feito {name}",
+        "pt": "Hábito '{name}' criado. Marque como feito com /feito {name}",
+    },
+    "hab.done_usage": {
+        "en": "Usage: /feito <habit name>. Ex: /feito treino",
+        "pt": "Uso: /feito <nome do hábito>. Ex: /feito treino",
+    },
+    "hab.not_found_create": {
+        "en": "Couldn't find the habit '{name}'. Create it with /habito {name}",
+        "pt": "Não achei o hábito '{name}'. Crie com /habito {name}",
+    },
+    "hab.already": {
+        "en": "'{name}' was already marked today. Streak: {streak}.",
+        "pt": "'{name}' já estava marcado hoje. Sequência: {streak}.",
+    },
+    "hab.done": {
+        "en": "Nice! '{name}' done today. Streak: {streak}.",
+        "pt": "Boa! '{name}' feito hoje. Sequência: {streak}.",
+    },
+    "hab.none": {
+        "en": "You have no habits. Create one with /habito <name>.",
+        "pt": "Você não tem hábitos. Crie com /habito <nome>.",
+    },
+    "hab.list_title": {"en": "✅ Your habits (today):", "pt": "✅ Seus hábitos (hoje):"},
+    "hab.list_line": {
+        "en": "{done} {name} — streak: {streak}",
+        "pt": "{done} {name} — sequência: {streak}",
+    },
+    "hab.list_footer": {
+        "en": "\nMark: /feito <name> · Delete: /habitorm <name>",
+        "pt": "\nMarcar: /feito <nome> · Apagar: /habitorm <nome>",
+    },
+    "hab.rm_usage": {
+        "en": "Usage: /habitorm <name>. Ex: /habitorm treino",
+        "pt": "Uso: /habitorm <nome>. Ex: /habitorm treino",
+    },
+    "hab.not_found": {"en": "Couldn't find the habit '{name}'.", "pt": "Não achei o hábito '{name}'."},
+    "hab.removed": {"en": "Habit '{name}' removed.", "pt": "Hábito '{name}' removido."},
+    # --- journal (journal.py) ---------------------------------------------
+    "jour.empty": {
+        "en": "Journal empty. Write with /diario <text>.",
+        "pt": "Diário vazio. Escreva com /diario <texto>.",
+    },
+    "jour.list_title": {"en": "📔 Latest journal entries:", "pt": "📔 Últimas entradas do diário:"},
+    "jour.list_footer": {"en": "\nDelete: /diariorm <id>", "pt": "\nApagar: /diariorm <id>"},
+    "jour.saved": {"en": "Noted in the journal.", "pt": "Anotado no diário."},
+    "jour.rm_usage": {
+        "en": "Usage: /diariorm <id>. See ids in /diario.",
+        "pt": "Uso: /diariorm <id>. Veja os ids em /diario.",
+    },
+    "jour.removed": {"en": "Entry #{arg} deleted.", "pt": "Entrada #{arg} apagada."},
+    "jour.not_found": {"en": "Couldn't find entry #{arg}.", "pt": "Não achei a entrada #{arg}."},
+    # --- links (links.py) -------------------------------------------------
+    "link.usage": {
+        "en": "Usage: /link <category> | <name> | <url>\nEx: /link faculdade | task list | https://...",
+        "pt": "Uso: /link <categoria> | <nome> | <url>\nEx: /link faculdade | lista de tarefas | https://...",
+    },
+    "link.saved": {"en": "Link #{lid} saved in '{category}': {name}", "pt": "Link #{lid} salvo em '{category}': {name}"},
+    "link.none_cat": {"en": "No links in '{category}'.", "pt": "Nenhum link em '{category}'."},
+    "link.none": {
+        "en": "You haven't saved any links yet. Use /link.",
+        "pt": "Você ainda não guardou links. Use /link.",
+    },
+    "link.title": {"en": "🔗 Links{suffix}:", "pt": "🔗 Links{suffix}:"},
+    "link.in": {"en": " in {cat}", "pt": " em {cat}"},
+    "link.pick": {"en": "the link", "pt": "o link"},
+    "link.removed": {"en": "Link \"{name}\" removed.", "pt": "Link \"{name}\" removido."},
+    # --- knowledge base / docs (kb_docs.py) -------------------------------
+    "kb.empty": {
+        "en": "Knowledge base empty. Send a PDF here in the chat and I'll index it and start answering from it.",
+        "pt": "Base de conhecimento vazia. Envie um PDF aqui no chat que eu indexo e passo a responder com base nele.",
+    },
+    "kb.title": {"en": "📄 Documents in the knowledge base:", "pt": "📄 Documentos na base de conhecimento:"},
+    "kb.item": {"en": "- {source} ({chunks})", "pt": "- {source} ({chunks})"},
+    "kb.footer": {
+        "en": "\nSend a PDF to add one. Remove: /kbrm <name>",
+        "pt": "\nEnvie um PDF para adicionar. Remover: /kbrm <nome>",
+    },
+    "kb.rm_usage": {
+        "en": "Usage: /kbrm <document name>. See names in /kb.",
+        "pt": "Uso: /kbrm <nome do documento>. Veja os nomes em /kb.",
+    },
+    "kb.removed": {"en": "Removed '{source}' ({chunks}).", "pt": "Removi '{source}' ({chunks})."},
+    "kb.not_found": {"en": "Couldn't find '{source}' in the base.", "pt": "Não achei '{source}' na base."},
+    "kb.web_usage": {
+        "en": "Usage: /kbweb <url>. Ex: /kbweb https://en.wikipedia.org/...",
+        "pt": "Uso: /kbweb <url>. Ex: /kbweb https://pt.wikipedia.org/...",
+    },
+    "kb.web_error": {"en": "Couldn't read that page ({exc}).", "pt": "Não consegui ler essa página ({exc})."},
+    "kb.no_text": {"en": "Couldn't find useful text on that page.", "pt": "Não achei texto útil nessa página."},
+    "kb.web_indexed": {
+        "en": "Page indexed: {stored}{extra}. Ask me about it!",
+        "pt": "Página indexada: {stored}{extra}. Pode me perguntar sobre ela!",
+    },
+    "kb.large_page": {
+        "en": " (big page — I indexed the start)",
+        "pt": " (página grande — indexei o começo)",
+    },
+    "kb.bad_ext": {
+        "en": "I can read PDF, Word (.docx) and text (.txt, .md). Send one of those.",
+        "pt": "Consigo ler PDF, Word (.docx) e texto (.txt, .md). Manda um desses.",
+    },
+    "kb.file_error": {"en": "Couldn't read that file ({exc}).", "pt": "Não consegui ler esse arquivo ({exc})."},
+    "kb.no_text_file": {
+        "en": "That file seems to have no extractable text (maybe it's scanned/an image).",
+        "pt": "Esse arquivo parece não ter texto extraível (talvez seja escaneado/imagem).",
+    },
+    "kb.file_indexed": {
+        "en": "Document '{filename}' indexed: {stored}{extra}. Ask me about it!",
+        "pt": "Documento '{filename}' indexado: {stored}{extra}. Pode me perguntar sobre ele!",
+    },
+    "kb.large_doc": {
+        "en": " (big document — I indexed the start)",
+        "pt": " (documento grande — indexei o começo)",
+    },
+    "kb.export_empty": {
+        "en": "You have no expenses logged in that period.",
+        "pt": "Você ainda não tem gastos registrados nesse período.",
+    },
+    "kb.digest_tasks": {"en": "OPEN TASKS ({n})", "pt": "TAREFAS EM ABERTO ({n})"},
+    "kb.digest_none_f": {"en": "- (none)", "pt": "- (nenhuma)"},
+    "kb.digest_memories": {"en": "\nMEMORIES ({n})", "pt": "\nMEMÓRIAS ({n})"},
+    "kb.digest_habits": {"en": "\nHABITS ({n})", "pt": "\nHÁBITOS ({n})"},
+    "kb.digest_none_m": {"en": "- (none)", "pt": "- (nenhum)"},
+    "kb.digest_journal": {"en": "\nJOURNAL (last {n} entries)", "pt": "\nDIÁRIO (últimas {n} entradas)"},
+    "kb.digest_empty": {"en": "- (empty)", "pt": "- (vazio)"},
+    "kb.digest_title": {"en": "My data — E.V. ({date})", "pt": "Meus dados — E.V. ({date})"},
+    # --- subscriptions (subscriptions.py) ---------------------------------
+    "sub.usage": {
+        "en": "Usage: /assinatura <amount> <description> [day] [#category]\nEx: /assinatura 39,90 Netflix 15",
+        "pt": "Uso: /assinatura <valor> <descrição> [dia] [#categoria]\nEx: /assinatura 39,90 Netflix 15",
+    },
+    "sub.invalid_amount": {
+        "en": "Invalid amount. Ex: /assinatura 39,90 Netflix 15",
+        "pt": "Valor inválido. Ex: /assinatura 39,90 Netflix 15",
+    },
+    "sub.default_desc": {"en": "(subscription)", "pt": "(assinatura)"},
+    "sub.created": {
+        "en": "🔁 Subscription #{rid}: R$ {amount} on {desc} — I'll log it on day {day} each month.",
+        "pt": "🔁 Assinatura #{rid}: R$ {amount} em {desc} — lanço todo dia {day}.",
+    },
+    "sub.none": {
+        "en": "No recurring subscriptions. Create one with /assinatura.",
+        "pt": "Nenhuma assinatura recorrente. Crie com /assinatura.",
+    },
+    "sub.title": {
+        "en": "🔁 Subscriptions (logged automatically every month):",
+        "pt": "🔁 Assinaturas (lançadas sozinhas todo mês):",
+    },
+    "sub.item": {
+        "en": "#{id} R$ {amount} {desc} — day {day} ({category})",
+        "pt": "#{id} R$ {amount} {desc} — dia {day} ({category})",
+    },
+    "sub.footer": {"en": "\nDelete: /assinaturarm <id>", "pt": "\nApagar: /assinaturarm <id>"},
+    "sub.rm_usage": {
+        "en": "Usage: /assinaturarm <id>. See /assinaturas.",
+        "pt": "Uso: /assinaturarm <id>. Veja em /assinaturas.",
+    },
+    "sub.removed": {"en": "Subscription #{arg} removed.", "pt": "Assinatura #{arg} removida."},
+    "sub.not_found": {"en": "Couldn't find subscription #{arg}.", "pt": "Não achei a assinatura #{arg}."},
+    # --- watches (watches.py) ---------------------------------------------
+    "watch.usage": {
+        "en": "Usage: /vigiar <url> [| keyword]\nEx: /vigiar https://... | applications open",
+        "pt": "Uso: /vigiar <url> [| palavra-chave]\nEx: /vigiar https://... | inscrições abertas",
+    },
+    "watch.extra_kw": {
+        "en": " (I'll tell you when '{keyword}' shows up)",
+        "pt": " (te aviso quando aparecer '{keyword}')",
+    },
+    "watch.extra_change": {
+        "en": " (I'll tell you when the page changes)",
+        "pt": " (te aviso quando a página mudar)",
+    },
+    "watch.created": {"en": "👁️ Monitor #{wid} created{extra}.", "pt": "👁️ Monitor #{wid} criado{extra}."},
+    "watch.none": {
+        "en": "You have no monitors. Create one with /vigiar <url> [| keyword].",
+        "pt": "Você não tem monitores. Crie com /vigiar <url> [| palavra].",
+    },
+    "watch.title": {"en": "👁️ Web monitors:", "pt": "👁️ Monitores web:"},
+    "watch.footer": {"en": "\nDelete: /vigiarm <id>", "pt": "\nApagar: /vigiarm <id>"},
+    "watch.rm_usage": {"en": "Usage: /vigiarm <id>. See /vigias.", "pt": "Uso: /vigiarm <id>. Veja em /vigias."},
+    "watch.removed": {"en": "Monitor #{arg} removed.", "pt": "Monitor #{arg} removido."},
+    "watch.not_found": {"en": "Couldn't find monitor #{arg}.", "pt": "Não achei o monitor #{arg}."},
+    # --- people (people.py) -----------------------------------------------
+    "ppl.none": {
+        "en": "No people saved. Use /pessoa <name> | <about> [| <birthday>].",
+        "pt": "Nenhuma pessoa registrada. Use /pessoa <nome> | <sobre> [| <aniversário>].",
+    },
+    "ppl.title": {"en": "👥 People:", "pt": "👥 Pessoas:"},
+    "ppl.usage": {
+        "en": "Usage: /pessoa <name> | <about> [| <birthday>]  (or just /pessoa <name> to view)",
+        "pt": "Uso: /pessoa <nome> | <sobre> [| <aniversário>]  (ou só /pessoa <nome> pra ver)",
+    },
+    "ppl.not_found": {
+        "en": "I have nothing about {name}. Add: /pessoa {name} | <about> [| <birthday>]",
+        "pt": "Não tenho nada sobre {name}. Adicione: /pessoa {name} | <sobre> [| <aniversário>]",
+    },
+    "ppl.saved": {"en": "Noted about {name}.", "pt": "Anotado sobre {name}."},
+    # --- weekly summary (weekly_summary.py) -------------------------------
+    "week.title": {"en": "📊 Your week:", "pt": "📊 Sua semana:"},
+    "week.done": {"en": "✅ Tasks completed: {done}", "pt": "✅ Tarefas concluídas: {done}"},
+    "week.open": {"en": "📋 Open tasks: {n}", "pt": "📋 Tarefas em aberto: {n}"},
+    "week.spent": {
+        "en": "💰 Spending (7 days): R$ {total} ({count})",
+        "pt": "💰 Gastos (7 dias): R$ {total} ({count})",
+    },
+    "week.habits": {"en": "🔥 Habits (streak):", "pt": "🔥 Hábitos (sequência):"},
+    "week.habit_line": {"en": "  • {name}: {streak}", "pt": "  • {name}: {streak}"},
+    # --- long-term memory (long_term_memory.py) ---------------------------
+    "ltm.usage": {
+        "en": "Usage: /lembrar <fact>. Ex: /lembrar my car is a black Civic",
+        "pt": "Uso: /lembrar <fato>. Ex: /lembrar meu carro é um Civic preto",
+    },
+    "ltm.saved": {"en": "Noted in memory: {fact}", "pt": "Anotado na memória: {fact}"},
+    "ltm.none": {
+        "en": "I don't know anything about you yet. Use /lembrar to tell me something.",
+        "pt": "Ainda não sei nada sobre você. Use /lembrar pra me contar algo.",
+    },
+    "ltm.title": {"en": "🧠 What I know about you:", "pt": "🧠 O que eu sei sobre você:"},
+    "ltm.footer": {"en": "\nDelete: /esquecer <id>", "pt": "\nApagar: /esquecer <id>"},
+    "ltm.pick": {"en": "the memory", "pt": "a memória"},
+    "ltm.forgot": {"en": "Forgot: \"{fact}\".", "pt": "Esqueci: \"{fact}\"."},
+    # --- automations (commands/automations.py + core/automations.py) ------
+    "auto.none": {
+        "en": ("No automations yet. Tell me something like 'when I spend more than 200, "
+               "warn me' or 'every Friday at 6pm, send me the summary'."),
+        "pt": ("Nenhuma automação ainda. Me diga algo como 'quando eu gastar mais de 200, "
+               "me avisa' ou 'toda sexta 18h, me manda o resumo'."),
+    },
+    "auto.title": {"en": "🤖 Your automations:", "pt": "🤖 Suas automações:"},
+    "auto.footer": {"en": "\n\nDelete: /automacaorm <id>", "pt": "\n\nApagar: /automacaorm <id>"},
+    "auto.rm_usage": {
+        "en": "Usage: /automacaorm <id> (see ids in /automacoes).",
+        "pt": "Uso: /automacaorm <id> (veja os ids em /automacoes).",
+    },
+    "auto.removed": {"en": "Automation #{aid} removed.", "pt": "Automação #{aid} removida."},
+    "auto.rm_not_found": {"en": "Couldn't find that automation.", "pt": "Não achei essa automação."},
+    "auto.bad_trigger": {"en": "invalid trigger ({trigger})", "pt": "gatilho inválido ({trigger})"},
+    "auto.bad_action": {"en": "invalid action ({action})", "pt": "ação inválida ({action})"},
+    "auto.missing_hour": {"en": "the trigger time is missing", "pt": "faltou a hora do gatilho"},
+    "auto.missing_amount": {"en": "the trigger amount is missing", "pt": "faltou o valor do gatilho"},
+    "auto.notify_default": {"en": "automation reminder", "pt": "lembrete da automação"},
+    "auto.missing_command": {"en": "the command to run is missing", "pt": "faltou o comando a rodar"},
+    "auto.reschedule_only": {
+        "en": "'reschedule' only works with the overdue-task trigger",
+        "pt": "‘remarcar’ só funciona com o gatilho de tarefa vencida",
+    },
+    "auto.play_target": {
+        "en": "tell me the playlist or the song to play",
+        "pt": "diga a playlist ou a música pra tocar",
+    },
+    # describe() fragments
+    "auto.when_everyday": {"en": "every day", "pt": "todo dia"},
+    "auto.when_weekday": {"en": "every {wd}", "pt": "toda {wd}"},
+    "auto.time_when": {"en": "{when} at {hm}", "pt": "{when} às {hm}"},
+    "auto.expense_when": {
+        "en": "when you spend more than R$ {amount}",
+        "pt": "quando gastar mais de R$ {amount}",
+    },
+    "auto.expense_cat": {"en": " in '{cat}'", "pt": " em '{cat}'"},
+    "auto.task_overdue": {"en": "when a task becomes overdue", "pt": "quando uma tarefa vencer"},
+    "auto.do_notify": {"en": "warn me: \"{message}\"", "pt": "me avisar: \"{message}\""},
+    "auto.do_command": {"en": "run /{command}", "pt": "rodar /{command}"},
+    "auto.do_reschedule": {"en": "reschedule to the next day", "pt": "remarcar pro dia seguinte"},
+    "auto.do_play": {"en": "play '{what}' on Spotify", "pt": "tocar '{what}' no Spotify"},
+    "auto.paused": {"en": " (paused)", "pt": " (pausada)"},
+    "auto.line": {"en": "#{id} — {quando} → {faca}{status}", "pt": "#{id} — {quando} → {faca}{status}"},
+    # full weekday names (automations describe, learned patterns)
+    "wd.0": {"en": "Monday", "pt": "segunda"},
+    "wd.1": {"en": "Tuesday", "pt": "terça"},
+    "wd.2": {"en": "Wednesday", "pt": "quarta"},
+    "wd.3": {"en": "Thursday", "pt": "quinta"},
+    "wd.4": {"en": "Friday", "pt": "sexta"},
+    "wd.5": {"en": "Saturday", "pt": "sábado"},
+    "wd.6": {"en": "Sunday", "pt": "domingo"},
+    # --- Google integration (google_integration.py) -----------------------
+    "gcal.not_configured_cal": {
+        "en": "Google Calendar isn't set up yet. Connect your account first.",
+        "pt": "Agenda do Google ainda não configurada. Conecte sua conta primeiro.",
+    },
+    "gcal.event_usage": {
+        "en": "Usage: /evento [account] <time> <title>. Ex: /evento pessoal tomorrow 15:00 Dentist",
+        "pt": "Uso: /evento [conta] <tempo> <título>. Ex: /evento pessoal amanhã 15:00 Dentista",
+    },
+    "gcal.email_not_configured": {
+        "en": "Google email isn't set up yet. Connect your account first.",
+        "pt": "E-mail do Google ainda não configurado. Conecte sua conta primeiro.",
+    },
+    "gcal.email_usage": {
+        "en": "Usage: /email [account] recipient | subject | body",
+        "pt": "Uso: /email [conta] destinatário | assunto | corpo",
+    },
+    "gcal.imap_not_configured": {
+        "en": ("Email reading isn't set up yet. Set EV_IMAP_ADDRESS and "
+               "EV_IMAP_PASSWORD (Gmail app password)."),
+        "pt": ("Leitura de e-mail ainda não configurada. Defina EV_IMAP_ADDRESS "
+               "e EV_IMAP_PASSWORD (senha de app do Gmail)."),
+    },
+    # --- search / news / weather (search_news_weather.py) -----------------
+    "snw.buscar_usage": {
+        "en": "Usage: /buscar <term>. Ex: /buscar tech news today",
+        "pt": "Uso: /buscar <termo>. Ex: /buscar notícias de tecnologia hoje",
+    },
+    "snw.web_results": {"en": "Web results:", "pt": "Resultados da web:"},
+    "snw.procurar_usage": {
+        "en": ("Usage: /procurar <term>. I search everything you saved "
+               "(memory, tasks, reminders, links, journal, documents)."),
+        "pt": ("Uso: /procurar <termo>. Procuro em tudo que você guardou "
+               "(memória, tarefas, lembretes, links, diário, documentos)."),
+    },
+    "snw.lbl_facts": {"en": "🧠 Memories", "pt": "🧠 Memórias"},
+    "snw.lbl_tasks": {"en": "📋 Tasks", "pt": "📋 Tarefas"},
+    "snw.lbl_reminders": {"en": "⏰ Reminders", "pt": "⏰ Lembretes"},
+    "snw.lbl_links": {"en": "🔗 Links", "pt": "🔗 Links"},
+    "snw.lbl_journal": {"en": "📔 Journal", "pt": "📔 Diário"},
+    "snw.lbl_expenses": {"en": "💸 Expenses", "pt": "💸 Gastos"},
+    "snw.lbl_messages": {"en": "💬 Conversations", "pt": "💬 Conversas"},
+    "snw.lbl_knowledge": {"en": "📄 Knowledge", "pt": "📄 Conhecimento"},
+    "snw.results_for": {"en": "🔎 Results for '{term}':", "pt": "🔎 Resultados para '{term}':"},
+    "snw.nothing_found": {
+        "en": "Nothing found for '{term}' in your data.",
+        "pt": "Nada encontrado pra '{term}' nos seus dados.",
+    },
+    "snw.news_title": {"en": "📰 News — {topic}:", "pt": "📰 Notícias — {topic}:"},
+    "snw.tabnews_tech": {"en": "\n💻 TabNews (tech):", "pt": "\n💻 TabNews (tech):"},
+    "snw.clima_usage": {
+        "en": "Usage: /clima <city>. Ex: /clima São Paulo",
+        "pt": "Uso: /clima <cidade>. Ex: /clima São Paulo",
+    },
+    # --- overview: focus mode, nudge, learned (overview.py) ---------------
+    "ov.focus_on": {"en": "🔴 Focus mode on. Full focus.", "pt": "🔴 Modo foco ativado. Foco total."},
+    "ov.focus_off": {
+        "en": "Focus mode off. Back to normal.",
+        "pt": "Modo foco desativado. De volta ao normal.",
+    },
+    "ov.sub_charge": {"en": "{desc} (R$ {amount}, day {day})", "pt": "{desc} (R$ {amount}, dia {day})"},
+    "ov.nudge_header": {
+        "en": "👋 Ryan, let me nudge you on a few things:",
+        "pt": "👋 Ryan, deixa eu te cobrar algumas coisas:",
+    },
+    "ov.nudge_overdue": {"en": "\n⏰ Overdue tasks:", "pt": "\n⏰ Tarefas atrasadas:"},
+    "ov.nudge_due_today": {"en": "\n📌 Due today:", "pt": "\n📌 Vence hoje:"},
+    "ov.nudge_subs": {"en": "\n💳 Subscription charging soon:", "pt": "\n💳 Assinatura debitando em breve:"},
+    "ov.nudge_footer": {
+        "en": "\nComplete: /concluir <name>. Want me to help with any of them?",
+        "pt": "\nConcluir: /concluir <nome>. Quer que eu te ajude com alguma?",
+    },
+    "ov.learned_known": {"en": "🧠 What I've learned about you:", "pt": "🧠 O que já aprendi sobre você:"},
+    "ov.learned_noticing": {"en": "🧠 I'm starting to notice:", "pt": "🧠 Comecei a notar:"},
+    "ov.learned_humble": {
+        "en": "I'm still getting to know you — in a few days I'll start noticing your patterns. 🌱",
+        "pt": "Ainda estou te conhecendo — em alguns dias começo a notar seus padrões. 🌱",
+    },
+    "learn.habit_skip": {
+        "en": "I noticed a pattern: you almost always skip '{name}' on {weekday}.",
+        "pt": "Notei um padrão: você quase sempre pula '{name}' às {weekday}.",
+    },
+    "learn.habit_skip_q": {
+        "en": "Want me to give you a nudge on that day?",
+        "pt": "Quer que eu te dê um empurrãozinho nesse dia?",
+    },
+    "learn.spend_over": {
+        "en": ("You've already spent R$ {tot} on '{cat}' this month — more than the "
+               "R$ {prev} you spent all of last month."),
+        "pt": ("Você já gastou R$ {tot} em '{cat}' este mês — mais que os "
+               "R$ {prev} do mês passado inteiro."),
+    },
+    "learn.spend_over_q": {
+        "en": "Want to set a budget for this category?",
+        "pt": "Quer definir um orçamento pra essa categoria?",
+    },
+    # recurring weekday forms for the habit-skip pattern ("on Mondays")
+    "learn.wd.0": {"en": "Mondays", "pt": "segundas-feiras"},
+    "learn.wd.1": {"en": "Tuesdays", "pt": "terças-feiras"},
+    "learn.wd.2": {"en": "Wednesdays", "pt": "quartas-feiras"},
+    "learn.wd.3": {"en": "Thursdays", "pt": "quintas-feiras"},
+    "learn.wd.4": {"en": "Fridays", "pt": "sextas-feiras"},
+    "learn.wd.5": {"en": "Saturdays", "pt": "sábados"},
+    "learn.wd.6": {"en": "Sundays", "pt": "domingos"},
+    # --- base command layer (base.py) -------------------------------------
+    "pick.not_found_id": {"en": "Couldn't find {label} #{arg}.", "pt": "Não achei {label} #{arg}."},
+    "pick.need_name": {
+        "en": "I need the name or number ({label}).",
+        "pt": "Preciso do nome ou número ({label}).",
+    },
+    "pick.not_found_name": {
+        "en": "Couldn't find {label} with \"{arg}\".",
+        "pt": "Não achei {label} com \"{arg}\".",
+    },
+    "pick.ambiguous": {
+        "en": "Found more than one similar: {opts}. Which one? (tell me the number)",
+        "pt": "Achei mais de um parecido: {opts}. Qual? (me diz o número)",
+    },
+    "cmd.unknown": {
+        "en": "I don't know the command '{name}'. Commands I can run: {cmds}",
+        "pt": "Não conheço o comando '{name}'. Comandos que posso executar: {cmds}",
+    },
+    "cmd.error": {"en": "Error running {key}: {exc}", "pt": "Erro ao executar {key}: {exc}"},
+    "help.text": {
+        "en": (
+            "🕷️ E.V. — all commands\n"
+            "━━━━━━━━━━━━━━━━━━\n"
+            "🏠 General\n"
+            "   /menu · /ajuda · /modelo · /status · /silenciar\n"
+            "   /dados (storage) · /limpar (memory) · /limparchat (bubbles)\n\n"
+            "🎯 Focus & Web\n"
+            "   /foco (pomodoro) · /resumir (link)\n\n"
+            "📋 Tasks\n"
+            "   /tarefa · /tarefas · /concluir\n\n"
+            "⏰ Reminders & Calendar\n"
+            "   /lembrete · /rotina · /lembretes · /cancelar · /calendario\n\n"
+            "🧠 Memory\n"
+            "   /lembrar · /memorias · /esquecer\n\n"
+            "🔗 Links\n"
+            "   /link · /links · /linkrm\n\n"
+            "📄 Knowledge & Study\n"
+            "   send a PDF/Word/txt · /kb · /kbweb · /kbrm · /quiz\n"
+            "   /documento (create) · /exportar (data) · /transcrever (audio)\n\n"
+            "💰 Finance\n"
+            "   /gasto · /gastos · /gastorm · /relatorio\n"
+            "   /orcamento · /orcamentos · /orcamentorm\n"
+            "   /assinatura · /assinaturas · /assinaturarm\n\n"
+            "✅ Habits\n"
+            "   /habito · /feito · /habitos · /habitorm\n\n"
+            "📔 Journal\n"
+            "   /diario · /diariorm\n\n"
+            "📊 Summaries & Automation\n"
+            "   /semana · /insights · /vigiar · /vigias · /vigiarm\n\n"
+            "🔎 Search, News & Weather\n"
+            "   /buscar (web) · /procurar (your data) · /noticias · /clima\n\n"
+            "📅 Google\n"
+            "   /agenda · /evento · /email\n"
+            "━━━━━━━━━━━━━━━━━━\n"
+            "💬 Or tap /menu to use buttons. I also understand text, audio, photo and PDF!"
+        ),
+        "pt": (
+            "🕷️ E.V. — todos os comandos\n"
+            "━━━━━━━━━━━━━━━━━━\n"
+            "🏠 Geral\n"
+            "   /menu · /ajuda · /modelo · /status · /silenciar\n"
+            "   /dados (armazenamento) · /limpar (memória) · /limparchat (bolhas)\n\n"
+            "🎯 Foco & Web\n"
+            "   /foco (pomodoro) · /resumir (link)\n\n"
+            "📋 Tarefas\n"
+            "   /tarefa · /tarefas · /concluir\n\n"
+            "⏰ Lembretes & Agenda\n"
+            "   /lembrete · /rotina · /lembretes · /cancelar · /calendario\n\n"
+            "🧠 Memória\n"
+            "   /lembrar · /memorias · /esquecer\n\n"
+            "🔗 Links\n"
+            "   /link · /links · /linkrm\n\n"
+            "📄 Conhecimento & Estudo\n"
+            "   envie um PDF/Word/txt · /kb · /kbweb · /kbrm · /quiz\n"
+            "   /documento (criar) · /exportar (dados) · /transcrever (áudio)\n\n"
+            "💰 Finanças\n"
+            "   /gasto · /gastos · /gastorm · /relatorio\n"
+            "   /orcamento · /orcamentos · /orcamentorm\n"
+            "   /assinatura · /assinaturas · /assinaturarm\n\n"
+            "✅ Hábitos\n"
+            "   /habito · /feito · /habitos · /habitorm\n\n"
+            "📔 Diário\n"
+            "   /diario · /diariorm\n\n"
+            "📊 Resumos & Automação\n"
+            "   /semana · /insights · /vigiar · /vigias · /vigiarm\n\n"
+            "🔎 Busca, Notícias & Clima\n"
+            "   /buscar (web) · /procurar (seus dados) · /noticias · /clima\n\n"
+            "📅 Google\n"
+            "   /agenda · /evento · /email\n"
+            "━━━━━━━━━━━━━━━━━━\n"
+            "💬 Ou toque em /menu pra usar por botões. Também entendo mensagem, áudio, foto e PDF!"
+        ),
+    },
+    # --- web command runner (interfaces/web/context.py) -------------------
+    "web.empty_cmd": {"en": "Type a command.", "pt": "Digite um comando."},
+    "web.conv_cleared": {"en": "Conversation cleared in this folder.", "pt": "Conversa limpa nesta pasta."},
+    "web.all_clear": {
+        "en": "All caught up, Ryan — nothing overdue. 👌",
+        "pt": "Tudo em dia, Ryan — nada atrasado. 👌",
+    },
+    "web.provider_set": {"en": "Provider: {v}.", "pt": "Provedor: {v}."},
+    "web.provider_auto": {"en": "Provider: automatic.", "pt": "Provedor: automático."},
+    "web.provider_usage": {
+        "en": "Usage: /provedor auto|gemini|groq|openrouter|ollama",
+        "pt": "Uso: /provedor auto|gemini|groq|openrouter|ollama",
+    },
+    "web.model_main": {"en": "🧠 Main: {model} (Gemini)", "pt": "🧠 Principal: {model} (Gemini)"},
+    "web.model_fallback": {"en": "Fallback: {model} ({provider})", "pt": "Fallback: {model} ({provider})"},
+    "web.model_active": {"en": "Active provider: {forced}", "pt": "Provedor ativo: {forced}"},
+    "web.model_usage_today": {
+        "en": "📊 Usage today (resets at midnight UTC):",
+        "pt": "📊 Uso hoje (zera à meia-noite UTC):",
+    },
+    "web.model_line_cap": {
+        "en": "- {prov}: {used} used · ~{left} left (of ~{cap})",
+        "pt": "- {prov}: {used} usados · ~{left} restantes (de ~{cap})",
+    },
+    "web.model_line_unlimited": {
+        "en": "- ollama: {used} used · unlimited",
+        "pt": "- ollama: {used} usados · ilimitado",
+    },
+    "web.data_title": {"en": "🗄️ Your stored data:", "pt": "🗄️ Seus dados guardados:"},
+    "web.data_item": {"en": "- {label}: {count}", "pt": "- {label}: {count}"},
+    "web.data_footer": {
+        "en": ("\nTo delete by category, use the tabs (Tasks/Expenses/...) "
+               "or /dados on Telegram (with double confirmation to wipe everything)."),
+        "pt": ("\nPra apagar por categoria, use as abas (Tarefas/Gastos/...) "
+               "ou o /dados no Telegram (com dupla confirmação pra apagar tudo)."),
+    },
+    "web.summarize_usage": {"en": "Usage: /resumir <url>", "pt": "Uso: /resumir <url>"},
+    "web.page_error": {
+        "en": "Couldn't open the page ({e}).",
+        "pt": "Não consegui abrir a página ({e}).",
+    },
+    "web.page_no_text": {
+        "en": "Couldn't find useful text on that page.",
+        "pt": "Não achei texto útil nessa página.",
+    },
+    "web.summarize_fail": {
+        "en": "Couldn't summarize right now, try again?",
+        "pt": "Não consegui resumir agora, tenta de novo?",
+    },
+    "web.kb_empty_tab": {
+        "en": "Knowledge base empty. Add something in the Base tab first.",
+        "pt": "Base de conhecimento vazia. Adicione algo na aba Base primeiro.",
+    },
+    "web.quiz_fail": {
+        "en": "Couldn't generate the question right now.",
+        "pt": "Não consegui gerar a pergunta agora.",
+    },
+    "web.telegram_only": {
+        "en": ("/{name} is better on Telegram or via the interface: use the matching "
+               "tab/button (e.g. Pomodoro, export in the panel)."),
+        "pt": ("O /{name} é melhor no Telegram ou pela interface: use a aba/botão "
+               "correspondente (ex: Pomodoro, exportar no painel)."),
+    },
 }
 
 # Pluralized fragments: key -> {lang: (singular, plural)}. Both en and pt use the
@@ -109,6 +885,14 @@ _PLURALS: dict[str, dict[str, tuple[str, str]]] = {
         "pt": ("{n} lembrete", "{n} lembretes"),
     },
     "count.days": {"en": ("{n} day", "{n} days"), "pt": ("{n} dia", "{n} dias")},
+    "count.entries": {
+        "en": ("{n} entry", "{n} entries"),
+        "pt": ("{n} lançamento", "{n} lançamentos"),
+    },
+    "count.chunks": {
+        "en": ("{n} chunk", "{n} chunks"),
+        "pt": ("{n} trecho", "{n} trechos"),
+    },
 }
 
 

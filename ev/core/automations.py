@@ -6,10 +6,11 @@ module only decides *whether* a trigger fires and describes automations.
 """
 from __future__ import annotations
 
+from .i18n import DEFAULT_LANG
+from .i18n import t as _t
+
 TRIGGERS = ("time", "expense_over", "task_overdue")
 ACTIONS = ("notify", "command", "reschedule", "play")
-
-_WD_PT = ["segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo"]
 
 
 def time_due(cfg: dict, now, last_fired: str | None) -> bool:
@@ -35,31 +36,33 @@ def expense_matches(cfg: dict, expense: dict) -> bool:
     return True
 
 
-def describe(auto: dict) -> str:
-    """Human-readable one-liner for listings."""
+def describe(auto: dict, lang: str | None = DEFAULT_LANG) -> str:
+    """Human-readable one-liner for listings, localized to ``lang``."""
     t, c = auto.get("trig"), auto.get("trig_cfg") or {}
     a, ac = auto.get("act"), auto.get("act_cfg") or {}
     if t == "time":
         wd = c.get("weekday", -1)
-        when = "todo dia" if wd == -1 else f"toda {_WD_PT[wd]}"
-        quando = f"{when} às {int(c.get('hour', 0)):02d}:{int(c.get('minute', 0)):02d}"
+        when = (_t(lang, "auto.when_everyday") if wd == -1
+                else _t(lang, "auto.when_weekday", wd=_t(lang, f"wd.{wd}")))
+        hm = f"{int(c.get('hour', 0)):02d}:{int(c.get('minute', 0)):02d}"
+        quando = _t(lang, "auto.time_when", when=when, hm=hm)
     elif t == "expense_over":
         cat = c.get("category")
-        quando = f"quando gastar mais de R$ {float(c.get('amount', 0)):.0f}" + (
-            f" em '{cat}'" if cat else "")
+        quando = _t(lang, "auto.expense_when", amount=f"{float(c.get('amount', 0)):.0f}") + (
+            _t(lang, "auto.expense_cat", cat=cat) if cat else "")
     elif t == "task_overdue":
-        quando = "quando uma tarefa vencer"
+        quando = _t(lang, "auto.task_overdue")
     else:
         quando = t or "?"
     if a == "notify":
-        faca = f"me avisar: \"{ac.get('message', '')}\""
+        faca = _t(lang, "auto.do_notify", message=ac.get("message", ""))
     elif a == "command":
-        faca = f"rodar /{ac.get('command', '')}"
+        faca = _t(lang, "auto.do_command", command=ac.get("command", ""))
     elif a == "reschedule":
-        faca = "remarcar pro dia seguinte"
+        faca = _t(lang, "auto.do_reschedule")
     elif a == "play":
-        faca = f"tocar '{ac.get('playlist') or ac.get('query') or '?'}' no Spotify"
+        faca = _t(lang, "auto.do_play", what=ac.get("playlist") or ac.get("query") or "?")
     else:
         faca = a or "?"
-    status = "" if auto.get("enabled", True) else " (pausada)"
-    return f"#{auto.get('id', '?')} — {quando} → {faca}{status}"
+    status = "" if auto.get("enabled", True) else _t(lang, "auto.paused")
+    return _t(lang, "auto.line", id=auto.get("id", "?"), quando=quando, faca=faca, status=status)

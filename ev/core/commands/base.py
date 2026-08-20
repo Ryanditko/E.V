@@ -17,6 +17,8 @@ except Exception:  # pragma: no cover
     ZoneInfo = None  # type: ignore
 
 from ...config import Config
+from ..i18n import DEFAULT_LANG
+from ..i18n import t as _t
 from ..memory import Memory
 from ..timeparse import add_months
 from .reminders_calendar import RemindersCalendarMixin
@@ -180,7 +182,7 @@ class Commands(
         return default, argstr
 
     @staticmethod
-    def _pick(items, arg, textkey, label):
+    def _pick(items, arg, textkey, label, lang=DEFAULT_LANG):
         """Find one item by id or by a case-insensitive substring of `textkey`.
         Returns (item|None, error_msg|None). Lets voice/chat act by name."""
         arg = (arg or "").strip().lstrip("#")
@@ -188,57 +190,22 @@ class Commands(
             for it in items:
                 if it.get("id") == int(arg):
                     return it, None
-            return None, f"Não achei {label} #{arg}."
+            return None, _t(lang, "pick.not_found_id", label=label, arg=arg)
         if not arg:
-            return None, f"Preciso do nome ou número ({label})."
+            return None, _t(lang, "pick.need_name", label=label)
         low = arg.lower()
         matches = [it for it in items if low in str(it.get(textkey, "")).lower()]
         if not matches:
-            return None, f"Não achei {label} com \"{arg}\"."
+            return None, _t(lang, "pick.not_found_name", label=label, arg=arg)
         if len(matches) > 1:
             opts = ", ".join(f"#{it['id']} {str(it.get(textkey, ''))[:30]}" for it in matches[:6])
-            return None, f"Achei mais de um parecido: {opts}. Qual? (me diz o número)"
+            return None, _t(lang, "pick.ambiguous", opts=opts)
         return matches[0], None
 
     # --- help ---------------------------------------------------------------
 
     def help(self) -> str:
-        return (
-            "🕷️ E.V. — todos os comandos\n"
-            "━━━━━━━━━━━━━━━━━━\n"
-            "🏠 Geral\n"
-            "   /menu · /ajuda · /modelo · /status · /silenciar\n"
-            "   /dados (armazenamento) · /limpar (memória) · /limparchat (bolhas)\n\n"
-            "🎯 Foco & Web\n"
-            "   /foco (pomodoro) · /resumir (link)\n\n"
-            "📋 Tarefas\n"
-            "   /tarefa · /tarefas · /concluir\n\n"
-            "⏰ Lembretes & Agenda\n"
-            "   /lembrete · /rotina · /lembretes · /cancelar · /calendario\n\n"
-            "🧠 Memória\n"
-            "   /lembrar · /memorias · /esquecer\n\n"
-            "🔗 Links\n"
-            "   /link · /links · /linkrm\n\n"
-            "📄 Conhecimento & Estudo\n"
-            "   envie um PDF/Word/txt · /kb · /kbweb · /kbrm · /quiz\n"
-            "   /documento (criar) · /exportar (dados) · /transcrever (áudio)\n\n"
-            "💰 Finanças\n"
-            "   /gasto · /gastos · /gastorm · /relatorio\n"
-            "   /orcamento · /orcamentos · /orcamentorm\n"
-            "   /assinatura · /assinaturas · /assinaturarm\n\n"
-            "✅ Hábitos\n"
-            "   /habito · /feito · /habitos · /habitorm\n\n"
-            "📔 Diário\n"
-            "   /diario · /diariorm\n\n"
-            "📊 Resumos & Automação\n"
-            "   /semana · /insights · /vigiar · /vigias · /vigiarm\n\n"
-            "🔎 Busca, Notícias & Clima\n"
-            "   /buscar (web) · /procurar (seus dados) · /noticias · /clima\n\n"
-            "📅 Google\n"
-            "   /agenda · /evento · /email\n"
-            "━━━━━━━━━━━━━━━━━━\n"
-            "💬 Ou toque em /menu pra usar por botões. Também entendo mensagem, áudio, foto e PDF!"
-        )
+        return _t(self._memory.assistant_lang(), "help.text")
 
     # --- generic dispatcher (lets the AI run any command hands-free) --------
 
@@ -306,12 +273,12 @@ class Commands(
 
     def run(self, user_id: str, name: str, argstr: str = "") -> str:
         """Run a command by name (as if the user typed /name argstr)."""
+        lang = self._memory.assistant_lang()
         key = (name or "").strip().lower().lstrip("/")
         fn = self._dispatch().get(key)
         if not fn:
-            return (f"Não conheço o comando '{name}'. Comandos que posso executar: "
-                    + ", ".join(self.runnable()))
+            return _t(lang, "cmd.unknown", name=name, cmds=", ".join(self.runnable()))
         try:
             return fn(user_id, argstr or "")
         except Exception as exc:  # never crash the chat turn
-            return f"Erro ao executar {key}: {exc}"
+            return _t(lang, "cmd.error", key=key, exc=exc)

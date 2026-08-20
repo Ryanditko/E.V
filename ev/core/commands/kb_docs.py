@@ -5,58 +5,67 @@ from __future__ import annotations
 from datetime import timedelta
 
 from .. import knowledge
+from ..i18n import plural as _plural
+from ..i18n import t as _t
 
 
 class KbDocsMixin:
     def kb(self, user_id: str) -> str:
+        lang = self._memory.assistant_lang()
         sources = self._memory.list_sources(user_id)
         if not sources:
-            return (
-                "Base de conhecimento vazia. Envie um PDF aqui no chat que eu "
-                "indexo e passo a responder com base nele."
-            )
-        lines = ["📄 Documentos na base de conhecimento:"]
+            return _t(lang, "kb.empty")
+        lines = [_t(lang, "kb.title")]
         for s in sources:
-            lines.append(f"- {s['source']} ({s['chunks']} trechos)")
-        lines.append("\nEnvie um PDF para adicionar. Remover: /kbrm <nome>")
+            lines.append(_t(lang, "kb.item", source=s["source"],
+                            chunks=_plural(lang, "count.chunks", s["chunks"])))
+        lines.append(_t(lang, "kb.footer"))
         return "\n".join(lines)
 
     def kbrm(self, user_id: str, argstr: str) -> str:
+        lang = self._memory.assistant_lang()
         source = argstr.strip()
         if not source:
-            return "Uso: /kbrm <nome do documento>. Veja os nomes em /kb."
+            return _t(lang, "kb.rm_usage")
         n = self._memory.delete_source(user_id, source)
-        return f"Removi '{source}' ({n} trechos)." if n else f"Não achei '{source}' na base."
+        if n:
+            return _t(lang, "kb.removed", source=source,
+                      chunks=_plural(lang, "count.chunks", n))
+        return _t(lang, "kb.not_found", source=source)
 
     def kbweb(self, user_id: str, argstr: str) -> str:
+        lang = self._memory.assistant_lang()
         url = argstr.strip()
         if not url.lower().startswith("http"):
-            return "Uso: /kbweb <url>. Ex: /kbweb https://pt.wikipedia.org/..."
+            return _t(lang, "kb.web_usage")
         try:
             stored, truncated = knowledge.ingest_url(
                 url, self._config, self._memory, user_id
             )
         except Exception as exc:
-            return f"Não consegui ler essa página ({exc})."
+            return _t(lang, "kb.web_error", exc=exc)
         if stored == 0:
-            return "Não achei texto útil nessa página."
-        extra = " (página grande — indexei o começo)" if truncated else ""
-        return f"Página indexada: {stored} trechos{extra}. Pode me perguntar sobre ela!"
+            return _t(lang, "kb.no_text")
+        extra = _t(lang, "kb.large_page") if truncated else ""
+        return _t(lang, "kb.web_indexed",
+                  stored=_plural(lang, "count.chunks", stored), extra=extra)
 
     def ingest_document(self, user_id: str, data: bytes, filename: str) -> str:
         """Ingest an uploaded document (PDF, Word or plain text) into the KB."""
+        lang = self._memory.assistant_lang()
         if not filename.lower().endswith(knowledge.READABLE_EXTS):
-            return "Consigo ler PDF, Word (.docx) e texto (.txt, .md). Manda um desses."
+            return _t(lang, "kb.bad_ext")
         try:
             stored, truncated = knowledge.ingest_file(
                 data, filename, self._config, self._memory, user_id
             )
         except Exception as exc:
-            return f"Não consegui ler esse arquivo ({exc})."
+            return _t(lang, "kb.file_error", exc=exc)
         if stored == 0:
-            return "Esse arquivo parece não ter texto extraível (talvez seja escaneado/imagem)."
-        extra = " (documento grande — indexei o começo)" if truncated else ""
-        return f"Documento '{filename}' indexado: {stored} trechos{extra}. Pode me perguntar sobre ele!"
+            return _t(lang, "kb.no_text_file")
+        extra = _t(lang, "kb.large_doc") if truncated else ""
+        return _t(lang, "kb.file_indexed", filename=filename,
+                  stored=_plural(lang, "count.chunks", stored), extra=extra)
 
     # --- data export (feature B) -------------------------------------------
 
@@ -69,7 +78,7 @@ class KbDocsMixin:
         since = (self._now() - timedelta(days=30 * months)).isoformat()
         rows = self._memory.expenses_since(user_id, since)
         if not rows:
-            return "Você ainda não tem gastos registrados nesse período."
+            return _t(self._memory.assistant_lang(), "kb.export_empty")
         buf = _io.StringIO()
         w = csv.writer(buf)
         w.writerow(["data", "categoria", "valor", "descricao"])
@@ -86,23 +95,24 @@ class KbDocsMixin:
     def data_digest(self, user_id: str) -> tuple[str, str]:
         """Human-readable digest of the user's data. Returns (title, content)."""
         m = self._memory
+        lang = m.assistant_lang()
         lines: list[str] = []
 
         tasks = m.open_tasks(user_id)
-        lines.append(f"TAREFAS EM ABERTO ({len(tasks)})")
-        lines += [f"- [{t['category']}] {t['text']}" for t in tasks] or ["- (nenhuma)"]
+        lines.append(_t(lang, "kb.digest_tasks", n=len(tasks)))
+        lines += [f"- [{t['category']}] {t['text']}" for t in tasks] or [_t(lang, "kb.digest_none_f")]
 
         facts = m.all_facts(user_id)
-        lines.append(f"\nMEMÓRIAS ({len(facts)})")
-        lines += [f"- {f}" for f in facts] or ["- (nenhuma)"]
+        lines.append(_t(lang, "kb.digest_memories", n=len(facts)))
+        lines += [f"- {f}" for f in facts] or [_t(lang, "kb.digest_none_f")]
 
         habits = m.list_habits(user_id)
-        lines.append(f"\nHÁBITOS ({len(habits)})")
-        lines += [f"- {h['name']}" for h in habits] or ["- (nenhum)"]
+        lines.append(_t(lang, "kb.digest_habits", n=len(habits)))
+        lines += [f"- {h['name']}" for h in habits] or [_t(lang, "kb.digest_none_m")]
 
         journ = m.recent_journal(user_id, 30)
-        lines.append(f"\nDIÁRIO (últimas {len(journ)} entradas)")
-        lines += [f"- {e['text']}" for e in journ] or ["- (vazio)"]
+        lines.append(_t(lang, "kb.digest_journal", n=len(journ)))
+        lines += [f"- {e['text']}" for e in journ] or [_t(lang, "kb.digest_empty")]
 
-        title = f"Meus dados — E.V. ({self._now().strftime('%d/%m/%Y')})"
+        title = _t(lang, "kb.digest_title", date=self._now().strftime("%d/%m/%Y"))
         return title, "\n".join(lines)

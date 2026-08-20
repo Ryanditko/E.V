@@ -37,7 +37,7 @@ def test_open_loops_and_nudge(tmp_path):
     assert any("Netflix" in s for s in loops["subs"])
     assert not any("Spotify" in s for s in loops["subs"])
     msg = c.nudge_text("u", now=now)
-    assert "atrasada" in msg and "entregar relatório" in msg and "Netflix" in msg
+    assert "Overdue" in msg and "entregar relatório" in msg and "Netflix" in msg
     # clean slate → empty nudge (E.V. stays silent when nothing is slipping)
     assert c.nudge_text("v", now=now) == ""
 
@@ -105,11 +105,11 @@ def test_automations_crud(tmp_path):
                                    message="Gasto alto")
     assert aid and "200" in msg
     listing = c.automacoes("u")
-    assert "200" in listing and "avisar" in listing
+    assert "200" in listing and "warn me" in listing
     # a time+command automation
     aid2, _ = c.create_automation("u", "time", "command", hour=18, weekday=4,
                                   command="semana")
-    assert aid2 and "sexta" in c.automacoes("u")
+    assert aid2 and "Friday" in c.automacoes("u")
     # validation: bad trigger / missing field
     assert c.create_automation("u", "bogus", "notify")[0] is None
     assert c.create_automation("u", "expense_over", "notify")[0] is None  # no amount
@@ -118,8 +118,8 @@ def test_automations_crud(tmp_path):
     assert aid3 and "Foco" in m3
     assert c.create_automation("u", "time", "play", hour=8)[0] is None  # no target
     # remove
-    assert "removida" in c.automacao_rm("u", str(aid))
-    assert c.automacao_rm("u", "999") == "Não achei essa automação."
+    assert "removed" in c.automacao_rm("u", str(aid))
+    assert c.automacao_rm("u", "999") == "Couldn't find that automation."
 
 
 def test_learned_patterns_and_persistence(tmp_path):
@@ -136,7 +136,7 @@ def test_learned_patterns_and_persistence(tmp_path):
             m.log_habit(hid, d.isoformat())
     pats = c.learned_patterns("u", now=now)
     skip = [p for p in pats if p["key"].startswith("habit-skip:")]
-    assert skip and "academia" in skip[0]["text"] and "segunda" in skip[0]["text"]
+    assert skip and "academia" in skip[0]["text"] and "Monday" in skip[0]["text"]
 
     # spending: this month already exceeds last month's total for a category
     conn = m._conn
@@ -154,11 +154,11 @@ def test_learned_patterns_and_persistence(tmp_path):
     assert m.add_learned("u", key, skip[0]["text"]) is True
     assert m.learned_seen("u", key) is True
     assert m.add_learned("u", key, skip[0]["text"]) is False
-    assert "aprendi" in c.learned_text("u").lower()
+    assert "learned" in c.learned_text("u").lower()
 
     # a fresh user with no history → E.V. stays humble, no false patterns
     assert c.learned_patterns("v", now=now) == []
-    assert "conhecendo" in c.learned_text("v").lower()
+    assert "getting to know" in c.learned_text("v").lower()
 
 
 def test_budget_alerts(tmp_path):
@@ -192,10 +192,10 @@ def test_subscriptions_due(tmp_path):
 
 def test_task_flow(tmp_path):
     c = _commands(tmp_path)
-    assert "adicionada" in c.tarefa("u", "comprar pão")
+    assert "added" in c.tarefa("u", "comprar pão")
     assert "comprar pão" in c.tarefas("u")
-    assert "concluída" in c.concluir("u", "1")
-    assert "vazia" in c.tarefas("u")
+    assert "completed" in c.concluir("u", "1")
+    assert "empty" in c.tarefas("u")
 
 
 def test_task_category(tmp_path):
@@ -205,22 +205,22 @@ def test_task_category(tmp_path):
     listing = c.tarefas("u", "faculdade")
     assert "estudar cálculo" in listing
     assert "#faculdade" not in listing  # tag stripped from the stored text
-    assert "Nenhuma" in c.tarefas("u", "trabalho")
+    assert "No tasks" in c.tarefas("u", "trabalho")
 
 
 def test_buscar_usage(tmp_path):
     c = _commands(tmp_path)
-    assert "Uso:" in c.buscar("")
+    assert "Usage:" in c.buscar("")
 
 
 def test_unified_search(tmp_path):
     c = _commands(tmp_path)
     c.tarefa("u", "estudar cálculo #faculdade")
     c.link("u", "faculdade | grade | http://x")
-    assert "Uso:" in c.procurar("u", "")
+    assert "Usage:" in c.procurar("u", "")
     out = c.procurar("u", "cálculo")
     assert "estudar cálculo" in out
-    assert "nada encontrado" in c.procurar("u", "zzzznada").lower()
+    assert "nothing found" in c.procurar("u", "zzzznada").lower()
 
 
 def test_expenses(tmp_path):
@@ -233,17 +233,17 @@ def test_expenses(tmp_path):
 
 def test_habits(tmp_path):
     c = _commands(tmp_path)
-    assert "criado" in c.habito("u", "treino")
-    assert "já existe" in c.habito("u", "treino")
-    assert "feito hoje" in c.feito("u", "treino")
-    assert "Sequência: 1" in c.feito("u", "treino")  # already marked today
+    assert "created" in c.habito("u", "treino")
+    assert "already exists" in c.habito("u", "treino")
+    assert "done today" in c.feito("u", "treino")
+    assert "Streak: 1" in c.feito("u", "treino")  # already marked today
     assert "[x] treino" in c.habitos("u")
 
 
 def test_journal(tmp_path):
     c = _commands(tmp_path)
-    assert "vazio" in c.diario("u", "")
-    assert "Anotado" in c.diario("u", "hoje foi um bom dia")
+    assert "empty" in c.diario("u", "")
+    assert "Noted" in c.diario("u", "hoje foi um bom dia")
     assert "bom dia" in c.diario("u", "")
 
 
@@ -253,21 +253,21 @@ def test_weekly_review(tmp_path):
     c.concluir("u", "1")
     c.gasto("u", "30 mercado")
     out = c.semana("u")
-    assert "Sua semana" in out
-    assert "concluídas: 1" in out
+    assert "Your week" in out
+    assert "completed: 1" in out
 
 
 def test_report_current_vs_previous_month(tmp_path):
     c = _commands(tmp_path)
     # empty month -> friendly message
-    assert "nenhum gasto" in c.relatorio("u").lower()
+    assert "no expenses" in c.relatorio("u").lower()
     c.gasto("u", "50 mercado #comida")
     # default report = CURRENT month, so a just-added expense shows up
     cur = c.relatorio("u")
-    assert "Relatório" in cur and "50" in cur and "comida" in cur
+    assert "report" in cur and "50" in cur and "comida" in cur
     # previous month (offset=-1) has nothing yet, and its label differs
     prev = c.relatorio("u", offset=-1)
-    assert "nenhum gasto" in prev.lower()
+    assert "no expenses" in prev.lower()
     assert c._month_bounds(0)[0] != c._month_bounds(-1)[0]
 
 
@@ -284,112 +284,128 @@ def test_edit_by_name_expense_and_reminder(tmp_path):
     c = _commands(tmp_path)
     c.gasto("u", "50 mercado #casa")
     out = c.gastoeditar("u", "mercado | 65 mercado grande #lazer")
-    assert "atualizado" in out
+    assert "updated" in out
     e = c._memory.expenses_since("u", "2000-01-01")[0]
     assert e["amount"] == 65.0 and e["description"] == "mercado grande" and e["category"] == "lazer"
     c.lembrete("u", "amanhã 09:00 pagar conta")
-    assert "atualizado" in c.lembreteeditar("u", "pagar conta | pagar aluguel")
+    assert "updated" in c.lembreteeditar("u", "pagar conta | pagar aluguel")
     assert c._memory.open_reminders("u")[0]["text"] == "pagar aluguel"
-    assert "não achei" in c.gastoeditar("u", "inexistente | 10").lower()
+    assert "couldn't find" in c.gastoeditar("u", "inexistente | 10").lower()
 
 
 def test_delete_by_name_across_types(tmp_path):
     c = _commands(tmp_path)
     c.gasto("u", "50 mercado #casa")
-    assert "apagado" in c.gastorm("u", "mercado")
+    assert "deleted" in c.gastorm("u", "mercado")
     c.lembrete("u", "10m tomar remédio")
-    assert "cancelado" in c.cancelar("u", "remédio")
+    assert "canceled" in c.cancelar("u", "remédio")
     c.lembrar("u", "gosto de café")
-    assert "Esqueci" in c.esquecer("u", "café")
+    assert "Forgot" in c.esquecer("u", "café")
     c.link("u", "dev | github | http://x")
-    assert "removido" in c.linkrm("u", "github")
+    assert "removed" in c.linkrm("u", "github")
     # name that doesn't exist -> friendly message, not a crash
-    assert "não achei" in c.gastorm("u", "inexistente").lower()
+    assert "couldn't find" in c.gastorm("u", "inexistente").lower()
 
 
 def test_task_crud_by_name(tmp_path):
     c = _commands(tmp_path)
     c.tarefa("u", "comprar leite #mercado")
     # complete by name (not id)
-    assert "concluída" in c.concluir("u", "comprar leite")
+    assert "completed" in c.concluir("u", "comprar leite")
     assert c._memory.open_tasks("u") == []
     # edit by name
     c.tarefa("u", "estudar")
-    assert "atualizada" in c.tarefaeditar("u", "estudar | estudar cálculo #faculdade")
+    assert "updated" in c.tarefaeditar("u", "estudar | estudar cálculo #faculdade")
     t = c._memory.open_tasks("u")[0]
     assert t["text"] == "estudar cálculo" and t["category"] == "faculdade"
     # delete by name
-    assert "apagada" in c.tarefarm("u", "estudar")
+    assert "deleted" in c.tarefarm("u", "estudar")
     assert c._memory.open_tasks("u") == []
     # ambiguous name -> asks which
     c.tarefa("u", "reunião manhã"); c.tarefa("u", "reunião tarde")
-    assert "mais de uma" in c.concluir("u", "reunião").lower()
+    assert "more than one" in c.concluir("u", "reunião").lower()
 
 
 def test_watches(tmp_path):
     c = _commands(tmp_path)
-    assert "criado" in c.vigiar("u", "https://exemplo.com | vaga aberta")
+    assert "created" in c.vigiar("u", "https://exemplo.com | vaga aberta")
     assert "exemplo.com" in c.vigias("u")
-    assert "removido" in c.vigiarm("u", "1")
+    assert "removed" in c.vigiarm("u", "1")
+
+
+def test_command_output_follows_language(tmp_path):
+    # deterministic command replies follow assistant_lang (English default / PT)
+    c = _commands(tmp_path)
+    # English default
+    assert "Your task list is empty." in c.tarefas("u")
+    assert "monitors" in c.vigias("u").lower()
+    assert "Your week" in c.semana("u")
+    assert "knowledge base empty" in c.kb("u").lower()
+    # Portuguese
+    c._memory.set_assistant_lang("pt")
+    assert "vazia" in c.tarefas("u").lower()
+    assert "monitores" in c.vigias("u").lower()
+    assert "Sua semana" in c.semana("u")
+    assert "base de conhecimento vazia" in c.kb("u").lower()
 
 
 def test_budget_alert(tmp_path):
     c = _commands(tmp_path)
-    assert "definido" in c.orcamento("u", "comida 100")
+    assert "set" in c.orcamento("u", "comida 100")
     warn = c.gasto("u", "85 mercado #comida")  # 85% of the limit
-    assert "orçamento" in warn.lower()
+    assert "budget" in warn.lower()
     # the alert is also recorded in the notification center
     notifs = c._memory.list_notifications("u")
-    assert notifs and "rçamento" in notifs[0]["title"]
+    assert notifs and "Budget" in notifs[0]["title"]
     assert "comida" in c.orcamentos("u")
-    assert "removido" in c.orcamentorm("u", "comida")
+    assert "removed" in c.orcamentorm("u", "comida")
 
 
 def test_recurring_expense(tmp_path):
     c = _commands(tmp_path)
     out = c.assinatura("u", "39,90 Netflix 15")
-    assert "Netflix" in out and "dia 15" in out
+    assert "Netflix" in out and "day 15" in out
     assert "Netflix" in c.assinaturas("u")
-    assert "removida" in c.assinaturarm("u", "1")
+    assert "removed" in c.assinaturarm("u", "1")
 
 
 def test_delete_operations(tmp_path):
     c = _commands(tmp_path)
     c._memory.add_fact("u", "gosto de café")
     assert "#1" in c.memorias("u")
-    assert "Esqueci" in c.esquecer("u", "1")
-    assert "não achei" in c.esquecer("u", "1").lower()
+    assert "Forgot" in c.esquecer("u", "1")
+    assert "couldn't find" in c.esquecer("u", "1").lower()
 
     c.gasto("u", "10 pão")
-    assert "apagado" in c.gastorm("u", "1")
+    assert "deleted" in c.gastorm("u", "1")
 
     c.habito("u", "treino")
-    assert "removido" in c.habitorm("u", "treino")
+    assert "removed" in c.habitorm("u", "treino")
 
     c.diario("u", "entrada teste")
-    assert "apagada" in c.diariorm("u", "1")
+    assert "deleted" in c.diariorm("u", "1")
 
 
 def test_reminder_command(tmp_path):
     c = _commands(tmp_path)
     out = c.lembrete("u", "10m tomar água")
-    assert "criado" in out
+    assert "created" in out
     assert "tomar água" in c.lembretes("u")
 
 
 def test_link_flow(tmp_path):
     c = _commands(tmp_path)
-    assert "salvo" in c.link("u", "faculdade | grade | http://x")
+    assert "saved" in c.link("u", "faculdade | grade | http://x")
     listing = c.links("u", "")
     assert "grade" in listing and "faculdade" in listing
 
 
 def test_google_disabled(tmp_path):
     c = _commands(tmp_path)
-    assert "não configurada" in c.agenda()
-    assert "não configurado" in c.email("a@b.com | oi | teste")
+    assert "isn't set up" in c.agenda()
+    assert "isn't set up" in c.email("a@b.com | oi | teste")
     # reading needs IMAP creds, not Google
-    assert "não configurada" in c.emails().lower()
+    assert "isn't set up" in c.emails().lower()
 
 
 def test_inbox_summary_formatting(monkeypatch):
@@ -417,8 +433,8 @@ def test_imap_query_mapping():
 
 def test_bad_input(tmp_path):
     c = _commands(tmp_path)
-    assert "Uso:" in c.tarefa("u", "")
-    assert "horário" in c.lembrete("u", "sem tempo aqui")
+    assert "Usage:" in c.tarefa("u", "")
+    assert "time" in c.lembrete("u", "sem tempo aqui")
 
 
 def test_resolve_account(tmp_path):
@@ -438,16 +454,16 @@ def test_resolve_account(tmp_path):
 def test_cancel_reminder(tmp_path):
     c = _commands(tmp_path)
     c.lembrete("u", "10m tomar água")
-    assert "cancelado" in c.cancelar("u", "1")
-    assert "não achei" in c.cancelar("u", "1").lower()
+    assert "canceled" in c.cancelar("u", "1")
+    assert "couldn't find" in c.cancelar("u", "1").lower()
 
 
 def test_rotina(tmp_path):
     c = _commands(tmp_path)
     out = c.rotina("u", "diario 08:00 tomar remédio")
-    assert "Rotina" in out and "todo dia" in out
-    assert "[todo dia]" in c.lembretes("u")
-    assert "inválida" in c.rotina("u", "anual 08:00 x").lower()
+    assert "Routine" in out and "every day" in out
+    assert "[every day]" in c.lembretes("u")
+    assert "invalid" in c.rotina("u", "anual 08:00 x").lower()
 
 
 def test_receipt_json_parsing():
@@ -465,8 +481,8 @@ def test_receipt_json_parsing():
 
 def test_people_memory_and_birthdays(tmp_path):
     c = _commands(tmp_path)
-    assert "Nenhuma pessoa" in c.pessoas("u")
-    assert "Anotado" in c.pessoa("u", "Ana | irmã, ama café | 12/03")
+    assert "No people" in c.pessoas("u")
+    assert "Noted" in c.pessoa("u", "Ana | irmã, ama café | 12/03")
     out = c.pessoas("u")
     assert "Ana" in out and "irmã" in out and "03-12" in out
     # view by name

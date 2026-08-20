@@ -69,8 +69,8 @@ def test_executar_comando_handles_inline_args(tmp_path):
     )
     brain = Brain(cfg, Memory(tmp_path / "t.db"))
     ec = brain._tool_callables("u")["executar_comando"]
-    assert "adicionada" in ec("tarefa comprar pão #casa")   # args inside comando
-    assert "adicionada" in ec("tarefa", "estudar #faculdade")  # normal form
+    assert "added" in ec("tarefa comprar pão #casa")   # args inside comando
+    assert "added" in ec("tarefa", "estudar #faculdade")  # normal form
     assert "comprar pão" in brain._commands.tarefas("u")
 
 

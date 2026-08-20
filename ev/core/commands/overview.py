@@ -259,22 +259,21 @@ class OverviewMixin:
         loops = self.open_loops(user_id, now)
         if not (loops["overdue"] or loops["due_today"] or loops["subs"]):
             return ""
-        parts = ["👋 Ryan, deixa eu te cobrar algumas coisas:"]
+        lang = self._memory.assistant_lang()
+        parts = [_t(lang, "ov.nudge_header")]
         if loops["overdue"]:
-            parts.append("\n⏰ Tarefas atrasadas:")
+            parts.append(_t(lang, "ov.nudge_overdue"))
             parts += [f"- {t}" for t in loops["overdue"][:10]]
         if loops["due_today"]:
-            parts.append("\n📌 Vence hoje:")
+            parts.append(_t(lang, "ov.nudge_due_today"))
             parts += [f"- {t}" for t in loops["due_today"][:10]]
         if loops["subs"]:
-            parts.append("\n💳 Assinatura debitando em breve:")
+            parts.append(_t(lang, "ov.nudge_subs"))
             parts += [f"- {s}" for s in loops["subs"][:10]]
-        parts.append("\nConcluir: /concluir <nome>. Quer que eu te ajude com alguma?")
+        parts.append(_t(lang, "ov.nudge_footer"))
         return "\n".join(parts)
 
     # --- continuous learning (deterministic pattern mining) ----------------
-
-    _WD_PT = ["segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo"]
 
     def learned_patterns(self, user_id: str, now=None) -> list[dict]:
         """Deterministically mine the user's own data for patterns worth surfacing.
@@ -283,6 +282,7 @@ class OverviewMixin:
         from datetime import timedelta
         now = now or self._now()
         today = now.date()
+        lang = self._memory.assistant_lang()
         out: list[dict] = []
 
         # 1) Habit weekday-skip: an established habit that keeps failing on one weekday.
@@ -307,13 +307,11 @@ class OverviewMixin:
                 if rate < worst_rate:
                     worst, worst_rate = wd, rate
             if worst is not None and worst_rate <= 0.34 and overall >= 0.4:
-                name = self._WD_PT[worst]
-                suffix = "s-feiras" if worst < 5 else "s"
+                weekday = _t(lang, f"learn.wd.{worst}")
                 out.append({
                     "key": f"habit-skip:{h['id']}:{worst}",
-                    "text": f"Notei um padrão: você quase sempre pula '{h['name']}' "
-                            f"às {name}{suffix}.",
-                    "question": "Quer que eu te dê um empurrãozinho nesse dia?",
+                    "text": _t(lang, "learn.habit_skip", name=h["name"], weekday=weekday),
+                    "question": _t(lang, "learn.habit_skip_q"),
                 })
 
         # 2) Spending: already spent more on a category than ALL of last month.
@@ -332,20 +330,21 @@ class OverviewMixin:
             if tot >= 50 and prev.get(cat, 0) > 0 and tot > prev[cat]:
                 out.append({
                     "key": f"spend-over:{label}:{cat}",
-                    "text": f"Você já gastou R$ {tot:.0f} em '{cat}' este mês — mais "
-                            f"que os R$ {prev[cat]:.0f} do mês passado inteiro.",
-                    "question": "Quer definir um orçamento pra essa categoria?",
+                    "text": _t(lang, "learn.spend_over", tot=f"{tot:.0f}",
+                               cat=cat, prev=f"{prev[cat]:.0f}"),
+                    "question": _t(lang, "learn.spend_over_q"),
                 })
         return out
 
     def learned_text(self, user_id: str) -> str:
         """On-demand view of what E.V. has learned about the user."""
+        lang = self._memory.assistant_lang()
         items = self._memory.list_learned(user_id, 15)
         if items:
-            return "🧠 O que já aprendi sobre você:\n" + "\n".join(
+            return _t(lang, "ov.learned_known") + "\n" + "\n".join(
                 "- " + i["text"] for i in items)
         fresh = self.learned_patterns(user_id)
         if fresh:
-            return "🧠 Comecei a notar:\n" + "\n".join(
+            return _t(lang, "ov.learned_noticing") + "\n" + "\n".join(
                 "- " + p["text"] for p in fresh[:8])
-        return "Ainda estou te conhecendo — em alguns dias começo a notar seus padrões. 🌱"
+        return _t(lang, "ov.learned_humble")
