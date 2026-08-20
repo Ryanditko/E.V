@@ -104,7 +104,7 @@ _CATALOG: dict[str, dict[str, str]] = {
     # ======================================================================
     # --- reminders / calendar (reminders_calendar.py) ---------------------
     "rem.usage": {
-        "en": "Usage: /lembrete <time> <text>\nEx: /lembrete 10m drink water | /lembrete tomorrow 09:00 meeting",
+        "en": "Usage: /remind <time> <text>\nEx: /remind 10m drink water | /remind tomorrow 09:00 meeting",
         "pt": "Uso: /lembrete <tempo> <texto>\nEx: /lembrete 10m tomar água | /lembrete amanhã 09:00 reunião",
     },
     "rem.bad_time": {
@@ -112,7 +112,7 @@ _CATALOG: dict[str, dict[str, str]] = {
         "pt": "Não entendi o horário. Use algo como: 10m, 2h, 1d, 'hoje 18:00', 'amanhã 09:00' ou '25/12 14:30'.",
     },
     "rem.missing_text": {
-        "en": "The reminder text is missing. Ex: /lembrete 10m drink water",
+        "en": "The reminder text is missing. Ex: /remind 10m drink water",
         "pt": "Faltou o texto do lembrete. Ex: /lembrete 10m tomar água",
     },
     "rem.created": {
@@ -120,21 +120,21 @@ _CATALOG: dict[str, dict[str, str]] = {
         "pt": "Lembrete #{rid} criado para {when}: {text}",
     },
     "rem.routine_usage": {
-        "en": ("Usage: /rotina <diario|semanal|mensal> [day] <HH:MM> <text>\n"
-               "Ex: /rotina diario 08:00 take meds\n"
-               "Ex: /rotina semanal 09:00 review goals\n"
-               "Ex: /rotina mensal 5 10:00 pay rent  (every 5th)"),
+        "en": ("Usage: /routine <daily|weekly|monthly> [day] <HH:MM> <text>\n"
+               "Ex: /routine daily 08:00 take meds\n"
+               "Ex: /routine weekly 09:00 review goals\n"
+               "Ex: /routine monthly 5 10:00 pay rent  (every 5th)"),
         "pt": ("Uso: /rotina <diario|semanal|mensal> [dia] <HH:MM> <texto>\n"
                "Ex: /rotina diario 08:00 tomar remédio\n"
                "Ex: /rotina semanal 09:00 revisar metas\n"
                "Ex: /rotina mensal 5 10:00 pagar aluguel  (todo dia 5)"),
     },
     "rem.recur_invalid": {
-        "en": "Invalid recurrence. Use 'diario', 'semanal' or 'mensal'.",
+        "en": "Invalid recurrence. Use 'daily', 'weekly' or 'monthly'.",
         "pt": "Recorrência inválida. Use 'diario', 'semanal' ou 'mensal'.",
     },
     "rem.monthly_usage": {
-        "en": "Monthly usage: /rotina mensal <day> <HH:MM> <text>\nEx: /rotina mensal 5 10:00 pay rent",
+        "en": "Monthly usage: /routine monthly <day> <HH:MM> <text>\nEx: /routine monthly 5 10:00 pay rent",
         "pt": "Uso mensal: /rotina mensal <dia> <HH:MM> <texto>\nEx: /rotina mensal 5 10:00 pagar aluguel",
     },
     "rem.invalid_day": {
@@ -158,7 +158,7 @@ _CATALOG: dict[str, dict[str, str]] = {
     "rem.label_monthly_day": {"en": "every {day} of the month", "pt": "todo dia {day}"},
     "rem.cal_title": {"en": "📅 Your calendar", "pt": "📅 Sua agenda"},
     "rem.cal_empty": {
-        "en": "Nothing scheduled. Create one with /lembrete or /rotina.",
+        "en": "Nothing scheduled. Create one with /remind or /routine.",
         "pt": "Nada agendado. Crie com /lembrete ou /rotina.",
     },
     "rem.google_cal": {"en": "📆 Google Calendar:", "pt": "📆 Google Agenda:"},
@@ -168,7 +168,7 @@ _CATALOG: dict[str, dict[str, str]] = {
         "pt": "Lembrete \"{text}\" cancelado.",
     },
     "rem.edit_usage": {
-        "en": "Usage: lembreteeditar <name or id> | <new text> [| <new time>]",
+        "en": "Usage: remindedit <name or id> | <new text> [| <new time>]",
         "pt": "Uso: lembreteeditar <nome ou id> | <novo texto> [| <novo tempo>]",
     },
     "rem.updated": {
@@ -184,7 +184,7 @@ _CATALOG: dict[str, dict[str, str]] = {
     "rem.mark_weekly": {"en": " [every week]", "pt": " [toda semana]"},
     "rem.mark_monthly": {"en": " [every month]", "pt": " [todo mês]"},
     "rem.list_title": {"en": "⏰ Your reminders:", "pt": "⏰ Seus lembretes:"},
-    "rem.list_footer": {"en": "\nCancel: /cancelar <id>", "pt": "\nCancelar: /cancelar <id>"},
+    "rem.list_footer": {"en": "\nCancel: /cancel <id>", "pt": "\nCancelar: /cancelar <id>"},
     # weekday abbreviations (calendar view)
     "cal.wd.0": {"en": "Mon", "pt": "seg"},
     "cal.wd.1": {"en": "Tue", "pt": "ter"},
@@ -195,7 +195,7 @@ _CATALOG: dict[str, dict[str, str]] = {
     "cal.wd.6": {"en": "Sun", "pt": "dom"},
     # --- tasks (tasks.py, task_editing.py) --------------------------------
     "task.usage": {
-        "en": "Usage: /tarefa <text> [#category]\nEx: /tarefa study calculus #college",
+        "en": "Usage: /task <text> [#category]\nEx: /task study calculus #college",
         "pt": "Uso: /tarefa <texto> [#categoria]\nEx: /tarefa estudar cálculo #faculdade",
     },
     "task.missing_text": {"en": "The task text is missing.", "pt": "Faltou o texto da tarefa."},
@@ -207,18 +207,18 @@ _CATALOG: dict[str, dict[str, str]] = {
     "task.list_empty": {"en": "Your task list is empty.", "pt": "Sua lista de tarefas está vazia."},
     "task.list_title": {"en": "📋 Your tasks{suffix}:", "pt": "📋 Suas tarefas{suffix}:"},
     "task.list_in": {"en": " in {cat}", "pt": " em {cat}"},
-    "task.list_footer": {"en": "\nComplete: /concluir <id>", "pt": "\nConcluir: /concluir <id>"},
+    "task.list_footer": {"en": "\nComplete: /complete <id>", "pt": "\nConcluir: /concluir <id>"},
     "task.completed_id": {"en": "Task #{arg} completed!", "pt": "Tarefa #{arg} concluída!"},
     "task.not_found_id": {
         "en": "Couldn't find open task #{arg}.",
         "pt": "Não achei a tarefa #{arg} em aberto.",
     },
     "task.complete_usage": {
-        "en": "Usage: /concluir <id or name>. See /tarefas.",
+        "en": "Usage: /complete <id or name>. See /tasks.",
         "pt": "Uso: /concluir <id ou nome>. Veja em /tarefas.",
     },
     "task.not_found_name": {
-        "en": "Couldn't find an open task with \"{arg}\". See /tarefas.",
+        "en": "Couldn't find an open task with \"{arg}\". See /tasks.",
         "pt": "Não achei uma tarefa com \"{arg}\" em aberto. Veja /tarefas.",
     },
     "task.ambiguous": {
@@ -231,7 +231,7 @@ _CATALOG: dict[str, dict[str, str]] = {
         "pt": "Preciso do nome ou id da tarefa.",
     },
     "task.not_found_name_edit": {
-        "en": "Couldn't find a task with \"{arg}\". See /tarefas.",
+        "en": "Couldn't find a task with \"{arg}\". See /tasks.",
         "pt": "Não achei uma tarefa com \"{arg}\". Veja /tarefas.",
     },
     "task.ambiguous_generic": {
@@ -240,17 +240,17 @@ _CATALOG: dict[str, dict[str, str]] = {
     },
     "task.deleted": {"en": "Task \"{text}\" deleted.", "pt": "Tarefa \"{text}\" apagada."},
     "task.edit_usage": {
-        "en": "Usage: tarefaeditar <name or id> | <new text> [#category]",
+        "en": "Usage: taskedit <name or id> | <new text> [#category]",
         "pt": "Uso: tarefaeditar <nome ou id> | <novo texto> [#categoria]",
     },
     "task.updated": {"en": "Task updated: \"{text}\"{cat}", "pt": "Tarefa atualizada: \"{text}\"{cat}"},
     # --- expenses (expenses.py) -------------------------------------------
     "exp.usage": {
-        "en": "Usage: /gasto <amount> <description> [#category]\nEx: /gasto 50 groceries #home",
+        "en": "Usage: /expense <amount> <description> [#category]\nEx: /expense 50 groceries #home",
         "pt": "Uso: /gasto <valor> <descrição> [#categoria]\nEx: /gasto 50 mercado #casa",
     },
     "exp.invalid_amount": {
-        "en": "Invalid amount. Ex: /gasto 50 groceries",
+        "en": "Invalid amount. Ex: /expense 50 groceries",
         "pt": "Valor inválido. Ex: /gasto 50 mercado",
     },
     "exp.no_desc": {"en": "(no description)", "pt": "(sem descrição)"},
@@ -279,18 +279,18 @@ _CATALOG: dict[str, dict[str, str]] = {
         "pt": "💰 Gastos do mês: R$ {total} ({count})",
     },
     "exp.recent_header": {"en": "\nRecent entries:", "pt": "\nLançamentos recentes:"},
-    "exp.list_footer": {"en": "\nDelete: /gastorm <id>", "pt": "\nApagar: /gastorm <id>"},
+    "exp.list_footer": {"en": "\nDelete: /expenserm <id>", "pt": "\nApagar: /gastorm <id>"},
     "exp.pick": {"en": "the expense", "pt": "o gasto"},
     "exp.deleted": {
         "en": "Expense \"{desc}\" (R$ {amount}) deleted.",
         "pt": "Gasto \"{desc}\" (R$ {amount}) apagado.",
     },
     "exp.edit_usage": {
-        "en": "Usage: gastoeditar <name or id> | <new amount> [description] [#cat]",
+        "en": "Usage: expenseedit <name or id> | <new amount> [description] [#cat]",
         "pt": "Uso: gastoeditar <nome ou id> | <novo valor> [descrição] [#cat]",
     },
     "exp.edit_nothing": {
-        "en": "Nothing to change. Ex: gastoeditar groceries | 60 bread #home",
+        "en": "Nothing to change. Ex: expenseedit groceries | 60 bread #home",
         "pt": "Nada pra mudar. Ex: gastoeditar mercado | 60 pão #casa",
     },
     "exp.updated": {
@@ -309,11 +309,11 @@ _CATALOG: dict[str, dict[str, str]] = {
     },
     # --- budgets (budgets.py) ---------------------------------------------
     "bud.usage": {
-        "en": "Usage: /orcamento <category> <amount>\nEx: /orcamento comida 800",
+        "en": "Usage: /budget <category> <amount>\nEx: /budget food 800",
         "pt": "Uso: /orcamento <categoria> <valor>\nEx: /orcamento comida 800",
     },
     "bud.invalid_amount": {
-        "en": "Invalid amount. Ex: /orcamento comida 800",
+        "en": "Invalid amount. Ex: /budget food 800",
         "pt": "Valor inválido. Ex: /orcamento comida 800",
     },
     "bud.set": {
@@ -321,12 +321,12 @@ _CATALOG: dict[str, dict[str, str]] = {
         "pt": "💰 Orçamento de '{category}' definido: R$ {amount}/mês.",
     },
     "bud.none": {
-        "en": "No budgets. Create one with /orcamento <category> <amount>.",
+        "en": "No budgets. Create one with /budget <category> <amount>.",
         "pt": "Nenhum orçamento. Crie com /orcamento <categoria> <valor>.",
     },
     "bud.title": {"en": "💰 This month's budgets:", "pt": "💰 Orçamentos do mês:"},
-    "bud.footer": {"en": "\nDelete: /orcamentorm <category>", "pt": "\nApagar: /orcamentorm <categoria>"},
-    "bud.rm_usage": {"en": "Usage: /orcamentorm <category>.", "pt": "Uso: /orcamentorm <categoria>."},
+    "bud.footer": {"en": "\nDelete: /budgetrm <category>", "pt": "\nApagar: /orcamentorm <categoria>"},
+    "bud.rm_usage": {"en": "Usage: /budgetrm <category>.", "pt": "Uso: /orcamentorm <categoria>."},
     "bud.removed": {"en": "Budget for '{cat}' removed.", "pt": "Orçamento de '{cat}' removido."},
     "bud.not_found": {
         "en": "Couldn't find a budget for '{cat}'.",
@@ -334,20 +334,20 @@ _CATALOG: dict[str, dict[str, str]] = {
     },
     # --- habits (habits.py) -----------------------------------------------
     "hab.create_usage": {
-        "en": "Usage: /habito <name>. Ex: /habito treino",
+        "en": "Usage: /habit <name>. Ex: /habit workout",
         "pt": "Uso: /habito <nome>. Ex: /habito treino",
     },
     "hab.exists": {"en": "The habit '{name}' already exists.", "pt": "O hábito '{name}' já existe."},
     "hab.created": {
-        "en": "Habit '{name}' created. Mark it done with /feito {name}",
+        "en": "Habit '{name}' created. Mark it done with /done {name}",
         "pt": "Hábito '{name}' criado. Marque como feito com /feito {name}",
     },
     "hab.done_usage": {
-        "en": "Usage: /feito <habit name>. Ex: /feito treino",
+        "en": "Usage: /done <habit name>. Ex: /done workout",
         "pt": "Uso: /feito <nome do hábito>. Ex: /feito treino",
     },
     "hab.not_found_create": {
-        "en": "Couldn't find the habit '{name}'. Create it with /habito {name}",
+        "en": "Couldn't find the habit '{name}'. Create it with /habit {name}",
         "pt": "Não achei o hábito '{name}'. Crie com /habito {name}",
     },
     "hab.already": {
@@ -359,7 +359,7 @@ _CATALOG: dict[str, dict[str, str]] = {
         "pt": "Boa! '{name}' feito hoje. Sequência: {streak}.",
     },
     "hab.none": {
-        "en": "You have no habits. Create one with /habito <name>.",
+        "en": "You have no habits. Create one with /habit <name>.",
         "pt": "Você não tem hábitos. Crie com /habito <nome>.",
     },
     "hab.list_title": {"en": "✅ Your habits (today):", "pt": "✅ Seus hábitos (hoje):"},
@@ -368,32 +368,32 @@ _CATALOG: dict[str, dict[str, str]] = {
         "pt": "{done} {name} — sequência: {streak}",
     },
     "hab.list_footer": {
-        "en": "\nMark: /feito <name> · Delete: /habitorm <name>",
+        "en": "\nMark: /done <name> · Delete: /habitrm <name>",
         "pt": "\nMarcar: /feito <nome> · Apagar: /habitorm <nome>",
     },
     "hab.rm_usage": {
-        "en": "Usage: /habitorm <name>. Ex: /habitorm treino",
+        "en": "Usage: /habitrm <name>. Ex: /habitrm workout",
         "pt": "Uso: /habitorm <nome>. Ex: /habitorm treino",
     },
     "hab.not_found": {"en": "Couldn't find the habit '{name}'.", "pt": "Não achei o hábito '{name}'."},
     "hab.removed": {"en": "Habit '{name}' removed.", "pt": "Hábito '{name}' removido."},
     # --- journal (journal.py) ---------------------------------------------
     "jour.empty": {
-        "en": "Journal empty. Write with /diario <text>.",
+        "en": "Journal empty. Write with /journal <text>.",
         "pt": "Diário vazio. Escreva com /diario <texto>.",
     },
     "jour.list_title": {"en": "📔 Latest journal entries:", "pt": "📔 Últimas entradas do diário:"},
-    "jour.list_footer": {"en": "\nDelete: /diariorm <id>", "pt": "\nApagar: /diariorm <id>"},
+    "jour.list_footer": {"en": "\nDelete: /journalrm <id>", "pt": "\nApagar: /diariorm <id>"},
     "jour.saved": {"en": "Noted in the journal.", "pt": "Anotado no diário."},
     "jour.rm_usage": {
-        "en": "Usage: /diariorm <id>. See ids in /diario.",
+        "en": "Usage: /journalrm <id>. See ids in /journal.",
         "pt": "Uso: /diariorm <id>. Veja os ids em /diario.",
     },
     "jour.removed": {"en": "Entry #{arg} deleted.", "pt": "Entrada #{arg} apagada."},
     "jour.not_found": {"en": "Couldn't find entry #{arg}.", "pt": "Não achei a entrada #{arg}."},
     # --- links (links.py) -------------------------------------------------
     "link.usage": {
-        "en": "Usage: /link <category> | <name> | <url>\nEx: /link faculdade | task list | https://...",
+        "en": "Usage: /link <category> | <name> | <url>\nEx: /link college | task list | https://...",
         "pt": "Uso: /link <categoria> | <nome> | <url>\nEx: /link faculdade | lista de tarefas | https://...",
     },
     "link.saved": {"en": "Link #{lid} saved in '{category}': {name}", "pt": "Link #{lid} salvo em '{category}': {name}"},
@@ -468,11 +468,11 @@ _CATALOG: dict[str, dict[str, str]] = {
     "kb.digest_title": {"en": "My data — E.V. ({date})", "pt": "Meus dados — E.V. ({date})"},
     # --- subscriptions (subscriptions.py) ---------------------------------
     "sub.usage": {
-        "en": "Usage: /assinatura <amount> <description> [day] [#category]\nEx: /assinatura 39,90 Netflix 15",
+        "en": "Usage: /subscription <amount> <description> [day] [#category]\nEx: /subscription 39,90 Netflix 15",
         "pt": "Uso: /assinatura <valor> <descrição> [dia] [#categoria]\nEx: /assinatura 39,90 Netflix 15",
     },
     "sub.invalid_amount": {
-        "en": "Invalid amount. Ex: /assinatura 39,90 Netflix 15",
+        "en": "Invalid amount. Ex: /subscription 39,90 Netflix 15",
         "pt": "Valor inválido. Ex: /assinatura 39,90 Netflix 15",
     },
     "sub.default_desc": {"en": "(subscription)", "pt": "(assinatura)"},
@@ -481,7 +481,7 @@ _CATALOG: dict[str, dict[str, str]] = {
         "pt": "🔁 Assinatura #{rid}: R$ {amount} em {desc} — lanço todo dia {day}.",
     },
     "sub.none": {
-        "en": "No recurring subscriptions. Create one with /assinatura.",
+        "en": "No recurring subscriptions. Create one with /subscription.",
         "pt": "Nenhuma assinatura recorrente. Crie com /assinatura.",
     },
     "sub.title": {
@@ -492,16 +492,16 @@ _CATALOG: dict[str, dict[str, str]] = {
         "en": "#{id} R$ {amount} {desc} — day {day} ({category})",
         "pt": "#{id} R$ {amount} {desc} — dia {day} ({category})",
     },
-    "sub.footer": {"en": "\nDelete: /assinaturarm <id>", "pt": "\nApagar: /assinaturarm <id>"},
+    "sub.footer": {"en": "\nDelete: /subscriptionrm <id>", "pt": "\nApagar: /assinaturarm <id>"},
     "sub.rm_usage": {
-        "en": "Usage: /assinaturarm <id>. See /assinaturas.",
+        "en": "Usage: /subscriptionrm <id>. See /subscriptions.",
         "pt": "Uso: /assinaturarm <id>. Veja em /assinaturas.",
     },
     "sub.removed": {"en": "Subscription #{arg} removed.", "pt": "Assinatura #{arg} removida."},
     "sub.not_found": {"en": "Couldn't find subscription #{arg}.", "pt": "Não achei a assinatura #{arg}."},
     # --- watches (watches.py) ---------------------------------------------
     "watch.usage": {
-        "en": "Usage: /vigiar <url> [| keyword]\nEx: /vigiar https://... | applications open",
+        "en": "Usage: /watch <url> [| keyword]\nEx: /watch https://... | applications open",
         "pt": "Uso: /vigiar <url> [| palavra-chave]\nEx: /vigiar https://... | inscrições abertas",
     },
     "watch.extra_kw": {
@@ -514,26 +514,26 @@ _CATALOG: dict[str, dict[str, str]] = {
     },
     "watch.created": {"en": "👁️ Monitor #{wid} created{extra}.", "pt": "👁️ Monitor #{wid} criado{extra}."},
     "watch.none": {
-        "en": "You have no monitors. Create one with /vigiar <url> [| keyword].",
+        "en": "You have no monitors. Create one with /watch <url> [| keyword].",
         "pt": "Você não tem monitores. Crie com /vigiar <url> [| palavra].",
     },
     "watch.title": {"en": "👁️ Web monitors:", "pt": "👁️ Monitores web:"},
-    "watch.footer": {"en": "\nDelete: /vigiarm <id>", "pt": "\nApagar: /vigiarm <id>"},
-    "watch.rm_usage": {"en": "Usage: /vigiarm <id>. See /vigias.", "pt": "Uso: /vigiarm <id>. Veja em /vigias."},
+    "watch.footer": {"en": "\nDelete: /watchrm <id>", "pt": "\nApagar: /vigiarm <id>"},
+    "watch.rm_usage": {"en": "Usage: /watchrm <id>. See /watches.", "pt": "Uso: /vigiarm <id>. Veja em /vigias."},
     "watch.removed": {"en": "Monitor #{arg} removed.", "pt": "Monitor #{arg} removido."},
     "watch.not_found": {"en": "Couldn't find monitor #{arg}.", "pt": "Não achei o monitor #{arg}."},
     # --- people (people.py) -----------------------------------------------
     "ppl.none": {
-        "en": "No people saved. Use /pessoa <name> | <about> [| <birthday>].",
+        "en": "No people saved. Use /person <name> | <about> [| <birthday>].",
         "pt": "Nenhuma pessoa registrada. Use /pessoa <nome> | <sobre> [| <aniversário>].",
     },
     "ppl.title": {"en": "👥 People:", "pt": "👥 Pessoas:"},
     "ppl.usage": {
-        "en": "Usage: /pessoa <name> | <about> [| <birthday>]  (or just /pessoa <name> to view)",
+        "en": "Usage: /person <name> | <about> [| <birthday>]  (or just /person <name> to view)",
         "pt": "Uso: /pessoa <nome> | <sobre> [| <aniversário>]  (ou só /pessoa <nome> pra ver)",
     },
     "ppl.not_found": {
-        "en": "I have nothing about {name}. Add: /pessoa {name} | <about> [| <birthday>]",
+        "en": "I have nothing about {name}. Add: /person {name} | <about> [| <birthday>]",
         "pt": "Não tenho nada sobre {name}. Adicione: /pessoa {name} | <sobre> [| <aniversário>]",
     },
     "ppl.saved": {"en": "Noted about {name}.", "pt": "Anotado sobre {name}."},
@@ -549,16 +549,16 @@ _CATALOG: dict[str, dict[str, str]] = {
     "week.habit_line": {"en": "  • {name}: {streak}", "pt": "  • {name}: {streak}"},
     # --- long-term memory (long_term_memory.py) ---------------------------
     "ltm.usage": {
-        "en": "Usage: /lembrar <fact>. Ex: /lembrar my car is a black Civic",
+        "en": "Usage: /remember <fact>. Ex: /remember my car is a black Civic",
         "pt": "Uso: /lembrar <fato>. Ex: /lembrar meu carro é um Civic preto",
     },
     "ltm.saved": {"en": "Noted in memory: {fact}", "pt": "Anotado na memória: {fact}"},
     "ltm.none": {
-        "en": "I don't know anything about you yet. Use /lembrar to tell me something.",
+        "en": "I don't know anything about you yet. Use /remember to tell me something.",
         "pt": "Ainda não sei nada sobre você. Use /lembrar pra me contar algo.",
     },
     "ltm.title": {"en": "🧠 What I know about you:", "pt": "🧠 O que eu sei sobre você:"},
-    "ltm.footer": {"en": "\nDelete: /esquecer <id>", "pt": "\nApagar: /esquecer <id>"},
+    "ltm.footer": {"en": "\nDelete: /forget <id>", "pt": "\nApagar: /esquecer <id>"},
     "ltm.pick": {"en": "the memory", "pt": "a memória"},
     "ltm.forgot": {"en": "Forgot: \"{fact}\".", "pt": "Esqueci: \"{fact}\"."},
     # --- automations (commands/automations.py + core/automations.py) ------
@@ -569,9 +569,9 @@ _CATALOG: dict[str, dict[str, str]] = {
                "me avisa' ou 'toda sexta 18h, me manda o resumo'."),
     },
     "auto.title": {"en": "🤖 Your automations:", "pt": "🤖 Suas automações:"},
-    "auto.footer": {"en": "\n\nDelete: /automacaorm <id>", "pt": "\n\nApagar: /automacaorm <id>"},
+    "auto.footer": {"en": "\n\nDelete: /automationrm <id>", "pt": "\n\nApagar: /automacaorm <id>"},
     "auto.rm_usage": {
-        "en": "Usage: /automacaorm <id> (see ids in /automacoes).",
+        "en": "Usage: /automationrm <id> (see ids in /automations).",
         "pt": "Uso: /automacaorm <id> (veja os ids em /automacoes).",
     },
     "auto.removed": {"en": "Automation #{aid} removed.", "pt": "Automação #{aid} removida."},
@@ -620,7 +620,7 @@ _CATALOG: dict[str, dict[str, str]] = {
         "pt": "Agenda do Google ainda não configurada. Conecte sua conta primeiro.",
     },
     "gcal.event_usage": {
-        "en": "Usage: /evento [account] <time> <title>. Ex: /evento pessoal tomorrow 15:00 Dentist",
+        "en": "Usage: /event [account] <time> <title>. Ex: /event personal tomorrow 15:00 Dentist",
         "pt": "Uso: /evento [conta] <tempo> <título>. Ex: /evento pessoal amanhã 15:00 Dentista",
     },
     "gcal.email_not_configured": {
@@ -639,12 +639,12 @@ _CATALOG: dict[str, dict[str, str]] = {
     },
     # --- search / news / weather (search_news_weather.py) -----------------
     "snw.buscar_usage": {
-        "en": "Usage: /buscar <term>. Ex: /buscar tech news today",
+        "en": "Usage: /search <term>. Ex: /search tech news today",
         "pt": "Uso: /buscar <termo>. Ex: /buscar notícias de tecnologia hoje",
     },
     "snw.web_results": {"en": "Web results:", "pt": "Resultados da web:"},
     "snw.procurar_usage": {
-        "en": ("Usage: /procurar <term>. I search everything you saved "
+        "en": ("Usage: /find <term>. I search everything you saved "
                "(memory, tasks, reminders, links, journal, documents)."),
         "pt": ("Uso: /procurar <termo>. Procuro em tudo que você guardou "
                "(memória, tarefas, lembretes, links, diário, documentos)."),
@@ -665,7 +665,7 @@ _CATALOG: dict[str, dict[str, str]] = {
     "snw.news_title": {"en": "📰 News — {topic}:", "pt": "📰 Notícias — {topic}:"},
     "snw.tabnews_tech": {"en": "\n💻 TabNews (tech):", "pt": "\n💻 TabNews (tech):"},
     "snw.clima_usage": {
-        "en": "Usage: /clima <city>. Ex: /clima São Paulo",
+        "en": "Usage: /weather <city>. Ex: /weather São Paulo",
         "pt": "Uso: /clima <cidade>. Ex: /clima São Paulo",
     },
     # --- overview: focus mode, nudge, learned (overview.py) ---------------
@@ -683,7 +683,7 @@ _CATALOG: dict[str, dict[str, str]] = {
     "ov.nudge_due_today": {"en": "\n📌 Due today:", "pt": "\n📌 Vence hoje:"},
     "ov.nudge_subs": {"en": "\n💳 Subscription charging soon:", "pt": "\n💳 Assinatura debitando em breve:"},
     "ov.nudge_footer": {
-        "en": "\nComplete: /concluir <name>. Want me to help with any of them?",
+        "en": "\nComplete: /complete <name>. Want me to help with any of them?",
         "pt": "\nConcluir: /concluir <nome>. Quer que eu te ajude com alguma?",
     },
     "ov.learned_known": {"en": "🧠 What I've learned about you:", "pt": "🧠 O que já aprendi sobre você:"},
@@ -742,35 +742,35 @@ _CATALOG: dict[str, dict[str, str]] = {
             "🕷️ E.V. — all commands\n"
             "━━━━━━━━━━━━━━━━━━\n"
             "🏠 General\n"
-            "   /menu · /ajuda · /modelo · /status · /silenciar\n"
-            "   /dados (storage) · /limpar (memory) · /limparchat (bubbles)\n\n"
+            "   /menu · /help · /model · /status · /mute\n"
+            "   /data (storage) · /clear (memory) · /clearchat (bubbles)\n\n"
             "🎯 Focus & Web\n"
-            "   /foco (pomodoro) · /resumir (link)\n\n"
+            "   /pomodoro (timer) · /summarize (link)\n\n"
             "📋 Tasks\n"
-            "   /tarefa · /tarefas · /concluir\n\n"
+            "   /task · /tasks · /complete\n\n"
             "⏰ Reminders & Calendar\n"
-            "   /lembrete · /rotina · /lembretes · /cancelar · /calendario\n\n"
+            "   /remind · /routine · /reminders · /cancel · /calendar\n\n"
             "🧠 Memory\n"
-            "   /lembrar · /memorias · /esquecer\n\n"
+            "   /remember · /memories · /forget\n\n"
             "🔗 Links\n"
             "   /link · /links · /linkrm\n\n"
             "📄 Knowledge & Study\n"
             "   send a PDF/Word/txt · /kb · /kbweb · /kbrm · /quiz\n"
-            "   /documento (create) · /exportar (data) · /transcrever (audio)\n\n"
+            "   /document (create) · /export (data) · /transcribe (audio)\n\n"
             "💰 Finance\n"
-            "   /gasto · /gastos · /gastorm · /relatorio\n"
-            "   /orcamento · /orcamentos · /orcamentorm\n"
-            "   /assinatura · /assinaturas · /assinaturarm\n\n"
+            "   /expense · /expenses · /expenserm · /report\n"
+            "   /budget · /budgets · /budgetrm\n"
+            "   /subscription · /subscriptions · /subscriptionrm\n\n"
             "✅ Habits\n"
-            "   /habito · /feito · /habitos · /habitorm\n\n"
+            "   /habit · /done · /habits · /habitrm\n\n"
             "📔 Journal\n"
-            "   /diario · /diariorm\n\n"
+            "   /journal · /journalrm\n\n"
             "📊 Summaries & Automation\n"
-            "   /semana · /insights · /vigiar · /vigias · /vigiarm\n\n"
+            "   /week · /insights · /watch · /watches · /watchrm\n\n"
             "🔎 Search, News & Weather\n"
-            "   /buscar (web) · /procurar (your data) · /noticias · /clima\n\n"
+            "   /search (web) · /find (your data) · /news · /weather\n\n"
             "📅 Google\n"
-            "   /agenda · /evento · /email\n"
+            "   /gcal · /event · /email\n"
             "━━━━━━━━━━━━━━━━━━\n"
             "💬 Or tap /menu to use buttons. I also understand text, audio, photo and PDF!"
         ),
@@ -821,7 +821,7 @@ _CATALOG: dict[str, dict[str, str]] = {
     "web.provider_set": {"en": "Provider: {v}.", "pt": "Provedor: {v}."},
     "web.provider_auto": {"en": "Provider: automatic.", "pt": "Provedor: automático."},
     "web.provider_usage": {
-        "en": "Usage: /provedor auto|gemini|groq|openrouter|ollama",
+        "en": "Usage: /provider auto|gemini|groq|openrouter|ollama",
         "pt": "Uso: /provedor auto|gemini|groq|openrouter|ollama",
     },
     "web.model_main": {"en": "🧠 Main: {model} (Gemini)", "pt": "🧠 Principal: {model} (Gemini)"},
@@ -843,11 +843,11 @@ _CATALOG: dict[str, dict[str, str]] = {
     "web.data_item": {"en": "- {label}: {count}", "pt": "- {label}: {count}"},
     "web.data_footer": {
         "en": ("\nTo delete by category, use the tabs (Tasks/Expenses/...) "
-               "or /dados on Telegram (with double confirmation to wipe everything)."),
+               "or /data on Telegram (with double confirmation to wipe everything)."),
         "pt": ("\nPra apagar por categoria, use as abas (Tarefas/Gastos/...) "
                "ou o /dados no Telegram (com dupla confirmação pra apagar tudo)."),
     },
-    "web.summarize_usage": {"en": "Usage: /resumir <url>", "pt": "Uso: /resumir <url>"},
+    "web.summarize_usage": {"en": "Usage: /summarize <url>", "pt": "Uso: /resumir <url>"},
     "web.page_error": {
         "en": "Couldn't open the page ({e}).",
         "pt": "Não consegui abrir a página ({e}).",
