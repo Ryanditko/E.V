@@ -3433,10 +3433,13 @@ function sbBusy(){const q=id=>{const e=document.getElementById(id);return e&&e.c
   return q('login')||q('welcome')||q('cam')||q('street')||q('modal')||(typeof vc!=='undefined'&&vc&&vc.classList.contains('on'));}
 function showStandby(){const st=$('#standby');if(!st||st.classList.contains('on')||sbBusy())return;
   const upd=()=>{const d=new Date();const c=$('#sb-clock');if(c)c.textContent=d.toTimeString().slice(0,8);
-    const dt=$('#sb-date');if(dt)dt.textContent=d.toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'});};
+    const dt=$('#sb-date');if(dt)dt.textContent=d.toLocaleDateString(_lang==='pt'?'pt-BR':'en-US',{weekday:'long',day:'numeric',month:'long'});};
   upd();_sbClock=setInterval(upd,1000);
   const t=(_counts.tasks||0),l=(_counts.reminders||0),ss=$('#sb-status');
-  if(ss)ss.textContent=(t||l)?('Você tem '+t+' tarefa'+(t!=1?'s':'')+(l?(' e '+l+' lembrete'+(l!=1?'s':'')):'')+' pra hoje, Ryan.'):'Tudo tranquilo por aqui, Ryan.';
+  if(ss){if(t||l){const tw=(_lang==='pt')?(t+' tarefa'+(t!=1?'s':'')):(t+' task'+(t!=1?'s':''));
+    const rw=l?((_lang==='pt')?(' e '+l+' lembrete'+(l!=1?'s':'')):(' and '+l+' reminder'+(l!=1?'s':''))):'';
+    ss.textContent=(_lang==='pt')?('Você tem '+tw+rw+' pra hoje, Ryan.'):('You have '+tw+rw+' for today, Ryan.');}
+  else ss.textContent=(_lang==='pt')?'Tudo tranquilo por aqui, Ryan.':'All quiet here, Ryan.';}
   st.classList.add('on');window.lucide&&lucide.createIcons();}
 function hideStandby(){const st=$('#standby');if(!st||!st.classList.contains('on'))return;st.classList.remove('on');if(_sbClock){clearInterval(_sbClock);_sbClock=null;}}
 function resetIdle(){if($('#standby')&&$('#standby').classList.contains('on'))hideStandby();clearTimeout(_idleT);_idleT=setTimeout(showStandby,_IDLE_MS);}
