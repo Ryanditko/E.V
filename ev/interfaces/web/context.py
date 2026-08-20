@@ -101,18 +101,19 @@ class WebContext:
         """Run a slash command from the web (data + interface commands)."""
         config, memory, brain, commands, owner = (
             self.config, self.memory, self.brain, self.commands, self.owner)
+        lang = memory.assistant_lang()
         parts = (cmd_str or "").strip().split(None, 1)
         if not parts:
-            return "Digite um comando."
+            return _t(lang, "web.empty_cmd")
         name = parts[0].lstrip("/").lower()
         rest = parts[1] if len(parts) > 1 else ""
         if name in ("limpar", "limparchat"):  # clear THIS folder's conversation
             memory.clear_conversation(self.conv(thread))
-            return "Conversa limpa nesta pasta."
+            return _t(lang, "web.conv_cleared")
         if name in ("plano", "manha", "manhã"):  # agentic day plan
             return await brain.plan_day(owner)
         if name in ("pendencias", "pendências", "cobrar"):  # proactive open loops
-            return commands.nudge_text(owner) or "Tudo em dia, Ryan — nada atrasado. 👌"
+            return commands.nudge_text(owner) or _t(lang, "web.all_clear")
         if name in ("padroes", "padrões", "aprendi"):  # continuous learning view
             return commands.learned_text(owner)
         if name in ("automacoes", "automações", "automacao", "automação"):
@@ -125,8 +126,8 @@ class WebContext:
             v = rest.strip().lower()
             if v in ("", "auto", "gemini", "groq", "openrouter", "ollama"):
                 memory.set_setting("force_provider", "" if v in ("", "auto") else v)
-                return f"Provedor: {v or 'auto'}." if v else "Provedor: automático."
-            return "Uso: /provedor auto|gemini|groq|openrouter|ollama"
+                return _t(lang, "web.provider_set", v=v) if v else _t(lang, "web.provider_auto")
+            return _t(lang, "web.provider_usage")
         if name == "status":
             return self.status_text()
         if name == "modelo":
@@ -134,57 +135,57 @@ class WebContext:
             usage = memory.usage_for_day(datetime.now(timezone.utc).date().isoformat())
             caps = {"gemini": 20, "groq": 1000, "openrouter": 1000}
             forced = memory.get_setting("force_provider") or "auto"
-            out = [f"🧠 Principal: {brain.current_model()} (Gemini)"]
+            out = [_t(lang, "web.model_main", model=brain.current_model())]
             if config.groq_api_key:
-                out.append(f"Fallback: {config.groq_model} (Groq)")
+                out.append(_t(lang, "web.model_fallback", model=config.groq_model, provider="Groq"))
             if config.openrouter_api_key:
-                out.append(f"Fallback: {config.openrouter_model} (OpenRouter)")
-            out.append(f"Provedor ativo: {forced}")
+                out.append(_t(lang, "web.model_fallback", model=config.openrouter_model,
+                              provider="OpenRouter"))
+            out.append(_t(lang, "web.model_active", forced=forced))
             out.append("")
-            out.append("📊 Uso hoje (zera à meia-noite UTC):")
+            out.append(_t(lang, "web.model_usage_today"))
             for prov in ("gemini", "groq", "openrouter", "ollama"):
                 used = usage.get(prov, 0)
                 cap = caps.get(prov)
                 if cap:
-                    out.append(f"- {prov}: {used} usados · ~{max(0, cap - used)} restantes (de ~{cap})")
+                    out.append(_t(lang, "web.model_line_cap", prov=prov, used=used,
+                                  left=max(0, cap - used), cap=cap))
                 elif prov == "ollama" and config.ollama_enabled:
-                    out.append(f"- ollama: {used} usados · ilimitado")
+                    out.append(_t(lang, "web.model_line_unlimited", used=used))
             return "\n".join(out)
         if name == "ajuda":
             return commands.help()
         if name == "dados":
             summ = memory.storage_summary(owner)
-            out = ["🗄️ Seus dados guardados:", ""]
-            out += [f"- {s['label']}: {s['count']}" for s in summ]
-            out.append("\nPra apagar por categoria, use as abas (Tarefas/Gastos/...) "
-                       "ou o /dados no Telegram (com dupla confirmação pra apagar tudo).")
+            out = [_t(lang, "web.data_title"), ""]
+            out += [_t(lang, "web.data_item", label=s['label'], count=s['count']) for s in summ]
+            out.append(_t(lang, "web.data_footer"))
             return "\n".join(out)
         if name == "resumir":
             if not rest.lower().startswith("http"):
-                return "Uso: /resumir <url>"
+                return _t(lang, "web.summarize_usage")
             try:
                 text = await asyncio.to_thread(tools_mod.fetch_text, rest)
             except Exception as e:
-                return f"Não consegui abrir a página ({str(e)[:80]})."
+                return _t(lang, "web.page_error", e=str(e)[:80])
             if not text or len(text.strip()) < 80:
-                return "Não achei texto útil nessa página."
+                return _t(lang, "web.page_no_text")
             s = await brain.ask(
                 "Você é a E.V. Resuma o artigo em português: um parágrafo de contexto "
                 "e depois 3 a 6 bullets com os pontos principais.",
                 f"Conteúdo de {rest}:\n\n{text[:12000]}")
-            return s or "Não consegui resumir agora, tenta de novo?"
+            return s or _t(lang, "web.summarize_fail")
         if name == "quiz":
             chunk = memory.random_chunk(owner, rest or None)
             if not chunk:
-                return "Base de conhecimento vazia. Adicione algo na aba Base primeiro."
+                return _t(lang, "web.kb_empty_tab")
             out = await brain.ask(
                 "Você é um tutor. Com base no trecho, crie UMA pergunta de estudo "
                 "objetiva e a resposta. Formato:\nPERGUNTA: <pergunta>\nRESPOSTA: <resposta>",
                 f"Trecho de [{chunk['source']}]:\n{chunk['chunk']}")
-            return out or "Não consegui gerar a pergunta agora."
+            return out or _t(lang, "web.quiz_fail")
         if name in ("foco", "exportar", "transcrever", "documento", "insights", "menu"):
-            return (f"O /{name} é melhor no Telegram ou pela interface: use a aba/botão "
-                    "correspondente (ex: Pomodoro, exportar no painel).")
+            return _t(lang, "web.telegram_only", name=name)
         return commands.run(owner, name, rest)  # -> "não conheço"
 
     def base_url(self, request) -> str:

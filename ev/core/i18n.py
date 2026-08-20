@@ -851,6 +851,10 @@ _CATALOG: dict[str, dict[str, str]] = {
         "en": "Couldn't open the page ({e}).",
         "pt": "Não consegui abrir a página ({e}).",
     },
+    "web.page_no_text": {
+        "en": "Couldn't find useful text on that page.",
+        "pt": "Não achei texto útil nessa página.",
+    },
     "web.summarize_fail": {
         "en": "Couldn't summarize right now, try again?",
         "pt": "Não consegui resumir agora, tenta de novo?",
