@@ -33,7 +33,7 @@ hands — loyal, warm, playful, and always on your side.
 ## Screenshots
 
 Every screen in the web console — 24 tabs, the floating action terminal, and three
-color themes (default JARVIS blue, **Brand New Day**, and the red-alert **Modo Foco**) —
+color themes (default JARVIS blue, **Brand New Day**, and the red-alert **Focus mode**) —
 so you can see everything she actually does, not just the highlights.
 
 <div align="center">
@@ -44,85 +44,91 @@ so you can see everything she actually does, not just the highlights.
 |---|---|
 | ![Dashboard](docs/screenshots/dashboard.png) | ![Chat](docs/screenshots/chat.png) |
 
-| Terminal de ação |
+| Action terminal |
 |---|
-| ![Terminal de ação](docs/screenshots/terminal.png) |
+| ![Action terminal](docs/screenshots/terminal.png) |
 
 **Themes — three looks, one E.V.**
 
 > [!TIP]
 > Switch themes from the palette button in the top bar: the default **JARVIS blue**, the
 > cinematic aqua **Brand New Day** (inspired by the *Spider-Man: Brand New Day* film UI),
-> or the red-alert **Modo Foco**. Brand New Day and Modo Foco are separate modes — turning
+> or the red-alert **Focus mode**. Brand New Day and Focus mode are separate modes — turning
 > one on turns the other off.
 
-| Default (JARVIS blue) | Brand New Day | Modo Foco |
+| Default (JARVIS blue) | Brand New Day | Focus mode |
 |---|---|---|
-| ![Default](docs/screenshots/dashboard.png) | ![Brand New Day](docs/screenshots/brand-new-day.png) | ![Modo Foco](docs/screenshots/serious-mode.png) |
+| ![Default](docs/screenshots/dashboard.png) | ![Brand New Day](docs/screenshots/brand-new-day.png) | ![Focus mode](docs/screenshots/serious-mode.png) |
 
 **Productivity & routine**
 
-| Tarefas | Lembretes |
+| Tasks | Reminders |
 |---|---|
-| ![Tarefas](docs/screenshots/tasks.png) | ![Lembretes](docs/screenshots/rem.png) |
+| ![Tasks](docs/screenshots/tasks.png) | ![Reminders](docs/screenshots/rem.png) |
 
-| Agenda | Diário |
+| Calendar | Journal |
 |---|---|
-| ![Agenda](docs/screenshots/cal.png) | ![Diário](docs/screenshots/jou.png) |
+| ![Calendar](docs/screenshots/cal.png) | ![Journal](docs/screenshots/jou.png) |
 
-| Hábitos | Saúde |
+| Habits | Health |
 |---|---|
-| ![Hábitos](docs/screenshots/hab.png) | ![Saúde](docs/screenshots/saude.png) |
+| ![Habits](docs/screenshots/hab.png) | ![Health](docs/screenshots/saude.png) |
 
 **Money**
 
-| Gastos | Assinaturas |
+| Expenses | Subscriptions |
 |---|---|
-| ![Gastos](docs/screenshots/expenses.png) | ![Assinaturas](docs/screenshots/sub.png) |
+| ![Expenses](docs/screenshots/expenses.png) | ![Subscriptions](docs/screenshots/sub.png) |
 
-| Orçamentos | Metas |
+| Budgets | Goals |
 |---|---|
-| ![Orçamentos](docs/screenshots/orc.png) | ![Metas](docs/screenshots/metas.png) |
+| ![Budgets](docs/screenshots/orc.png) | ![Goals](docs/screenshots/metas.png) |
 
 **Memory & knowledge**
 
-| Memórias | Base de conhecimento |
+| Memories | Knowledge base |
 |---|---|
-| ![Memórias](docs/screenshots/mem.png) | ![Base de conhecimento](docs/screenshots/kb.png) |
+| ![Memories](docs/screenshots/mem.png) | ![Knowledge base](docs/screenshots/kb.png) |
 
-| Links | Cofre de documentos |
+| Links | Document vault |
 |---|---|
-| ![Links](docs/screenshots/lnk.png) | ![Cofre](docs/screenshots/cofre.png) |
+| ![Links](docs/screenshots/lnk.png) | ![Document vault](docs/screenshots/cofre.png) |
 
 **World & data**
 
-| Mapa | Cérebro |
+| Map | Mind graph |
 |---|---|
-| ![Mapa](docs/screenshots/map.png) | ![Cérebro](docs/screenshots/brain.png) |
+| ![Map](docs/screenshots/map.png) | ![Mind graph](docs/screenshots/brain.png) |
 
-| Gráficos | Painel |
+| Weather | Music |
 |---|---|
-| ![Gráficos](docs/screenshots/graf.png) | ![Painel](docs/screenshots/painel.png) |
+| ![Weather](docs/screenshots/clima.png) | ![Music](docs/screenshots/musica.png) |
 
-| Clima | Música |
-|---|---|
-| ![Clima](docs/screenshots/clima.png) | ![Música](docs/screenshots/musica.png) |
+| Panel |
+|---|
+| ![Panel](docs/screenshots/painel.png) |
+
+**Charts — the full analytics view**
+
+| Charts |
+|---|
+| ![Charts](docs/screenshots/graf.png) |
 
 **Automation**
 
-| Monitores web | Histórico de atividade |
+| Web monitors | Activity log |
 |---|---|
-| ![Monitores](docs/screenshots/mon.png) | ![Histórico](docs/screenshots/act.png) |
+| ![Web monitors](docs/screenshots/mon.png) | ![Activity log](docs/screenshots/act.png) |
 
 **On your phone**
 
-| Início | Conversa | Tarefas |
+| Home | Chat | Tasks |
 |---|---|---|
-| ![Dashboard mobile](docs/screenshots/mobile/dashboard.png) | ![Chat mobile](docs/screenshots/mobile/chat.png) | ![Tarefas mobile](docs/screenshots/mobile/tasks.png) |
+| ![Home mobile](docs/screenshots/mobile/dashboard.png) | ![Chat mobile](docs/screenshots/mobile/chat.png) | ![Tasks mobile](docs/screenshots/mobile/tasks.png) |
 
-| Gastos | Mapa | Música |
+| Expenses | Map | Music |
 |---|---|---|
-| ![Gastos mobile](docs/screenshots/mobile/expenses.png) | ![Mapa mobile](docs/screenshots/mobile/map.png) | ![Música mobile](docs/screenshots/mobile/musica.png) |
+| ![Expenses mobile](docs/screenshots/mobile/expenses.png) | ![Map mobile](docs/screenshots/mobile/map.png) | ![Music mobile](docs/screenshots/mobile/musica.png) |
 
 </div>
 
@@ -174,8 +180,8 @@ is recalled on the phone.
 - **Owner-locked** to you (`EV_OWNER_ID`) and works in Telegram topic groups on mention.
 
 **Web console extras**
-- A **terminal de ação** shows her thinking → acting → result per step for a command.
-- **Modo Foco** — a focus-mode visual toggle (red/high-contrast) with a
+- An **action terminal** shows her thinking → acting → result per step for a command.
+- **Focus mode** — a focus-mode visual toggle (red/high-contrast) with a
   persistent header badge.
 - Proactive alerts (subscriptions due, budgets over) surface in the notification center;
   a **Cmd/Ctrl+K** searches your actual data, not just views; dashboard cards are
