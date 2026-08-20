@@ -32,7 +32,7 @@ from telegram.ext import (
 
 from ...config import Config
 from ...core.brain import Brain
-from ...core.commands import COMMAND_LIST, Commands
+from ...core.commands import Commands, command_list
 from ...core.memory import Memory
 from .background_loops import BackgroundLoopsMixin
 from .callbacks import CallbacksMixin
@@ -109,7 +109,8 @@ class TelegramInterface(
             log.exception("Could not fetch bot username")
         # Register the command menu shown when the user types "/".
         await app.bot.set_my_commands(
-            [BotCommand(name, desc) for name, desc in COMMAND_LIST]
+            [BotCommand(name, desc)
+             for name, desc in command_list(self._memory.assistant_lang())]
         )
         self._bg_tasks = [
             asyncio.create_task(self._reminder_loop(app)),
