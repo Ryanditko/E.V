@@ -38,7 +38,8 @@ class Config:
     openrouter_model: str
     owner_id: int | None
     voice_reply: bool
-    voice: str
+    voice: str                # pt-BR synthesis voice (edge-tts)
+    voice_en: str             # en-US synthesis voice (edge-tts), used when assistant_lang="en"
     voice_rate: str
     voice_pitch: str
     voice_fixes: tuple[tuple[str, str], ...]  # TTS-only pronunciation fixes
@@ -197,6 +198,9 @@ class Config:
             # is ~6-8s per reply — too slow for a voice assistant. Override with
             # EV_VOICE if you prefer that accuracy over speed.
             voice=os.getenv("EV_VOICE", "pt-BR-FranciscaNeural").strip(),
+            # en-US voice used when the assistant language is English.
+            voice_en=os.getenv("EV_VOICE_EN", "en-US-AriaNeural").strip()
+            or "en-US-AriaNeural",
             voice_rate=os.getenv("EV_VOICE_RATE", "+0%").strip(),
             voice_pitch=os.getenv("EV_VOICE_PITCH", "+0Hz").strip(),
             gemini_tts=_get_bool("EV_GEMINI_TTS", False),

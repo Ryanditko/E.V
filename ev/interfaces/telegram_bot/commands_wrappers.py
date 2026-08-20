@@ -210,6 +210,30 @@ class CommandsWrappersMixin:
                 parse_mode="HTML",
             )
 
+    _LANG_LABELS = {"en": "Inglês", "pt": "Português"}
+
+    async def cmd_idioma(self, update: Update, c: ContextTypes.DEFAULT_TYPE) -> None:
+        if not self._authorized(update):
+            return
+        arg = self._args(c).strip().lower()
+        if not arg:
+            cur = self._memory.assistant_lang()
+            await update.message.reply_text(
+                f"🌐 Idioma atual: <b>{self._LANG_LABELS.get(cur, cur)}</b>\n\n"
+                "É o mesmo idioma do painel web: define como eu <b>respondo e falo</b>.\n"
+                "Trocar: <code>/idioma en</code> (inglês) ou <code>/idioma pt</code> (português).",
+                parse_mode="HTML",
+            )
+            return
+        if arg not in ("en", "pt"):
+            await update.message.reply_text("Opções: en, pt.")
+            return
+        lang = self._memory.set_assistant_lang(arg)
+        await update.message.reply_text(
+            f"🌐 Pronto — agora respondo e falo em <b>{self._LANG_LABELS.get(lang, lang)}</b>.",
+            parse_mode="HTML",
+        )
+
     def _uptime_str(self) -> str:
         secs = int((datetime.now(timezone.utc) - self._started_at).total_seconds())
         d, secs = divmod(secs, 86400)

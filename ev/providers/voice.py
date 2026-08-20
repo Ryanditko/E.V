@@ -87,6 +87,16 @@ async def list_ptbr_voices() -> list[dict]:
     return out
 
 
+def voice_for_lang(config, lang: str | None) -> str:
+    """Pick the edge-tts synthesis voice for the assistant language.
+
+    "en" -> the en-US voice (config.voice_en); anything else -> the pt-BR voice
+    (config.voice). Keeps the existing pt behavior untouched."""
+    if (lang or "").strip().lower() == "en":
+        return getattr(config, "voice_en", "en-US-AriaNeural") or "en-US-AriaNeural"
+    return config.voice
+
+
 async def synthesize(
     text: str,
     voice: str,
@@ -159,11 +169,15 @@ GEMINI_VOICES = [
 
 async def synth_web(config, text: str, voice: str | None = None,
                     rate: str | None = None, pitch: str | None = None,
-                    fixes=None, gvoice: str | None = None) -> tuple[bytes, str]:
+                    fixes=None, gvoice: str | None = None,
+                    lang: str | None = None) -> tuple[bytes, str]:
     """Return (audio_bytes, mime) for the web. Usa Gemini TTS quando ligado
     (mais natural) e cai no edge-tts (Thalita/Francisca) em qualquer erro/quota.
     - `voice` pt-BR explícito (preview do seletor) força o edge-tts.
-    - `gvoice` força o Gemini com aquela voz (preview do seletor Gemini)."""
+    - `gvoice` força o Gemini com aquela voz (preview do seletor Gemini).
+    - `lang` picks the default edge-tts voice by assistant language ("en"/"pt")
+      when no explicit `voice` is given. Gemini voices are language-agnostic, so
+      the Gemini path is unaffected."""
     fixes = config.voice_fixes if fixes is None else fixes
     rate = rate or config.voice_rate
     pitch = pitch or config.voice_pitch
@@ -178,5 +192,6 @@ async def synth_web(config, text: str, voice: str | None = None,
             return data, "audio/wav"
         except Exception:
             log.warning("Gemini TTS indisponível; usando edge-tts", exc_info=True)
-    mp3 = await synthesize(text, voice or config.voice, rate=rate, pitch=pitch, fixes=fixes)
+    default_voice = voice or voice_for_lang(config, lang)
+    mp3 = await synthesize(text, default_voice, rate=rate, pitch=pitch, fixes=fixes)
     return mp3, "audio/mpeg"

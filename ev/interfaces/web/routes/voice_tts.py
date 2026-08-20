@@ -30,7 +30,8 @@ def build_router(ctx: WebContext) -> APIRouter:
         voice = req_voice if str(req_voice or "").startswith("pt-BR") else None
         audio, mime = await voice_mod.synth_web(
             config, text[:1200], voice=voice, gvoice=d.get("gvoice"),
-            rate=d.get("rate"), pitch=d.get("pitch"))
+            rate=d.get("rate"), pitch=d.get("pitch"),
+            lang=ctx.memory.assistant_lang())
         return Response(content=audio, media_type=mime)
 
     @router.get("/api/voice")
