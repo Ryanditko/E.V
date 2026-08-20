@@ -104,15 +104,9 @@ so you can see everything she actually does, not just the highlights.
 |---|---|
 | ![Weather](docs/screenshots/clima.png) | ![Music](docs/screenshots/musica.png) |
 
-| Panel |
-|---|
-| ![Panel](docs/screenshots/painel.png) |
-
-**Charts — the full analytics view**
-
-| Charts |
-|---|
-| ![Charts](docs/screenshots/graf.png) |
+| Panel | Charts |
+|---|---|
+| ![Panel](docs/screenshots/painel.png) | ![Charts](docs/screenshots/graf.png) |
 
 **Automation**
 
