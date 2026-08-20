@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import logging
 
+from ...core.i18n import t
 from .google_auth import _google_service
 
 log = logging.getLogger("ev.tools")
 
 
-def calendar_upcoming(config, account: str, max_results: int = 5) -> str:
+def calendar_upcoming(config, account: str, max_results: int = 5,
+                      lang: str = "en") -> str:
     """List the user's upcoming Google Calendar events."""
     from datetime import datetime, timezone
 
@@ -30,14 +32,15 @@ def calendar_upcoming(config, account: str, max_results: int = 5) -> str:
         )
     except Exception as exc:
         log.warning("calendar_upcoming failed (%s)", exc)
-        return f"não consegui acessar a agenda ({exc})"
+        return t(lang, "tool.cal_access_error", exc=exc)
 
     if not events:
-        return "nenhum evento próximo na agenda."
+        return t(lang, "tool.cal_no_events")
+    no_title = t(lang, "tool.cal_no_title")
     lines = []
     for e in events:
         start = e.get("start", {}).get("dateTime") or e.get("start", {}).get("date")
-        lines.append(f"- {start}: {e.get('summary', '(sem título)')}")
+        lines.append(f"- {start}: {e.get('summary') or no_title}")
     return "\n".join(lines)
 
 
@@ -77,7 +80,8 @@ def calendar_delete(config, account: str, event_id: str) -> bool:
 
 
 def calendar_create(
-    config, account: str, summary: str, start_iso: str, end_iso: str
+    config, account: str, summary: str, start_iso: str, end_iso: str,
+    lang: str = "en",
 ) -> str:
     """Create a Google Calendar event."""
     try:
@@ -90,7 +94,7 @@ def calendar_create(
         created = (
             service.events().insert(calendarId="primary", body=event).execute()
         )
-        return f"evento criado: {created.get('htmlLink', summary)}"
+        return t(lang, "tool.cal_event_created", link=created.get("htmlLink", summary))
     except Exception as exc:
         log.warning("calendar_create failed (%s)", exc)
-        return f"não consegui criar o evento ({exc})"
+        return t(lang, "tool.cal_create_error", exc=exc)

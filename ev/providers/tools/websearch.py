@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import logging
 
+from ...core.i18n import t
+
 log = logging.getLogger("ev.tools")
 
 
@@ -46,7 +48,8 @@ def tabnews(max_results: int = 5) -> str:
     return "\n".join(lines)
 
 
-def news(topic: str, max_results: int = 4, tavily_key: str = "") -> str:
+def news(topic: str, max_results: int = 4, tavily_key: str = "",
+         lang: str = "en") -> str:
     """Recent news headlines about `topic`, WITH source links. Prefers Tavily
     (fresh, last few days) when a key is set; otherwise DuckDuckGo news."""
     if tavily_key:
@@ -80,9 +83,9 @@ def news(topic: str, max_results: int = 4, tavily_key: str = "") -> str:
             items = list(ddgs.news(topic, region="br-pt", max_results=max_results))
     except Exception as exc:
         log.warning("news failed (%s)", exc)
-        return f"não consegui as notícias agora ({exc})"
+        return t(lang, "tool.news_error", exc=exc)
     if not items:
-        return "sem notícias relevantes agora."
+        return t(lang, "tool.news_none")
     return "\n".join(
         f"- {i.get('title', '')}\n  {i.get('url', '')}" for i in items
     )
@@ -100,7 +103,8 @@ def _fmt_pubdate(s: str) -> str:
 
 
 def tavily_search(
-    query: str, api_key: str, max_results: int = 5, recent: bool = False
+    query: str, api_key: str, max_results: int = 5, recent: bool = False,
+    lang: str = "en",
 ) -> str:
     """Search via Tavily. `recent=True` switches to the news topic (last 7 days)
     for current-events queries. Includes Tavily's synthesized answer and shows
@@ -128,10 +132,10 @@ def tavily_search(
     results = data.get("results", [])
     answer = (data.get("answer") or "").strip()
     if not results and not answer:
-        return "não achei nada relevante na web."
+        return t(lang, "tool.web_none")
     lines = []
     if answer:
-        lines.append(f"Resumo: {answer}\n")
+        lines.append(t(lang, "tool.web_summary", answer=answer) + "\n")
     for r in results[:max_results]:
         body = (r.get("content", "") or "")[:180]
         date = _fmt_pubdate(r.get("published_date", ""))
@@ -139,7 +143,8 @@ def tavily_search(
     return "\n".join(lines)
 
 
-def brave_search(query: str, api_key: str, max_results: int = 5) -> str:
+def brave_search(query: str, api_key: str, max_results: int = 5,
+                 lang: str = "en") -> str:
     """Search via the Brave Search API (better relevance; needs a key)."""
     import httpx
 
@@ -152,7 +157,7 @@ def brave_search(query: str, api_key: str, max_results: int = 5) -> str:
     resp.raise_for_status()
     results = resp.json().get("web", {}).get("results", [])
     if not results:
-        return "não achei nada relevante na web."
+        return t(lang, "tool.web_none")
     lines = []
     for r in results[:max_results]:
         lines.append(f"- {r.get('title', '')}: {r.get('description', '')} ({r.get('url', '')})")
@@ -174,20 +179,22 @@ def _looks_recent(query: str) -> bool:
 
 
 def web_search(
-    query: str, max_results: int = 5, brave_key: str = "", tavily_key: str = ""
+    query: str, max_results: int = 5, brave_key: str = "", tavily_key: str = "",
+    lang: str = "en",
 ) -> str:
     """Search the web and return a concise summary. Order of preference:
     Tavily -> Brave -> DuckDuckGo (whichever is configured; free/no-key fallback)."""
     if tavily_key:
         try:
             return tavily_search(
-                query, tavily_key, max_results, recent=_looks_recent(query)
+                query, tavily_key, max_results, recent=_looks_recent(query),
+                lang=lang,
             )
         except Exception as exc:
             log.warning("tavily_search failed (%s); trying next", exc)
     if brave_key:
         try:
-            return brave_search(query, brave_key, max_results)
+            return brave_search(query, brave_key, max_results, lang=lang)
         except Exception as exc:
             log.warning("brave_search failed (%s); falling back to DuckDuckGo", exc)
     try:
@@ -204,10 +211,10 @@ def web_search(
             )
     except Exception as exc:
         log.warning("web_search failed (%s)", exc)
-        return f"não consegui buscar na web agora ({exc})"
+        return t(lang, "tool.web_error", exc=exc)
 
     if not results:
-        return "não achei nada relevante na web."
+        return t(lang, "tool.web_none")
 
     lines = []
     for r in results:

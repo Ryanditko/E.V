@@ -414,14 +414,16 @@ def test_inbox_summary_formatting(monkeypatch):
         {"from": "Banco", "subject": "Fatura", "date": "", "snippet": "", "unread": True}])
     out = tools.inbox_summary(None, "", "")
     assert "Fatura" in out and "Banco" in out and "#1" in out
-    # empty inbox -> friendly line
+    # empty inbox -> friendly line (English is the default; pt when asked)
     monkeypatch.setattr(tools, "list_emails", lambda *a, **k: [])
-    assert "nenhum e-mail" in tools.inbox_summary(None, "", "").lower()
+    assert "no new emails" in tools.inbox_summary(None, "", "").lower()
+    assert "nenhum e-mail" in tools.inbox_summary(None, "", "", lang="pt").lower()
     # not-configured -> tells the user to set the IMAP creds
     def _boom(*a, **k):
         raise RuntimeError("imap-not-configured")
     monkeypatch.setattr(tools, "list_emails", _boom)
-    assert "não configurada" in tools.inbox_summary(None, "", "").lower()
+    assert "isn't set up" in tools.inbox_summary(None, "", "").lower()
+    assert "não configurada" in tools.inbox_summary(None, "", "", lang="pt").lower()
 
 
 def test_imap_query_mapping():
@@ -429,6 +431,32 @@ def test_imap_query_mapping():
     assert tools._imap_query("") == ("UNSEEN",)
     assert tools._imap_query("is:unread") == ("UNSEEN",)
     assert tools._imap_query("fatura") == ("TEXT", "fatura")
+
+
+def test_provider_tool_strings_follow_lang(monkeypatch):
+    """Tool result/error strings default to English and switch to Portuguese
+    when lang='pt' — the last user-facing i18n slice (tool outputs)."""
+    import httpx
+
+    from ev.providers import tools
+
+    # weather: city-not-found message (geocode returns no results, no network).
+    class _FakeResp:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"results": [], "web": {"results": []}}
+
+    monkeypatch.setattr(httpx, "get", lambda *a, **k: _FakeResp())
+    assert "couldn't find the city" in tools.weather("Nowhere").lower()
+    assert "não achei a cidade" in tools.weather("Nowhere", lang="pt").lower()
+
+    # websearch: nothing-found message (Brave path, empty results).
+    en = tools.web_search("x", brave_key="k")
+    pt = tools.web_search("x", brave_key="k", lang="pt")
+    assert "couldn't find anything relevant" in en.lower()
+    assert "não achei nada relevante" in pt.lower()
 
 
 def test_bad_input(tmp_path):
