@@ -283,18 +283,19 @@ Type `/` for autocomplete, or `/menu` for a button UI. A taste:
 
 | Command | Example |
 |---------|---------|
-| `/lembrete <time> <text>` | `/lembrete amanhã 09:00 reunião` |
-| `/rotina <diario\|semanal\|mensal> …` | recurring reminder |
-| `/tarefa <text>` · `/tarefas` · `/concluir <id>` | to-do list (due dates + recurrence) |
-| `/gasto <v> <desc> #cat` · `/gastos` · `/relatorio` | expenses & **current-month** report |
-| `/orcamento <cat> <v>` · `/orcamentos` | budgets with 80/100% alerts |
-| `/habito` · `/feito` · `/diario` | habits (streaks) & journal |
-| `/lembrar <fact>` · `/memorias` · `/procurar <q>` | memory + unified search |
+| `/remind <time> <text>` | `/remind tomorrow 09:00 meeting` |
+| `/routine <daily\|weekly\|monthly> …` | recurring reminder |
+| `/task <text>` · `/tasks` · `/complete <id>` | to-do list (due dates + recurrence) |
+| `/expense <v> <desc> #cat` · `/expenses` · `/report` | expenses & **current-month** report |
+| `/budget <cat> <v>` · `/budgets` | budgets with 80/100% alerts |
+| `/habit` · `/done` · `/journal` | habits (streaks) & journal |
+| `/remember <fact>` · `/memories` · `/find <q>` | memory + unified search |
 | `/kb` · `/kbweb <url>` · `/quiz` | knowledge base (send a PDF) + RAG quiz |
-| `/agenda` · `/evento` · `/email` | Google (after setup) |
-| `/foco` · `/documento` · `/exportar` · `/dados` | Pomodoro · docs · exports · data control |
+| `/gcal` · `/event` · `/email` | Google (after setup) |
+| `/pomodoro` · `/document` · `/export` · `/data` | Pomodoro · docs · exports · data control |
 
-Time formats: `10m`, `2h`, `1d`, `hoje 18:00`, `amanhã 09:00`, `25/12 14:30`.
+Time formats: `10m`, `2h`, `1d`, `today 18:00`, `tomorrow 09:00`, `25/12 14:30`.
+Portuguese command names (e.g. `/lembrete`, `/tarefa`) also work.
 
 > [!NOTE]
 > Integrations like **Google** (Calendar + Gmail) and **Spotify** are **opt-in** — they
@@ -314,7 +315,7 @@ Time formats: `10m`, `2h`, `1d`, `hoje 18:00`, `amanhã 09:00`, `25/12 14:30`.
 | Transcription | **Groq Whisper** | `whisper-large-v3-turbo` | Voice → text (Telegram + web) |
 | Embeddings | **Gemini / Ollama** | `gemini-embedding-001` | Semantic memory + knowledge base |
 
-Switch or force a provider at runtime with `/provedor` and `/modelo`.
+Switch or force a provider at runtime with `/provider` and `/model`.
 
 > [!TIP]
 > Add a **local Ollama** model (`ollama pull llama3.1`) and E.V. **never runs out of

@@ -31,9 +31,9 @@ class RemindersCalendarMixin:
             return _t(lang, "rem.routine_usage")
         kw = tokens[0].lower()
         now = self._now()
-        if kw in ("diario", "diária", "diaria", "diariamente"):
+        if kw in ("diario", "diária", "diaria", "diariamente", "daily"):
             recur, label = "daily", _t(lang, "rem.label_daily")
-        elif kw in ("semanal", "semana", "semanalmente"):
+        elif kw in ("semanal", "semana", "semanalmente", "weekly"):
             recur, label = "weekly", _t(lang, "rem.label_weekly")
         elif kw in ("mensal", "mensalmente", "mes", "mês", "monthly"):
             recur = "monthly"

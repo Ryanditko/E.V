@@ -21,7 +21,7 @@ import re as _re
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 
-from ....core.commands import COMMAND_LIST
+from ....core.commands import command_list
 from ....core.i18n import t as _t
 from ..context import WebContext
 
@@ -58,7 +58,8 @@ def build_router(ctx: WebContext) -> APIRouter:
     @router.get("/api/commands")
     async def commands_ep(request: Request):
         ctx.check(request.headers.get("authorization"))
-        return {"commands": [{"name": n, "desc": d} for n, d in COMMAND_LIST]}
+        return {"commands": [{"name": n, "desc": d}
+                             for n, d in command_list(memory.assistant_lang())]}
 
     @router.get("/api/threads")
     async def threads_get(request: Request):

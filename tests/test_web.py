@@ -198,7 +198,9 @@ def test_chat_default_thread(tmp_path):
 def test_commands_list(tmp_path):
     client, _ = _client(tmp_path)
     names = [c["name"] for c in client.get("/api/commands", headers=_auth()).json()["commands"]]
-    assert "tarefa" in names and "provedor" in names and "foco" in names
+    # default assistant language is English -> English command names
+    assert "task" in names and "provider" in names and "pomodoro" in names
+    assert "tarefa" not in names
 
 
 def test_folders_default_and_create(tmp_path):
