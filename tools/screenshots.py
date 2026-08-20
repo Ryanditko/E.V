@@ -450,9 +450,7 @@ def capture(port: int, names: list[str], headed: bool) -> dict[str, str]:
                     results[name] = "skipped (no dedicated view in current UI)"
                     continue
                 _navigate(page, name, view)
-                # graf scrolls internally and is expanded in _navigate, so grab
-                # the whole page to include every chart.
-                png = page.screenshot(type="png", full_page=(name == "graf"))
+                png = page.screenshot(type="png")
                 ok, note = _is_faithful(png)
                 if ok:
                     (_SHOTS / f"{name}.png").write_bytes(png)
@@ -496,26 +494,9 @@ def _navigate(page, name: str, view: str) -> None:
         page.evaluate("() => applyBnd(true)")
         page.wait_for_timeout(1000)   # let the blue theme settle
         return
-    if view == "graf":
-        page.evaluate("() => switchView('graf')")
-        page.wait_for_timeout(1800)   # let Chart.js draw all charts
-        # #chartsview scrolls internally; expand it (and unclip parents) so a
-        # full-page screenshot captures every chart, not just the first ones.
-        page.evaluate("""() => {
-          const cv = document.getElementById('chartsview');
-          if (cv) { cv.style.height='auto'; cv.style.maxHeight='none'; cv.style.overflow='visible'; }
-          for (const id of ['center','app']) {
-            const el = document.getElementById(id);
-            if (el) { el.style.height='auto'; el.style.overflow='visible'; }
-          }
-          document.body.style.height='auto'; document.body.style.overflow='visible';
-          document.documentElement.style.height='auto';
-        }""")
-        page.wait_for_timeout(500)
-        return
     page.evaluate(f"() => switchView('{view}')")
-    # brain renders on canvas with animations; give it extra settle time.
-    page.wait_for_timeout(1800 if view in ("brain", "map") else 1000)
+    # brain/graf render on canvas with animations; give them extra settle time.
+    page.wait_for_timeout(1800 if view in ("brain", "graf", "map") else 1000)
 
 
 # --- CLI ------------------------------------------------------------------
