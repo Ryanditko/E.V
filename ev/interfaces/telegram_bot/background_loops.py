@@ -321,8 +321,9 @@ class BackgroundLoopsMixin:
         await self._bot_send(app.bot, cfg.owner_id, msg, self._quick_kb())
         try:  # mirror into the web notification center + push to devices
             from ...providers import push
+            lang = self._memory.assistant_lang()
             await asyncio.to_thread(push.send_push, cfg, self._memory,
-                                    "👋 E.V. te cobrando", msg, "/", str(cfg.owner_id))
+                                    _t(lang, "notif.nudge_title"), msg, "/", str(cfg.owner_id))
         except Exception:
             pass
         log.info("Sent proactive open-loops nudge.")

@@ -1022,6 +1022,8 @@ _CATALOG: dict[str, dict[str, str]] = {
     "wx.dir.7": {"en": "NW", "pt": "NO"},
     # web notification-center title for the daily rain alert
     "notif.rain_title": {"en": "🌧️ Rain alert", "pt": "🌧️ Alerta de chuva"},
+    # push/web notification title for the proactive open-loops nudge
+    "notif.nudge_title": {"en": "👋 E.V. checking in", "pt": "👋 E.V. te cobrando"},
 }
 
 # Pluralized fragments: key -> {lang: (singular, plural)}. Both en and pt use the
