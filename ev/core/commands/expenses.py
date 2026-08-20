@@ -69,7 +69,7 @@ class ExpensesMixin:
         lang = self._memory.assistant_lang()
         since = (datetime.now(timezone.utc) - timedelta(days=120)).isoformat()
         it, err = self._pick(self._memory.expenses_since(user_id, since),
-                             argstr, "description", _t(lang, "exp.pick"))
+                             argstr, "description", _t(lang, "exp.pick"), lang)
         if err:
             return err
         self._memory.delete_expense(user_id, it["id"])
@@ -81,7 +81,7 @@ class ExpensesMixin:
         alvo, _, resto = argstr.partition("|")
         since = (datetime.now(timezone.utc) - timedelta(days=120)).isoformat()
         it, err = self._pick(self._memory.expenses_since(user_id, since),
-                             alvo, "description", _t(lang, "exp.pick"))
+                             alvo, "description", _t(lang, "exp.pick"), lang)
         if err:
             return err
         toks = resto.split()

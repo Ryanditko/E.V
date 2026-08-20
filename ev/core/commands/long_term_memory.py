@@ -29,7 +29,7 @@ class LongTermMemoryMixin:
     def esquecer(self, user_id: str, argstr: str) -> str:
         lang = self._memory.assistant_lang()
         it, err = self._pick(self._memory.list_facts(user_id), argstr, "fact",
-                             _t(lang, "ltm.pick"))
+                             _t(lang, "ltm.pick"), lang)
         if err:
             return err
         self._memory.delete_fact(user_id, it["id"])

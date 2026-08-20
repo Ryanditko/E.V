@@ -121,7 +121,7 @@ class RemindersCalendarMixin:
     def cancelar(self, user_id: str, argstr: str) -> str:
         lang = self._memory.assistant_lang()
         it, err = self._pick(self._memory.open_reminders(user_id), argstr, "text",
-                             _t(lang, "rem.pick_reminder"))
+                             _t(lang, "rem.pick_reminder"), lang)
         if err:
             return err
         self._memory.cancel_reminder(user_id, it["id"])
@@ -132,7 +132,7 @@ class RemindersCalendarMixin:
         lang = self._memory.assistant_lang()
         alvo, _, resto = argstr.partition("|")
         it, err = self._pick(self._memory.open_reminders(user_id), alvo, "text",
-                             _t(lang, "rem.pick_reminder"))
+                             _t(lang, "rem.pick_reminder"), lang)
         if err:
             return err
         novo, _, quando = resto.partition("|")

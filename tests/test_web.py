@@ -219,7 +219,7 @@ def test_cmd_provider_works(tmp_path):
 def test_cmd_data_command(tmp_path):
     client, _ = _client(tmp_path)
     r = client.post("/api/cmd", json={"command": "tarefa comprar pão"}, headers=_auth())
-    assert "adicionada" in r.json()["reply"].lower()
+    assert "added" in r.json()["reply"].lower()
 
 
 def test_folder_rename_and_delete(tmp_path):
@@ -284,7 +284,7 @@ def test_limparchat_clears_folder(tmp_path):
     client.post("/api/cmd", json={"command": "tarefas", "thread": "work"}, headers=_auth())
     assert client.get("/api/history?thread=work", headers=_auth()).json()["messages"]
     r = client.post("/api/cmd", json={"command": "limparchat", "thread": "work"}, headers=_auth())
-    assert "limpa" in r.json()["reply"].lower()
+    assert "cleared" in r.json()["reply"].lower()
     assert client.get("/api/history?thread=work", headers=_auth()).json()["messages"] == []
 
 
@@ -331,7 +331,7 @@ def test_dados_shows_summary_on_web(tmp_path):
     # was returning "funciona no Telegram" — must show the storage summary now.
     client, _ = _client(tmp_path)
     reply = client.post("/api/cmd", json={"command": "dados"}, headers=_auth()).json()["reply"]
-    assert "guardados" in reply.lower()
+    assert "stored" in reply.lower()
     assert "funciona no telegram" not in reply.lower()
 
 

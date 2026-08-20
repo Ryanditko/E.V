@@ -35,7 +35,7 @@ def test_add_months_crosses_year():
 def test_rotina_monthly(tmp_path):
     c = _commands(tmp_path)
     out = c.rotina("u", "mensal 5 10:00 pagar aluguel")
-    assert "todo dia 5" in out
+    assert "every 5" in out
     rems = c._memory.open_reminders("u")
     assert rems and rems[0]["recur"] == "monthly"
     assert datetime.fromisoformat(rems[0]["when_iso"]).day == 5
@@ -48,7 +48,7 @@ def test_rotina_monthly_requires_day(tmp_path):
 
 def test_rotina_still_supports_daily(tmp_path):
     c = _commands(tmp_path)
-    assert "todo dia" in c.rotina("u", "diario 08:00 remédio")
+    assert "every day" in c.rotina("u", "diario 08:00 remédio")
 
 
 # --- text extraction (feature A) --------------------------------------------
@@ -86,5 +86,5 @@ def test_data_digest(tmp_path):
     c._memory.add_task("u", "estudar", "faculdade")
     c._memory.add_fact("u", "gosto de café")
     title, content = c.data_digest("u")
-    assert "Meus dados" in title
+    assert "My data" in title
     assert "estudar" in content and "café" in content

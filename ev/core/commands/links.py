@@ -37,7 +37,7 @@ class LinksMixin:
     def linkrm(self, user_id: str, argstr: str) -> str:
         lang = self._memory.assistant_lang()
         it, err = self._pick(self._memory.list_links(user_id), argstr, "name",
-                             _t(lang, "link.pick"))
+                             _t(lang, "link.pick"), lang)
         if err:
             return err
         self._memory.delete_link(user_id, it["id"])
