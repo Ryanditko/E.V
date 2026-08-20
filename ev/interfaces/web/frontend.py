@@ -1985,10 +1985,10 @@ function openForm(title,fields,onSave,onDelete){const m=$('#modal');m.textConten
   bar.appendChild(c);bar.appendChild(s);card.appendChild(bar);m.appendChild(card);m.classList.add('on');
   setTimeout(()=>{const f=inp[fields[0].key];f.focus();if(f.select)f.select();},60);}
 function openQuickCapture(){openForm(t('form.quickCap'),[{key:'text',label:t('form.qcLabel'),type:'textarea',placeholder:t('form.qcPh')}],
-  async v=>{const t=(v.text||'').trim();if(!t)return;toast(t('toast.capturing'));
+  async v=>{const t=(v.text||'').trim();if(!t)return;toast(TR('toast.capturing'));
     try{const r=await fetch('/api/chat',{method:'POST',headers:H(),body:JSON.stringify({message:t,thread})});
-      const j=await r.json();toast((j.reply||t('toast.captured')).slice(0,220));loadPanel();switchView(curView);}
-    catch(e){toast(t('toast.captureFail'));}});}
+      const j=await r.json();toast((j.reply||TR('toast.captured')).slice(0,220));loadPanel();switchView(curView);}
+    catch(e){toast(TR('toast.captureFail'));}});}
 window.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='j'){e.preventDefault();openQuickCapture();}});
 $('#edit-acts').onclick=()=>openPicker(t('right.quickActions'),t('pick.actsSub'),Object.keys(CAT).map(k=>({key:k,label:t(CAT[k][0])})),config.actions,async l=>{config.actions=l;await saveConfig();renderActs();});
 // --- custom pages (declarative dashboards) ---
@@ -2031,7 +2031,7 @@ function openPageBuilder(page){const m=$('#modal');m.textContent='';const card=e
     widgets.forEach((w,i)=>{const row=el('div','vrow');row.appendChild(el('span','vname',w.type+(w.category?(' · '+w.category):w.name?(' · '+w.name):w.cmd?(' · '+w.cmd):w.text?' · nota':'')));
       const del=el('button','vplay');del.appendChild(ficon('trash-2'));del.onclick=()=>{widgets.splice(i,1);draw();};row.appendChild(del);list.appendChild(row);});};
   draw();card.appendChild(el('div','tv-cat',t('page.widgets')));card.appendChild(list);
-  const sel=document.createElement('select');sel.className='minput';['note','tasks','connector','command','chart','spotify'].forEach(t=>{const o=document.createElement('option');o.value=t;o.textContent={note:t('wtype.note'),tasks:t('view.tasks'),connector:t('wtype.connector'),command:t('wtype.command'),chart:t('wtype.chart'),spotify:t('wtype.spotify')}[t];sel.appendChild(o);});sel.style.margin='8px 0 6px';card.appendChild(sel);
+  const sel=document.createElement('select');sel.className='minput';['note','tasks','connector','command','chart','spotify'].forEach(t=>{const o=document.createElement('option');o.value=t;o.textContent={note:TR('wtype.note'),tasks:TR('view.tasks'),connector:TR('wtype.connector'),command:TR('wtype.command'),chart:TR('wtype.chart'),spotify:TR('wtype.spotify')}[t];sel.appendChild(o);});sel.style.margin='8px 0 6px';card.appendChild(sel);
   const arg=document.createElement('input');arg.className='minput';arg.placeholder='detalhe (categoria / nome do conector / comando / texto)';card.appendChild(arg);
   const add=el('button','mbtn2','+ adicionar widget');add.style.marginTop='6px';add.onclick=()=>{const t=sel.value,a=(arg.value||'').trim();const w={type:t};
     if(t==='tasks')w.category=a;else if(t==='connector')w.name=a;else if(t==='command'){w.cmd=a;w.label=a;}else if(t==='note')w.text=a;else if(t==='spotify')w.url=a;
@@ -2637,18 +2637,18 @@ async function loadGoals(){const box=$('#gl-list');if(!box)return;box.textConten
 // --- Saúde & rotina ---
 async function loadSaude(){const box=$('#sa-body');if(!box)return;box.textContent='';
   let d;try{d=await (await fetch('/api/saude',{headers:H()})).json();}catch(e){return;}const t=d.today||{water:0};
-  const wc=el('div','sa-card');wc.appendChild(el('div','t',t('saude.waterToday')+' · '+(t.water||0)+' '+t('saude.cups')));
+  const wc=el('div','sa-card');wc.appendChild(el('div','t',TR('saude.waterToday')+' · '+(t.water||0)+' '+TR('saude.cups')));
   const wrap=el('div','sa-water');for(let k=0;k<8;k++){const dp=el('span','sa-drop'+(k<(t.water||0)?' on':''));dp.appendChild(ficon('droplet'));wrap.appendChild(dp);}
   const plus=el('button','mchip');plus.appendChild(ficon('plus'));plus.onclick=async()=>{await fetch('/api/saude',{method:'POST',headers:H(),body:JSON.stringify({water_inc:1})});sfx('click');loadSaude();};
   const minus=el('button','tv-ic');minus.appendChild(ficon('minus'));minus.onclick=async()=>{await fetch('/api/saude',{method:'POST',headers:H(),body:JSON.stringify({water_inc:-1})});loadSaude();};
   wrap.appendChild(plus);wrap.appendChild(minus);wc.appendChild(wrap);box.appendChild(wc);
-  const sc=el('div','sa-card');sc.appendChild(el('div','t',t('saude.lastSleep')));
+  const sc=el('div','sa-card');sc.appendChild(el('div','t',TR('saude.lastSleep')));
   const si=document.createElement('input');si.className='tv-search';si.type='number';si.step='0.5';si.placeholder='horas';si.value=t.sleep!=null?t.sleep:'';si.style.maxWidth='120px';
   si.onchange=async()=>{await fetch('/api/saude',{method:'POST',headers:H(),body:JSON.stringify({sleep:parseFloat(si.value)||0})});sfx('click');};sc.appendChild(si);box.appendChild(sc);
-  const mc=el('div','sa-card');mc.appendChild(el('div','t',t('saude.moodToday')));const mm=el('div','sa-mood');
+  const mc=el('div','sa-card');mc.appendChild(el('div','t',TR('saude.moodToday')));const mm=el('div','sa-mood');
   ['😄','🙂','😐','😔','😣'].forEach(e=>{const bb=document.createElement('button');bb.textContent=e;if(t.mood===e)bb.className='on';bb.onclick=async()=>{await fetch('/api/saude',{method:'POST',headers:H(),body:JSON.stringify({mood:e})});sfx('click');loadSaude();};mm.appendChild(bb);});
   mc.appendChild(mm);box.appendChild(mc);
-  if((d.history||[]).length>1){const hc=el('div','sa-card');hc.appendChild(el('div','t',t('saude.lastDays')));
+  if((d.history||[]).length>1){const hc=el('div','sa-card');hc.appendChild(el('div','t',TR('saude.lastDays')));
     d.history.forEach(x=>{const r=el('div','');r.style.cssText='display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--line);font-size:13px;color:var(--muted)';
       r.appendChild(el('span','',x.day));r.appendChild(el('span','','💧 '+(x.water||0)+'  😴 '+(x.sleep||'-')+'h  '+(x.mood||'')));hc.appendChild(r);});box.appendChild(hc);}
   window.lucide&&lucide.createIcons();}
@@ -3042,12 +3042,12 @@ $('#street-x')&&($('#street-x').onclick=closeStreet);
 const ACT_ICON={'task.new':['plus','act.taskNew'],'task.done':['check-check','act.taskDone'],'task.del':['trash-2','act.taskDel'],'reminder.new':['alarm-clock','act.remNew'],'reminder.done':['bell-ring','act.remDone'],'reminder.cancel':['bell-off','act.remCancel'],'expense.new':['wallet','act.expNew'],'expense.del':['trash-2','act.expDel'],'habit.done':['repeat','act.habDone']};
 async function loadAct(){try{const cat=$('#act-cat').value;
   const d=await (await fetch('/api/activity'+(cat?'?category='+encodeURIComponent(cat):''),{headers:H()})).json();
-  const sel=$('#act-cat');sel.innerHTML='<option value="">Todas as categorias</option>'+(d.categories||[]).map(c=>'<option'+(c===cat?' selected':'')+'>'+c+'</option>').join('');
+  const sel=$('#act-cat');sel.innerHTML='<option value="">'+TR('act.allCats')+'</option>'+(d.categories||[]).map(c=>'<option'+(c===cat?' selected':'')+'>'+c+'</option>').join('');
   const box=$('#actlist');box.textContent='';const items=d.items||[];
   if(!items.length){box.appendChild(emptyState('activity',t('empty.actT'),t('empty.actH')));window.lucide&&lucide.createIcons();return;}
   items.forEach(a=>{const meta=ACT_ICON[a.action]||['activity',a.action];const row=el('div','tv-row');
     const ic=el('div','tv-ic');ic.appendChild(ficon(meta[0]));ic.style.cursor='default';
-    const t=el('div','txt');t.appendChild(el('div','',t(meta[1])+': '+a.label));
+    const t=el('div','txt');t.appendChild(el('div','',TR(meta[1])+': '+a.label));
     const w=a.created?new Date(a.created):null;
     const sub=((w&&!isNaN(w))?w.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'')+(a.category?' · '+a.category:'');
     t.appendChild(subline(sub));row.appendChild(ic);row.appendChild(t);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
@@ -3057,7 +3057,7 @@ async function loadSub(){try{const items=(await (await fetch('/api/recurring',{h
   items.forEach(x=>{const row=el('div','tv-row');const t=el('div','txt');t.appendChild(el('div','',x.description));t.appendChild(subline(x.category+' · dia '+x.day));
     const val=el('div','');val.style.cssText='font-family:var(--mono);font-weight:600';val.textContent='R$'+x.amount.toFixed(0);
     const ed=el('button','tv-ic');ed.title=TR('common.editT');ed.appendChild(ficon('pencil'));ed.onclick=()=>editSub(x);
-    const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));dl.onclick=async ()=>{if(await confirmDialog(t('confirm.rmSub')))recDel('/api/recurring/delete',x.id,loadSub);};
+    const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));dl.onclick=async ()=>{if(await confirmDialog(TR('confirm.rmSub')))recDel('/api/recurring/delete',x.id,loadSub);};
     row.appendChild(t);row.appendChild(val);row.appendChild(ed);row.appendChild(dl);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
 function editSub(x){openForm(t('form.editSub'),[
   {key:'amount',label:t('field.amountRs'),value:String(x.amount)},
@@ -3072,7 +3072,7 @@ async function loadOrc(){try{const items=(await (await fetch('/api/budgets',{hea
   items.forEach(b=>{const row=el('div','tv-row');const t=el('div','txt');t.appendChild(el('div','',b.category));
     const val=el('div','');val.style.cssText='font-family:var(--mono);font-weight:600';val.textContent='R$'+b.amount.toFixed(0)+'/mês';
     const ed=el('button','tv-ic');ed.title=TR('common.editT');ed.appendChild(ficon('pencil'));ed.onclick=()=>editOrc(b);
-    const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));dl.onclick=async ()=>{if(await confirmDialog(t('confirm.rmBudget'))){await fetch('/api/budgets/delete',{method:'POST',headers:H(),body:JSON.stringify({category:b.category})});loadOrc();loadPanel();}};
+    const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));dl.onclick=async ()=>{if(await confirmDialog(TR('confirm.rmBudget'))){await fetch('/api/budgets/delete',{method:'POST',headers:H(),body:JSON.stringify({category:b.category})});loadOrc();loadPanel();}};
     row.appendChild(t);row.appendChild(val);row.appendChild(ed);row.appendChild(dl);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
 function editOrc(b){openForm(t('form.editBudget')+' · '+b.category,[
   {key:'amount',label:t('field.monthlyRs'),value:String(b.amount)}],
@@ -3083,7 +3083,7 @@ async function loadMon(){try{const items=(await (await fetch('/api/watches',{hea
   if(!items.length){box.appendChild(emptyState('radar',t('empty.monT'),t('empty.monH')));window.lucide&&lucide.createIcons();return;}
   items.forEach(w=>{const row=el('div','tv-row');const t=el('div','txt');const a=document.createElement('a');a.href=w.url;a.target='_blank';a.rel='noopener';a.className='lnk';a.textContent=w.url;t.appendChild(a);if(w.keyword)t.appendChild(subline('palavra: '+w.keyword));
     const ed=el('button','tv-ic');ed.title=TR('common.editT');ed.appendChild(ficon('pencil'));ed.onclick=()=>editMon(w);
-    const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));dl.onclick=async ()=>{if(await confirmDialog(t('confirm.rmMon')))recDel('/api/watches/delete',w.id,loadMon);};
+    const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));dl.onclick=async ()=>{if(await confirmDialog(TR('confirm.rmMon')))recDel('/api/watches/delete',w.id,loadMon);};
     row.appendChild(t);row.appendChild(ed);row.appendChild(dl);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
 function editMon(w){openForm(t('form.editMon'),[
   {key:'url',label:t('field.url'),value:w.url},
@@ -3135,7 +3135,7 @@ async function loadLoc(){try{
   if(!scripts.length)sbox.appendChild(emptyState('terminal',t('empty.locScrT'),t('empty.locScrH')));
   else scripts.forEach(s=>{const row=el('div','tv-row');const t=el('div','txt');t.appendChild(document.createTextNode(s.name));t.appendChild(subline(s.command));
     const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));
-    dl.onclick=async()=>{if(await confirmDialog(t('confirm.rmScript')+' '+s.name+'?')){await fetch('/api/local-scripts/delete',{method:'POST',headers:H(),body:JSON.stringify({id:s.id})});loadLoc();}};
+    dl.onclick=async()=>{if(await confirmDialog(TR('confirm.rmScript')+' '+s.name+'?')){await fetch('/api/local-scripts/delete',{method:'POST',headers:H(),body:JSON.stringify({id:s.id})});loadLoc();}};
     row.appendChild(t);row.appendChild(dl);sbox.appendChild(row);});
   window.lucide&&lucide.createIcons();}catch(e){}}
 $('#locscriptform').onsubmit=async e=>{e.preventDefault();const name=$('#locs-name').value.trim(),command=$('#locs-cmd').value.trim();if(!name||!command)return;
@@ -3163,7 +3163,7 @@ async function loadHabits(){try{const items=(await (await fetch('/api/habits',{h
     done.onclick=async()=>{await fetch('/api/habits/done',{method:'POST',headers:H(),body:JSON.stringify({id:h.id})});loadHabits();};
     const t=el('div','txt');t.appendChild(el('div','',h.name));t.appendChild(subline(h.total+' '+TR('hab.daysWord')+(h.done_today?' · '+TR('hab.doneToday'):'')));t.appendChild(habHeat(h.days));
     const ed=el('button','tv-ic');ed.title=TR('common.renameT');ed.appendChild(ficon('pencil'));ed.onclick=()=>editHab(h);
-    const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));dl.onclick=async ()=>{if(await confirmDialog(t('confirm.rmHab')))recDel('/api/habits/delete',h.id,loadHabits);};
+    const dl=el('button','tv-ic');dl.appendChild(ficon('trash-2'));dl.onclick=async ()=>{if(await confirmDialog(TR('confirm.rmHab')))recDel('/api/habits/delete',h.id,loadHabits);};
     row.appendChild(done);row.appendChild(t);row.appendChild(ed);row.appendChild(dl);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
 function habHeat(days){const set=new Set(days||[]);const wrap=el('div','heat');const today=new Date();
   for(let i=111;i>=0;i--){const d=new Date(today);d.setDate(today.getDate()-i);const ds=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');const c=el('span','hc'+(set.has(ds)?' on':''));c.title=ds;wrap.appendChild(c);}
@@ -3328,7 +3328,7 @@ async function loadKB(){try{const d=await (await fetch('/api/kb',{headers:H()}))
     row.appendChild(t);
     if(files.has(s.source)){const op=el('button','tv-ic');op.title=TR('common.openTitle');op.appendChild(ficon('external-link'));op.onclick=()=>kbOpen(s.source,false);
       const dw=el('button','tv-ic');dw.title=TR('common.downloadT');dw.appendChild(ficon('download'));dw.onclick=()=>kbOpen(s.source,true);row.appendChild(op);row.appendChild(dw);}
-    const dl=el('button','tv-ic');dl.title=TR('common.removeT');dl.appendChild(ficon('trash-2'));dl.onclick=async ()=>{if(await confirmDialog(t('confirm.rmKb1')+' "'+s.source+'" '+t('confirm.rmKb2')))kbDel(s.source);};
+    const dl=el('button','tv-ic');dl.title=TR('common.removeT');dl.appendChild(ficon('trash-2'));dl.onclick=async ()=>{if(await confirmDialog(TR('confirm.rmKb1')+' "'+s.source+'" '+TR('confirm.rmKb2')))kbDel(s.source);};
     row.appendChild(dl);box.appendChild(row);});window.lucide&&lucide.createIcons();}catch(e){}}
 async function kbOpen(source,download){try{const r=await fetch('/api/kb/file?source='+encodeURIComponent(source),{headers:H()});if(!r.ok){sys(TR('kb.fileNotFound'));return;}
   const url=URL.createObjectURL(await r.blob());
