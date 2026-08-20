@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import logging
 
+from ...core.i18n import t
+
 log = logging.getLogger("ev.tools")
 
 _WEATHER_CODES = {
@@ -16,7 +18,14 @@ _WEATHER_CODES = {
 }
 
 
-def weather(city: str) -> str:
+def _weather_desc(code, lang: str = "en") -> str:
+    """Localized human-readable condition for an open-meteo weather code."""
+    key = f"wx.code.{int(code)}"
+    desc = t(lang, key)
+    return "" if desc == key else desc  # unknown code -> "" (matches old default)
+
+
+def weather(city: str, lang: str = "en") -> str:
     """Current weather for `city` via open-meteo (no API key)."""
     import httpx
 
@@ -27,7 +36,7 @@ def weather(city: str) -> str:
             timeout=15,
         ).json()
         if not geo.get("results"):
-            return f"não achei a cidade '{city}' pro clima."
+            return t(lang, "tool.wx_city_not_found", city=city)
         loc = geo["results"][0]
         cur = httpx.get(
             "https://api.open-meteo.com/v1/forecast",
@@ -40,13 +49,14 @@ def weather(city: str) -> str:
             timeout=15,
         ).json()
         temp = cur["current"]["temperature_2m"]
-        desc = _WEATHER_CODES.get(cur["current"]["weather_code"], "")
+        desc = _weather_desc(cur["current"]["weather_code"], lang)
         tmax = cur["daily"]["temperature_2m_max"][0]
         tmin = cur["daily"]["temperature_2m_min"][0]
-        return f"{loc['name']}: {temp}°C, {desc} (min {tmin}° / máx {tmax}°)"
+        return t(lang, "tool.wx_current", name=loc["name"], temp=temp,
+                 desc=desc, tmin=tmin, tmax=tmax)
     except Exception as exc:
         log.warning("weather failed (%s)", exc)
-        return f"não consegui o clima agora ({exc})"
+        return t(lang, "tool.wx_error", exc=exc)
 
 
 def moon_phase() -> dict:
@@ -118,8 +128,8 @@ def weather_full(city: str) -> dict:
         hcode = (r.get("hourly", {}) or {}).get("weather_code", [])
         now_iso = cur.get("time", "")
         start = 0
-        for i, t in enumerate(htimes):
-            if t >= now_iso:
+        for i, ht in enumerate(htimes):
+            if ht >= now_iso:
                 start = i
                 break
         hourly = []
@@ -174,7 +184,7 @@ def weather_full(city: str) -> dict:
         return {}
 
 
-def weather_forecast(city: str, days: int = 3) -> str:
+def weather_forecast(city: str, days: int = 3, lang: str = "en") -> str:
     """Accurate multi-day forecast (today + next days) via open-meteo (no key)."""
     import httpx
 
@@ -185,7 +195,7 @@ def weather_forecast(city: str, days: int = 3) -> str:
             timeout=15,
         ).json()
         if not geo.get("results"):
-            return f"não achei a cidade '{city}'."
+            return t(lang, "tool.wx_city_not_found_short", city=city)
         loc = geo["results"][0]
         d = httpx.get(
             "https://api.open-meteo.com/v1/forecast",
@@ -198,20 +208,21 @@ def weather_forecast(city: str, days: int = 3) -> str:
         ).json()["daily"]
     except Exception as exc:
         log.warning("weather_forecast failed (%s)", exc)
-        return f"não consegui a previsão agora ({exc})"
+        return t(lang, "tool.wx_forecast_error", exc=exc)
 
-    labels = {0: "Hoje", 1: "Amanhã"}
-    lines = [f"Previsão para {loc['name']}:"]
+    labels = {0: t(lang, "tool.wx_today"), 1: t(lang, "tool.wx_tomorrow")}
+    lines = [t(lang, "tool.wx_forecast_title", name=loc["name"])]
     for i in range(min(days, len(d["time"]))):
         label = labels.get(i, d["time"][i])
-        desc = _WEATHER_CODES.get(d["weather_code"][i], "")
+        desc = _weather_desc(d["weather_code"][i], lang)
         prob = d["precipitation_probability_max"][i]
         tmin, tmax = d["temperature_2m_min"][i], d["temperature_2m_max"][i]
-        lines.append(f"{label}: {tmin:.0f}°–{tmax:.0f}°C, {desc}, chuva {prob}%")
+        lines.append(t(lang, "tool.wx_forecast_line", label=label,
+                       tmin=f"{tmin:.0f}", tmax=f"{tmax:.0f}", desc=desc, prob=prob))
     return "\n".join(lines)
 
 
-def rain_tomorrow(city: str) -> str | None:
+def rain_tomorrow(city: str, lang: str = "en") -> str | None:
     """If rain is likely tomorrow in `city`, return a warning message; else None."""
     import httpx
 
@@ -237,11 +248,9 @@ def rain_tomorrow(city: str) -> str | None:
         code = fc["weather_code"][1]
         rainy_codes = {51, 53, 55, 61, 63, 65, 80, 81, 82, 95, 96, 99}
         if (prob is not None and prob >= 50) or code in rainy_codes:
-            desc = _WEATHER_CODES.get(code, "chuva")
-            return (
-                f"Alerta: amanhã tem chance de chuva em {loc['name']} "
-                f"({desc}, {prob}% de probabilidade). Leva guarda-chuva!"
-            )
+            desc = _weather_desc(code, lang) or t(lang, "tool.wx_rain_default")
+            return t(lang, "tool.wx_rain_alert", name=loc["name"],
+                     desc=desc, prob=prob)
         return None
     except Exception as exc:
         log.warning("rain_tomorrow failed (%s)", exc)

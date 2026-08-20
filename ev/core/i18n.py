@@ -874,6 +874,122 @@ _CATALOG: dict[str, dict[str, str]] = {
         "pt": ("O /{name} é melhor no Telegram ou pela interface: use a aba/botão "
                "correspondente (ex: Pomodoro, exportar no painel)."),
     },
+    # ======================================================================
+    # Provider tool results & errors (providers/tools/*.py). Surfaced to the
+    # user when E.V. uses a tool. English is the default; pt = current text.
+    # ======================================================================
+    # --- calendar.py ------------------------------------------------------
+    "tool.cal_access_error": {
+        "en": "couldn't access the calendar ({exc})",
+        "pt": "não consegui acessar a agenda ({exc})",
+    },
+    "tool.cal_no_events": {
+        "en": "no upcoming events on the calendar.",
+        "pt": "nenhum evento próximo na agenda.",
+    },
+    "tool.cal_no_title": {"en": "(no title)", "pt": "(sem título)"},
+    "tool.cal_event_created": {"en": "event created: {link}", "pt": "evento criado: {link}"},
+    "tool.cal_create_error": {
+        "en": "couldn't create the event ({exc})",
+        "pt": "não consegui criar o evento ({exc})",
+    },
+    # --- email.py ---------------------------------------------------------
+    "tool.email_sent": {"en": "email sent to {to}", "pt": "e-mail enviado para {to}"},
+    "tool.email_send_error": {
+        "en": "couldn't send the email ({exc})",
+        "pt": "não consegui enviar o e-mail ({exc})",
+    },
+    "tool.email_no_subject": {"en": "(no subject)", "pt": "(sem assunto)"},
+    "tool.email_read_not_configured": {
+        "en": ("Email reading isn't set up yet. Set EV_IMAP_ADDRESS and "
+               "EV_IMAP_PASSWORD (Gmail app password) so I can read your inbox."),
+        "pt": ("leitura de e-mail ainda não configurada. Defina EV_IMAP_ADDRESS "
+               "e EV_IMAP_PASSWORD (senha de app do Gmail) para eu ler sua caixa."),
+    },
+    "tool.email_login_error": {
+        "en": ("couldn't sign in to email — check the app password "
+               "(EV_IMAP_PASSWORD) and that IMAP is enabled in Gmail."),
+        "pt": ("não consegui entrar no e-mail — confira a senha de app "
+               "(EV_IMAP_PASSWORD) e se o IMAP está ativado no Gmail."),
+    },
+    "tool.email_read_error": {
+        "en": "couldn't read the emails ({exc})",
+        "pt": "não consegui ler os e-mails ({exc})",
+    },
+    "tool.email_none_new": {"en": "no new emails here.", "pt": "nenhum e-mail novo por aqui."},
+    "tool.email_inbox_header": {"en": "📥 Emails ({n}):", "pt": "📥 E-mails ({n}):"},
+    # --- websearch.py -----------------------------------------------------
+    "tool.news_error": {
+        "en": "couldn't get the news right now ({exc})",
+        "pt": "não consegui as notícias agora ({exc})",
+    },
+    "tool.news_none": {"en": "no relevant news right now.", "pt": "sem notícias relevantes agora."},
+    "tool.web_none": {
+        "en": "couldn't find anything relevant on the web.",
+        "pt": "não achei nada relevante na web.",
+    },
+    "tool.web_error": {
+        "en": "couldn't search the web right now ({exc})",
+        "pt": "não consegui buscar na web agora ({exc})",
+    },
+    "tool.web_summary": {"en": "Summary: {answer}", "pt": "Resumo: {answer}"},
+    # --- weather.py -------------------------------------------------------
+    "tool.wx_city_not_found": {
+        "en": "couldn't find the city '{city}' for weather.",
+        "pt": "não achei a cidade '{city}' pro clima.",
+    },
+    "tool.wx_city_not_found_short": {
+        "en": "couldn't find the city '{city}'.",
+        "pt": "não achei a cidade '{city}'.",
+    },
+    "tool.wx_error": {
+        "en": "couldn't get the weather right now ({exc})",
+        "pt": "não consegui o clima agora ({exc})",
+    },
+    "tool.wx_current": {
+        "en": "{name}: {temp}°C, {desc} (min {tmin}° / max {tmax}°)",
+        "pt": "{name}: {temp}°C, {desc} (min {tmin}° / máx {tmax}°)",
+    },
+    "tool.wx_forecast_error": {
+        "en": "couldn't get the forecast right now ({exc})",
+        "pt": "não consegui a previsão agora ({exc})",
+    },
+    "tool.wx_forecast_title": {"en": "Forecast for {name}:", "pt": "Previsão para {name}:"},
+    "tool.wx_forecast_line": {
+        "en": "{label}: {tmin}°–{tmax}°C, {desc}, rain {prob}%",
+        "pt": "{label}: {tmin}°–{tmax}°C, {desc}, chuva {prob}%",
+    },
+    "tool.wx_today": {"en": "Today", "pt": "Hoje"},
+    "tool.wx_tomorrow": {"en": "Tomorrow", "pt": "Amanhã"},
+    "tool.wx_rain_alert": {
+        "en": ("Heads up: rain is likely tomorrow in {name} ({desc}, {prob}% "
+               "chance). Take an umbrella!"),
+        "pt": ("Alerta: amanhã tem chance de chuva em {name} "
+               "({desc}, {prob}% de probabilidade). Leva guarda-chuva!"),
+    },
+    "tool.wx_rain_default": {"en": "rain", "pt": "chuva"},
+    # open-meteo weather codes (conditions) shown in weather text
+    "wx.code.0": {"en": "clear sky", "pt": "céu limpo"},
+    "wx.code.1": {"en": "mostly sunny", "pt": "predominância de sol"},
+    "wx.code.2": {"en": "partly cloudy", "pt": "parcialmente nublado"},
+    "wx.code.3": {"en": "cloudy", "pt": "nublado"},
+    "wx.code.45": {"en": "fog", "pt": "névoa"},
+    "wx.code.48": {"en": "freezing fog", "pt": "névoa gelada"},
+    "wx.code.51": {"en": "light drizzle", "pt": "garoa fraca"},
+    "wx.code.53": {"en": "drizzle", "pt": "garoa"},
+    "wx.code.55": {"en": "heavy drizzle", "pt": "garoa forte"},
+    "wx.code.61": {"en": "light rain", "pt": "chuva fraca"},
+    "wx.code.63": {"en": "rain", "pt": "chuva"},
+    "wx.code.65": {"en": "heavy rain", "pt": "chuva forte"},
+    "wx.code.71": {"en": "light snow", "pt": "neve fraca"},
+    "wx.code.73": {"en": "snow", "pt": "neve"},
+    "wx.code.75": {"en": "heavy snow", "pt": "neve forte"},
+    "wx.code.80": {"en": "rain showers", "pt": "pancadas de chuva"},
+    "wx.code.81": {"en": "rain showers", "pt": "pancadas de chuva"},
+    "wx.code.82": {"en": "violent rain showers", "pt": "temporal"},
+    "wx.code.95": {"en": "thunderstorm", "pt": "tempestade"},
+    "wx.code.96": {"en": "thunderstorm with hail", "pt": "tempestade com granizo"},
+    "wx.code.99": {"en": "thunderstorm with hail", "pt": "tempestade com granizo"},
 }
 
 # Pluralized fragments: key -> {lang: (singular, plural)}. Both en and pt use the

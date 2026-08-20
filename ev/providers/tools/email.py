@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import logging
 
+from ...core.i18n import t
 from .google_auth import _google_service
 
 log = logging.getLogger("ev.tools")
 
 
-def send_email(config, account: str, to: str, subject: str, body: str) -> str:
+def send_email(config, account: str, to: str, subject: str, body: str,
+               lang: str = "en") -> str:
     """Send an email through the user's Gmail account."""
     import base64
     from email.message import EmailMessage
@@ -22,10 +24,10 @@ def send_email(config, account: str, to: str, subject: str, body: str) -> str:
         msg.set_content(body)
         raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
         service.users().messages().send(userId="me", body={"raw": raw}).execute()
-        return f"e-mail enviado para {to}"
+        return t(lang, "tool.email_sent", to=to)
     except Exception as exc:
         log.warning("send_email failed (%s)", exc)
-        return f"não consegui enviar o e-mail ({exc})"
+        return t(lang, "tool.email_send_error", exc=exc)
 
 
 def _clean_from(value: str) -> str:
@@ -64,7 +66,7 @@ def _decode_header(raw: str) -> str:
 
 
 def list_emails(config, account: str = "", query: str = "",
-                max_results: int = 8) -> list[dict]:
+                max_results: int = 8, lang: str = "en") -> list[dict]:
     """Return recent emails from the configured Gmail inbox via IMAP.
 
     Reading uses IMAP + an app password (config.imap_address/imap_password), not
@@ -93,7 +95,8 @@ def list_emails(config, account: str = "", query: str = "",
             msg = _email.message_from_bytes(msg_data[0][1])
             out.append({
                 "from": _clean_from(_decode_header(msg.get("From", ""))),
-                "subject": _decode_header(msg.get("Subject", "")) or "(sem assunto)",
+                "subject": (_decode_header(msg.get("Subject", ""))
+                            or t(lang, "tool.email_no_subject")),
                 "date": msg.get("Date", ""),
                 "snippet": "",
                 "unread": True,  # default UNSEEN search; best-effort otherwise
@@ -107,26 +110,24 @@ def list_emails(config, account: str = "", query: str = "",
 
 
 def inbox_summary(config, account: str = "", query: str = "",
-                  max_results: int = 8) -> str:
+                  max_results: int = 8, lang: str = "en") -> str:
     """Human-readable summary of recent emails, formatted for chat rendering."""
     from ev.providers.tools import list_emails as _list_emails  # late import: lets
     # callers monkeypatch tools.list_emails and have it take effect here too.
     try:
-        items = _list_emails(config, account, query, max_results)
+        items = _list_emails(config, account, query, max_results, lang)
     except Exception as exc:
         msg = str(exc)
         if "imap-not-configured" in msg:
-            return ("leitura de e-mail ainda não configurada. Defina EV_IMAP_ADDRESS "
-                    "e EV_IMAP_PASSWORD (senha de app do Gmail) para eu ler sua caixa.")
+            return t(lang, "tool.email_read_not_configured")
         log.warning("inbox_summary failed (%s)", exc)
         low = msg.lower()
         if "authenticationfailed" in low or "invalid credentials" in low or "login" in low:
-            return ("não consegui entrar no e-mail — confira a senha de app "
-                    "(EV_IMAP_PASSWORD) e se o IMAP está ativado no Gmail.")
-        return f"não consegui ler os e-mails ({msg[:120]})"
+            return t(lang, "tool.email_login_error")
+        return t(lang, "tool.email_read_error", exc=msg[:120])
     if not items:
-        return "nenhum e-mail novo por aqui."
-    lines = [f"📥 E-mails ({len(items)}):", ""]
+        return t(lang, "tool.email_none_new")
+    lines = [t(lang, "tool.email_inbox_header", n=len(items)), ""]
     for i, m in enumerate(items, 1):
         line = f"#{i} {m['from']} — {m['subject']}"
         lines.append(line)
