@@ -42,13 +42,61 @@ def test_open_loops_and_nudge(tmp_path):
     assert c.nudge_text("v", now=now) == ""
 
 
-def test_spoken_status(tmp_path):
+def test_spoken_status_pt(tmp_path):
     c = _commands(tmp_path)
+    c._memory.set_assistant_lang("pt")
     s = c.spoken_status("u")
     assert "Ryan" in s and ("Bom dia" in s or "Boa tarde" in s or "Boa noite" in s)
     assert "tranquila" in s  # nothing open yet
     c.tarefa("u", "comprar pão")
     assert "1 tarefa" in c.spoken_status("u")
+
+
+def test_spoken_status_en(tmp_path):
+    c = _commands(tmp_path)  # default language is English
+    s = c.spoken_status("u")
+    assert "Ryan" in s and any(
+        g in s for g in ("Good morning", "Good afternoon", "Good evening"))
+    assert "Your schedule is clear." in s  # nothing open yet
+    assert "tranquila" not in s and "Bom dia" not in s
+
+
+def test_greeting_pluralization_en_vs_pt(tmp_path):
+    c = _commands(tmp_path)
+    c.tarefa("u", "a")
+    c.tarefa("u", "b")
+    c._memory.add_reminder("u", "call mom", "2026-12-25T09:00:00")  # 2 tasks, 1 reminder
+    en = c.spoken_status("u")
+    assert "Today you have 2 tasks and 1 reminder." in en
+    c._memory.set_assistant_lang("pt")
+    pt = c.spoken_status("u")
+    assert "Hoje você tem 2 tarefas e 1 lembrete." in pt
+
+
+def test_daily_briefing_follows_language(tmp_path):
+    c = _commands(tmp_path)
+    c._config.google_authorized = lambda: False
+    c._config.city = ""
+    c._config.news_topic = ""
+    assert "Good morning! Here's your summary for today:" in c.daily_briefing("u")
+    c._memory.set_assistant_lang("pt")
+    assert "Bom dia! Aqui vai seu resumo de hoje:" in c.daily_briefing("u")
+
+
+def test_i18n_helper():
+    from ev.core.i18n import plural, t
+    # translate + fall back English -> key
+    assert t("pt", "join.and") == "e"
+    assert t("en", "join.and") == "and"
+    assert t("xx", "join.and") == "and"  # unknown lang -> English
+    assert t("en", "does.not.exist") == "does.not.exist"  # unknown key -> key
+    assert t("en", "greeting.hello", greeting="Hi", name="Ryan") == "Hi, Ryan."
+    # pluralization for both languages (n == 1 singular, else plural, incl. 0)
+    assert plural("en", "count.tasks", 1) == "1 task"
+    assert plural("en", "count.tasks", 2) == "2 tasks"
+    assert plural("en", "count.tasks", 0) == "0 tasks"
+    assert plural("pt", "count.reminders", 1) == "1 lembrete"
+    assert plural("pt", "count.reminders", 3) == "3 lembretes"
 
 
 def test_automations_crud(tmp_path):

@@ -19,6 +19,7 @@ import logging
 
 from ...core import health
 from ...core.brain import Brain
+from ...core.i18n import t as _t
 from ...core.commands import Commands
 from ...core.memory import Memory
 from ...providers import tools as tools_mod
@@ -78,18 +79,21 @@ class WebContext:
         return f"web:{t}"
 
     def status_text(self):
+        lang = self.memory.assistant_lang()
         rep = health.system_report(self.config, self.memory)
         keys = health.keys_status(self.config)
-        out = ["🩺 Status da E.V.", ""]
+        out = [_t(lang, "status.title"), ""]
         if "disk_used_pct" in rep:
-            out.append(f"Disco: {rep['disk_used_pct']}% · {rep.get('disk_free_gb','?')} GB livres")
+            out.append(_t(lang, "status.disk", pct=rep["disk_used_pct"],
+                          free=rep.get("disk_free_gb", "?")))
         if "mem_used_pct" in rep:
-            out.append(f"Memória: {rep['mem_used_pct']}%")
-        out.append(f"Banco: {'ok' if rep.get('db_query_ok') else 'erro'} ({rep.get('db_size_mb',0)} MB)")
+            out.append(_t(lang, "status.memory", pct=rep["mem_used_pct"]))
+        db_state = _t(lang, "status.ok" if rep.get("db_query_ok") else "status.error")
+        out.append(_t(lang, "status.database", state=db_state, size=rep.get("db_size_mb", 0)))
         out.append("")
-        out.append("Chaves / integrações:")
+        out.append(_t(lang, "status.keys_header"))
         for k in keys:
-            mark = "ok" if k["ok"] else (k["note"] or "não")
+            mark = _t(lang, "status.ok") if k["ok"] else (k["note"] or _t(lang, "status.no"))
             out.append(f"- {k['name']}: {mark}")
         return "\n".join(out)
 
