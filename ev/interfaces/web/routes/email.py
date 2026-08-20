@@ -10,6 +10,7 @@ import asyncio
 
 from fastapi import APIRouter, Request
 
+from ....core.i18n import t
 from ..context import WebContext
 
 
@@ -20,20 +21,21 @@ def build_router(ctx: WebContext) -> APIRouter:
     @router.post("/api/email")
     async def api_email(request: Request):
         ctx.check(request.headers.get("authorization"))
+        lang = ctx.memory.assistant_lang()
         from ....providers import tools
         d = await ctx.body(request)
         to = (d.get("to") or "").strip()
         subject = (d.get("subject") or "").strip()
         body = (d.get("body") or "").strip()
         if not to or not body:
-            return {"ok": False, "msg": "Preencha destinatário e mensagem."}
+            return {"ok": False, "msg": t(lang, "web.email_missing_fields")}
         account = (d.get("account") or "").strip() or config.default_account
         try:
             msg = await asyncio.to_thread(
-                tools.send_email, config, account, to, subject, body
+                tools.send_email, config, account, to, subject, body, lang
             )
             return {"ok": True, "msg": msg}
         except Exception as exc:
-            return {"ok": False, "msg": f"Falha ao enviar o email: {exc}"}
+            return {"ok": False, "msg": t(lang, "web.email_send_error", exc=exc)}
 
     return router

@@ -10,6 +10,7 @@ import asyncio
 
 from fastapi import APIRouter, Request
 
+from ....core.i18n import t
 from ....providers import tools as tools_mod
 from ..context import WebContext
 
@@ -27,9 +28,10 @@ def build_router(ctx: WebContext) -> APIRouter:
         sun = {}
         if city:
             try:
-                wf = await asyncio.to_thread(tools_mod.weather_full, city)
-                t = wf.get("today", {})
-                sun = {"sunrise": t.get("sunrise"), "sunset": t.get("sunset")}
+                lang = ctx.memory.assistant_lang()
+                wf = await asyncio.to_thread(tools_mod.weather_full, city, lang)
+                today = wf.get("today", {})
+                sun = {"sunrise": today.get("sunrise"), "sunset": today.get("sunset")}
             except Exception:
                 pass
         iss = {}
@@ -78,10 +80,11 @@ def build_router(ctx: WebContext) -> APIRouter:
     @router.get("/api/weather")
     async def weather_ep(request: Request):
         ctx.check(request.headers.get("authorization"))
+        lang = ctx.memory.assistant_lang()
         city = (request.query_params.get("city") or getattr(config, "city", "") or "").strip()
         if not city:
-            return {"error": "defina uma cidade (EV_CITY) ou busque uma no campo acima"}
-        data = await asyncio.to_thread(tools_mod.weather_full, city)
-        return data or {"error": f"não consegui o clima de '{city}'"}
+            return {"error": t(lang, "web.wx_no_city")}
+        data = await asyncio.to_thread(tools_mod.weather_full, city, lang)
+        return data or {"error": t(lang, "web.wx_error_city", city=city)}
 
     return router

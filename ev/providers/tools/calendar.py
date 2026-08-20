@@ -45,7 +45,8 @@ def calendar_upcoming(config, account: str, max_results: int = 5,
 
 
 def calendar_list_range(
-    config, account: str, start_iso: str, end_iso: str, max_results: int = 250
+    config, account: str, start_iso: str, end_iso: str, max_results: int = 250,
+    lang: str = "en",
 ) -> list[dict]:
     """List Google Calendar events between start and end as structured dicts."""
     service = _google_service(config, account, "calendar", "v3")
@@ -58,12 +59,13 @@ def calendar_list_range(
         .execute()
         .get("items", [])
     )
+    no_title = t(lang, "tool.cal_no_title")
     out = []
     for e in events:
         s, en = e.get("start", {}), e.get("end", {})
         out.append({
             "id": e.get("id"),
-            "summary": e.get("summary", "(sem título)"),
+            "summary": e.get("summary", no_title),
             "start": s.get("dateTime") or s.get("date"),
             "end": en.get("dateTime") or en.get("date"),
             "all_day": "date" in s and "dateTime" not in s,

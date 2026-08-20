@@ -562,7 +562,8 @@ def test_kb_upload_recognizes_multipart_file(tmp_path):
 def test_email_endpoint_validates(tmp_path):
     client, _ = _client(tmp_path)
     r = client.post("/api/email", headers=_auth(), json={"to": "", "body": ""}).json()
-    assert r["ok"] is False and "destinat" in r["msg"].lower()
+    # localized (defaults to English); message follows assistant_lang
+    assert r["ok"] is False and "recipient" in r["msg"].lower()
 
 
 def test_notify_endpoint_validates(tmp_path):
