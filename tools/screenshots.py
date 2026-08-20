@@ -236,6 +236,12 @@ def seed_demo(db_path: Path) -> None:
     ]:
         m.add_fact(u, fact)
 
+    # Saved music (Spotify) — so the Music screen shows a populated player/list
+    # instead of the "No saved music" empty state. Real public Spotify links;
+    # (kind, ref) match ev.providers.spotify.parse() output.
+    m.add_music(u, "Today's Top Hits", "playlist", "37i9dQZF1DXcBWIGoYBM5M")
+    m.add_music(u, "Blinding Lights", "track", "0VjIjW4GlUZAMYd2vXMi3b")
+
     # People (relationships)
     m.add_person(u, "Ana", "Best friend, loves to travel.", birthday="12/12")
     m.add_person(u, "Bruno", "College classmate, study partner.", birthday="03/05")
