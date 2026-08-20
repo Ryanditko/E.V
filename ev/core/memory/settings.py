@@ -4,8 +4,24 @@ from __future__ import annotations
 
 import json
 
+from ..lang import SETTING_KEY as _LANG_KEY
+from ..lang import normalize_lang as _normalize_lang
+
 
 class SettingsMixin:
+    def assistant_lang(self) -> str:
+        """The current assistant language ("en" | "pt"), defaulting to English.
+
+        Single source of truth for how E.V. replies AND speaks. Set via the web
+        language picker (POST /api/lang) or Telegram /idioma."""
+        return _normalize_lang(self.get_setting(_LANG_KEY))
+
+    def set_assistant_lang(self, value: str) -> str:
+        """Persist the assistant language (normalized) and return what was stored."""
+        lang = _normalize_lang(value)
+        self.set_setting(_LANG_KEY, lang)
+        return lang
+
     def bump_usage(self, provider: str, day: str) -> None:
         self._conn.execute(
             "INSERT INTO usage_log (day, provider, n) VALUES (?, ?, 1) "

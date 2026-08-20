@@ -194,6 +194,7 @@ class TelegramInterface(
         app.add_handler(CommandHandler("insights", self.cmd_insights))
         app.add_handler(CommandHandler("modelo", self.cmd_modelo))
         app.add_handler(CommandHandler("provedor", self.cmd_provedor))
+        app.add_handler(CommandHandler(["idioma", "language"], self.cmd_idioma))
         app.add_handler(CommandHandler("lembrar", self.cmd_lembrar))
         app.add_handler(CommandHandler("memorias", self.cmd_memorias))
         app.add_handler(CommandHandler("link", self.cmd_link))

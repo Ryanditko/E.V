@@ -483,9 +483,10 @@ class MediaMixin:
         if not self._config.voice_reply:
             return
         try:
+            lang = self._memory.assistant_lang()
             mp3 = await voice_mod.synthesize(
                 answer,
-                self._config.voice,
+                voice_mod.voice_for_lang(self._config, lang),
                 rate=self._config.voice_rate,
                 pitch=self._config.voice_pitch,
                 fixes=self._config.voice_fixes,

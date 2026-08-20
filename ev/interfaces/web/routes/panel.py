@@ -226,6 +226,20 @@ def build_router(ctx: WebContext) -> APIRouter:
         memory.set_setting("serious_mode", "1" if body.get("on") else "0")
         return {"ok": True, "serious": bool(body.get("on"))}
 
+    # --- assistant language (unified with the UI picker) -------------------
+    @router.post("/api/lang")
+    async def lang_set(request: Request):
+        # Same choice the UI language picker makes; syncs how E.V. replies/speaks.
+        ctx.check(request.headers.get("authorization"))
+        body = await request.json()
+        lang = memory.set_assistant_lang(body.get("lang"))
+        return {"ok": True, "lang": lang}
+
+    @router.get("/api/lang")
+    async def lang_get(request: Request):
+        ctx.check(request.headers.get("authorization"))
+        return {"lang": memory.assistant_lang()}
+
     # --- home dashboard overview -------------------------------------------
     @router.get("/api/overview")
     async def overview_ep(request: Request):

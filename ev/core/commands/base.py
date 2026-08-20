@@ -80,6 +80,7 @@ COMMAND_LIST = [
     ("insights", "Insights da sua semana (IA)"),
     ("modelo", "Ver/trocar o modelo principal (Gemini) e uso do dia"),
     ("provedor", "Forçar/testar um provedor: /provedor groq (ou auto)"),
+    ("idioma", "Idioma da E.V. (responde e fala): /idioma en ou /idioma pt"),
     ("habito", "Criar hábito: /habito treino"),
     ("feito", "Marcar hábito feito hoje: /feito treino"),
     ("habitos", "Ver hábitos e sequências"),

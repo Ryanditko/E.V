@@ -33,7 +33,7 @@ except Exception:  # pragma: no cover
 from google import genai
 
 from ...config import Config
-from ...personality import SYSTEM_PROMPT
+from ...personality import build_system_prompt
 from ...providers import embeddings
 from ..commands import Commands
 from ..memory import Memory
@@ -214,7 +214,7 @@ class Brain(
     # --- system prompt ------------------------------------------------------
 
     def _system_instruction(self, user_id: str, query: str | None) -> str:
-        system = SYSTEM_PROMPT
+        system = build_system_prompt(self._memory.assistant_lang())
 
         # MODO FOCO — muda o tom das respostas enquanto ativo.
         if self._memory.get_setting("serious_mode") == "1":

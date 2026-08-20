@@ -1383,6 +1383,9 @@ function applyLang(lang,initial){_lang=I18N[lang]?lang:'en';localStorage.setItem
   document.documentElement.lang=(_lang==='pt'?'pt-br':'en');_applyStatic();
   try{buildLangMenu();}catch(e){}
   if(!initial){
+    // Unified control: choosing the UI language also sets how E.V. talks
+    // (LLM replies + TTS voice). Fire-and-forget, like the focus-mode toggle.
+    try{fetch('/api/lang',{method:'POST',headers:H(),body:JSON.stringify({lang:_lang})}).catch(()=>{});}catch(e){}
     try{if(typeof renderTabs==='function')renderTabs();}catch(e){}
     try{if(typeof renderActs==='function')renderActs();}catch(e){}
     try{if(typeof renderStats==='function')renderStats();}catch(e){}
