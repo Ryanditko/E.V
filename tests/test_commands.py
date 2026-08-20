@@ -127,8 +127,12 @@ def test_budget_alerts(tmp_path):
 
 def test_subscriptions_due(tmp_path):
     from datetime import datetime
+    from zoneinfo import ZoneInfo
     c = _commands(tmp_path)
-    tomorrow = datetime.now().day + 1
+    # Use the SAME timezone the command computes "today" in, so this test isn't
+    # off-by-one when CI runs near a UTC/local day boundary.
+    today = datetime.now(ZoneInfo(c._config.timezone)).day
+    tomorrow = today + 1
     c._memory.add_recurring("u", 50, "Netflix", "lazer", tomorrow)
     due = c.subscriptions_due("u")
     # a charge set for "day 32+" won't happen this month; guard on that
