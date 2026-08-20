@@ -2,11 +2,11 @@
 
 <img src="docs/brand/ev-logo.svg" alt="E.V. — personal AI assistant" width="520">
 
-### A personal AI assistant with a voice, a memory, and a will to never go quiet.
+### 🕸️ Peter Parker's homemade AI from *Spider-Man: Brand New Day* — built from scratch for real life.
 
-Two doors — **Telegram** and a **JARVIS-style web console** — one mind behind both.
-Inspired by Spider-Man's E.V. (*Brand New Day*): the AI the hero built with his own
-hands — loyal, warm, playful, and always on your side.
+Voice in & out, a real long-term memory, and **20+ tools** (tasks, calendar, expenses,
+habits, maps, Spotify…) across **Telegram** and a **JARVIS-style web console**.
+A multi-provider brain that never goes silent. **EN / PT.**
 
 <br/>
 
