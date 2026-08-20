@@ -236,6 +236,12 @@ def seed_demo(db_path: Path) -> None:
     ]:
         m.add_fact(u, fact)
 
+    # Saved music (Spotify) — so the Music screen shows a populated player/list
+    # instead of the "No saved music" empty state. Real public Spotify links;
+    # (kind, ref) match ev.providers.spotify.parse() output.
+    m.add_music(u, "Today's Top Hits", "playlist", "37i9dQZF1DXcBWIGoYBM5M")
+    m.add_music(u, "Blinding Lights", "track", "0VjIjW4GlUZAMYd2vXMi3b")
+
     # People (relationships)
     m.add_person(u, "Ana", "Best friend, loves to travel.", birthday="12/12")
     m.add_person(u, "Bruno", "College classmate, study partner.", birthday="03/05")
@@ -421,6 +427,119 @@ def _is_faithful(png: bytes) -> tuple[bool, str]:
     return True, f"ok ({len(png)//1024} KB)"
 
 
+# --- Phone mockup frame ---------------------------------------------------
+def _frame_phone(png: bytes) -> bytes:
+    """Composite a raw viewport screenshot into a tasteful dark phone mockup.
+
+    Draws a rounded dark bezel around the captured screen, an iOS-style status
+    bar (``9:41`` on the left; signal/wifi/battery on the right), a centered
+    notch/pill and a bottom home-indicator bar. Mirrors the device-framed look
+    the old mobile screenshots had before ``--mobile`` captured a raw viewport.
+    Falls back to the raw PNG if PIL is unavailable.
+    """
+    try:
+        import io
+
+        from PIL import Image, ImageDraw, ImageFont
+    except Exception:
+        return png
+
+    content = Image.open(io.BytesIO(png)).convert("RGB")
+    cw, ch = content.size
+
+    # Geometry (px; the input is already retina-scaled so use generous sizes).
+    side = 18          # left/right bezel
+    top = 96           # top bezel — holds the status bar + notch
+    bottom = 78        # bottom bezel — holds the home indicator
+    margin = 44        # page padding around the phone body
+    body_r = 118       # outer body corner radius
+    screen_r = 78      # inner screen corner radius
+
+    page_bg = (6, 7, 9)
+    body_bg = (13, 14, 17)
+    fg = (236, 237, 242)
+
+    body_w, body_h = cw + side * 2, ch + top + bottom
+    canvas_w, canvas_h = body_w + margin * 2, body_h + margin * 2
+
+    canvas = Image.new("RGB", (canvas_w, canvas_h), page_bg)
+
+    # Phone body (rounded dark rectangle) on its own RGBA layer so the rounded
+    # corners let the page background show through.
+    body = Image.new("RGBA", (body_w, body_h), (0, 0, 0, 0))
+    bd = ImageDraw.Draw(body)
+    bd.rounded_rectangle([0, 0, body_w - 1, body_h - 1], radius=body_r,
+                         fill=body_bg + (255,))
+
+    # Round the screen's corners, then paste it into the body.
+    mask = Image.new("L", (cw, ch), 0)
+    ImageDraw.Draw(mask).rounded_rectangle([0, 0, cw - 1, ch - 1],
+                                           radius=screen_r, fill=255)
+    body.paste(content, (side, top), mask)
+
+    # Status bar text + glyphs live in the top bezel, above the screen.
+    def _font(size):
+        for path in ("/System/Library/Fonts/Helvetica.ttc",
+                     "/System/Library/Fonts/SFNSDisplay.ttf",
+                     "/Library/Fonts/Arial.ttf",
+                     "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"):
+            try:
+                return ImageFont.truetype(path, size)
+            except Exception:
+                continue
+        return ImageFont.load_default()
+
+    f = _font(38)
+    sb_cy = top // 2                         # vertical centre of the status bar
+    # Clock (left)
+    bd.text((side + 46, sb_cy), "9:41", font=f, fill=fg, anchor="lm")
+
+    # Right side: signal bars, wifi arc, battery.
+    right = body_w - side - 40
+    # Battery
+    bat_w, bat_h = 58, 26
+    bat_x1, bat_y0 = right, sb_cy - bat_h // 2
+    bat_x0 = bat_x1 - bat_w
+    bd.rounded_rectangle([bat_x0, bat_y0, bat_x1, bat_y0 + bat_h], radius=7,
+                         outline=fg, width=3)
+    bd.rounded_rectangle([bat_x1 + 3, sb_cy - 7, bat_x1 + 8, sb_cy + 7],
+                         radius=2, fill=fg)
+    bd.rounded_rectangle([bat_x0 + 4, bat_y0 + 4, bat_x0 + 4 + int((bat_w - 8) * 0.8),
+                          bat_y0 + bat_h - 4], radius=4, fill=fg)
+    # Wifi (three stacked arcs approximated with an arc glyph)
+    wf_cx = bat_x0 - 40
+    for i, rr in enumerate((20, 13, 6)):
+        bd.arc([wf_cx - rr, sb_cy - rr + 6, wf_cx + rr, sb_cy + rr + 6],
+               start=225, end=315, fill=fg, width=3)
+    bd.ellipse([wf_cx - 3, sb_cy + 4, wf_cx + 3, sb_cy + 10], fill=fg)
+    # Signal bars
+    sig_x = wf_cx - 74
+    for i, bh in enumerate((10, 16, 22, 28)):
+        bx = sig_x + i * 14
+        bd.rounded_rectangle([bx, sb_cy + 14 - bh, bx + 9, sb_cy + 14],
+                             radius=2, fill=fg)
+
+    # Centered notch / dynamic-island pill, straddling the top of the screen.
+    pill_w, pill_h = 320, 44
+    pill_x0 = (body_w - pill_w) // 2
+    pill_y0 = top - pill_h // 2 - 6
+    bd.rounded_rectangle([pill_x0, pill_y0, pill_x0 + pill_w, pill_y0 + pill_h],
+                         radius=pill_h // 2, fill=(0, 0, 0))
+
+    # Home indicator bar in the bottom bezel.
+    hi_w, hi_h = 300, 12
+    hi_x0 = (body_w - hi_w) // 2
+    hi_y0 = body_h - bottom // 2 - hi_h // 2
+    bd.rounded_rectangle([hi_x0, hi_y0, hi_x0 + hi_w, hi_y0 + hi_h],
+                         radius=hi_h // 2, fill=(150, 152, 160))
+
+    canvas.paste(body, (margin, margin), body)
+
+    out = io.BytesIO()
+    canvas.save(out, format="png")
+    return out.getvalue()
+
+
 # --- Capture --------------------------------------------------------------
 def capture(port: int, names: list[str], headed: bool, mobile: bool = False) -> dict[str, str]:
     from playwright.sync_api import sync_playwright
@@ -464,6 +583,8 @@ def capture(port: int, names: list[str], headed: bool, mobile: bool = False) -> 
                     continue
                 _navigate(page, name, view)
                 png = page.screenshot(type="png")
+                if mobile:
+                    png = _frame_phone(png)
                 ok, note = _is_faithful(png)
                 if ok:
                     (out_dir / f"{name}.png").write_bytes(png)
