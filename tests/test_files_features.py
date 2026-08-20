@@ -43,7 +43,7 @@ def test_rotina_monthly(tmp_path):
 
 def test_rotina_monthly_requires_day(tmp_path):
     c = _commands(tmp_path)
-    assert "mensal" in c.rotina("u", "mensal 10:00 texto").lower()
+    assert "monthly" in c.rotina("u", "mensal 10:00 texto").lower()
 
 
 def test_rotina_still_supports_daily(tmp_path):

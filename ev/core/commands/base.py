@@ -276,6 +276,22 @@ _EN_TO_PT.update({
     "expenseedit": "gastoeditar",
 })
 
+# Portuguese (canonical) name -> English alias, for the interfaces to register
+# both names on the same handler (Telegram CommandHandler, web command router).
+_PT_TO_EN: dict[str, str] = {pt: en for en, pt in _EN_TO_PT.items()}
+
+
+def english_name(pt_name: str) -> str:
+    """English alias for a Portuguese command name (or the name unchanged)."""
+    return _PT_TO_EN.get(pt_name, pt_name)
+
+
+def portuguese_name(name: str) -> str:
+    """Canonical (Portuguese) name for an English alias (or the name unchanged).
+
+    Lets interfaces route an English command exactly like its Portuguese twin."""
+    return _EN_TO_PT.get(name, name)
+
 
 def command_list(lang: str = DEFAULT_LANG) -> list[tuple[str, str]]:
     """(name, description) pairs for the command menu in the given language.

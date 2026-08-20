@@ -20,7 +20,7 @@ import logging
 from ...core import health
 from ...core.brain import Brain
 from ...core.i18n import t as _t
-from ...core.commands import Commands
+from ...core.commands import Commands, portuguese_name
 from ...core.memory import Memory
 from ...providers import tools as tools_mod
 
@@ -105,7 +105,8 @@ class WebContext:
         parts = (cmd_str or "").strip().split(None, 1)
         if not parts:
             return _t(lang, "web.empty_cmd")
-        name = parts[0].lstrip("/").lower()
+        # Accept English aliases: route them exactly like their PT twin.
+        name = portuguese_name(parts[0].lstrip("/").lower())
         rest = parts[1] if len(parts) > 1 else ""
         if name in ("limpar", "limparchat"):  # clear THIS folder's conversation
             memory.clear_conversation(self.conv(thread))

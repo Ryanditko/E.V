@@ -32,7 +32,7 @@ from telegram.ext import (
 
 from ...config import Config
 from ...core.brain import Brain
-from ...core.commands import Commands, command_list
+from ...core.commands import Commands, command_list, english_name
 from ...core.memory import Memory
 from .background_loops import BackgroundLoopsMixin
 from .callbacks import CallbacksMixin
@@ -144,82 +144,99 @@ class TelegramInterface(
             .post_init(self._post_init)
             .build()
         )
-        # Chat (LLM)
+        # Command handlers. Each command is registered under its Portuguese
+        # (canonical) name AND its English alias (via english_name), so both
+        # /lembrete and /remind reach the same handler — non-breaking.
         app.add_handler(CommandHandler("start", self.on_start))
-        app.add_handler(CommandHandler("menu", self.cmd_menu))
-        app.add_handler(CommandHandler("ev", self.cmd_ev))
-        app.add_handler(CommandHandler("plano", self.cmd_plano))
-        app.add_handler(CommandHandler("pendencias", self.cmd_pendencias))
-        app.add_handler(CommandHandler("backup", self.cmd_backup))
-        app.add_handler(CommandHandler("padroes", self.cmd_padroes))
-        app.add_handler(CommandHandler("automacoes", self.cmd_automacoes))
-        app.add_handler(CommandHandler("automacaorm", self.cmd_automacaorm))
-        app.add_handler(CallbackQueryHandler(self.on_callback))
+        # Chat (LLM)
+        chat_cmds = [
+            ("menu", self.cmd_menu),
+            ("ev", self.cmd_ev),
+            ("plano", self.cmd_plano),
+            ("pendencias", self.cmd_pendencias),
+            ("backup", self.cmd_backup),
+            ("padroes", self.cmd_padroes),
+            ("automacoes", self.cmd_automacoes),
+            ("automacaorm", self.cmd_automacaorm),
+        ]
         # Deterministic commands (no LLM)
-        app.add_handler(CommandHandler("ajuda", self.cmd_ajuda))
-        app.add_handler(CommandHandler("help", self.cmd_ajuda))
-        app.add_handler(CommandHandler("lembrete", self.cmd_lembrete))
-        app.add_handler(CommandHandler("rotina", self.cmd_rotina))
-        app.add_handler(CommandHandler("cancelar", self.cmd_cancelar))
-        app.add_handler(CommandHandler("lembretes", self.cmd_lembretes))
-        app.add_handler(CommandHandler("tarefa", self.cmd_tarefa))
-        app.add_handler(CommandHandler("tarefas", self.cmd_tarefas))
-        app.add_handler(CommandHandler("concluir", self.cmd_concluir))
-        app.add_handler(CommandHandler("buscar", self.cmd_buscar))
-        app.add_handler(CommandHandler("procurar", self.cmd_procurar))
-        app.add_handler(CommandHandler("clima", self.cmd_clima))
-        app.add_handler(CommandHandler("noticias", self.cmd_noticias))
-        app.add_handler(CommandHandler("calendario", self.cmd_calendario))
-        app.add_handler(CommandHandler("gasto", self.cmd_gasto))
-        app.add_handler(CommandHandler("gastos", self.cmd_gastos))
-        app.add_handler(CommandHandler("habito", self.cmd_habito))
-        app.add_handler(CommandHandler("feito", self.cmd_feito))
-        app.add_handler(CommandHandler("habitos", self.cmd_habitos))
-        app.add_handler(CommandHandler("diario", self.cmd_diario))
-        app.add_handler(CommandHandler("esquecer", self.cmd_esquecer))
-        app.add_handler(CommandHandler("gastorm", self.cmd_gastorm))
-        app.add_handler(CommandHandler("habitorm", self.cmd_habitorm))
-        app.add_handler(CommandHandler("diariorm", self.cmd_diariorm))
-        app.add_handler(CommandHandler("semana", self.cmd_semana))
-        app.add_handler(CommandHandler("vigiar", self.cmd_vigiar))
-        app.add_handler(CommandHandler("vigias", self.cmd_vigias))
-        app.add_handler(CommandHandler("vigiarm", self.cmd_vigiarm))
-        app.add_handler(CommandHandler("assinatura", self.cmd_assinatura))
-        app.add_handler(CommandHandler("assinaturas", self.cmd_assinaturas))
-        app.add_handler(CommandHandler("assinaturarm", self.cmd_assinaturarm))
-        app.add_handler(CommandHandler("orcamento", self.cmd_orcamento))
-        app.add_handler(CommandHandler("orcamentos", self.cmd_orcamentos))
-        app.add_handler(CommandHandler("orcamentorm", self.cmd_orcamentorm))
-        app.add_handler(CommandHandler("relatorio", self.cmd_relatorio))
-        app.add_handler(CommandHandler("quiz", self.cmd_quiz))
-        app.add_handler(CommandHandler("insights", self.cmd_insights))
-        app.add_handler(CommandHandler("modelo", self.cmd_modelo))
-        app.add_handler(CommandHandler("provedor", self.cmd_provedor))
-        app.add_handler(CommandHandler(["idioma", "language"], self.cmd_idioma))
-        app.add_handler(CommandHandler("lembrar", self.cmd_lembrar))
-        app.add_handler(CommandHandler("memorias", self.cmd_memorias))
-        app.add_handler(CommandHandler("link", self.cmd_link))
-        app.add_handler(CommandHandler("links", self.cmd_links))
-        app.add_handler(CommandHandler("linkrm", self.cmd_linkrm))
-        app.add_handler(CommandHandler("kb", self.cmd_kb))
-        app.add_handler(CommandHandler("kbweb", self.cmd_kbweb))
-        app.add_handler(CommandHandler("kbrm", self.cmd_kbrm))
-        app.add_handler(CommandHandler("documento", self.cmd_documento))
-        app.add_handler(CommandHandler("exportar", self.cmd_exportar))
-        app.add_handler(CommandHandler("transcrever", self.cmd_transcrever))
-        app.add_handler(CommandHandler("status", self.cmd_status))
-        app.add_handler(CommandHandler("silenciar", self.cmd_silenciar))
-        app.add_handler(CommandHandler("dados", self.cmd_dados))
-        app.add_handler(CommandHandler("limpar", self.cmd_limpar))
-        app.add_handler(CommandHandler("limparchat", self.cmd_limparchat))
-        app.add_handler(CommandHandler("resumir", self.cmd_resumir))
-        app.add_handler(CommandHandler("foco", self.cmd_foco))
-        app.add_handler(CommandHandler("agenda", self.cmd_agenda))
-        app.add_handler(CommandHandler("evento", self.cmd_evento))
-        app.add_handler(CommandHandler("email", self.cmd_email))
-        app.add_handler(CommandHandler("emails", self.cmd_emails))
-        app.add_handler(CommandHandler("pessoa", self.cmd_pessoa))
-        app.add_handler(CommandHandler("pessoas", self.cmd_pessoas))
+        det_cmds = [
+            ("ajuda", self.cmd_ajuda),
+            ("lembrete", self.cmd_lembrete),
+            ("rotina", self.cmd_rotina),
+            ("cancelar", self.cmd_cancelar),
+            ("lembretes", self.cmd_lembretes),
+            ("tarefa", self.cmd_tarefa),
+            ("tarefas", self.cmd_tarefas),
+            ("concluir", self.cmd_concluir),
+            ("buscar", self.cmd_buscar),
+            ("procurar", self.cmd_procurar),
+            ("clima", self.cmd_clima),
+            ("noticias", self.cmd_noticias),
+            ("calendario", self.cmd_calendario),
+            ("gasto", self.cmd_gasto),
+            ("gastos", self.cmd_gastos),
+            ("habito", self.cmd_habito),
+            ("feito", self.cmd_feito),
+            ("habitos", self.cmd_habitos),
+            ("diario", self.cmd_diario),
+            ("esquecer", self.cmd_esquecer),
+            ("gastorm", self.cmd_gastorm),
+            ("habitorm", self.cmd_habitorm),
+            ("diariorm", self.cmd_diariorm),
+            ("semana", self.cmd_semana),
+            ("vigiar", self.cmd_vigiar),
+            ("vigias", self.cmd_vigias),
+            ("vigiarm", self.cmd_vigiarm),
+            ("assinatura", self.cmd_assinatura),
+            ("assinaturas", self.cmd_assinaturas),
+            ("assinaturarm", self.cmd_assinaturarm),
+            ("orcamento", self.cmd_orcamento),
+            ("orcamentos", self.cmd_orcamentos),
+            ("orcamentorm", self.cmd_orcamentorm),
+            ("relatorio", self.cmd_relatorio),
+            ("quiz", self.cmd_quiz),
+            ("insights", self.cmd_insights),
+            ("modelo", self.cmd_modelo),
+            ("provedor", self.cmd_provedor),
+            ("idioma", self.cmd_idioma),
+            ("lembrar", self.cmd_lembrar),
+            ("memorias", self.cmd_memorias),
+            ("link", self.cmd_link),
+            ("links", self.cmd_links),
+            ("linkrm", self.cmd_linkrm),
+            ("kb", self.cmd_kb),
+            ("kbweb", self.cmd_kbweb),
+            ("kbrm", self.cmd_kbrm),
+            ("documento", self.cmd_documento),
+            ("exportar", self.cmd_exportar),
+            ("transcrever", self.cmd_transcrever),
+            ("status", self.cmd_status),
+            ("silenciar", self.cmd_silenciar),
+            ("dados", self.cmd_dados),
+            ("limpar", self.cmd_limpar),
+            ("limparchat", self.cmd_limparchat),
+            ("resumir", self.cmd_resumir),
+            ("foco", self.cmd_foco),
+            ("agenda", self.cmd_agenda),
+            ("evento", self.cmd_evento),
+            ("email", self.cmd_email),
+            ("emails", self.cmd_emails),
+            ("pessoa", self.cmd_pessoa),
+            ("pessoas", self.cmd_pessoas),
+        ]
+
+        def _register(pairs):
+            for pt, cb in pairs:
+                names = [pt]
+                en = english_name(pt)
+                if en != pt:
+                    names.append(en)
+                app.add_handler(CommandHandler(names, cb))
+
+        _register(chat_cmds)
+        app.add_handler(CallbackQueryHandler(self.on_callback))
+        _register(det_cmds)
         # Document upload (PDF) -> knowledge base
         app.add_handler(MessageHandler(filters.Document.ALL, self.on_document))
         # Photo -> multimodal (Gemini vision)
