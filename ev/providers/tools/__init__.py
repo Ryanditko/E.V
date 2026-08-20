@@ -17,7 +17,6 @@ This package re-exports every public name that used to live directly in
 from __future__ import annotations
 
 from .weather import (
-    _WEATHER_CODES,
     weather,
     moon_phase,
     _wicon,
