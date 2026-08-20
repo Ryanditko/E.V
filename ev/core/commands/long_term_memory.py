@@ -3,29 +3,34 @@
 from __future__ import annotations
 
 from ...providers import embeddings
+from ..i18n import t as _t
 
 
 class LongTermMemoryMixin:
     def lembrar(self, user_id: str, argstr: str) -> str:
+        lang = self._memory.assistant_lang()
         fact = argstr.strip()
         if not fact:
-            return "Uso: /lembrar <fato>. Ex: /lembrar meu carro é um Civic preto"
+            return _t(lang, "ltm.usage")
         vec = embeddings.embed(fact, self._config)
         self._memory.add_fact(user_id, fact, embedding=vec)
-        return f"Anotado na memória: {fact}"
+        return _t(lang, "ltm.saved", fact=fact)
 
     def memorias(self, user_id: str) -> str:
+        lang = self._memory.assistant_lang()
         facts = self._memory.list_facts(user_id)
         if not facts:
-            return "Ainda não sei nada sobre você. Use /lembrar pra me contar algo."
-        lines = ["🧠 O que eu sei sobre você:"]
+            return _t(lang, "ltm.none")
+        lines = [_t(lang, "ltm.title")]
         lines += [f"#{f['id']} {f['fact']}" for f in facts]
-        lines.append("\nApagar: /esquecer <id>")
+        lines.append(_t(lang, "ltm.footer"))
         return "\n".join(lines)
 
     def esquecer(self, user_id: str, argstr: str) -> str:
-        it, err = self._pick(self._memory.list_facts(user_id), argstr, "fact", "a memória")
+        lang = self._memory.assistant_lang()
+        it, err = self._pick(self._memory.list_facts(user_id), argstr, "fact",
+                             _t(lang, "ltm.pick"))
         if err:
             return err
         self._memory.delete_fact(user_id, it["id"])
-        return f"Esqueci: \"{it['fact']}\"."
+        return _t(lang, "ltm.forgot", fact=it["fact"])

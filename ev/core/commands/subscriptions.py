@@ -9,16 +9,19 @@ try:
 except Exception:  # pragma: no cover
     ZoneInfo = None  # type: ignore
 
+from ..i18n import t as _t
+
 
 class SubscriptionsMixin:
     def assinatura(self, user_id: str, argstr: str) -> str:
+        lang = self._memory.assistant_lang()
         tokens = argstr.strip().split()
         if len(tokens) < 2:
-            return "Uso: /assinatura <valor> <descrição> [dia] [#categoria]\nEx: /assinatura 39,90 Netflix 15"
+            return _t(lang, "sub.usage")
         try:
             amount = float(tokens[0].replace(",", "."))
         except ValueError:
-            return "Valor inválido. Ex: /assinatura 39,90 Netflix 15"
+            return _t(lang, "sub.invalid_amount")
         rest = tokens[1:]
         category = "assinatura"
         tags = [t for t in rest if t.startswith("#") and len(t) > 1]
@@ -29,28 +32,29 @@ class SubscriptionsMixin:
         if rest and rest[-1].isdigit() and 1 <= int(rest[-1]) <= 28:
             day = int(rest[-1])
             rest = rest[:-1]
-        desc = " ".join(rest).strip() or "(assinatura)"
+        desc = " ".join(rest).strip() or _t(lang, "sub.default_desc")
         rid = self._memory.add_recurring(user_id, amount, desc, category, day)
-        return f"🔁 Assinatura #{rid}: R$ {amount:.2f} em {desc} — lanço todo dia {day}."
+        return _t(lang, "sub.created", rid=rid, amount=f"{amount:.2f}", desc=desc, day=day)
 
     def assinaturas(self, user_id: str) -> str:
+        lang = self._memory.assistant_lang()
         items = self._memory.list_recurring(user_id)
         if not items:
-            return "Nenhuma assinatura recorrente. Crie com /assinatura."
-        lines = ["🔁 Assinaturas (lançadas sozinhas todo mês):"]
+            return _t(lang, "sub.none")
+        lines = [_t(lang, "sub.title")]
         for r in items:
-            lines.append(
-                f"#{r['id']} R$ {r['amount']:.2f} {r['description']} — dia {r['day']} ({r['category']})"
-            )
-        lines.append("\nApagar: /assinaturarm <id>")
+            lines.append(_t(lang, "sub.item", id=r["id"], amount=f"{r['amount']:.2f}",
+                            desc=r["description"], day=r["day"], category=r["category"]))
+        lines.append(_t(lang, "sub.footer"))
         return "\n".join(lines)
 
     def assinaturarm(self, user_id: str, argstr: str) -> str:
+        lang = self._memory.assistant_lang()
         arg = argstr.strip()
         if not arg.isdigit():
-            return "Uso: /assinaturarm <id>. Veja em /assinaturas."
+            return _t(lang, "sub.rm_usage")
         ok = self._memory.delete_recurring(user_id, int(arg))
-        return f"Assinatura #{arg} removida." if ok else f"Não achei a assinatura #{arg}."
+        return _t(lang, "sub.removed", arg=arg) if ok else _t(lang, "sub.not_found", arg=arg)
 
     def subscriptions_due(self, user_id: str, days_ahead: int = 2) -> list:
         """Recurring charges (assinaturas) whose due-day falls within the next

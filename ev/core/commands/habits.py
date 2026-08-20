@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from datetime import timedelta
 
+from ..i18n import plural as _plural
+from ..i18n import t as _t
+
 
 class HabitsMixin:
     def _streak(self, habit_id: int, today) -> int:
@@ -17,47 +20,52 @@ class HabitsMixin:
         return streak
 
     def habito(self, user_id: str, argstr: str) -> str:
+        lang = self._memory.assistant_lang()
         name = argstr.strip()
         if not name:
-            return "Uso: /habito <nome>. Ex: /habito treino"
+            return _t(lang, "hab.create_usage")
         if self._memory.find_habit(user_id, name):
-            return f"O hábito '{name}' já existe."
+            return _t(lang, "hab.exists", name=name)
         self._memory.add_habit(user_id, name)
-        return f"Hábito '{name}' criado. Marque como feito com /feito {name}"
+        return _t(lang, "hab.created", name=name)
 
     def feito(self, user_id: str, argstr: str) -> str:
+        lang = self._memory.assistant_lang()
         name = argstr.strip()
         if not name:
-            return "Uso: /feito <nome do hábito>. Ex: /feito treino"
+            return _t(lang, "hab.done_usage")
         h = self._memory.find_habit(user_id, name)
         if not h:
-            return f"Não achei o hábito '{name}'. Crie com /habito {name}"
+            return _t(lang, "hab.not_found_create", name=name)
         today = self._now().date()
         ok = self._memory.log_habit(h["id"], today.strftime("%Y-%m-%d"))
-        streak = self._streak(h["id"], today)
+        streak = _plural(lang, "count.days", self._streak(h["id"], today))
         if not ok:
-            return f"'{h['name']}' já estava marcado hoje. Sequência: {streak} dia(s)."
-        return f"Boa! '{h['name']}' feito hoje. Sequência: {streak} dia(s)."
+            return _t(lang, "hab.already", name=h["name"], streak=streak)
+        return _t(lang, "hab.done", name=h["name"], streak=streak)
 
     def habitos(self, user_id: str) -> str:
+        lang = self._memory.assistant_lang()
         habits = self._memory.list_habits(user_id)
         if not habits:
-            return "Você não tem hábitos. Crie com /habito <nome>."
+            return _t(lang, "hab.none")
         today = self._now().date()
         today_s = today.strftime("%Y-%m-%d")
-        lines = ["✅ Seus hábitos (hoje):"]
+        lines = [_t(lang, "hab.list_title")]
         for h in habits:
             done = "[x]" if today_s in self._memory.habit_days(h["id"]) else "[ ]"
-            lines.append(f"{done} {h['name']} — sequência: {self._streak(h['id'], today)} dia(s)")
-        lines.append("\nMarcar: /feito <nome> · Apagar: /habitorm <nome>")
+            streak = _plural(lang, "count.days", self._streak(h["id"], today))
+            lines.append(_t(lang, "hab.list_line", done=done, name=h["name"], streak=streak))
+        lines.append(_t(lang, "hab.list_footer"))
         return "\n".join(lines)
 
     def habitorm(self, user_id: str, argstr: str) -> str:
+        lang = self._memory.assistant_lang()
         name = argstr.strip()
         if not name:
-            return "Uso: /habitorm <nome>. Ex: /habitorm treino"
+            return _t(lang, "hab.rm_usage")
         h = self._memory.find_habit(user_id, name)
         if not h:
-            return f"Não achei o hábito '{name}'."
+            return _t(lang, "hab.not_found", name=name)
         self._memory.delete_habit(user_id, h["id"])
-        return f"Hábito '{h['name']}' removido."
+        return _t(lang, "hab.removed", name=h["name"])
