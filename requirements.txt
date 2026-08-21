@@ -42,7 +42,7 @@ python-multipart>=0.0.9
 pillow>=12.3.0
 
 # Web Push notifications (reminders with the app closed)
-pywebpush>=1.14.0
+pywebpush>=2.4.0
 
 # HTTP client for local_agent.py (the PC-side task executor)
 requests>=2.31.0
