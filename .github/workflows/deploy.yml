@@ -36,6 +36,13 @@ jobs:
     needs: [test, lint]  # only runs if tests + lint pass
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    # Serialize deploys: a burst of merges (e.g. several Dependabot PRs at once)
+    # must NOT run this job in parallel — concurrent deploys raced on the shared
+    # ~/ev.tgz on the VM and corrupted the tarball mid-transfer. Queue them
+    # instead (cancel-in-progress: false → never abort a deploy mid scp/ssh).
+    concurrency:
+      group: deploy-ev-vm
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v7
 
@@ -49,15 +56,20 @@ jobs:
         env:
           VM: ${{ secrets.VM_USER }}@${{ secrets.VM_IP }}
         run: |
-          tar czf /tmp/ev.tgz ev run_telegram.py run_terminal.py run_web.py \
+          # Unique artifact name per run so overlapping deploys can never read a
+          # tarball another job is still writing (belt-and-suspenders alongside
+          # the concurrency guard above). Cleaned up on the VM after extraction.
+          PKG="ev-${GITHUB_SHA}.tgz"
+          tar czf "/tmp/${PKG}" ev run_telegram.py run_terminal.py run_web.py \
             requirements.txt deploy docs tests authorize_google.py README.md
           scp -i ~/.ssh/id_key -o StrictHostKeyChecking=accept-new \
-            /tmp/ev.tgz "$VM:~/ev.tgz"
-          ssh -i ~/.ssh/id_key -o StrictHostKeyChecking=accept-new "$VM" '
+            "/tmp/${PKG}" "$VM:~/${PKG}"
+          ssh -i ~/.ssh/id_key -o StrictHostKeyChecking=accept-new "$VM" "
             cd ~/ev &&
-            tar xzf ~/ev.tgz &&
+            tar xzf ~/${PKG} &&
+            rm -f ~/${PKG} &&
             ./.venv/bin/pip install -q -r requirements.txt &&
             sudo systemctl restart ev &&
             (sudo systemctl restart ev-web 2>/dev/null || true) &&
             sleep 5 &&
-            systemctl is-active ev'
+            systemctl is-active ev"
