@@ -10,10 +10,11 @@ import html
 import re
 from datetime import datetime, timedelta, timezone
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram import BotCommand, InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
 from ...core import health
+from ...core.commands import command_list
 from ...core.memory import Memory
 from ...providers import tools as tools_mod
 
@@ -229,6 +230,14 @@ class CommandsWrappersMixin:
             await update.message.reply_text("Opções: en, pt.")
             return
         lang = self._memory.set_assistant_lang(arg)
+        # Refresh the "/" command menu so it shows names in the new language too
+        # (set_my_commands is otherwise only called once, at bot startup).
+        try:
+            await c.bot.set_my_commands(
+                [BotCommand(n, d) for n, d in command_list(lang)]
+            )
+        except Exception:
+            pass
         await update.message.reply_text(
             f"🌐 Pronto — agora respondo e falo em <b>{self._LANG_LABELS.get(lang, lang)}</b>.",
             parse_mode="HTML",

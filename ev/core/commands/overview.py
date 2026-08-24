@@ -165,8 +165,8 @@ class OverviewMixin:
         else:
             on = not cur
         self._memory.set_setting("serious_mode", "1" if on else "0")
-        return ("🔴 Modo foco ativado. Foco total."
-                if on else "Modo foco desativado. De volta ao normal.")
+        lang = self._memory.assistant_lang()
+        return _t(lang, "ov.focus_on") if on else _t(lang, "ov.focus_off")
 
     def budget_alerts(self, user_id: str, warn_pct: int = 80) -> list:
         """Budgets at/over threshold this month. level='over' (>=100%) or

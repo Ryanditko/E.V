@@ -64,6 +64,31 @@ def test_serious_mode(tmp_path):
     assert client.get("/api/panel", headers=_auth()).json()["serious"] is False
 
 
+def test_focus_command_localized(tmp_path):
+    """Regression: /focus (and /modo) hardcoded Portuguese output regardless of
+    assistant_lang, even though the i18n keys already existed."""
+    client, _ = _client(tmp_path)
+    client.post("/api/lang", json={"lang": "en"}, headers=_auth())
+    on = client.post("/api/cmd", json={"command": "focus"}, headers=_auth()).json()
+    assert "Focus mode on" in on["reply"]
+    off = client.post("/api/cmd", json={"command": "focus"}, headers=_auth()).json()
+    assert "Focus mode off" in off["reply"]
+    client.post("/api/lang", json={"lang": "pt"}, headers=_auth())
+    pt = client.post("/api/cmd", json={"command": "modo"}, headers=_auth()).json()
+    assert "Modo foco ativado" in pt["reply"]
+
+
+def test_telegram_only_redirect_shows_localized_command_name(tmp_path):
+    """Regression: the web console's redirect message for Telegram-only
+    commands (/export, /document, ...) always named the command in Portuguese
+    (e.g. "/exportar is better...") even when the reply itself was in English."""
+    client, _ = _client(tmp_path)
+    client.post("/api/lang", json={"lang": "en"}, headers=_auth())
+    r = client.post("/api/cmd", json={"command": "export"}, headers=_auth()).json()
+    assert "/export " in r["reply"]
+    assert "exportar" not in r["reply"]
+
+
 def test_lang_setting(tmp_path):
     client, _ = _client(tmp_path)
     # default is English when unset

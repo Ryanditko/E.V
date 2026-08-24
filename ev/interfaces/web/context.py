@@ -20,7 +20,7 @@ import logging
 from ...core import health
 from ...core.brain import Brain
 from ...core.i18n import t as _t
-from ...core.commands import Commands, portuguese_name
+from ...core.commands import Commands, english_name, portuguese_name
 from ...core.memory import Memory
 from ...providers import tools as tools_mod
 
@@ -186,7 +186,8 @@ class WebContext:
                 f"Trecho de [{chunk['source']}]:\n{chunk['chunk']}")
             return out or _t(lang, "web.quiz_fail")
         if name in ("foco", "exportar", "transcrever", "documento", "insights", "menu"):
-            return _t(lang, "web.telegram_only", name=name)
+            shown = english_name(name) if lang == "en" else name
+            return _t(lang, "web.telegram_only", name=shown)
         return commands.run(owner, name, rest)  # -> "não conheço"
 
     def base_url(self, request) -> str:
