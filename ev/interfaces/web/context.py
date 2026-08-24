@@ -22,6 +22,7 @@ from ...core.brain import Brain
 from ...core.i18n import t as _t
 from ...core.commands import Commands, english_name, portuguese_name
 from ...core.memory import Memory
+from ...core.timeparse import parse_when
 from ...providers import tools as tools_mod
 
 log = logging.getLogger("ev.web")
@@ -96,6 +97,43 @@ class WebContext:
             mark = _t(lang, "status.ok") if k["ok"] else (k["note"] or _t(lang, "status.no"))
             out.append(f"- {k['name']}: {mark}")
         return "\n".join(out)
+
+    def _local_tz(self):
+        try:
+            from zoneinfo import ZoneInfo
+            return ZoneInfo(self.config.timezone) if self.config.timezone else None
+        except Exception:
+            return None
+
+    def _mute(self, argstr: str, lang: str) -> str:
+        """Do-not-disturb toggle for the web console (parity with Telegram's
+        /silenciar): /mute [duration|off]. Shares `quiet_until` in settings —
+        the same setting Telegram's proactive loops already read."""
+        from datetime import datetime, timezone
+        memory, tz = self.memory, self._local_tz()
+        now = datetime.now(timezone.utc)
+        arg = (argstr or "").strip().lower()
+        if not arg:
+            until_s = memory.get_setting("quiet_until")
+            until_dt = None
+            if until_s:
+                try:
+                    until_dt = datetime.fromisoformat(until_s)
+                except Exception:
+                    until_dt = None
+            if until_dt and now < until_dt:
+                local = until_dt.astimezone(tz) if tz else until_dt
+                return _t(lang, "web.mute_status_on", until=local.strftime("%d/%m %H:%M"))
+            return _t(lang, "web.mute_status_off")
+        if arg in ("off", "0", "fim", "desligar", "ligar"):
+            memory.set_setting("quiet_until", "")
+            return _t(lang, "web.mute_off_confirm")
+        until_dt, remainder = parse_when(arg, now)
+        if not until_dt or remainder.strip():
+            return _t(lang, "web.mute_bad_duration")
+        memory.set_setting("quiet_until", until_dt.isoformat())
+        local = until_dt.astimezone(tz) if tz else until_dt
+        return _t(lang, "web.mute_set_confirm", until=local.strftime("%d/%m %H:%M"))
 
     async def run_command(self, cmd_str: str, thread=None) -> str:
         """Run a slash command from the web (data + interface commands)."""
@@ -185,6 +223,8 @@ class WebContext:
                 "objetiva e a resposta. Formato:\nPERGUNTA: <pergunta>\nRESPOSTA: <resposta>",
                 f"Trecho de [{chunk['source']}]:\n{chunk['chunk']}")
             return out or _t(lang, "web.quiz_fail")
+        if name == "silenciar":
+            return self._mute(rest, lang)
         if name in ("foco", "exportar", "transcrever", "documento", "insights", "menu"):
             shown = english_name(name) if lang == "en" else name
             return _t(lang, "web.telegram_only", name=shown)
