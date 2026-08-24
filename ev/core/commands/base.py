@@ -477,4 +477,4 @@ class Commands(
         try:
             return fn(user_id, argstr or "")
         except Exception as exc:  # never crash the chat turn
-            return _t(lang, "cmd.error", key=key, exc=exc)
+            return _t(lang, "cmd.error", cmd=key, exc=exc)

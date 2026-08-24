@@ -736,7 +736,7 @@ _CATALOG: dict[str, dict[str, str]] = {
         "en": "I don't know the command '{name}'. Commands I can run: {cmds}",
         "pt": "Não conheço o comando '{name}'. Comandos que posso executar: {cmds}",
     },
-    "cmd.error": {"en": "Error running {key}: {exc}", "pt": "Erro ao executar {key}: {exc}"},
+    "cmd.error": {"en": "Error running {cmd}: {exc}", "pt": "Erro ao executar {cmd}: {exc}"},
     "help.text": {
         "en": (
             "🕷️ E.V. — all commands\n"
