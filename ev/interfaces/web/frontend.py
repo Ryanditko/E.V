@@ -1386,6 +1386,9 @@ function applyLang(lang,initial){_lang=I18N[lang]?lang:'en';localStorage.setItem
     // Unified control: choosing the UI language also sets how E.V. talks
     // (LLM replies + TTS voice). Fire-and-forget, like the focus-mode toggle.
     try{fetch('/api/lang',{method:'POST',headers:H(),body:JSON.stringify({lang:_lang})}).catch(()=>{});}catch(e){}
+    // Refresh the slash-command palette so it shows names in the new language
+    // right away (it's otherwise only fetched once, at page load).
+    try{fetch('/api/commands',{headers:H()}).then(r=>r.json()).then(d=>{if(d&&d.commands)COMMANDS=d.commands;}).catch(()=>{});}catch(e){}
     try{if(typeof renderTabs==='function')renderTabs();}catch(e){}
     try{if(typeof renderActs==='function')renderActs();}catch(e){}
     try{if(typeof renderStats==='function')renderStats();}catch(e){}
