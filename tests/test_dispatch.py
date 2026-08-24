@@ -48,6 +48,18 @@ def test_run_unknown_command(tmp_path):
     assert "don't know" in out.lower()
 
 
+def test_run_never_crashes_on_internal_exception(tmp_path, monkeypatch):
+    """A command raising internally must produce a friendly cmd.error message,
+    not propagate — regression test for a `_t(..., key=key, ...)` kwarg
+    collision with t()'s own `key` parameter that made the error handler
+    itself raise TypeError, crashing the whole chat/voice turn."""
+    c = _commands(tmp_path)
+    monkeypatch.setattr(c, "tarefa", lambda u, a: (_ for _ in ()).throw(ValueError("boom")))
+    out = c.run("u", "tarefa", "x")
+    assert "tarefa" in out
+    assert "boom" in out
+
+
 def test_runnable_lists_core_commands(tmp_path):
     names = _commands(tmp_path).runnable()
     for expected in ("tarefa", "gasto", "habito", "lembrete", "esquecer", "diario"):
