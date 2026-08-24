@@ -847,6 +847,30 @@ _CATALOG: dict[str, dict[str, str]] = {
         "pt": ("\nPra apagar por categoria, use as abas (Tarefas/Gastos/...) "
                "ou o /dados no Telegram (com dupla confirmação pra apagar tudo)."),
     },
+    "web.mute_status_on": {
+        "en": "🔕 Do not disturb until {until}.\nTurn notifications back on: /mute off",
+        "pt": "🔕 Não perturbe até {until}.\nPara ligar avisos: /silenciar off",
+    },
+    "web.mute_status_off": {
+        "en": ("🔔 Automatic notifications are on.\nMute: /mute 2h (or 30m, 1d). "
+               "Turn off: /mute off"),
+        "pt": ("🔔 Avisos automáticos ativos.\nSilenciar: /silenciar 2h (ou 30m, 1d). "
+               "Desligar: /silenciar off"),
+    },
+    "web.mute_off_confirm": {
+        "en": "🔔 Automatic notifications turned back on.",
+        "pt": "🔔 Avisos automáticos religados.",
+    },
+    "web.mute_bad_duration": {
+        "en": "I didn't understand. Use /mute 2h, 30m or 1d.",
+        "pt": "Não entendi. Use /silenciar 2h, 30m ou 1d.",
+    },
+    "web.mute_set_confirm": {
+        "en": ("🔕 Ok, no automatic notifications until {until}. "
+               "(Reminders you've set will still arrive.)"),
+        "pt": ("🔕 Ok, não te aviso automaticamente até {until}. "
+               "(Lembretes que você marcou continuam chegando.)"),
+    },
     "web.summarize_usage": {"en": "Usage: /summarize <url>", "pt": "Uso: /resumir <url>"},
     "web.page_error": {
         "en": "Couldn't open the page ({e}).",

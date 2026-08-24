@@ -89,6 +89,27 @@ def test_telegram_only_redirect_shows_localized_command_name(tmp_path):
     assert "exportar" not in r["reply"]
 
 
+def test_mute_command_web_parity(tmp_path):
+    """/mute (silenciar) was Telegram-only; now the web console supports it
+    too, sharing the same `quiet_until` setting Telegram's proactive loops
+    already read (muting from either surface mutes both)."""
+    client, _ = _client(tmp_path)
+    client.post("/api/lang", json={"lang": "en"}, headers=_auth())
+    off = client.post("/api/cmd", json={"command": "mute"}, headers=_auth()).json()
+    assert "Automatic notifications are on" in off["reply"]
+    bad = client.post("/api/cmd", json={"command": "mute xyz"}, headers=_auth()).json()
+    assert "didn't understand" in bad["reply"]
+    on = client.post("/api/cmd", json={"command": "mute 2h"}, headers=_auth()).json()
+    assert "Ok, no automatic notifications until" in on["reply"]
+    status = client.post("/api/cmd", json={"command": "mute"}, headers=_auth()).json()
+    assert "Do not disturb until" in status["reply"]
+    resumed = client.post("/api/cmd", json={"command": "mute off"}, headers=_auth()).json()
+    assert "turned back on" in resumed["reply"]
+    client.post("/api/lang", json={"lang": "pt"}, headers=_auth())
+    pt = client.post("/api/cmd", json={"command": "silenciar 30m"}, headers=_auth()).json()
+    assert "não te aviso automaticamente" in pt["reply"]
+
+
 def test_lang_setting(tmp_path):
     client, _ = _client(tmp_path)
     # default is English when unset
