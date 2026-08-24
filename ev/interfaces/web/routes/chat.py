@@ -50,7 +50,11 @@ def build_router(ctx: WebContext) -> APIRouter:
         except Exception:
             phrase = _t(memory.assistant_lang(), "greeting.welcome_back", name="Ryan")
         try:
-            audio, mime = await voice_mod.synth_web(config, phrase)
+            # Pass the assistant language so the boot briefing is SPOKEN in the
+            # right voice (en-US when English) — the phrase text already honors
+            # it via spoken_status; without this it fell back to the pt-BR voice.
+            audio, mime = await voice_mod.synth_web(
+                config, phrase, lang=memory.assistant_lang())
         except Exception:
             audio, mime = b"", "audio/mpeg"
         return R(content=audio, media_type=mime)
