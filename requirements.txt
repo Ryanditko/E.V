@@ -36,7 +36,7 @@ python-docx>=1.1.0
 # Web interface (use E.V. from any browser)
 fastapi>=0.110.0
 uvicorn>=0.52.1
-python-multipart>=0.0.9
+python-multipart>=0.0.32
 
 # PWA app icons (rendered as PNG) for the installable web app
 pillow>=12.3.0
