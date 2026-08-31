@@ -50,7 +50,7 @@ requests>=2.31.0
 # Real browser automation for local_agent.py 'browser' tasks (optional — only
 # needed on the machine running local_agent.py, not on the server). After
 # installing, also run: playwright install chromium
-playwright>=1.40.0
+playwright>=1.62.0
 
 # Tests (dev)
 pytest>=8.0.0
