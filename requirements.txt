@@ -20,7 +20,7 @@ truststore>=0.10.4
 tzdata>=2024.1
 
 # Web search tool (DuckDuckGo, no API key)
-ddgs>=9.15.0
+ddgs>=9.16.0
 
 # Google Calendar & Gmail tools (optional — used only if GOOGLE_OAUTH_CLIENT set)
 google-api-python-client>=2.100.0
