@@ -34,7 +34,7 @@ reportlab>=4.0.0
 python-docx>=1.1.0
 
 # Web interface (use E.V. from any browser)
-fastapi>=0.110.0
+fastapi>=0.141.1
 uvicorn>=0.52.4
 python-multipart>=0.0.9
 
