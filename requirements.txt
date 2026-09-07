@@ -53,4 +53,4 @@ requests>=2.31.0
 playwright>=1.62.0
 
 # Tests (dev)
-pytest>=8.0.0
+pytest>=9.1.1
