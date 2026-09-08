@@ -321,8 +321,8 @@ class OverviewMixin:
                 })
 
         # 2) Spending: already spent more on a category than ALL of last month.
-        label, cur_start, _cur_end = self._month_bounds(0)
-        _, prev_start, prev_end = self._month_bounds(-1)
+        label, cur_start, _cur_end = self._month_bounds(0, now=now)
+        _, prev_start, prev_end = self._month_bounds(-1, now=now)
 
         def _by_cat(rows):
             agg: dict[str, float] = {}
