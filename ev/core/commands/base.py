@@ -341,11 +341,11 @@ class Commands(
         except Exception:
             return datetime.now()
 
-    def _month_bounds(self, offset: int = 0) -> tuple[str, str, str]:
+    def _month_bounds(self, offset: int = 0, now: datetime | None = None) -> tuple[str, str, str]:
         """Boundaries of a calendar month in the user's LOCAL timezone, returned as
         UTC ISO strings for querying (expenses are stored in UTC). offset 0 = current
         month, -1 = previous. Returns (label 'MM/YYYY', start_iso_utc, end_iso_utc)."""
-        first = self._now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        first = (now or self._now()).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         if offset:
             first = add_months(first, offset)
         nxt = add_months(first, 1)
