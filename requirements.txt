@@ -31,7 +31,7 @@ pypdf>=6.16.2
 
 # Document generation (E.V. creates PDF / Word files) — pure-Python, no system libs
 reportlab>=4.0.0
-python-docx>=1.1.0
+python-docx>=1.2.0
 
 # Web interface (use E.V. from any browser)
 fastapi>=0.141.1
