@@ -45,7 +45,7 @@ pillow>=12.3.0
 pywebpush>=2.5.0
 
 # HTTP client for local_agent.py (the PC-side task executor)
-requests>=2.31.0
+requests>=2.34.2
 
 # Real browser automation for local_agent.py 'browser' tasks (optional — only
 # needed on the machine running local_agent.py, not on the server). After
