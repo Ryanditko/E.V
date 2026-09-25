@@ -5,7 +5,7 @@ google-genai>=2.23.0
 openai>=3.9.0
 
 # Interface — Telegram bot (async)
-python-telegram-bot>=21.0
+python-telegram-bot>=22.8
 
 # Voice (text -> speech), free
 edge-tts>=7.2.8
