@@ -1,0 +1,58 @@
+{
+  "_comment": "Export for the 'HTTP Shortcuts' Android app (Waboodoo). Import via the app's menu -> Import/Export -> Import from file. The bearer token is intentionally left blank below (authentication.password) -- fill it in per-shortcut after import, never commit the real EV_WEB_TOKEN here. Replace <tailnet> in both URLs with your actual Tailscale tailnet hostname. If the import format doesn't match your installed app version exactly, use the manual setup table in docs/ANDROID_WIDGET.md instead.",
+  "categories": [
+    {
+      "id": "ev-quick-add",
+      "name": "EV Quick Add",
+      "shortcuts": [
+        {
+          "id": "ev-add-expense",
+          "name": "Gasto",
+          "iconName": "flat_grey_currency",
+          "method": "POST",
+          "url": "https://<tailnet>.ts.net/api/expenses",
+          "headers": [
+            { "key": "Content-Type", "value": "application/json" }
+          ],
+          "authentication": {
+            "type": "bearer",
+            "token": ""
+          },
+          "requestBodyType": "json",
+          "jsonBody": "{\"amount\": \"{{amount}}\", \"description\": \"{{desc}}\", \"category\": \"geral\"}",
+          "parameters": [
+            { "id": "amount", "type": "number", "name": "amount", "title": "Valor do gasto (R$)" },
+            { "id": "desc", "type": "text", "name": "desc", "title": "Descrição (opcional)", "required": false }
+          ],
+          "responseHandling": {
+            "successMessage": "Gasto registrado",
+            "failureOutput": "dialog"
+          }
+        },
+        {
+          "id": "ev-add-task",
+          "name": "Tarefa",
+          "iconName": "flat_grey_check",
+          "method": "POST",
+          "url": "https://<tailnet>.ts.net/api/tasks",
+          "headers": [
+            { "key": "Content-Type", "value": "application/json" }
+          ],
+          "authentication": {
+            "type": "bearer",
+            "token": ""
+          },
+          "requestBodyType": "json",
+          "jsonBody": "{\"text\": \"{{text}}\", \"category\": \"\", \"recur\": \"\", \"due\": \"\"}",
+          "parameters": [
+            { "id": "text", "type": "text", "name": "text", "title": "Nova tarefa" }
+          ],
+          "responseHandling": {
+            "successMessage": "Tarefa criada",
+            "failureOutput": "dialog"
+          }
+        }
+      ]
+    }
+  ]
+}
