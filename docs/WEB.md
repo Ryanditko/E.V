@@ -9,6 +9,10 @@ Telegram bot.
 - Conversations are scoped into folders — each is its own thread
   (`conv_id="web:<folder>"`, nesting via `web:parent/child`); durable data stays shared.
 - Auth: a single bearer token, `EV_WEB_TOKEN` (stored in the browser's localStorage).
+- Same token also works from outside the browser — see
+  [docs/ANDROID_WIDGET.md](ANDROID_WIDGET.md) for a one-tap Android home-screen
+  widget that adds an expense or task directly against `/api/expenses` /
+  `/api/tasks`, no app open required.
 
 ## What's in the UI
 

@@ -475,6 +475,7 @@ CI runs the suite as a **gate before every deploy** — a red test never ships.
 | [docs/SETUP.md](docs/SETUP.md) | First-machine walkthrough (keys, Google, deploy) |
 | [docs/KEYS.md](docs/KEYS.md) | Every service, variable and cost |
 | [docs/WEB.md](docs/WEB.md) | The web console, endpoints, voice, HTTPS |
+| [docs/ANDROID_WIDGET.md](docs/ANDROID_WIDGET.md) | One-tap Android widget for quick expense/task add |
 | [docs/architecture.md](docs/architecture.md) | Design & diagrams |
 | [docs/STACK.md](docs/STACK.md) | Every tool, library & service used |
 | [docs/CAPABILITIES.md](docs/CAPABILITIES.md) | Full capability reference |
