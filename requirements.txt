@@ -11,7 +11,7 @@ python-telegram-bot>=22.8
 edge-tts>=7.2.8
 
 # Load variables from .env
-python-dotenv>=1.2.3
+python-dotenv>=1.2.4
 
 # Use the OS trust store (fixes TLS behind a corporate proxy)
 truststore>=0.10.4
