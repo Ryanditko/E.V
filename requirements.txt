@@ -8,7 +8,7 @@ openai>=3.29.0
 python-telegram-bot>=22.8
 
 # Voice (text -> speech), free
-edge-tts>=7.2.8
+edge-tts>=7.3.1
 
 # Load variables from .env
 python-dotenv>=1.2.4
