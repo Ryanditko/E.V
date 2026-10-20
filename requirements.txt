@@ -2,7 +2,7 @@
 google-genai>=2.30.1
 
 # Fallback providers (Groq, OpenRouter) — OpenAI-compatible API
-openai>=3.22.0
+openai>=3.29.0
 
 # Interface — Telegram bot (async)
 python-telegram-bot>=22.8
