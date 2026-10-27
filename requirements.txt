@@ -14,7 +14,7 @@ edge-tts>=7.3.1
 python-dotenv>=1.2.4
 
 # Use the OS trust store (fixes TLS behind a corporate proxy)
-truststore>=0.10.4
+truststore>=0.10.5
 
 # Timezone database (so ZoneInfo works on minimal systems, e.g. the VM)
 tzdata>=2026.5
