@@ -1,5 +1,5 @@
 # Brain (LLM) — Google Gemini SDK (primary provider) + embeddings
-google-genai>=2.31.0
+google-genai>=2.33.0
 
 # Fallback providers (Groq, OpenRouter) — OpenAI-compatible API
 openai>=3.35.1
