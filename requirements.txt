@@ -17,7 +17,7 @@ python-dotenv>=1.2.4
 truststore>=0.10.5
 
 # Timezone database (so ZoneInfo works on minimal systems, e.g. the VM)
-tzdata>=2026.5
+tzdata>=2026.6
 
 # Web search tool (DuckDuckGo, no API key)
 ddgs>=9.16.0
